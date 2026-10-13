@@ -15,6 +15,7 @@ class Junction {
     this.occ = [];          // zugelassene Fahrzeuge {v, m, h, d}
     this.appr = [];         // Annäherungen in diesem Schritt
     this.mainArms = 0;      // Seiten (Arme) der Hauptstraße
+    this.noLeft = 0;        // Einfahrtsrichtungen mit Linksabbiegeverbot
     this.light = null;
     this.off = false;       // Stromausfall
     this.waitEma = new Float32Array(4);
@@ -162,6 +163,43 @@ class Junction {
       }
       L.rem = CFG.allRed - L.t;
     }
+  }
+
+  // Grüne Welle: Versatz und Umlaufzeit auf die nächste Festzeit-Ampel entlang einer Achse abstimmen
+  greenWave() {
+    const w = this.w, L = this.light;
+    if (!L || L.smart) return { ok: false, msg: 'Nur für Festzeit-Ampeln möglich.' };
+    let best = null;
+    for (let s = 0; s < 4; s++) {
+      let t = this.i, n = 0;
+      while (n < 16) {
+        if (!((w.link[t] >> s) & 1)) break;
+        t = w.nb(t, s); n++;
+        if (t < 0 || !w.road[t]) break;
+        const K = w.jc[t];
+        if (K && K.type === 'light' && K.light && !K.light.smart && K.light.phases.length) { if (!best || n < best.n) best = { K, n, s }; break; }
+      }
+    }
+    if (!best) return { ok: false, msg: 'Keine Festzeit-Ampel in gerader Linie (bis 16 Felder) gefunden.' };
+    const K = best.K, LK = K.light;
+    const h = OPP[best.s]; // Fahrtrichtung von K nach hier
+    const st = 1 << TT_STRAIGHT;
+    const pK = LK.phases.findIndex(p => p.allow[h] & st), pJ = L.phases.findIndex(p => p.allow[h] & st);
+    if (pK < 0 || pJ < 0) return { ok: false, msg: 'Eine der Ampeln gibt der Achse nie Grün für Geradeaus.' };
+    const lost = CFG.yellow + CFG.allRed;
+    const cycK = K.cycleLen();
+    const target = cycK - L.phases.length * lost;
+    if (target < L.phases.length * 4) return { ok: false, msg: 'Umlaufzeit der Nachbarampel ist zu kurz.' };
+    const sum = L.phases.reduce((a, p) => a + p.g, 0);
+    let acc = 0;
+    L.phases.forEach((p, k) => { p.g = k === L.phases.length - 1 ? Math.max(4, target - acc) : Math.max(4, Math.round(p.g * target / sum)); acc += p.g; });
+    const cyc = this.cycleLen();
+    const start = (Lx, idx) => { let t = 0; for (let k = 0; k < idx; k++) t += Lx.phases[k].g + lost; return t; };
+    const T = best.n / CFG.roadSpeed[w.road[this.i] === 2 ? 2 : 1];
+    let off = start(L, pJ) - start(LK, pK) + LK.offset - T;
+    off = ((off % cyc) + cyc) % cyc;
+    L.offset = Math.round(off);
+    return { ok: true, msg: 'Abgestimmt auf die Ampel ' + best.n + ' Felder ' + ['nördlich', 'östlich', 'südlich', 'westlich'][best.s] + ' (Fahrzeit ca. ' + Math.round(T) + ' s, Umlauf ' + Math.round(cyc) + ' s).' };
   }
 
   lightActive() { return this.type === 'light' && !this.off && this.light && this.light.phases.length > 0; }
@@ -450,12 +488,14 @@ class Junction {
   // ---- Speichern -------------------------------------------------------------------
   serialize() {
     const o = { type: this.type };
+    if (this.noLeft) o.noLeft = this.noLeft;
     if (this.type === 'priority') o.main = this.mainArms;
     if (this.light) o.light = { phases: this.light.phases.map(p => ({ g: p.g, allow: p.allow.slice() })), offset: this.light.offset, smart: this.light.smart, paid: !!this.light.paid };
     return o;
   }
   deserialize(o) {
     this.type = o.type;
+    this.noLeft = o.noLeft || 0;
     if (o.type === 'priority') this.mainArms = o.main;
     if (o.light) {
       this.light = { phases: o.light.phases.map(p => ({ g: p.g, allow: p.allow.slice() })), offset: o.light.offset || 0, smart: !!o.light.smart, paid: !!o.light.paid || !!o.light.smart, idx: 0, stage: 0, t: 0, rem: 0 };

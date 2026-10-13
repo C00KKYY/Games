@@ -108,7 +108,8 @@ class UI {
     el.clock = h('span', { class: 'v mono' });
     el.day = h('span', { class: 'k' });
     el.weather = h('span', { class: 'wx' });
-    const clockChip = h('div', { class: 'chip clock', title: 'Spielzeit' }, el.day, el.clock, el.weather);
+    el.rush = h('span', { class: 'rush', hidden: true });
+    const clockChip = h('div', { class: 'chip clock', title: 'Spielzeit' }, el.day, el.clock, el.weather, el.rush);
     el.satBar = h('i');
     el.satVal = h('span', { class: 'v' });
     el.satChip = h('div', { class: 'chip sat', title: 'Zufriedenheit der Bürger: hängt von Fahrzeiten, Staus, Unfällen und angeschlossenen Gebäuden ab' },
@@ -147,6 +148,11 @@ class UI {
     el.day.textContent = WEEKDAYS_SHORT[g.weekday] + ' · Tag ' + (g.dayIndex + 1);
     const wx = g.city.weather;
     if (el.weather.dataset.w !== wx) { el.weather.dataset.w = wx; el.weather.innerHTML = ICON[WEATHER[wx].icon]; el.weather.title = WEATHER[wx].name; }
+    const hr = (g.minutes % 1440) / 60;
+    const rush = g.weekday < 5 && ((hr >= 6.5 && hr < 9) || (hr >= 15.5 && hr < 18.5));
+    const ev = g.city.stadium && g.city.stadium.pre;
+    const label = ev ? 'Spieltag' : rush ? 'Berufsverkehr' : (g.weekday >= 5 ? 'Wochenende' : '');
+    if (el.rush.textContent !== label) { el.rush.textContent = label; el.rush.hidden = !label; el.rush.classList.toggle('hot', !!(rush || ev)); }
     const s = g.satisfaction;
     el.satBar.style.width = s + '%';
     el.satChip.dataset.lvl = s >= 60 ? 'good' : s >= 35 ? 'warn' : 'bad';
@@ -268,7 +274,9 @@ class UI {
         let f;
         if (s.type === 'sat') f = s.cur / s.target;
         else f = s.cur / s.target;
-        const row = h('div', { class: 'goal' + (s.done ? ' done' : '') },
+        const others = gs.filter(x => !x.live).every(x => x.done);
+        const cls = s.live ? (s.done ? (others ? ' done' : ' live ok') : ' live low') : (s.done ? ' done' : '');
+        const row = h('div', { class: 'goal' + cls },
           h('div', { class: 'goal-top' }, h('span', { text: s.label }), h('b', { text: s.type === 'sat' ? fmtPct(s.cur) : s.fmt(Math.min(s.cur, s.target)) + ' / ' + s.fmt(s.target) })),
           h('div', { class: 'bar' }, h('i', { style: { width: clamp(f, 0, 1) * 100 + '%' } })));
         el.append(row);
@@ -334,15 +342,14 @@ class UI {
     this.app.follow = null;
     if (!sel) { this.insp.hidden = true; return; }
     this.insp.hidden = false;
-    this.renderInspector();
+    this.renderInspector(true);
   }
 
-  renderInspector() {
+  renderInspector(force) {
     const sel = this.app.renderer.selected, g = this.game;
     if (!sel || !g) { this.insp.hidden = true; return; }
     const ins = this.insp;
     const scroll = ins.querySelector('.insp-body') ? ins.querySelector('.insp-body').scrollTop : 0;
-    ins.innerHTML = '';
     let content = null;
     if (sel.kind === 'tile') {
       const w = g.world;
@@ -352,6 +359,11 @@ class UI {
     else if (sel.kind === 'vehicle') content = this.vehiclePanel(sel.id);
     else if (sel.kind === 'line') content = this.linePanel(sel.line);
     if (!content) { this.select(null); return; }
+    // Nur austauschen, wenn sich die Anzeige wirklich geändert hat (kein Flackern)
+    const html = content.outerHTML;
+    if (!force && html === this._inspHtml && ins.firstChild) return;
+    this._inspHtml = html;
+    ins.innerHTML = '';
     ins.append(content);
     const body = ins.querySelector('.insp-body');
     if (body) body.scrollTop = scroll;
@@ -437,6 +449,21 @@ class UI {
     tbl.append(tb);
     body.push(h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Verkehr an dieser Kreuzung' }), this.kv('Durchfahrten', Math.round(J.flowHr) + ' pro Stunde'), tbl,
       J.accidents ? this.kv('Unfälle bisher', String(J.accidents), 'bad') : null));
+    // Linksabbiegeverbote
+    if (J.type !== 'roundabout') {
+      const row = h('div', { class: 'chips' });
+      for (let s = 0; s < 4; s++) {
+        const hd = OPP[s];
+        if (!((J.inMask >> hd) & 1)) continue;
+        if (!((J.arms >> ((hd + 3) & 3)) & 1)) continue; // kein linker Arm
+        const on = (J.noLeft >> hd) & 1;
+        row.append(h('button', { class: 'tog' + (on ? ' on' : ''), title: 'Linksabbiegen für Fahrzeuge von ' + ARM_DE[s] + ' ' + (on ? 'wieder erlauben' : 'verbieten'), onclick: () => {
+          J.noLeft ^= (1 << hd); g.world.markDirty(i); g.onWorldEdit([i]); AUDIO.play('click'); this.renderInspector();
+        } }, (on ? '⛔ ' : '') + 'von ' + ARM_DE[s]));
+      }
+      if (row.children.length) body.push(h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Linksabbiegen verboten' }), row,
+        h('p', { class: 'muted small', text: 'Verbotene Linksabbieger suchen sich andere Wege. Das entschärft Konflikte, kann aber Umwege erzeugen.' })));
+    }
     // Typ-spezifisch
     if (J.type === 'auto') body.push(h('p', { class: 'muted', text: 'Ohne Schilder gilt rechts vor links: Wer von rechts kommt, fährt zuerst. Linksabbieger lassen den Gegenverkehr durch. Sicher bei wenig Verkehr, bei Stau schnell überfordert.' }));
     if (J.type === 'priority') body.push(this.priorityEditor(J));
@@ -567,6 +594,12 @@ class UI {
       const offv = h('b', { class: 'mono', text: Math.round(L.offset % cyc) + ' s' });
       box.append(h('div', { class: 'kv' }, h('span', { text: 'Umlaufzeit' }), h('b', { class: 'mono', text: Math.round(cyc) + ' s' })));
       box.append(h('label', { class: 'ph-g wide' }, h('span', { text: 'Versatz' }), off, offv));
+      box.append(h('button', { class: 'btn small ghost', title: 'Umlaufzeit und Versatz auf die nächste Ampel in gerader Linie abstimmen', onclick: () => {
+        const r = J.greenWave();
+        this.toast(r.ok ? 'Grüne Welle' : 'Nicht möglich', r.msg, r.ok ? '' : 'bad');
+        if (r.ok) AUDIO.play('good');
+        this.renderInspector();
+      } }, 'Grüne Welle zur Nachbarampel'));
     }
     return box;
   }
@@ -961,6 +994,15 @@ class UI {
       if (next) buttons.push({ label: 'Nächstes Level', primary: true, onClick: () => this.app.startLevel(next) });
       else buttons.push({ label: 'Zum Hauptmenü', primary: true, onClick: () => this.app.toMenu() });
     } else {
+      if (g.mode === 'endless') {
+        const recs = Store.get('vm_records', {});
+        const key = g.level.id;
+        const prev = recs[key];
+        const cur = { days: g.dayIndex, trips: s.trips, pop: g.population() };
+        const better = !prev || cur.days > prev.days || (cur.days === prev.days && cur.trips > prev.trips);
+        if (better) { recs[key] = cur; Store.set('vm_records', recs); }
+        kpis.append(this.kpi(better ? 'Neuer Rekord!' : 'Rekord', better ? cur.days + ' Tage' : prev.days + ' Tage · ' + fmtInt(prev.trips) + ' Fahrten'));
+      }
       const reason = info.reason === 'money' ? 'Die Stadt ist pleite. Der Rat hat dir die Verantwortung entzogen.' : 'Die Bürger haben genug vom Dauerstau – du wurdest abgewählt.';
       body = h('div', { class: 'end lose' }, h('div', { class: 'ortstafel ende' }, h('div', { class: 'ot-in' }, h('div', { class: 'ot-name', text: g.level.name }), h('div', { class: 'ot-sub', text: g.mode === 'endless' ? 'Endlos-Runde beendet' : 'Auftrag gescheitert' })), h('i', { class: 'ot-strike' })),
         h('p', { class: 'lead', text: reason }), kpis);
@@ -1089,9 +1131,13 @@ class UI {
     let mapId = ENDLESS_MAPS[0].id;
     let seed = Math.floor(Math.random() * 1e6);
     const maps = h('div', { class: 'map-pick' });
+    const recs = Store.get('vm_records', {});
     const render = () => {
       maps.innerHTML = '';
-      for (const m of ENDLESS_MAPS) maps.append(h('button', { class: 'map-opt' + (m.id === mapId ? ' on' : ''), onclick: () => { mapId = m.id; render(); } }, m.name));
+      for (const m of ENDLESS_MAPS) {
+        const r = recs['endless_' + m.id];
+        maps.append(h('button', { class: 'map-opt' + (m.id === mapId ? ' on' : ''), onclick: () => { mapId = m.id; render(); } }, h('span', { text: m.name }), !sandbox && r ? h('small', { text: 'Rekord: ' + r.days + ' Tage' }) : null));
+      }
     };
     render();
     const seedIn = h('input', { type: 'number', id: 'seed-in', value: seed, min: 0, max: 999999, oninput: e => { seed = +e.target.value || 0; } });

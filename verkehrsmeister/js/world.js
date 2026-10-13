@@ -217,6 +217,10 @@ class World {
     if (ctl && ctl.type === 'roundabout') return out;
     let m = out & ~(1 << OPP[h]);
     if (!m) m = out & (1 << OPP[h]);
+    if (ctl && ctl.noLeft && ((ctl.noLeft >> h) & 1)) {
+      const nl = m & ~(1 << ((h + 3) & 3));
+      if (nl) m = nl;
+    }
     return m;
   }
 
@@ -343,7 +347,7 @@ class World {
         type: b.type, x: b.x, y: b.y, dir: b.dir, seed: b.seed, sent: b.sent, recv: b.recv, failed: b.failed,
         rateSum: b.rateSum, rateN: b.rateN, born: b.born, name: b.name, present: b.present,
       }),
-      jc: this.jc.map((c, i) => c && c.type !== 'auto' ? Object.assign({ i }, c.serialize()) : null).filter(Boolean),
+      jc: this.jc.map((c, i) => c && (c.type !== 'auto' || c.noLeft) ? Object.assign({ i }, c.serialize()) : null).filter(Boolean),
     };
   }
 

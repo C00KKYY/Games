@@ -846,6 +846,11 @@ function drawStatic(g, game, x0, y0, x1, y1, scale) {
   }
 }
 
+const WATER_CACHE = [];
+function waterColor(k) {
+  if (!WATER_CACHE[k]) WATER_CACHE[k] = mixHex('#8ccae3', '#6fb1d3', k / 4);
+  return WATER_CACHE[k];
+}
 const GRASS_CACHE = new Map();
 function grassColor(w, x, y) {
   const n = fbm(x / 7, y / 7, w.seed + 5, 3);
@@ -866,9 +871,12 @@ function drawTerrainTile(g, w, x, y, scale) {
     g.fillStyle = PAL.sand;
     g.fillRect(x, y, 1.02, 1.02);
     const n = isW(x, y - 1), e = isW(x + 1, y), s = isW(x, y + 1), wst = isW(x - 1, y);
-    const r = 0.42;
+    const r = 0.5;
     const rTL = !n && !wst ? r : 0, rTR = !n && !e ? r : 0, rBR = !s && !e ? r : 0, rBL = !s && !wst ? r : 0;
-    g.fillStyle = (v & 1) ? PAL.water : PAL.waterDeep;
+    // Tiefe: je mehr Wasser ringsum, desto dunkler
+    let deep = 0;
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (isW(x + dx, y + dy)) deep++;
+    g.fillStyle = waterColor(Math.round(clamp((deep - 12) / 13, 0, 1) * 4));
     g.beginPath();
     g.moveTo(x + rTL, y);
     g.lineTo(x + 1 - rTR, y); if (rTR) g.arcTo(x + 1, y, x + 1, y + rTR, rTR);
@@ -878,8 +886,8 @@ function drawTerrainTile(g, w, x, y, scale) {
     g.closePath();
     g.fill();
     // Wasser über Kachelgrenzen hinaus (Lücken vermeiden)
-    if (e) g.fillRect(x + 0.5, y + (rTR ? r : 0), 0.53, 1 - (rTR ? r : 0) - (rBR ? r : 0));
-    if (s) g.fillRect(x + (rBL ? r : 0), y + 0.5, 1 - (rBL ? r : 0) - (rBR ? r : 0), 0.53);
+    if (e) g.fillRect(x + 0.5, y + (rTR ? r : 0), 0.53, Math.max(0, 1 - (rTR ? r : 0) - (rBR ? r : 0)));
+    if (s) g.fillRect(x + (rBL ? r : 0), y + 0.5, Math.max(0, 1 - (rBL ? r : 0) - (rBR ? r : 0)), 0.53);
     return;
   }
   g.fillStyle = base;
@@ -887,9 +895,9 @@ function drawTerrainTile(g, w, x, y, scale) {
   // konkave Ecken zum Wasser
   {
     const n = isW(x, y - 1), e = isW(x + 1, y), s = isW(x, y + 1), wst = isW(x - 1, y);
-    const r = 0.3;
+    const r = 0.5;
     const corner = (cx, cy, sx, sy) => {
-      g.fillStyle = PAL.water;
+      g.fillStyle = waterColor(0);
       g.fillRect(sx > 0 ? cx : cx - r, sy > 0 ? cy : cy - r, r, r);
       g.fillStyle = base;
       g.beginPath(); g.arc(cx + sx * r, cy + sy * r, r, 0, Math.PI * 2); g.fill();
@@ -1050,7 +1058,8 @@ function shapeFor(g, w, i, x, y, ext, lk, deg, isRound) {
     void a0;
     return;
   }
-  const hw = deg >= 3 ? 0.32 + ext : 0;
+  let hw = 0;
+  if (deg >= 3) { for (let s = 0; s < 4; s++) if ((lk >> s) & 1) hw = Math.max(hw, roadHalf(w, i, s)); hw += ext; }
   if (deg >= 3) g.rect(cx - hw, cy - hw, hw * 2, hw * 2);
   if (deg === 0) { g.rect(cx - 0.3 - ext, cy - 0.3 - ext, 0.6 + ext * 2, 0.6 + ext * 2); return; }
   if (deg === 1) {
@@ -1074,13 +1083,21 @@ function drawRoadMarkings(g, game, w, i, x, y, scale) {
   if (!w.isJ[i]) {
     if (deg === 2 && (w.two[i] & lk) === lk) {
       // Mittellinie (gestrichelt), auf Schnellstraßen durchgezogen doppelt
-      g.lineWidth = w.road[i] === 2 ? 0.025 : 0.035;
-      if (w.road[i] !== 2) g.setLineDash([0.13, 0.12]);
-      g.beginPath();
-      centerLinePath(g, w, i, x, y, lk, 0);
-      g.stroke();
-      if (w.road[i] === 2) { g.beginPath(); centerLinePath(g, w, i, x, y, lk, 0.035); g.stroke(); g.beginPath(); centerLinePath(g, w, i, x, y, lk, -0.035); g.stroke(); }
-      g.setLineDash([]);
+      if (w.road[i] === 2) {
+        g.lineWidth = 0.025;
+        g.beginPath(); centerLinePath(g, w, i, x, y, lk, 0.03); g.stroke();
+        g.beginPath(); centerLinePath(g, w, i, x, y, lk, -0.03); g.stroke();
+        // Randlinien
+        g.globalAlpha = 0.7; g.lineWidth = 0.018;
+        g.beginPath(); centerLinePath(g, w, i, x, y, lk, 0.31); g.stroke();
+        g.beginPath(); centerLinePath(g, w, i, x, y, lk, -0.31); g.stroke();
+        g.globalAlpha = 1;
+      } else {
+        g.lineWidth = 0.035;
+        g.setLineDash([0.13, 0.12]);
+        g.beginPath(); centerLinePath(g, w, i, x, y, lk, 0); g.stroke();
+        g.setLineDash([]);
+      }
     }
     // Einbahnpfeile
     for (let s = 0; s < 4; s++) {
@@ -1119,6 +1136,10 @@ function drawRoadMarkings(g, game, w, i, x, y, scale) {
     }
     // Schilder an der rechten Ecke
     const sx = cx + DX[side] * 0.56 + DX[r] * 0.44, sy = cy + DY[side] * 0.56 + DY[r] * 0.44;
+    if (J.noLeft && ((J.noLeft >> h) & 1) && type !== 'roundabout') {
+      const nx = cx + DX[side] * 0.56 - DX[r] * 0.44, ny = cy + DY[side] * 0.56 - DY[r] * 0.44;
+      drawSignNoLeft(g, nx, ny, h);
+    }
     if (type === 'priority') {
       if (J.isMain(h)) drawSignPriority(g, sx, sy);
       else drawSignYield(g, sx, sy);
@@ -1198,6 +1219,18 @@ function drawSignYield(g, x, y) {
   g.fillStyle = '#fff'; g.strokeStyle = '#dc2626'; g.lineWidth = 0.025;
   g.beginPath(); g.moveTo(x - 0.09, y - 0.07); g.lineTo(x + 0.09, y - 0.07); g.lineTo(x, y + 0.09); g.closePath(); g.fill(); g.stroke();
 }
+function drawSignNoLeft(g, x, y, h) {
+  g.fillStyle = '#fff'; g.strokeStyle = '#dc2626'; g.lineWidth = 0.02;
+  g.beginPath(); g.arc(x, y, 0.075, 0, Math.PI * 2); g.fill(); g.stroke();
+  g.save(); g.translate(x, y); g.rotate([0, Math.PI / 2, Math.PI, -Math.PI / 2][h]);
+  g.strokeStyle = '#111'; g.lineWidth = 0.016;
+  g.beginPath(); g.moveTo(0.02, 0.045); g.lineTo(0.02, -0.01); g.lineTo(-0.035, -0.01); g.stroke();
+  g.beginPath(); g.moveTo(-0.02, -0.03); g.lineTo(-0.04, -0.01); g.lineTo(-0.02, 0.01); g.stroke();
+  g.restore();
+  g.strokeStyle = '#dc2626'; g.lineWidth = 0.018;
+  g.beginPath(); g.moveTo(x - 0.05, y - 0.05); g.lineTo(x + 0.05, y + 0.05); g.stroke();
+}
+
 function drawSignRound(g, x, y) {
   g.fillStyle = '#1d4ed8';
   g.beginPath(); g.arc(x, y, 0.08, 0, Math.PI * 2); g.fill();

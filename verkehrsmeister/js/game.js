@@ -378,7 +378,7 @@ class Game {
     if (!u) { this.notify('Nichts zum Rückgängigmachen.', 'info'); return false; }
     this.restore(u.snap);
     if (!this.sandbox) { this.money += u.cost; this.stats.spent -= Math.max(0, u.cost); }
-    this.notify('Rückgängig: ' + u.label + (u.cost ? ' (' + (u.cost > 0 ? '+' : '') + fmtMoney(u.cost) + ')' : ''), 'info');
+    this.notify('Rückgängig: ' + u.label + (u.cost && !this.sandbox ? ' (' + (u.cost > 0 ? '+' : '') + fmtMoney(u.cost) + ')' : ''), 'info');
     this.audio.play('undo');
     return true;
   }
