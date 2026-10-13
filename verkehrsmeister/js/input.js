@@ -129,7 +129,9 @@ class Input {
     if (!d) return;
     const g = this.game, ui = this.ui;
     if (d.kind === 'road') {
-      if (d.path.length >= 1) g.buildRoad(d.path, d.tool);
+      if (d.path.length >= 2) g.buildRoad(d.path, d.tool);
+      else if (d.path.length === 1 && g.world.road[d.path[0]] && d.tool !== 'oneway') g.buildRoad(d.path, d.tool);
+      else ui.flashHint('Halte die Maustaste gedrückt und ziehe von Feld zu Feld, um eine Straße zu bauen.');
       this.r.preview = null;
       ui.hideCostTip();
       ui.tutCheck();

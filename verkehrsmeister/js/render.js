@@ -223,16 +223,30 @@ class Renderer {
   // ---- Verkehrsdichte ---------------------------------------------------------------
   drawHeatmap(ctx) {
     const w = this.game.world, v = this.view;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = 0.8;
     for (let y = v.y0; y < v.y1; y++) for (let x = v.x0; x < v.x1; x++) {
       const i = y * w.w + x;
       if (!w.road[i]) continue;
       const c = w.cong[i];
       const f = clamp((c - 1) / 3, 0, 1);
-      const col = f < 0.5 ? mixHex('#22c55e', '#facc15', f * 2) : mixHex('#facc15', '#dc2626', (f - 0.5) * 2);
-      ctx.fillStyle = col;
-      ctx.globalAlpha = 0.65;
-      roadShape(ctx, w, i, x, y, 0.5);
-      ctx.fill();
+      ctx.strokeStyle = f < 0.5 ? mixHex('#22c55e', '#facc15', f * 2) : mixHex('#facc15', '#dc2626', (f - 0.5) * 2);
+      ctx.lineWidth = w.two[i] ? 0.34 : 0.24;
+      const lk = w.link[i];
+      const cx = x + 0.5, cy = y + 0.5;
+      ctx.beginPath();
+      if (popcount4(lk) === 2 && lk !== 0b0101 && lk !== 0b1010) {
+        let s1 = -1, s2 = -1;
+        for (let q = 0; q < 4; q++) if ((lk >> q) & 1) { if (s1 < 0) s1 = q; else s2 = q; }
+        ctx.moveTo(cx + DX[s1] * 0.5, cy + DY[s1] * 0.5);
+        ctx.quadraticCurveTo(cx, cy, cx + DX[s2] * 0.5, cy + DY[s2] * 0.5);
+      } else if (!lk) {
+        ctx.moveTo(cx - 0.01, cy); ctx.lineTo(cx + 0.01, cy);
+      } else {
+        for (let q = 0; q < 4; q++) if ((lk >> q) & 1) { ctx.moveTo(cx, cy); ctx.lineTo(cx + DX[q] * 0.5, cy + DY[q] * 0.5); }
+      }
+      ctx.stroke();
     }
     ctx.globalAlpha = 1;
     // Kreuzungen: Wartezeit-Kreise
