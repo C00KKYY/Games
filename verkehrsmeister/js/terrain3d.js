@@ -26,6 +26,8 @@ class Terrain3D {
     engine.scene.add(this.group);
     this.matVC = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 });
     this.matWater = new THREE.MeshStandardMaterial({ color: col(TCOL.water), roughness: 0.25, metalness: 0.05, transparent: true, opacity: 0.82 });
+    this.matTree = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    this.matLine = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 });
     this.waterTime = 0;
   }
 
@@ -172,7 +174,7 @@ class Terrain3D {
     cone(0.12, 0.2, 0.32, col('#ffffff'));
     cone(0.3, 0.15, 0.28, col('#ffffff'));
     const geo = B.geometry();
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
+    const mat = this.matTree;
     // Stammfarbe soll erhalten bleiben → Instanzfarbe multipliziert; daher Krone weiß, Instanzfarbe = Grün
     const mesh = new THREE.InstancedMesh(geo, mat, pos.length);
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3();
@@ -207,7 +209,7 @@ class Terrain3D {
       B.box(x - 0.03, 0, z - 0.03, x + 0.03, 0.55, z + 0.03, dark);
       B.box(x - 0.22, 0.42, z - 0.02, x + 0.22, 0.68, z + 0.02, c);
     }
-    const mesh = new THREE.Mesh(B.geometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }));
+    const mesh = new THREE.Mesh(B.geometry(), this.matLine);
     mesh.castShadow = true;
     this.group.add(mesh);
   }

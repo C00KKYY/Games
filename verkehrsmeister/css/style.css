@@ -101,7 +101,7 @@ svg { width: 1em; height: 1em; display: block; }
 @keyframes tin { from { opacity: 0; transform: translateY(-10px) scale(.96); } to { opacity: 1; transform: none; } }
 
 .vignette { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, rgba(229,72,77,0) 55%, rgba(229,72,77,.55) 100%); transition: opacity .5s; }
-.costhint, .tooltip { position: absolute; padding: 6px 10px; border-radius: 9px; background: rgba(27,31,39,.9); color: #fff; font: 600 13px/1.2 var(--font); display: none; white-space: nowrap; box-shadow: var(--shadow); }
+.costhint, .tooltip { position: absolute; padding: 6px 10px; border-radius: 9px; background: rgba(27,31,39,.9); color: #fff; font: 600 13px/1.25 var(--font); display: none; max-width: min(360px, calc(100vw - 16px)); box-shadow: var(--shadow); }
 .costhint.show, .tooltip.show { display: flex; align-items: center; gap: 6px; }
 .costhint svg { display: inline; font-size: 15px; color: var(--accent); }
 .costhint .neg, .tooltip .neg { color: #ff9a8f; }
@@ -133,6 +133,7 @@ svg { width: 1em; height: 1em; display: block; }
 .banner { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 70px); left: 50%; transform: translateX(-50%); display: none; align-items: center; gap: 10px; background: var(--accent); color: var(--accent-ink); padding: 10px 18px; border-radius: 12px; font: 600 15px var(--font); box-shadow: var(--shadow); }
 .banner.show { display: flex; animation: tin .3s ease-out; }
 .banner svg { font-size: 20px; }
+.banner .x { color: var(--accent-ink); }
 
 /* Modals */
 .modal-wrap { position: absolute; inset: 0; display: none; place-items: center; background: rgba(20,26,36,.38); backdrop-filter: blur(3px); pointer-events: auto; padding: 16px; overflow-y: auto; }
@@ -231,12 +232,13 @@ svg { width: 1em; height: 1em; display: block; }
   .clock-phase { font-size: 11px; }
   .hbtn { width: 38px; height: 38px; font-size: 17px; }
   .hud-tr { gap: 6px; }
-  .toolbar { gap: 2px; padding: 5px; }
-  .tool { width: 44px; min-width: 44px; height: 52px; }
+  .toolbar { gap: 0; padding: 4px; max-width: calc(100vw - 16px); }
+  .tool { width: 40px; min-width: 40px; height: 52px; }
+  .banner { top: auto; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 70px); max-width: calc(100vw - 24px); font-size: 14px; }
   .tool .ic { font-size: 21px; }
   .tool .lbl { display: none; }
   .tool .cnt { top: 1px; right: 0; min-width: 17px; height: 17px; line-height: 17px; font-size: 10.5px; padding: 0 4px; }
-  .tool[data-t=road] { width: 62px; min-width: 62px; }
+  .tool[data-t=road] { width: 56px; min-width: 56px; }
   .toasts { top: calc(max(12px, env(safe-area-inset-top)) + 110px); }
   .toast { font-size: 13px; }
   .inspect { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); }

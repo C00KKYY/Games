@@ -10,6 +10,24 @@ const PREVIEW_COL = {
   bad: '#ff4d4d', swipe: '#ffd23f', erase: '#ff6b5b', highway: '#3b82f6', tool: '#ffffff', toolBad: '#ff4d4d',
 };
 
+// Nur den benutzten Teil der Instanzpuffer hochladen; leere Puffer gar nicht
+function flushInst(mesh, n, color) {
+  mesh.count = n;
+  if (n === 0 && mesh.userData.lastN === 0) return;
+  mesh.userData.lastN = n;
+  const m = mesh.instanceMatrix;
+  m.updateRange.offset = 0; m.updateRange.count = Math.max(1, n) * 16; m.needsUpdate = true;
+  if (color && mesh.instanceColor) { const c = mesh.instanceColor; c.updateRange.offset = 0; c.updateRange.count = Math.max(1, n) * 3; c.needsUpdate = true; }
+}
+
+// Geometrien und eigene Materialien eines entfernten Objekts freigeben (geteilte Materialien bleiben)
+function disposeObj(o) {
+  o.traverse(c => {
+    if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose();
+    if (c.material && !c.material.userData.shared && c.material !== WINDOW_MAT) c.material.dispose();
+  });
+}
+
 class Scene3D {
   constructor(engine, game) {
     this.e = engine;
@@ -19,7 +37,7 @@ class Scene3D {
     engine.scene.add(this.root);
     this.terrain = new Terrain3D(engine);
     this.roads = new Roads3D(engine);
-    this.fleet = new Fleet3D(engine, game.maxVehicles + 260);
+    this.fleet = new Fleet3D(engine, game.maxVehicles + 900);
     this.bmeshes = new Map();
     this.pendingMeshes = new Map();
     this.roadVersion = -1;
@@ -48,7 +66,8 @@ class Scene3D {
     this.terrain.dispose(); S.remove(this.terrain.group);
     S.remove(this.roads.group); freeGeo(this.roads.group);
     for (const k in this.fleet.kinds) { S.remove(this.fleet.kinds[k]); this.fleet.kinds[k].geometry.dispose(); }
-    for (const m of [this.fleet.head, this.fleet.brake, this.fleet.siren]) { S.remove(m); m.geometry.dispose(); }
+    for (const m of [this.fleet.head, this.fleet.brake, this.fleet.siren]) { S.remove(m); m.geometry.dispose(); m.material.dispose(); }
+    this.fleet.glowTex.dispose();
   }
 
   // ---- Instanzierte Helfer -----------------------------------------------------------
@@ -77,6 +96,8 @@ class Scene3D {
     const dot = new THREE.CircleGeometry(0.07, 10); dot.rotateX(-Math.PI / 2);
     this.routeMesh = this.instanced(dot, new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.85, depthWrite: false }), 400);
     this.routeMesh.renderOrder = 6;
+    this.winMesh = this.instanced(new THREE.BoxGeometry(0.07, 0.06, 0.01), WINDOW_MAT, 1600);
+    this.winN = 0;
     // Hover-Rahmen
     const rg = new THREE.RingGeometry(0.5, 0.56, 4, 1); rg.rotateX(-Math.PI / 2); rg.rotateY(Math.PI / 4);
     this.hoverMesh = new THREE.Mesh(rg, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, depthWrite: false }));
@@ -127,14 +148,34 @@ class Scene3D {
   }
 
   addBuilding(b, instant) {
+    if (this.bmeshes.has(b.id)) return;
     const grp = b.kind === 'house' ? makeHouse(b.pi, b.dir, b.seed) : makeDestination(b.pi, b.dir, b.seed);
     grp.position.set(b.x, instant ? 0 : 5, b.y);
     this.root.add(grp);
     if (b.kind === 'dest') b._roof = grp.userData.roofY;
     const rec = { b, grp, vy: 0, land: instant ? 1 : -1, t: 0 };
     this.bmeshes.set(b.id, rec);
+    if (instant) this.settle(rec);
     const pm = this.pendingMeshes.get(b.x * 1000 + b.y);
-    if (pm) { this.root.remove(pm.grp); this.pendingMeshes.delete(b.x * 1000 + b.y); }
+    if (pm) { this.root.remove(pm.grp); disposeObj(pm.grp); this.pendingMeshes.delete(b.x * 1000 + b.y); }
+  }
+
+  // gelandetes Gebäude: Fenster als Instanzen eintragen, Matrix einfrieren
+  settle(rec) {
+    const grp = rec.grp, wins = grp.userData.windows;
+    if (wins && !rec.winDone) {
+      rec.winDone = true;
+      for (const [x, y, z, ry] of wins) {
+        if (this.winN >= 1600) break;
+        this.v3.set(rec.b.x + x, y, rec.b.y + z); this.eu.set(0, ry, 0); this.q.setFromEuler(this.eu); this.s3.set(1, 1, 1);
+        this.m4.compose(this.v3, this.q, this.s3);
+        this.winMesh.setMatrixAt(this.winN++, this.m4);
+      }
+      this.winMesh.count = this.winN;
+      this.winMesh.instanceMatrix.needsUpdate = true;
+    }
+    grp.updateMatrix();
+    grp.matrixAutoUpdate = false;
   }
 
   addPending(spec) {
@@ -163,10 +204,11 @@ class Scene3D {
       if (w.flags[i] & F_CROSSING) wantB.add(i);
       if (w.flags[i] & F_DRAW) wantL.add(i);
     }
-    for (const [i, o] of this.barriers) if (!wantB.has(i)) { this.root.remove(o.grp); this.barriers.delete(i); }
+    for (const [i, o] of this.barriers) if (!wantB.has(i)) { this.root.remove(o.grp); disposeObj(o.grp); this.barriers.delete(i); }
     for (const i of wantB) if (!this.barriers.has(i)) this.barriers.set(i, this.makeBarrier(i));
-    for (const [i, o] of this.leaves) { this.root.remove(o.grp); this.leaves.delete(i); }
-    for (const i of wantL) this.leaves.set(i, this.makeLeaf(i));
+    // Klappbrücken nur neu bauen, wenn sich ihre Kachel geändert hat
+    for (const [i, o] of this.leaves) if (!wantL.has(i) || o.link !== w.link[i]) { this.root.remove(o.grp); disposeObj(o.grp); this.leaves.delete(i); }
+    for (const i of wantL) if (!this.leaves.has(i)) { const o = this.makeLeaf(i); o.link = w.link[i]; this.leaves.set(i, o); }
   }
 
   makeBarrier(i) {
@@ -335,12 +377,12 @@ class Scene3D {
         const s = rec.b.w;
         grp.position.x = rec.b.x - (grp.scale.x - 1) * s / 2;
         grp.position.z = rec.b.y - (grp.scale.z - 1) * s / 2;
-        if (u >= 1) { rec.land = 1; grp.scale.set(1, 1, 1); grp.position.set(rec.b.x, 0, rec.b.y); }
+        if (u >= 1) { rec.land = 1; grp.scale.set(1, 1, 1); grp.position.set(rec.b.x, 0, rec.b.y); this.settle(rec); }
       }
     }
     for (const pm of this.pendingMeshes.values()) {
       const p = this.g.city.pending.find(q => q.x === pm.spec.x && q.y === pm.spec.y);
-      if (!p) { this.root.remove(pm.grp); this.pendingMeshes.delete(pm.spec.x * 1000 + pm.spec.y); continue; }
+      if (!p) { this.root.remove(pm.grp); disposeObj(pm.grp); this.pendingMeshes.delete(pm.spec.x * 1000 + pm.spec.y); continue; }
       const u = 1 - Math.max(0, p.t) / CFG.announce;
       pm.sh.material.opacity = 0.12 + u * 0.35;
       pm.ring.material.opacity = 0.45 + 0.4 * Math.abs(Math.sin(this.time * 4));
@@ -416,8 +458,7 @@ class Scene3D {
         mesh.setMatrixAt(n, this.m4); mesh.setColorAt(n, c); n++;
       }
     }
-    mesh.count = n;
-    mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    flushInst(mesh, n, true);
   }
 
   updatePolice(dt) {
@@ -446,7 +487,7 @@ class Scene3D {
       const rem = J.police / CFG.policeTime;
       p.ring.scale.set(0.6 + rem * 0.4, 0.6 + rem * 0.4, 1);
     }
-    for (const [i, p] of this.police) if (!live.has(i)) { this.root.remove(p.grp); this.police.delete(i); }
+    for (const [i, p] of this.police) if (!live.has(i)) { this.root.remove(p.grp); disposeObj(p.grp); this.police.delete(i); }
   }
 
   updateCones() {
@@ -458,7 +499,7 @@ class Scene3D {
       if (s.warn > 0) { put(x + 0.12, y + 0.12, 1); put(x + 0.88, y + 0.88, 1); }
       else for (let k = 0; k < 5; k++) { put(x + 0.18 + k * 0.16, y + 0.18 + k * 0.16, 1.2); put(x + 0.82 - k * 0.16, y + 0.18 + k * 0.16, 1.2); }
     }
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true;
+    flushInst(mesh, n, false);
   }
 
   updateMovers(dt) {
@@ -507,7 +548,7 @@ class Scene3D {
         n++;
       }
     }
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    flushInst(mesh, n, true);
     if (this.hover >= 0 && !(P && P.items && P.items.length > 1)) {
       this.hoverMesh.visible = true;
       this.hoverMesh.position.set(w.tx(this.hover) + 0.5, 0.05, w.ty(this.hover) + 0.5);
@@ -540,7 +581,7 @@ class Scene3D {
       mesh.setColorAt(n, this.colOf(p.col));
       n++;
     }
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    flushInst(mesh, n, true);
   }
 
   colOf(hex) {
@@ -569,7 +610,7 @@ class Scene3D {
       mesh.setColorAt(n, this.c);
       n++;
     }
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    flushInst(mesh, n, true);
   }
 
   // Route des ausgewählten Fahrzeugs bzw. des angekündigten Krankenwagens
@@ -599,7 +640,7 @@ class Scene3D {
     else this.selected = null;
     const A = this.g.events.amb;
     if (A && A.preT > 0 && Math.floor(this.time * 4) % 2 === 0) draw(A.base.acc2, A.base.dir, [A.route[0]].concat(A.route.slice(1)), 0, '#ff3030', 400);
-    mesh.count = n; mesh.instanceMatrix.needsUpdate = true; mesh.instanceColor.needsUpdate = true;
+    flushInst(mesh, n, true);
   }
 
   // Bildschirmposition → Kachel (Boden)

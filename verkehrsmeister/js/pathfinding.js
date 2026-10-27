@@ -97,11 +97,11 @@ class Pathfinder {
   field(goal) {
     const w = this.w;
     let f = this.fields.get(goal);
-    if (f && f.version === w.version) return f.dist;
+    if (f && f.version === w.topo) return f.dist;
     if (!f) { f = { dist: new Float64Array(w.N), version: -1 }; this.fields.set(goal, f); }
     const dist = f.dist;
     dist.fill(Infinity);
-    f.version = w.version;
+    f.version = w.topo;
     if (!w.road[goal]) return dist;
     const heap = this.fieldHeap;
     heap.clear();

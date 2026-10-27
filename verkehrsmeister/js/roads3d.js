@@ -22,6 +22,7 @@ class Roads3D {
     this.group = new THREE.Group();
     engine.scene.add(this.group);
     this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
+    this.mat.userData.shared = true;
     this.mesh = null;
     this.hidden = new Set();   // Kacheln, die gerade als Pop-Animation separat gezeigt werden
     this.pops = [];
@@ -80,11 +81,13 @@ class Roads3D {
       const s = u < 0.7 ? (u / 0.7) * 1.15 : 1.15 - (u - 0.7) / 0.3 * 0.15;
       const sc = Math.max(0.01, s);
       p.m.scale.set(sc, sc, sc);
-      if (p.t >= 0.16) { p.done = true; done = true; }
+      if (p.t >= 0.16) { p.done = true; done = true; p.m.scale.set(1, 1, 1); }
     }
-    if (done) {
-      for (const p of this.pops.filter(q => q.done)) { this.group.remove(p.m); p.m.geometry.dispose(); this.hidden.delete(p.i); }
-      this.pops = this.pops.filter(q => !q.done);
+    // erst neu aufbauen, wenn alle Kacheln fertig aufgeploppt sind
+    if (done && this.pops.every(q => q.done)) {
+      for (const p of this.pops) { this.group.remove(p.m); p.m.geometry.dispose(); }
+      this.pops.length = 0;
+      this.hidden.clear();
       this.build(world);
     }
   }

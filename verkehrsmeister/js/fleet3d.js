@@ -105,15 +105,10 @@ class Fleet3D {
         this.siren.setMatrixAt(ns++, m);
       }
     }
-    for (const k in this.kinds) {
-      const mesh = this.kinds[k];
-      mesh.count = n[k];
-      mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor.needsUpdate = true;
-    }
-    this.head.count = nh; this.head.instanceMatrix.needsUpdate = true;
+    for (const k in this.kinds) flushInst(this.kinds[k], n[k], true);
+    flushInst(this.head, nh, false);
     this.headMat.opacity = Math.min(0.85, night * 1.2);
-    this.brake.count = nb; this.brake.instanceMatrix.needsUpdate = true;
-    this.siren.count = ns; this.siren.instanceMatrix.needsUpdate = true;
+    flushInst(this.brake, nb, false);
+    flushInst(this.siren, ns, false);
   }
 }

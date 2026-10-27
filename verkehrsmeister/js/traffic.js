@@ -184,9 +184,9 @@ class Traffic {
         if (goal === a || !w.road[goal]) continue;
         const key = a * 100000 + goal;
         let c = cache.get(key);
-        if (!c || c.v !== w.version) {
+        if (!c || c.v !== w.topo) {
           const r = this.pf.find(a, h, goal);
-          c = { v: w.version, route: r && r.length ? r.concat([goalDrive]) : null, cost: r ? this.pf.lastCost : Infinity };
+          c = { v: w.topo, route: r && r.length ? r.concat([goalDrive]) : null, cost: r ? this.pf.lastCost : Infinity };
           cache.set(key, c);
         }
         if (c.route && (!best || c.cost < best.cost)) best = { route: c.route, cost: c.cost, goal };
@@ -320,7 +320,10 @@ class Traffic {
           vcap = Math.min(vcap, safeV(stopDist, 0));
           if (n === 0) hard = Math.min(hard, v.p.len - v.len * 0.5 - 0.01);
           if (j >= 0 && w.closed[j]) cb = true;
-          if (j >= 0 && w.gate[j]) v.cause = 4;
+          if (j >= 0 && w.gate[j]) {
+            v.cause = 4;
+            if (v.v < 0.1) { const gw = w.gateWait || (w.gateWait = new Map()); gw.set(j, (gw.get(j) || 0) + dt * L.length); }
+          }
           else if (j >= 0 && w.isJ[j]) v.cause = 1;
           break;
         }
@@ -510,6 +513,7 @@ class Traffic {
   // ---- Netzänderungen ---------------------------------------------------------------
   onTilesChanged(tiles) {
     const w = this.world;
+    w.topo++;
     const set = new Set();
     for (const t of tiles) { set.add(t); for (let d = 0; d < 4; d++) { const j = w.nb(t, d); if (j >= 0) set.add(j); } }
     for (const t of set) {

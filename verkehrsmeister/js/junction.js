@@ -18,9 +18,10 @@ class Junction {
     this.police = 0;           // Restzeit Polizei-Einsatz
     this.waitEma = new Float32Array(4);
     this.waitH = new Float32Array(4);   // aufsummierte Wartezeit je Zufahrt (für Diagnose)
+    this.why = new Float32Array(8);     // Wartezeit je Blockiergrund (für Diagnose)
     this.waitAcc = 0;
     this.pass = 0;
-    this.demand = 0; this.demandNear = 0;
+    this.demand = 0; this.demandNear = 0; this.extDemand = 0;
     this.offMask = -1;
     world.junctions.add(this);
     this.onTopologyChange();
@@ -100,7 +101,7 @@ class Junction {
 
   lightTimes() {
     const gw = this.w.mods && this.w.mods.greenWave;
-    return { yellow: gw ? 1.2 : CFG.yellow, allRed: gw ? 0.5 : CFG.allRed };
+    return { yellow: gw ? 0.6 : CFG.yellow, allRed: gw ? 0.2 : CFG.allRed };
   }
 
   updateLight(dt) {
@@ -112,7 +113,7 @@ class Junction {
     const ph = L.phases[L.idx];
     if (L.stage === 0) {
       const main = this.lightMain === ph.axis, side = this.lightMain >= 0 && !main;
-      const minG = main ? 6 : 4, maxG = main ? 24 : (side ? 9 : 12);
+      const minG = main ? 5 : 2.5, maxG = main ? 22 : (side ? 8 : 11);
       const other = this.demand & ~(1 << L.idx);
       const near = (this.demandNear >> L.idx) & 1;
       if (L.t >= minG && other && (!near || L.t >= maxG)) { L.stage = 1; L.t = 0; }
@@ -137,10 +138,22 @@ class Junction {
 
   // ---- Entscheidung ------------------------------------------------------------------
   occConflict(r) {
+    const pol = this.police > 0;
     for (let k = 0; k < this.occ.length; k++) {
       const o = this.occ[k];
-      if (o.v !== r.v && this.conf[r.m * 16 + o.m]) return true;
+      if (o.v === r.v || !this.conf[r.m * 16 + o.m]) continue;
+      // Polizei winkt durch: wer seinen Kreuzungspunkt schon passiert hat, stört nicht mehr
+      if (pol && o.v.t === this.i && o.v.s > o.v.p.len * 0.55) continue;
+      return true;
     }
+    return false;
+  }
+
+  // Rechts vor links: bei Querverkehr erst fast anhalten, dann einfahren („kurzes Zögern“)
+  hesitate(r) {
+    if (this.type !== 'auto' || this.police > 0 || r.v.emergency || r.v.v < 0.12) return false;
+    for (const a of this.appr) if (a.v !== r.v && a.h !== r.h && a.tta < 2.0) return true;
+    for (const o of this.occ) if (o.v !== r.v && o.h !== r.h && o.v.t === this.i) return true;
     return false;
   }
 
@@ -197,19 +210,22 @@ class Junction {
     return k >= 0 && w.holdT[k] === 1;
   }
 
+  // Blockiergründe (für die Diagnose): 1 gesperrt, 2 Rot, 3 Kreuzung belegt, 4 Ausfahrt voll, 5 Zögern, 6 Vorfahrt achten, 7 Folgekreuzung
   hardBlocked(r, traffic) {
-    if (this.w.closed[this.i] || this.heldOut(r)) return true;
+    r.why = 0;
+    if (this.w.closed[this.i] || this.heldOut(r)) { r.why = 1; return true; }
     if (this.lightActive() && !r.v.emergency) {
       const sg = this.sigFor(r.h);
-      if (sg === 0) return true;
+      if (sg === 0) { r.why = 2; return true; }
       if (sg === 1) {
         const stopDist = r.v.v * r.v.v / (2 * 3.2) + 0.05;
-        if (r.dist > stopDist || r.v.v < 0.3) return true;
+        if (r.dist > stopDist || r.v.v < 0.3) { r.why = 2; return true; }
       }
     }
-    if (this.type === 'roundabout') { if (this.ringBlocked(r)) return true; }
-    else if (this.occConflict(r)) return true;
-    if (!this.exitOk(r, traffic)) return true;
+    if (this.type === 'roundabout') { if (this.ringBlocked(r)) { r.why = 3; return true; } }
+    else if (this.occConflict(r)) { r.why = 3; return true; }
+    if (!this.exitOk(r, traffic)) { r.why = 4; return true; }
+    if (this.hesitate(r)) { r.why = 5; return true; }
     return false;
   }
 
@@ -248,6 +264,13 @@ class Junction {
       if (this.hasPriority(a, r)) return true;
     }
     return false;
+  }
+
+  // Anfrage aus einer Kreuzungskette: rote Ampel merkt sich den Bedarf trotzdem
+  noteDemand(r) {
+    if (!this.lightActive() || r.v.emergency) return;
+    const ph = this.light.phases;
+    for (let p = 0; p < ph.length; p++) if ((ph[p].hs >> r.h) & 1) this.extDemand |= 1 << p;
   }
 
   canAcceptDry(r, traffic) {
@@ -292,6 +315,7 @@ class Junction {
   }
 
   chainOk(list, traffic) {
+    for (let k = 0; k < list.length; k++) list[k].J.noteDemand(list[k].r);
     for (let k = 0; k < list.length; k++) if (!list[k].J.canAcceptDry(list[k].r, traffic)) return false;
     return true;
   }
@@ -332,6 +356,7 @@ class Junction {
           if ((ph[p].hs >> a.h) & 1) { dem |= 1 << p; if (a.tta < 3.2) near |= 1 << p; }
         }
       }
+      dem |= this.extDemand; near |= this.extDemand; this.extDemand = 0;
       this.demand = dem; this.demandNear = near;
     }
     if (!A.length) return;
@@ -350,14 +375,15 @@ class Junction {
     let any = false, yieldOnly = null;
     for (const r of R) {
       if (r.hard) continue;
-      if (this.type === 'roundabout' ? this.ringBlocked(r) : this.occConflict(r)) { r.hard = true; continue; }
-      if (!this.exitOk(r, traffic)) { r.hard = true; continue; }
+      if (this.type === 'roundabout' ? this.ringBlocked(r) : this.occConflict(r)) { r.hard = true; r.why = 3; continue; }
+      if (!this.exitOk(r, traffic)) { r.hard = true; r.why = 4; continue; }
       if (this.mustYield(r)) {
+        r.why = 6;
         if (!yieldOnly || r.wait > yieldOnly.wait) yieldOnly = r;
         continue;
       }
       const ch = this.chainInfo(r);
-      if (ch.length && !this.chainOk(ch, traffic)) { r.hard = true; continue; }
+      if (ch.length && !this.chainOk(ch, traffic)) { r.hard = true; r.why = 7; continue; }
       this.grant(r, ch);
       any = true;
     }
@@ -375,7 +401,7 @@ class Junction {
       if (!ch.length || this.chainOk(ch, traffic)) this.grant(yieldOnly, ch);
     }
     // Wartezeit für die Diagnose
-    for (const r of R) if (!r.granted) { this.waitAcc += dt; this.waitH[r.h] += dt; }
+    for (const r of R) if (!r.granted) { this.waitAcc += dt; this.waitH[r.h] += dt; this.why[r.why || 0] += dt; }
     A.length = 0;
   }
 

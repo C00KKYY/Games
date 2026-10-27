@@ -51,6 +51,7 @@ class World {
     this.up = new Uint8Array(n);       // Bodenkachel: Seiten, deren Nachbar die Hochstraße ist (Auffahrt)
     this.down = new Uint8Array(n);     // Hochkachel (über Boden g): Seiten, deren Nachbar am Boden liegt
     this.accOf = new Int32Array(n).fill(-1); // Zufahrtskachel eines Gebäudes
+    this.free = new Uint8Array(n);     // gratis entstandene Kachel (Rampe, Ring): beim Abriss keine Erstattung
     // beide Ebenen
     this.road = new Uint8Array(N);     // 0 keine, 1 Stadtstraße, 2 Autobahn
     this.out = new Uint8Array(N);
@@ -73,6 +74,7 @@ class World {
     this.highways = [];
     this.junctions = new Set();
     this.version = 1;
+    this.topo = 1;        // ändert sich nur, wenn sich Verbindungen ändern (Routen-Caches)
     this.bounds = { x0: 0, y0: 0, x1: w, y1: h };
     for (let i = 0; i < n; i++) this.variant[i] = Math.floor(hash2(i % w, (i / w) | 0, seed) * 256);
   }
@@ -199,6 +201,7 @@ class World {
       }
     } else this.out[i] = 0;
     const changed = this.link[i] !== link || this.two[i] !== two;
+    if (changed) this.topo++;
     this.link[i] = link; this.two[i] = two;
     const deg = popcount4(link);
     const ctl = this.jc[i];
@@ -330,7 +333,7 @@ class World {
   addHighway(tiles, d) {
     const n = this.n, L = tiles.length;
     const A = tiles[0], B = tiles[L - 1];
-    for (const g of [A, B]) if (!this.road[g]) this.placeRoad(g);
+    for (const g of [A, B]) if (!this.road[g]) { this.placeRoad(g); this.free[g] = 1; }
     // bisherige Bodenverbindung der Rampen in Fahrtrichtung kappen
     this.disconnect(A, d); this.disconnect(B, OPP[d]);
     const mid = tiles.slice(1, L - 1);
@@ -400,17 +403,28 @@ class World {
     for (const J of this.junctions) jc.push({ i: J.i, type: J.type, main: J.mainArms, lmain: J.lightMain });
     return {
       road: this.road.slice(), out: this.out.slice(), flags: this.flags.slice(), up: this.up.slice(), down: this.down.slice(),
-      terrain: this.terrain.slice(), highways: this.highways.map(h => ({ a: h.a, b: h.b, d: h.d, mid: h.mid.slice() })), jc,
+      terrain: this.terrain.slice(), free: this.free.slice(), highways: this.highways.map(h => ({ a: h.a, b: h.b, d: h.d, mid: h.mid.slice() })), jc,
     };
   }
 
   restore(s) {
+    this.topo++;
     const changed = [];
     for (let i = 0; i < this.N; i++) if (this.road[i] !== s.road[i] || this.out[i] !== s.out[i]) changed.push(i);
     for (let i = 0; i < this.N; i++) {
       if (this.road[i] && !s.road[i]) this.removeRoad(i);
     }
-    this.road.set(s.road); this.out.set(s.out); this.flags.set(s.flags); this.up.set(s.up); this.down.set(s.down); this.terrain.set(s.terrain);
+    this.road.set(s.road); this.out.set(s.out); this.flags.set(s.flags); this.up.set(s.up); this.down.set(s.down); this.terrain.set(s.terrain); this.free.set(s.free);
+    // Seitdem entstandene Gebäude behalten: keine Straße darunter, Einfahrtsstummel wiederherstellen
+    for (const b of this.buildings) {
+      for (let yy = b.y; yy < b.y + b.h; yy++) for (let xx = b.x; xx < b.x + b.w; xx++) {
+        const i = this.idx(xx, yy);
+        if (this.road[i]) { this.road[i] = 0; this.out[i] = 0; this.flags[i] = 0; changed.push(i); }
+        if (this.terrain[i] === T_FOREST) this.terrain[i] = T_GRASS;
+      }
+      for (const a of b.kind === 'dest' ? [b.acc, b.acc2] : [b.acc]) if (!this.road[a]) { this.placeRoad(a); changed.push(a); }
+      if (b.kind === 'dest') { this.out[b.acc] |= 1 << b.sideDir; this.out[b.acc2] |= 1 << OPP[b.sideDir]; }
+    }
     this.highways = s.highways.map(h => ({ a: h.a, b: h.b, d: h.d, mid: h.mid.slice() }));
     for (let i = 0; i < this.N; i++) this.refreshTile(i);
     for (const o of s.jc) {

@@ -13,11 +13,11 @@ const CFG = {
   laneOff: 0.18,
   roadSpeed: [0, 2.0, 5.0],   // Stadtstraße / Autobahn (Kacheln pro Sekunde)
   turnSpeed: [99, 1.0, 0.65, 1.3],
-  roundSpeed: 1.15,
+  roundSpeed: 1.7,
   driveSpeed: 1.2,
   gap: 0.07,
   yieldWindow: 2.1,
-  yellow: 2.0, allRed: 1.2,
+  yellow: 1.0, allRed: 0.4,
   ringR: 0.32,
   maxVehicles: 450,
   elevH: 0.62,                // Höhe der Autobahn-Hochstraße
@@ -33,7 +33,7 @@ const CFG = {
   ringDrain: 2,               // Abbau doppelt so schnell
   pinEvery: 7,                // Grundbedarf: Sekunden pro Auftrag je Ziel (Woche 1)
   pinWeekGrowth: 0.12,
-  pinPerHouse: 0.025,         // zusätzlicher Bedarf je angeschlossenem Haus (Aufträge/s)
+  pinPerHouse: 0.018,         // zusätzlicher Bedarf je angeschlossenem Haus (Aufträge/s)
   waveMorning: 1.8, waveEvening: 2.0, waveNight: 0.6,
   intakeEvery: 0.5,           // Ziel nimmt 1 Auto pro 0,5 s auf
   carsPerHouse: 2,
@@ -45,7 +45,7 @@ const CFG = {
   announce: 5,                // Schatten-Ankündigung in Sekunden
 
   // Inventar
-  start: { roads: 40, lights: 1, bridges: 1, tunnels: 0, rounds: 0, highways: 0, police: 2, stops: 0 },
+  start: { roads: 40, lights: 1, bridges: 1, tunnels: 0, rounds: 1, highways: 0, police: 2, stops: 0 },
   weekRoads: 20,
   policeMax: 3,
   policeTime: 15,
@@ -58,10 +58,10 @@ const CFG = {
 
 // Upgrade-Karten
 const CARDS = [
-  { id: 'roads', name: 'Straßenpaket', desc: '+25 Straßenkacheln', icon: 'road', apply: g => { g.inv.roads += 25; } },
+  { id: 'roads', name: 'Straßenpaket', desc: '+30 Straßen und +1 Brücke.', icon: 'road', apply: g => { g.inv.roads += 30; g.inv.bridges += 1; } },
   { id: 'lights', name: 'Zwei Ampeln', desc: '+2 Ampeln. Sie schalten selbst nach Bedarf.', icon: 'light', apply: g => { g.inv.lights += 2; } },
   { id: 'round', name: 'Kreisverkehr', desc: '+1 Kreisverkehr: flüssig bei Verkehr aus allen Richtungen.', icon: 'round', apply: g => { g.inv.rounds += 1; } },
-  { id: 'highway', name: 'Autobahn', desc: 'Gerade Hochstraße bis 8 Kacheln, überquert alles, Tempo 130.', icon: 'highway', apply: g => { g.inv.highways += 1; } },
+  { id: 'highway', name: 'Autobahn', desc: 'Gerade Hochstraße bis 8 Felder über Straßen, Wasser und Gleise (nicht über Berge oder Gebäude), Tempo 130.', icon: 'highway', apply: g => { g.inv.highways += 1; } },
   { id: 'tunnel', name: 'Tunnel', desc: '+1 Tunnel durch einen Berg (bis 5 Kacheln).', icon: 'tunnel', apply: g => { g.inv.tunnels += 1; } },
   { id: 'bridges', name: 'Zwei Brücken', desc: '+2 Brücken über Wasser (bis 4 Kacheln).', icon: 'bridge', apply: g => { g.inv.bridges += 2; } },
   { id: 'greenwave', name: 'Grüne Welle', desc: 'Alle Ampeln schalten schneller um: kürzere Gelb- und Räumzeiten.', icon: 'wave', passive: true, once: true, apply: g => { g.mods.greenWave = true; } },
@@ -71,10 +71,10 @@ const CARDS = [
   { id: 'second', name: 'Zweitwagen', desc: 'Alle Häuser einer Farbe deiner Wahl bekommen ein drittes Auto.', icon: 'car', target: 'dest', apply: (g, b) => { g.city.addCarsForColor(b.pi, 1); } },
   { id: 'stop', name: 'Feierabend-Stopp', desc: 'Joker: 8 Sekunden lang keine neuen Aufträge. Einmal einsetzbar.', icon: 'stop', apply: g => { g.inv.stops += 1; } },
   { id: 'police', name: 'Verstärkung', desc: '+2 Polizei-Einsätze (Obergrenze steigt auf 5).', icon: 'police', apply: g => { g.inv.police = Math.min(5, g.inv.police + 2); g.mods.policeMax = 5; } },
-  { id: 'mega', name: 'Großbaustelle', desc: '+40 Straßenkacheln und +1 Brücke.', icon: 'road', apply: g => { g.inv.roads += 40; g.inv.bridges += 1; } },
+  { id: 'mega', name: 'Großbaustelle', desc: '+50 Straßen sofort, dafür nächstes Wochenende nur 10.', icon: 'road', apply: g => { g.inv.roads += 50; g.mods.lowWeek = g.week + 2; } },
   // Pakt-Karten (ab Rang 2)
   { id: 'fest', name: 'Bürgerfest', desc: '+2 Kreisverkehre, aber nächste Woche 25 % mehr Aufträge.', icon: 'round', pact: true, apply: g => { g.inv.rounds += 2; g.mods.pactDemand = 1.25; g.mods.pactWeeks = 1; } },
-  { id: 'spar', name: 'Sparhaushalt', desc: '+45 Straßenkacheln, aber nächste Woche keine Karte.', icon: 'road', pact: true, apply: g => { g.inv.roads += 45; g.mods.skipCard = true; } },
+  { id: 'spar', name: 'Sparhaushalt', desc: '+70 Straßen und +1 Brücke, aber nächstes Wochenende keine Karte.', icon: 'road', pact: true, apply: g => { g.inv.roads += 70; g.inv.bridges += 1; g.mods.skipCard = true; } },
 ];
 
 // Städte: Gelände und Mechaniken
@@ -111,7 +111,7 @@ const CITIES = [
     terrain: { forest: 0.2, rocks: 0.06, fields: 0.25, lakes: 2 },
     mech: { fair: true },
     medals: [340, 800, 1350], unlock: { city: 'alpendorf', score: 150 },
-    intro: 'Zur Messe kommen 25 Aufträge auf einmal an ein Ziel. Plane Reserven ein.',
+    intro: 'Ab Woche 2 kommen zur Messe 15 Aufträge in kurzer Zeit an ein Ziel. Plane Reserven und zweite Wege ein.',
   },
   {
     id: 'hauptstadt', name: 'Hauptstadt', sub: 'Autobahnring', size: 34, seed: 6706,
@@ -126,7 +126,7 @@ const DAILY_MODS = [
   { id: 'rvl', name: 'Nur rechts vor links', desc: 'Keine Ampeln, Kreisel oder Vorfahrtsstraßen.' },
   { id: 'baustelle', name: 'Dauerbaustelle', desc: 'Jeden Tag eine neue Baustelle.' },
   { id: 'rush', name: 'Ferienende', desc: 'Stoßzeiten 30 % stärker.' },
-  { id: 'sparsam', name: 'Knappe Kassen', desc: 'Nur 10 statt 15 Kacheln pro Woche.' },
+  { id: 'sparsam', name: 'Knappe Kassen', desc: 'Nur 10 statt 20 Straßen pro Woche.' },
   { id: 'schnee', name: 'Wintereinbruch', desc: 'Alle Autos 15 % langsamer.' },
 ];
 

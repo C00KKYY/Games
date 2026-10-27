@@ -54,7 +54,7 @@ function iconTexture(pi) {
 
 const MAT_VC = () => new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
 let _matVC = null;
-function matVC() { return _matVC || (_matVC = MAT_VC()); }
+function matVC() { if (!_matVC) { _matVC = MAT_VC(); _matVC.userData.shared = true; } return _matVC; }
 const WINDOW_MAT = new THREE.MeshStandardMaterial({ color: 0x223044, emissive: 0xffc56a, emissiveIntensity: 0, roughness: 0.4 });
 
 // Wohnhaus (1x1). dir = Richtung der Einfahrt (0 N, 1 O, 2 S, 3 W). Lokale Koordinaten: Kachel 0..1
@@ -89,15 +89,12 @@ function makeHouse(pi, dir, seed) {
   const mesh = new THREE.Mesh(B.geometry(), matVC());
   mesh.castShadow = true; mesh.receiveShadow = true;
   g.add(mesh);
-  // Fenster (leuchten nachts)
-  const wgeo = new THREE.BoxGeometry(0.07, 0.06, 0.01);
+  // Fenster (leuchten nachts) – werden von der Szene gesammelt als Instanzen gezeichnet
+  g.userData.windows = [];
   for (const side of [0, 1, 2, 3]) {
     if (side === dir) continue;
-    const win = new THREE.Mesh(wgeo, WINDOW_MAT);
     const px = cx + DX[side] * (0.5 - ins + 0.004), pz = cz + DY[side] * (0.5 - ins + 0.004);
-    win.position.set(px, wallH * 0.62, pz);
-    win.rotation.y = DX[side] ? Math.PI / 2 : 0;
-    g.add(win);
+    g.userData.windows.push([px, wallH * 0.62, pz, DX[side] ? Math.PI / 2 : 0]);
   }
   // Farbsymbol auf dem Dach
   return g;

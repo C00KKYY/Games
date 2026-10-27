@@ -5,17 +5,31 @@
 // ---------------------------------------------------------------------------
 
 const CAUSES = {
-  rvl: { title: 'Rechts vor links überlastet', tip: 'Ampel oder Kreisel setzen – oder per Wisch eine Vorfahrtsstraße ziehen.' },
-  side: { title: 'Nebenstraße verhungert', tip: 'Ampel setzen oder der Nebenstraße einen eigenen Weg bauen.' },
-  main: { title: 'Kreuzung überlastet', tip: 'Umgehung bauen oder eine Autobahn darüberlegen.' },
-  light: { title: 'Ampel überlastet', tip: 'Kreisel probieren, Hauptachse per Wisch festlegen oder Verkehr umleiten.' },
-  round: { title: 'Kreisel voll', tip: 'Zweite Route bauen, damit sich der Verkehr verteilt.' },
+  rvl: { title: 'Rechts vor links bremst', tip: 'Bei Querverkehr muss jeder fast anhalten. Per Wisch Vorfahrt geben, einen Kreisel oder eine Ampel setzen.' },
+  side: { title: 'Nebenstraße kommt nicht raus', tip: 'Ampel oder Kreisel setzen – oder per Wisch die Vorfahrt in die andere Richtung drehen.' },
+  main: { title: 'Zu viele kreuzende Ströme', tip: 'Kreisel setzen, den Verkehr auf eine zweite Route verteilen oder eine Autobahn darüberlegen.' },
+  light: { title: 'Ampel bremst', tip: 'Per Wisch die Hauptachse festlegen (doppelt Grün) – oder einen Kreisel probieren.' },
+  round: { title: 'Kreisel ist voll', tip: 'Zweite Route bauen, damit sich der Verkehr verteilt.' },
+  spill: { title: 'Rückstau von vorn', tip: 'Die Straße hinter der Kreuzung ist voll. Engstelle weiter vorne entschärfen, Kreuzungen nicht so dicht setzen oder eine Umgehung bauen.' },
   exit: { title: 'Parkplatz verstopft', tip: 'Beide Zufahrten des Ziels anschließen und Kreuzungen direkt davor vermeiden.' },
   detour: { title: 'Großer Umweg', tip: 'Eine direktere Straße zu den Häusern bauen.' },
   nocon: { title: 'Keine Verbindung', tip: 'Ziel mit Häusern derselben Farbe verbinden.' },
   nocar: { title: 'Kein freies Auto', tip: 'Mehr Häuser dieser Farbe anschließen.' },
-  gate: { title: 'Schranke zu', tip: 'Umgehung ohne Bahnübergang/Klappbrücke bauen.' },
+  jam: { title: 'Autos stecken im Stau', tip: 'Es waren genug Autos unterwegs, aber sie kamen nicht durch. Die markierten Kreuzungen auf dem Weg entschärfen oder eine zweite Route bauen.' },
+  gate: { title: 'Schranke staut', tip: 'Eine Umgehung ohne Bahnübergang bzw. Klappbrücke bauen.' },
 };
+
+// Ursache einer Kreuzung aus den gesammelten Blockiergründen
+function junctionCause(J) {
+  const w = J.why;
+  const spill = w[4] + w[7], yieldT = w[5] + w[6], box = w[3], red = w[2];
+  const m = Math.max(spill, yieldT, box, red);
+  if (m <= 0) return J.type === 'auto' ? 'rvl' : J.type === 'light' ? 'light' : J.type === 'roundabout' ? 'round' : 'main';
+  if (m === spill) return 'spill';
+  if (m === red) return 'light';
+  if (m === yieldT) return J.type === 'priority' ? 'side' : 'rvl';
+  return J.type === 'roundabout' ? 'round' : 'main';
+}
 
 class City {
   constructor(game) {
@@ -73,7 +87,11 @@ class City {
       const dir = this.rng.int(0, 3);
       if (!w.footprintOk('dest', x, y, dir)) continue;
       if (this.pendingBlocks(x, y, 2)) continue;
+      const L = this.landComp(), ta = new Building(-1, 'dest', pi, x, y, dir, 1);
+      const ca = L.comp[w.idx(ta.ax, ta.ay)];
+      if (ca < 0 || L.size[ca] < 14) continue;
       let s = -Math.hypot(x + 1 - tx, y + 1 - ty) * (strict ? 2 : 0.6);
+      if (this.dests.length && L.comp[this.dests[0].acc] !== ca) s -= 1.5;
       let minD = 99;
       for (const o of this.dests) minD = Math.min(minD, Math.hypot(o.cx - x - 1, o.cy - y - 1));
       for (const o of this.houses) if (Math.hypot(o.cx - x - 1, o.cy - y - 1) < 2) s -= 3;
@@ -102,6 +120,9 @@ class City {
       let s = -Math.abs(dd - ideal) + this.rng.next() * 2.5;
       const ax = x + DX[dir], ay = y + DY[dir];
       const a = w.idx(ax, ay);
+      const L = this.landComp(), ca = L.comp[a];
+      if (ca < 0 || L.size[ca] < 10) continue;
+      if (near.acc !== undefined && near.acc >= 0 && L.comp[near.acc] !== ca) s -= this.g.inv.bridges + this.g.inv.tunnels > 0 ? 1.5 : 4;
       if (w.road[a] && w.link[a]) s += 1.2;
       else for (let d = 0; d < 4; d++) { const j = w.gnb(a, d); if (j >= 0 && w.road[j] && w.link[j]) { s += 0.6; break; } }
       // Nachbarschaften: gleiche Farbe in der Nähe bevorzugen
@@ -115,6 +136,35 @@ class City {
       if (s > bestS) { bestS = s; best = { x, y, dir }; }
     }
     return best;
+  }
+
+  // Landflächen innerhalb der Ortsgrenze (Straßen und Brücken verbinden), für faire Bauplätze
+  landComp() {
+    const w = this.w, b = w.bounds;
+    const key = w.version + ':' + b.x0 + ',' + b.y0 + ',' + b.x1 + ',' + b.y1;
+    if (this._lc && this._lcKey === key) return this._lc;
+    const n = w.n, comp = new Int32Array(n).fill(-1), size = [];
+    const pass = i => {
+      const x = w.tx(i), y = w.ty(i);
+      if (!w.inBounds(x, y)) return false;
+      if (w.road[i]) return true;
+      if (w.bld[i] >= 0) return false;
+      const t = w.terrain[i];
+      return t !== T_WATER && t !== T_ROCK;
+    };
+    const st = [];
+    let c = 0;
+    for (let i = 0; i < n; i++) {
+      if (comp[i] >= 0 || !pass(i)) continue;
+      comp[i] = c; st.push(i); let sz = 0;
+      while (st.length) {
+        const k = st.pop(); sz++;
+        for (let d = 0; d < 4; d++) { const j = w.gnb(k, d); if (j >= 0 && comp[j] < 0 && pass(j)) { comp[j] = c; st.push(j); } }
+      }
+      size.push(sz); c++;
+    }
+    this._lc = { comp, size }; this._lcKey = key;
+    return this._lc;
   }
 
   pendingBlocks(x, y, s) {
@@ -144,7 +194,8 @@ class City {
       b.ramp = 0;
       this.dests.push(b);
     }
-    this.g.traffic.onTilesChanged([b.acc]);
+    // ein neuer Einfahrtsstummel ändert keine bestehende Route – nur Fahrzeuge auf der Kachel prüfen
+    if (this.g.traffic.vehicles.length && (this.g.traffic.vehiclesOnTile(b.acc).length || (b.acc2 >= 0 && this.g.traffic.vehiclesOnTile(b.acc2).length))) this.g.traffic.onTilesChanged([b.acc]);
     this.g.fx.push({ t: 'drop', b, instant: !!instant });
     return b;
   }
@@ -172,6 +223,16 @@ class City {
     const isNew = !this.dests.some(d => d.pi === pi) && !this.pending.some(p => p.kind === 'dest' && p.pi === pi);
     if (instant) this.place(spec, true); else this.announce(spec);
     this.destsMade++;
+    if (!instant && this.dests.length) {
+      const L = this.landComp(), tb = new Building(-1, 'dest', pi, spot.x, spot.y, spot.dir, 1);
+      const ca = L.comp[this.w.idx(tb.ax, tb.ay)];
+      const g = this.g;
+      if (!this.dests.some(d => L.comp[d.acc] === ca) && g.inv.bridges + g.inv.tunnels === 0) {
+        const rock = this.w.terrain.some((t, i) => t === T_ROCK && this.w.inBounds(this.w.tx(i), this.w.ty(i)));
+        if (rock && !this.w.terrain.some((t, i) => t === T_WATER && this.w.inBounds(this.w.tx(i), this.w.ty(i)))) g.inv.tunnels++; else g.inv.bridges++;
+        g.fx.push({ t: 'toast', text: 'Das neue Ziel liegt abseits – dafür gibt es ein Bauteil (Brücke/Tunnel) dazu.', icon: 'bridge' });
+      }
+    }
     // neue Farbe: gleich zwei Häuser dazu
     if (isNew) {
       const fake = { cx: spot.x + 1, cy: spot.y + 1 };
@@ -251,16 +312,22 @@ class City {
     }
     // Aufträge
     const week = g.week;
-    const base = (1 / CFG.pinEvery) * (1 + CFG.pinWeekGrowth * (week - 1)) * (g.mods.pactDemand && g.mods.pactWeek === week ? g.mods.pactDemand : 1);
+    const grow = (1 + CFG.pinWeekGrowth * (week - 1)) * (g.mods.pactDemand && g.mods.pactWeek === week ? g.mods.pactDemand : 1);
     for (const d of this.dests) {
       d.ramp = Math.min(1, d.ramp + dt / 25);
       if (d.fair > 0) {
         d.fair -= dt;
-        if (d.fairPins > 0) { const add = Math.min(d.fairPins, dt * 5); d.fairAcc = (d.fairAcc || 0) + add; d.fairPins -= add; while (d.fairAcc >= 1) { d.fairAcc--; d.pins++; } }
-        if (d.fair <= 0) { d.cap = d.parking ? 9 : CFG.pinCap; g.fx.push({ t: 'toast', text: 'Die Messe ist vorbei.' }); }
+        if (d.fairPins > 0) { const add = Math.min(d.fairPins, dt * 2); d.fairAcc = (d.fairAcc || 0) + add; d.fairPins -= add; while (d.fairAcc >= 1) { d.fairAcc--; d.pins++; } }
+        if (d.fair <= 0) {
+          d.cap = d.parking ? 9 : CFG.pinCap;
+          d.fairPins = 0;
+          // Besucher ohne Auto gehen nach Hause
+          d.pins = Math.min(d.pins, Math.max(d.cap, d.assigned));
+          g.fx.push({ t: 'toast', text: 'Die Messe ist vorbei.', icon: 'fair' });
+        }
       }
       if (day && g.stopT <= 0) {
-        d.pinAcc += (base + CFG.pinPerHouse * Math.min(14, d.nh || 0)) * this.wave(g.hour, d) * (0.35 + 0.65 * d.ramp) * dt;
+        d.pinAcc += (1 / CFG.pinEvery + CFG.pinPerHouse * Math.min(14, d.nh || 0)) * grow * this.wave(g.hour, d) * (0.35 + 0.65 * d.ramp) * dt;
         while (d.pinAcc >= 1) { d.pinAcc -= 1; d.pins++; g.fx.push({ t: 'pin', b: d }); }
       }
       // Überlaufring
@@ -340,10 +407,11 @@ class City {
       if (q.t > now) continue;
       // Ausfahrt bekommt kurz Vorrang, wenn schon länger Autos auf dem Parkplatz warten
       // (höchstens 2 s am Stück, danach 2,5 s Pause, damit kein Kreis-Stau entsteht)
+      // bei langer Schlange darf mehrere Sekunden am Stück ausgefahren werden
       if (d.hold) {
-        if (now > d.holdUntil || tr.drv[d.acc2] > 0) { d.hold = false; d.holdCool = now + 2.5; }
-      } else if (now - Math.max(q.t, d.lastOut || 0) > 1.0 && now > (d.holdCool || 0) && !tr.drv[d.acc2]) {
-        d.hold = true; d.holdUntil = now + 2;
+        if (now > d.holdStart + (d.outQ.length >= 3 ? 4.5 : 2)) { d.hold = false; d.holdCool = now + 1.5; }
+      } else if (now - Math.max(q.t, d.lastOut || 0) > 0.8 && now > (d.holdCool || 0)) {
+        d.hold = true; d.holdStart = now;
       }
       w.holdT[d.acc2] = d.hold ? 1 : 0;
       const hs = q.house;
@@ -351,8 +419,8 @@ class City {
       if (v) {
         d.outQ.shift();
         d.lastOut = now;
-        if (d.hold) { d.hold = false; d.holdCool = now + 1.5; }
-        w.holdT[d.acc2] = 0;
+        if (d.hold && d.outQ.length < 2) { d.hold = false; d.holdCool = now + 1; }
+        w.holdT[d.acc2] = d.hold ? 1 : 0;
         v.house = hs; v.dest = d; v.leg = 'back'; v.color = PALETTE[hs.pi].hex;
       } else if (v === null && now - q.t > 15) {
         // Rückweg dauerhaft abgeschnitten: Auto fährt „über Feldwege“ heim
@@ -396,17 +464,23 @@ class City {
   }
 
   // ---- Diagnose ----------------------------------------------------------------------
-  // Jedes angeschlossene Haus erzeugt Bedarf an seinem nächstgelegenen Ziel seiner Farbe
+  // Jedes Haus erzeugt Bedarf an seinem nächstgelegenen Ziel seiner Farbe – angeschlossen oder nicht
   assignDemand() {
-    for (const d of this.dests) d.nh = 0;
-    const fields = new Map();
-    for (const d of this.dests) if (this.w.link[d.acc]) fields.set(d, this.pf.field(d.acc));
+    for (const d of this.dests) { d.nh = 0; d.nhc = 0; }
     for (const h of this.houses) {
       h.conn = false;
-      if (!this.w.link[h.acc]) continue;
       let best = null, bc = Infinity;
-      for (const [d, f] of fields) if (d.pi === h.pi && f[h.acc] < bc) { bc = f[h.acc]; best = d; }
-      if (best) { best.nh++; h.conn = true; }
+      for (const d of this.dests) {
+        if (d.pi !== h.pi) continue;
+        const c = Math.abs(d.cx - h.x - 0.5) + Math.abs(d.cy - h.y - 0.5);
+        if (c < bc) { bc = c; best = d; }
+      }
+      if (best) best.nh++;
+      if (!this.w.link[h.acc]) continue;
+      for (const d of this.dests) {
+        if (d.pi !== h.pi || !this.w.link[d.acc]) continue;
+        if (isFinite(this.pf.field(d.acc)[h.acc])) { h.conn = true; d.nhc++; break; }
+      }
     }
   }
 
@@ -420,20 +494,21 @@ class City {
       J.weekWait = (J.weekWait || 0) + J.waitAcc;
       J.waitAcc = 0;
       for (let h = 0; h < 4; h++) J.waitH[h] *= 0.9;
+      for (let k = 0; k < 8; k++) J.why[k] *= 0.88;
       if (J.score < 5) continue;
-      let cause;
       if (J.police > 0) continue;
-      if (J.type === 'auto') cause = 'rvl';
-      else if (J.type === 'priority') {
-        let side = 0, main = 0;
-        for (let h = 0; h < 4; h++) { if (J.isMain(h)) main += J.waitH[h]; else side += J.waitH[h]; }
-        cause = side > main ? 'side' : 'main';
-      } else if (J.type === 'light') cause = 'light';
-      else cause = 'round';
+      const cause = junctionCause(J);
       J.cause = cause;
       probs.push({ kind: 'junction', J, i: J.i, x: w.tx(J.i) + 0.5, y: w.ty(J.i) + 0.5, sev: J.score, cause });
     }
     // Schranken/Klappbrücken
+    const gw = w.gateWait;
+    if (gw) for (const [i, v] of gw) {
+      const nv = v * 0.82;
+      if (nv < 0.3) { gw.delete(i); continue; }
+      gw.set(i, nv);
+      if (nv > 5) probs.push({ kind: 'gate', i, x: w.tx(i) + 0.5, y: w.ty(i) + 0.5, sev: nv, cause: 'gate' });
+    }
     // Ziele
     for (const d of this.dests) {
       d.cause = null;
@@ -455,6 +530,7 @@ class City {
       else if (d.outQ.length >= 4) d.cause = 'exit';
       else if (open > 0 && !free) d.cause = 'nocar';
       else if (bestRatio > 2.6 && d.pins > 3) d.cause = 'detour';
+      else if (open <= 0 && d.pins > d.cap) d.cause = 'jam';
       if (d.cause && (d.pins > 3 || d.ring > 0)) probs.push({ kind: 'dest', b: d, x: d.cx, y: d.cy, sev: 6 + d.pins * 2 + d.ring * 30, cause: d.cause });
     }
     probs.sort((a, b) => b.sev - a.sev);

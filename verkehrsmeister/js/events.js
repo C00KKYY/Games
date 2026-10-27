@@ -215,8 +215,8 @@ class Events {
     const g = this.g, city = g.city;
     const d = city.dests.filter(x => g.world.link[x.acc]).sort((a, b) => b.delivered - a.delivered)[0];
     if (!d) return;
-    d.fair = 45; d.fairPins = 20; d.cap = (d.parking ? 9 : CFG.pinCap) + 20;
-    g.fx.push({ t: 'toast', text: 'Messe! 20 Aufträge auf einmal für ' + PALETTE[d.pi].name + '.', icon: 'fair', at: d.acc });
+    d.fair = 50; d.fairPins = 15; d.cap = (d.parking ? 9 : CFG.pinCap) + 15;
+    g.fx.push({ t: 'toast', text: 'Messe! 15 Aufträge auf einmal für ' + PALETTE[d.pi].name + '.', icon: 'fair', at: d.acc });
     g.fx.push({ t: 'fair', b: d });
   }
 }

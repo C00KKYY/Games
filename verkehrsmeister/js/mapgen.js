@@ -124,7 +124,7 @@ function generateCity(def, seed) {
     for (let y = r0 + 1; y <= r1; y++) ring.push(world.idx(r1, y));
     for (let x = r1 - 1; x >= r0; x--) ring.push(world.idx(x, r1));
     for (let y = r1 - 1; y > r0; y--) ring.push(world.idx(r0, y));
-    for (const i of ring) { if (world.rail[i]) world.rail[i] = 0; world.placeRoad(i); world.road[i] = 2; }
+    for (const i of ring) { if (world.rail[i]) world.rail[i] = 0; world.placeRoad(i); world.road[i] = 2; world.free[i] = 1; }
     for (let k = 0; k < ring.length; k++) {
       const a = ring[k], b = ring[(k + 1) % ring.length];
       for (let d = 0; d < 4; d++) if (world.gnb(a, d) === b) world.connect(a, d);

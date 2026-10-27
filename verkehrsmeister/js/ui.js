@@ -113,14 +113,39 @@ class UI {
     this.elCity.textContent = game.def.name + (game.opts.daily ? ' · Tageschallenge' : '');
     this.lastScore = -1; this.shownScore = 0;
     this.closeModal();
-    this.inspectEl.classList.remove('show');
+    this.showInspect(null);
+    this.targeting = null; this.banner.classList.remove('show');
+    this.tut = null; this.tutEl.classList.remove('show'); this.app.overlay.hint = null;
+    clearTimeout(this._weekT);
     this.hud.classList.add('on');
     this.onTool('road');
+  }
+
+  get touch() { return matchMedia('(pointer: coarse)').matches; }
+
+  // Wochenbilanz zeigen, sobald nichts anderes offen ist
+  queueWeek(S, ms) {
+    clearTimeout(this._weekT);
+    const g = this.app.game;
+    this._weekT = setTimeout(() => {
+      if (this.app.game !== g || this.app.attract || g.phase !== 'week' || g.pendingWeek !== S || this.targeting) return;
+      if (this.modalOpen) return;   // Menü offen: wird beim Schließen nachgeholt
+      this.showWeek(S);
+    }, ms);
+  }
+
+  // nach dem Schließen des Menüs: offene Wochenbilanz wieder zeigen
+  afterMenu() {
+    const g = this.app.game;
+    if (g && g.phase === 'week' && g.pendingWeek && !this.targeting && !this.app.attract) this.showWeek(g.pendingWeek);
   }
 
   onTool(t) {
     for (const k in this.toolBtns) this.toolBtns[k].classList.toggle('on', k === t);
     this.root.classList.toggle('tool-erase', t === 'erase');
+    const H = { light: 'Ampel: Kreuzung antippen', round: 'Kreisel: Kreuzung antippen', police: 'Polizei: Kreuzung antippen (15 s)', highway: 'Autobahn: gerade ziehen, 4–10 Felder', erase: 'Abriss: über Straßen ziehen', road: '' };
+    if (this.touch && H[t] && this._lastTool !== t) this.toast(H[t], t === 'round' ? 'round' : t, { ms: 2200 });
+    this._lastTool = t;
   }
 
   // ---- jedes Bild ---------------------------------------------------------------------
@@ -179,6 +204,16 @@ class UI {
     // Stau-Lupe aktualisieren
     if (this.inspectData) this.renderInspect();
     this.updateTutorial(dt);
+    // sicherer Bereich für Randpfeile
+    this._safeT = (this._safeT || 0) - dt;
+    if (this._safeT <= 0) {
+      this._safeT = 0.5;
+      let top = 0;
+      for (const sel of ['.hud-tl', '.hud-tc', '.hud-tr']) { const e = this.hud.querySelector(sel); if (e) top = Math.max(top, e.getBoundingClientRect().bottom); }
+      const tb = this.toolbar.getBoundingClientRect();
+      const r = this.root.getBoundingClientRect();
+      this.app.overlay.safe = { top: top - r.top + 22, bottom: tb.top - r.top - 22 };
+    }
   }
 
   setPaused(p) { this.btnPause.innerHTML = p ? ICON.play : ICON.pause; this.btnPause.classList.toggle('on', p); }
@@ -208,7 +243,7 @@ class UI {
     let html = '';
     if (plan.erase) html = `<b class="neg">Abreißen</b> ${plan.n ? plan.n + ' Felder' : ''}`;
     else if (plan.highway) html = plan.ok ? `<b>Autobahn</b> ${plan.n} Felder Hochstraße` : `<b class="neg">${esc(plan.reason || '')}</b>`;
-    else if (plan.swipe) html = `<b class="prio">Vorfahrt</b> entlang dieser Straße`;
+    else if (plan.swipe) html = plan.swipeBlocked ? `<b class="neg">${esc(plan.swipeBlocked)}</b>` : `<b class="prio">Vorfahrt</b> entlang dieser Straße`;
     else {
       const parts = [];
       if (plan.roads) parts.push(`${ICON.road}<b>−${plan.roads}</b>`);
@@ -220,7 +255,15 @@ class UI {
     }
     H.innerHTML = html;
     H.classList.add('show');
-    if (mouse) { H.style.left = mouse.x + 18 + 'px'; H.style.top = mouse.y + 14 + 'px'; }
+    if (mouse) this.place(H, mouse);
+  }
+
+  // Schwebende Hinweise neben dem Zeiger, bei Touch über dem Finger, nie über den Rand
+  place(el, mouse) {
+    const w = el.offsetWidth, h = el.offsetHeight, W = this.root.clientWidth, H = this.root.clientHeight;
+    const x = this.touch ? mouse.x - w / 2 : mouse.x + 18, y = this.touch ? mouse.y - h - 56 : mouse.y + 14;
+    el.style.left = clamp(x, 8, Math.max(8, W - w - 8)) + 'px';
+    el.style.top = clamp(y, 8, Math.max(8, H - h - 8)) + 'px';
   }
 
   hoverInfo(t, mouse) {
@@ -234,13 +277,14 @@ class UI {
     else if (w.jc[t]) { const J = w.jc[t]; txt = `<b>${J.police > 0 ? 'Polizei regelt' : JTYPE_NAME[J.type]}</b>`; }
     if (!txt) { this.tooltip.classList.remove('show'); return; }
     this.tooltip.innerHTML = txt;
-    this.tooltip.style.left = mouse.x + 16 + 'px'; this.tooltip.style.top = mouse.y + 16 + 'px';
     this.tooltip.classList.add('show');
+    this.place(this.tooltip, mouse);
   }
 
   // ---- Stau-Lupe ---------------------------------------------------------------------
   showInspect(data, mouse) {
     this.inspectData = data;
+    this.tutEl.style.visibility = data ? 'hidden' : '';
     if (!data) { this.inspectEl.classList.remove('show'); return; }
     this.inspectEl.classList.add('show');
     this.renderInspect();
@@ -269,7 +313,7 @@ class UI {
       const c = d.cause ? CAUSES[d.cause] : null;
       html = `<div class="ins-h"><i class="dot" style="background:${PALETTE[d.pi].hex}"></i><b>${PALETTE[d.pi].name}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
         <div class="ins-row">${d.pins} offene Aufträge (Grenze ${d.cap}) · ${d.assigned} Autos unterwegs</div>
-        <div class="ins-row dim">${d.nh || 0} Häuser angeschlossen · ${d.delivered} geliefert${d.outQ.length ? ' · ' + d.outQ.length + ' warten auf Ausfahrt' : ''}</div>
+        <div class="ins-row dim">${d.nhc || 0} von ${d.nh || 0} Häusern angeschlossen · ${d.delivered} geliefert${d.outQ.length ? ' · ' + d.outQ.length + ' warten auf Ausfahrt' : ''}</div>
         ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : ''}`;
     } else if (D.J) {
       const J = D.J;
@@ -278,7 +322,7 @@ class UI {
       let wait = 0; for (let h = 0; h < 4; h++) wait += J.waitEma[h];
       html = `<div class="ins-h"><b>${J.police > 0 ? 'Polizei regelt (' + Math.ceil(J.police) + ' s)' : JTYPE_NAME[J.type]}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
         <div class="ins-row">${J.pass} Durchfahrten · Ø Wartezeit ${wait.toFixed(1)} s</div>
-        ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : `<div class="ins-row dim">Tipp: Über die Kreuzung entlang der Straße ziehen = Vorfahrt. Taste 2 Ampel, 3 Kreisel, P Polizei.</div>`}`;
+        ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : `<div class="ins-row dim">${this.touch ? 'Tipp: Entlang der Straße über die Kreuzung wischen = Vorfahrt. Oder unten Ampel, Kreisel bzw. Polizei wählen und die Kreuzung antippen.' : 'Tipp: Entlang der Straße über die Kreuzung ziehen = Vorfahrt. Taste 2 Ampel, 3 Kreisel, P Polizei.'}</div>`}`;
     }
     if (html !== this._insHtml) { this.inspectEl.innerHTML = html; this._insHtml = html; }
   }
@@ -295,7 +339,7 @@ class UI {
   onEscape() {
     if (this.targeting) { this.targeting = null; this.banner.classList.remove('show'); this.showWeek(this.app.game.pendingWeek); return true; }
     if (this.inspectData) { this.showInspect(null); this.app.scene.selected = null; return true; }
-    if (this.modalOpen && this.modalKind === 'menu' && this.app.game && !this.app.game.over) { this.closeModal(); this.app.setPaused(false); return true; }
+    if (this.modalOpen && this.modalKind === 'menu' && this.app.game && !this.app.game.over && !this.app.attract) { this.closeModal(); this.app.setPaused(false); this.afterMenu(); return true; }
     return false;
   }
 
@@ -306,13 +350,13 @@ class UI {
     const app = this.app;
     AUDIO.play('click');
     if (a === 'card') this.chooseCard(+b.dataset.k);
-    else if (a === 'skip') { this.closeModal(); app.game.chooseCard(null); }
-    else if (a === 'focus') { this.closeModal(); app.focusTile(+b.dataset.i); setTimeout(() => this.showWeek(app.game.pendingWeek), 1600); }
-    else if (a === 'again') app.startCity(app.game.def.id, { daily: app.game.opts.daily, dailySeed: app.game.opts.dailySeed });
+    else if (a === 'skip') { this.closeModal(); app.game.chooseCard(null); app.setPaused(false); }
+    else if (a === 'focus') { this.closeModal(); app.focusTile(+b.dataset.i); this.queueWeek(app.game.pendingWeek, 1600); }
+    else if (a === 'again') { if (app.game.opts.dailyKey) app.startDaily(); else app.startCity(app.game.def.id); }
     else if (a === 'menu') this.showMenu();
     else if (a === 'city') app.startCity(b.dataset.id);
     else if (a === 'daily') app.startDaily();
-    else if (a === 'resume') { this.closeModal(); app.setPaused(false); }
+    else if (a === 'resume') { this.closeModal(); app.setPaused(false); this.afterMenu(); }
     else if (a === 'help') this.showHelp();
     else if (a === 'toggle-sound') { app.toggleSound(); this.showMenu(); }
     else if (a === 'toggle-music') { AUDIO.setMusic(!AUDIO.musicOn); app.saveSettings(); this.showMenu(); }
@@ -327,7 +371,7 @@ class UI {
     this.modalKind = 'week';
     const worst = S.worst ? `<div class="wk-worst"><span>Größte Engstelle: <b>${CAUSES[S.worst.cause] ? CAUSES[S.worst.cause].title : 'Kreuzung'}</b> (${Math.round(S.worst.wait)} s Wartezeit)</span><button class="btn small" data-a="focus" data-i="${S.worst.i}">${ICON.eye} Zeigen</button></div>` : '<div class="wk-worst good">Keine großen Engstellen diese Woche.</div>';
     const cards = S.cards.map((c, k) => `<button class="pcard${c.pact ? ' pact' : ''}" data-a="card" data-k="${k}"><span class="pc-ic">${ICON[c.icon] || ICON.star}</span><b>${esc(c.name)}</b><span>${esc(c.desc)}</span>${c.target ? '<em>Ziel wählen</em>' : ''}${c.pact ? '<em class="pact">Pakt</em>' : ''}</button>`).join('');
-    const bonus = `+${g.mods.daily === 'sparsam' ? 10 : CFG.weekRoads} Straßen · +1 Polizei · die Ortsgrenze wächst`;
+    const bonus = `+${g.mods.daily === 'sparsam' || g.mods.lowWeek === g.week + 1 ? 10 : CFG.weekRoads} Straßen · +1 Polizei · die Ortsgrenze wächst`;
     this.openModal(`
       <div class="wk-head"><div class="wk-title">Woche ${S.week} geschafft!</div><div class="wk-sub">${fmtInt(S.trips)} Fahrten diese Woche · ${fmtInt(S.total)} insgesamt</div></div>
       <div class="wk-stats"><span>${ICON.house}${S.houses} Häuser</span><span>${ICON.flag}${S.dests} Ziele</span></div>
@@ -339,27 +383,32 @@ class UI {
 
   chooseCard(k) {
     const g = this.app.game;
+    if (!g || !g.pendingWeek) { this.closeModal(); return; }
     const c = g.pendingWeek.cards[k];
     AUDIO.play('card');
     if (c.target) {
       this.closeModal();
       this.targeting = c;
-      this.banner.innerHTML = `${ICON.target}<span><b>${esc(c.name)}:</b> Klicke auf ein Ziel</span>`;
+      this.banner.innerHTML = `${ICON.target}<span><b>${esc(c.name)}:</b> ${this.touch ? 'Tippe' : 'Klicke'} auf ein Ziel</span><button class="x" data-tgt="cancel" title="Andere Karte wählen">${ICON.close}</button>`;
+      this.banner.querySelector('[data-tgt=cancel]').onclick = () => this.onEscape();
       this.banner.classList.add('show');
       return;
     }
     this.closeModal();
     g.chooseCard(c);
+    this.app.setPaused(false);
   }
 
   pickTarget(t) {
     const g = this.app.game, w = g.world;
     const b = w.bld[t] >= 0 ? w.buildings[w.bld[t]] : null;
-    if (!b || b.kind !== 'dest') { this.toast('Bitte auf ein Ziel (großes Gebäude) klicken.', 'target'); AUDIO.play('deny'); return; }
+    if (!g.pendingWeek || g.phase !== 'week') { this.targeting = null; this.banner.classList.remove('show'); return; }
+    if (!b || b.kind !== 'dest') { this.toast('Bitte auf ein Ziel (großes Gebäude) ' + (this.touch ? 'tippen.' : 'klicken.'), 'target'); AUDIO.play('deny'); return; }
     const c = this.targeting;
     this.targeting = null;
     this.banner.classList.remove('show');
     g.chooseCard(c, b);
+    this.app.setPaused(false);
   }
 
   // Stau-Report nach dem Stillstand
@@ -427,7 +476,7 @@ class UI {
     const cities = CITIES.map(c => {
       const p = prog.cities[c.id] || {};
       const open = app.cityUnlocked(c);
-      const medals = [0, 1, 2].map(k => `<i class="${(p.medal || -1) >= k ? 'm' + (k + 1) : ''}">${ICON.star}</i>`).join('');
+      const medals = [0, 1, 2].map(k => `<i class="${(p.medal === undefined ? -1 : p.medal) >= k ? 'm' + (k + 1) : ''}">${ICON.star}</i>`).join('');
       return `<button class="city${open ? '' : ' locked'}" data-a="${open ? 'city' : ''}" data-id="${c.id}">
         <span class="c-name">${esc(c.name)}</span><span class="c-sub">${esc(c.sub)}</span>
         <span class="c-best">${open ? (p.plays ? 'Rekord ' + fmtInt(p.best || 0) : 'Noch nicht gespielt') : ICON.lock + ' ' + esc(app.unlockText(c))}</span>
@@ -452,15 +501,16 @@ class UI {
 
   showHelp() {
     this.modalKind = 'help';
+    const t = this.touch;
     this.openModal(`
       <div class="wk-title">So geht's</div>
       <div class="help">
-        <p><b>Ziel:</b> Häuser schicken ihre Autos zu Zielen derselben Farbe. Jede erledigte Fahrt zählt. Hat ein Ziel mehr als 6 offene Aufträge, füllt sich ein roter Ring – ist er voll, steht die Stadt still.</p>
-        <p><b>Straßen</b> ziehst du mit gedrückter linker Maustaste (Touch: ein Finger). Über Wasser entstehen Brücken, durch Berge Tunnel – beide brauchen ein Bauteil aus dem Inventar. <b>Rechtsklick-Ziehen</b> reißt ab und gibt Kacheln zurück.</p>
-        <p><b>Vorfahrt:</b> Zieh entlang einer bestehenden Straße über eine Kreuzung – diese Richtung wird Hauptstraße. Ohne Regel gilt rechts vor links.</p>
-        <p><b>Ampeln</b> (Taste 2) schalten selbst nach Bedarf, <b>Kreisel</b> (3) sind flüssig bei Verkehr aus allen Richtungen, die <b>Autobahn</b> (4) ist eine gerade Hochstraße über alles hinweg. Die <b>Polizei</b> (P) regelt eine Kreuzung 15 Sekunden lang von Hand.</p>
-        <p><b>Stau-Lupe:</b> Klick auf ein Auto, eine Kreuzung oder ein Ziel zeigt, was los ist. Gelbe Schilder markieren die größten Engstellen samt Ursache.</p>
-        <p><b>Kamera:</b> Mausrad zoomen, mittlere Maustaste oder Umschalt+Ziehen bzw. WASD verschieben, Q/E drehen. Leertaste Pause, Tab Tempo, Strg+Z rückgängig.</p>
+        <p><b>Ziel:</b> Häuser schicken ihre Autos zu Zielen derselben Farbe. Jede erledigte Fahrt zählt. Hat ein Ziel mehr als 6 offene Aufträge, füllt sich ein roter Ring – ist er voll, steht die Stadt still. Jedes Haus erzeugt Aufträge, auch wenn es noch nicht angeschlossen ist – liefern kann es aber erst mit Straße.</p>
+        <p><b>Straßen</b> ${t ? 'ziehst du mit einem Finger' : 'ziehst du mit gedrückter linker Maustaste'}. Über Wasser entstehen Brücken (bis 4 Felder), durch Berge Tunnel (bis 5 Felder) – beide brauchen ein Bauteil aus dem Inventar. <b>Abreißen:</b> ${t ? 'unten den Abriss-Knopf (Radiergummi) wählen und über die Straße ziehen' : 'mit der rechten Maustaste ziehen'} – das gibt die Teile zurück.</p>
+        <p><b>Vorfahrt:</b> ${t ? 'Wisch' : 'Zieh'} entlang einer bestehenden Straße über eine Kreuzung – diese Richtung wird Hauptstraße. Ohne Regel gilt rechts vor links: Bei Querverkehr muss dort jeder fast anhalten.</p>
+        <p><b>Ampeln</b> schalten selbst nach Bedarf, <b>Kreisel</b> sind flüssig bei Verkehr aus allen Richtungen, die <b>Autobahn</b> ist eine gerade Hochstraße über Straßen, Wasser und Gleise hinweg. Die <b>Polizei</b> regelt eine Kreuzung 15 Sekunden lang von Hand. ${t ? 'Werkzeug unten wählen und die Kreuzung antippen.' : 'Tasten 2, 3, 4 und P.'}</p>
+        <p><b>Stau-Lupe:</b> ${t ? 'Tipp' : 'Klick'} auf ein Auto, eine Kreuzung oder ein Ziel zeigt, was los ist. Dunkle Schilder markieren die größten Engstellen samt Ursache.</p>
+        <p><b>Kamera:</b> ${t ? 'Mit zwei Fingern schieben, zoomen und drehen.' : 'Mausrad zoomen, mittlere Maustaste oder Umschalt+Ziehen bzw. WASD verschieben, Q/E drehen. Leertaste Pause, Tab Tempo, Strg+Z rückgängig.'}</p>
         <p><b>Wochen:</b> Nach fünf Tagen gibt es Nachschub und du wählst eine von drei Karten.</p>
       </div>
       <button class="btn primary" data-a="back">Zurück</button>
@@ -503,11 +553,11 @@ class UI {
     } else if (T.step === 2) {
       if (T.t > 9) { T.step = 3; T.t = 0; this.tutEl.classList.remove('show'); }
     } else if (T.step === 3) {
-      if ([...g.world.junctions].length > 0 || g.dayIndex >= 2) { T.step = 4; T.t = 0; this.showTut('Kreuzungen bremsen: Zieh <b>entlang der Straße über die Kreuzung</b>, um Vorfahrt zu geben – oder setz eine <b>Ampel</b> (Taste 2).'); }
+      if ([...g.world.junctions].length > 0 || g.dayIndex >= 2) { T.step = 4; T.t = 0; this.showTut('Kreuzungen bremsen: ' + (this.touch ? 'Wisch' : 'Zieh') + ' <b>entlang der Straße über die Kreuzung</b>, um Vorfahrt zu geben – oder setz einen <b>Kreisel</b> ' + (this.touch ? '(unten wählen, Kreuzung antippen).' : '(Taste 3).')); }
     } else if (T.step === 4) {
       if (T.t > 12 || [...g.world.junctions].some(J => J.type !== 'auto')) { T.step = 5; T.t = 0; this.tutEl.classList.remove('show'); }
     } else if (T.step === 5) {
-      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. ' + (matchMedia('(pointer: coarse)').matches ? 'Der <b>Radierer</b>' : '<b>Rechtsklick-Ziehen</b>') + ' reißt ab und gibt Kacheln zurück.'); }
+      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. ' + (this.touch ? 'Der <b>Abriss</b>-Knopf' : '<b>Rechtsklick-Ziehen</b>') + ' reißt ab und gibt Kacheln zurück.'); }
     } else if (T.step === 6) {
       if (T.t > 10) this.endTutorial();
     }

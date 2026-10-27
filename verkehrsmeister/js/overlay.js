@@ -213,8 +213,10 @@ class Overlay {
     let dx = sp.x - cx, dy = sp.y - cy;
     if (sp.behind) { dx = -dx; dy = -dy; }
     const m = 34;
-    const k = Math.min((W / 2 - m) / Math.max(1e-3, Math.abs(dx)), (H / 2 - m - 40) / Math.max(1e-3, Math.abs(dy)));
-    const x = cx + dx * k, y = cy + dy * k;
+    const k = Math.min((W / 2 - m) / Math.max(1e-3, Math.abs(dx)), (H / 2 - m) / Math.max(1e-3, Math.abs(dy)));
+    // nicht unter Uhr, Punktestand oder Werkzeugleiste
+    const S = this.safe || { top: 90, bottom: H - 90 };
+    const x = cx + dx * k, y = clamp(cy + dy * k, S.top, S.bottom);
     const a = Math.atan2(dy, dx);
     ctx.save();
     ctx.translate(x, y);

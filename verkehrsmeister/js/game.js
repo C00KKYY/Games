@@ -77,7 +77,7 @@ class Game {
     for (const J of this.world.junctions) if (!worst || (J.weekWait || 0) > (worst.weekWait || 0)) worst = J;
     const summary = {
       week: this.week, trips: this.weekScore, total: this.score,
-      worst: worst && worst.weekWait > 20 ? { i: worst.i, wait: worst.weekWait, cause: worst.cause || (worst.type === 'auto' ? 'rvl' : worst.type === 'light' ? 'light' : worst.type === 'roundabout' ? 'round' : 'main') } : null,
+      worst: worst && worst.weekWait > 20 ? { i: worst.i, wait: worst.weekWait, cause: worst.cause || junctionCause(worst) } : null,
       houses: this.city.houses.length, dests: this.city.dests.length,
     };
     this.weekLog.push(summary);
@@ -103,7 +103,7 @@ class Game {
       if (c.id === 'police' && this.mods.policeMax) return false;
       return true;
     });
-    const weight = c => c.id === 'roads' ? 3 : c.id === 'lights' || c.id === 'round' ? 2.2 : c.id === 'highway' ? 1.6 : c.pact ? 0.7 : 1;
+    const weight = c => c.id === 'roads' ? 2 : c.id === 'round' ? 2 : c.id === 'lights' ? 1.6 : c.id === 'highway' ? 1.6 : c.pact ? 0.7 : 1;
     const out = [];
     const rng = new RNG(this.seed * 7 + this.week * 101);
     while (out.length < n && pool.length) {
@@ -115,6 +115,7 @@ class Game {
 
   // Karte wählen (target = Ziel-Gebäude bei Karten mit Ziel)
   chooseCard(card, target) {
+    if (this.phase !== 'week' || !this.pendingWeek) return false;
     if (card) {
       if (card.target && !target) return false;
       card.apply(this, target);
@@ -129,7 +130,7 @@ class Game {
   nextWeek() {
     this.week++; this.day = 1; this.dayIndex++; this.dayT = 0; this.phase = 'day';
     this.weekScore = 0;
-    this.inv.roads += this.mods.daily === 'sparsam' ? 10 : CFG.weekRoads;
+    this.inv.roads += (this.mods.daily === 'sparsam' || this.mods.lowWeek === this.week) ? 10 : CFG.weekRoads;
     this.inv.police = Math.min(this.mods.policeMax || CFG.policeMax, this.inv.police + 1);
     // Ortsgrenze wächst
     const b = this.world.bounds, W = this.world.w, H = this.world.h;
@@ -149,9 +150,9 @@ class Game {
     this.lostAt = dest;
     const w = this.world;
     const top = [...w.junctions].filter(J => (J.totalWait || 0) > 15).sort((a, b) => b.totalWait - a.totalWait).slice(0, 3)
-      .map(J => ({ i: J.i, x: w.tx(J.i), y: w.ty(J.i), wait: J.totalWait, cause: J.cause || (J.type === 'auto' ? 'rvl' : J.type === 'light' ? 'light' : J.type === 'roundabout' ? 'round' : 'main') }));
+      .map(J => ({ i: J.i, x: w.tx(J.i), y: w.ty(J.i), wait: J.totalWait, cause: J.cause || junctionCause(J) }));
     this.report = {
-      city: this.def, score: this.score, week: this.week, day: this.day, dest, cause: dest.cause || 'nocar', top,
+      city: this.def, score: this.score, week: this.week, day: this.day, dest, cause: dest.cause || (dest.assigned >= dest.pins ? 'jam' : 'nocar'), top,
       houses: this.city.houses.length, dests: this.city.dests.length, stats: this.stats,
     };
     this.fx.push({ t: 'gameover', report: this.report });
@@ -174,6 +175,8 @@ class Game {
     const s = this.undoStack.pop();
     if (!s) return false;
     const changed = this.world.restore(s.world);
+    // Polizei und Feierabend-Stopp wirken bereits – nicht zurückgeben
+    s.inv.police = this.inv.police; s.inv.stops = this.inv.stops;
     this.inv = s.inv;
     this.traffic.onTilesChanged(changed);
     this.fx.push({ t: 'rebuild', all: true });
@@ -206,6 +209,7 @@ class Game {
         for (let k = 1; k + 1 < tiles.length; k++) if (w.isJ[tiles[k]]) js.push(k);
         if (js.length) {
           res.swipe = js.map(k => ({ i: tiles[k], a: this.dirBetween(tiles[k], tiles[k - 1]), b: this.dirBetween(tiles[k], tiles[k + 1]) }));
+          res.swipeBlocked = this.mods.daily === 'rvl' ? 'Heute gilt nur rechts vor links' : (js.every(k => w.jc[tiles[k]] && w.jc[tiles[k]].type === 'roundabout') ? 'Im Kreisel gibt es keine Vorfahrt' : '');
           for (const i of tiles) res.items.push({ i, kind: 'swipe', ok: true });
           return res;
         }
@@ -234,9 +238,15 @@ class Game {
         let straight = true;
         const d0 = k > 0 ? this.dirBetween(tiles[k - 1], tiles[k]) : (e > k ? this.dirBetween(tiles[k], tiles[k + 1]) : -1);
         for (let q = k; q <= e + 1 && q < n; q++) if (q > 0 && this.dirBetween(tiles[q - 1], tiles[q]) !== d0) straight = false;
-        if (len > max || !straight || inv[key] <= 0) {
+        // Abschnitt muss an beiden Enden festen Boden haben und darf keine bestehende Brücke verlängern
+        const flag = ri.kind === 'bridge' ? F_BRIDGE : F_TUNNEL;
+        const before = k > 0 ? tiles[k - 1] : -1, after = e + 1 < n ? tiles[e + 1] : -1;
+        const extendsOld = (before >= 0 && w.road[before] && (w.flags[before] & flag)) || (after >= 0 && w.road[after] && (w.flags[after] & flag));
+        const noShore = before < 0 || after < 0;
+        if (len > max || !straight || inv[key] <= 0 || extendsOld || noShore) {
           res.ok = false;
-          res.reason = len > max ? (ri.kind === 'bridge' ? 'Brücken höchstens ' + max + ' Felder' : 'Tunnel höchstens ' + max + ' Felder') : !straight ? (ri.kind === 'bridge' ? 'Brücken nur gerade' : 'Tunnel nur gerade') : (ri.kind === 'bridge' ? 'Keine Brücke mehr im Inventar' : 'Kein Tunnel im Inventar');
+          const nm = ri.kind === 'bridge' ? 'Brücke' : 'Tunnel';
+          res.reason = extendsOld ? nm + ' lässt sich nicht verlängern' : len > max ? (ri.kind === 'bridge' ? 'Brücken höchstens ' + max + ' Felder' : 'Tunnel höchstens ' + max + ' Felder') : !straight ? (ri.kind === 'bridge' ? 'Brücken nur gerade' : 'Tunnel nur gerade') : noShore ? (ri.kind === 'bridge' ? 'Brücke muss das andere Ufer erreichen' : 'Tunnel muss durch den Berg führen') : (ri.kind === 'bridge' ? 'Keine Brücke mehr im Inventar' : 'Kein Tunnel im Inventar');
           for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false });
           break;
         }
@@ -291,6 +301,7 @@ class Game {
         this.fx.push({ t: 'rebuild' });
         this.fx.push({ t: 'priority', tiles: plan.swipe.map(s => s.i) });
       }
+      if (!n) this.fx.push({ t: 'deny', text: plan.swipeBlocked || 'Hier geht keine Vorfahrt', i: plan.swipe[0].i });
       return { ok: n > 0, swipe: true };
     }
     const okItems = [];
@@ -348,7 +359,10 @@ class Game {
       if (!w.road[g]) continue;
       if (w.accOf[g] >= 0) {
         // Einfahrt bleibt, nur Verbindungen lösen
-        if (w.link[g]) { pre(); for (let d = 0; d < 4; d++) { const j = w.nb(g, d); if (j >= 0) touched.add(j); w.disconnect(g, d); } touched.add(g); }
+        // interne Verbindung der beiden Zufahrten eines Ziels bleibt bestehen
+        let ext = 0;
+        for (let d = 0; d < 4; d++) { const j = w.nb(g, d); if (((w.link[g] >> d) & 1) && !(j >= 0 && j < w.n && w.accOf[j] === w.accOf[g])) ext |= 1 << d; }
+        if (ext) { pre(); for (let d = 0; d < 4; d++) { if (!((ext >> d) & 1)) continue; const j = w.nb(g, d); if (j >= 0) touched.add(j); w.disconnect(g, d); } touched.add(g); }
         continue;
       }
       pre();
@@ -366,8 +380,9 @@ class Game {
         continue;
       }
       for (let d = 0; d < 4; d++) { const q = w.nb(g, d); if (q >= 0) touched.add(q); }
-      w.removeRoad(g);
-      if (w.terrain[g] !== T_WATER) this.inv.roads++;
+      const wasFree = w.free[g];
+      w.removeRoad(g); w.free[g] = 0;
+      if (w.terrain[g] !== T_WATER && !wasFree) this.inv.roads++;
       removed.push(g); touched.add(g);
     }
     if (!did) return false;

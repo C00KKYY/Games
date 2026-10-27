@@ -82,10 +82,13 @@ class Input {
   }
 
   // ---- Zeiger ----------------------------------------------------------------------------
+  setMouse(e) { const r = this.rect(); this.mouse.x = e.clientX - r.left; this.mouse.y = e.clientY - r.top; }
+
   down(e) {
     if (!this.game) return;
     AUDIO.init(); AUDIO.resume();
     this._rect = null;
+    this.setMouse(e);
     this.cv.setPointerCapture && this.cv.setPointerCapture(e.pointerId);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
     if (this.pointers.size >= 2) { this.cancelDrag(); this.startGesture(); return; }
@@ -155,6 +158,7 @@ class Input {
 
   up(e) {
     if (!this.game) return;
+    if (e.target === this.cv || this.pointers.has(e.pointerId)) this.setMouse(e);
     const had = this.pointers.has(e.pointerId);
     this.pointers.delete(e.pointerId);
     if (this.gesture) { if (this.pointers.size < 2) this.gesture = null; return; }

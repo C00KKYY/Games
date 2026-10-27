@@ -119,7 +119,7 @@ class App {
     this.input.setTool('road');
   }
 
-  blocked() { return this.ui.modalOpen || (this.game && this.game.phase === 'week' && !this.ui.targeting); }
+  blocked() { return this.attract || this.ui.modalOpen || (this.game && this.game.phase === 'week' && !this.ui.targeting); }
 
   setPaused(p) { this.paused = p; this.ui.setPaused(p); }
   togglePause() { if (this.game && !this.game.over && !this.ui.modalOpen) this.setPaused(!this.paused); }
@@ -158,6 +158,7 @@ class App {
     // Klick auf ein Engstellen-Schild
     for (const pr of g.city.problems) if (pr.screen && Math.abs(mouse.x - pr.screen.x) < pr.screen.w / 2 && Math.abs(mouse.y - pr.screen.y) < pr.screen.h / 2) {
       if (pr.J) this.ui.showInspect({ J: pr.J }); else if (pr.b) this.ui.showInspect({ d: pr.b });
+      else { const c = CAUSES[pr.cause]; if (c) this.ui.toast(c.title + ': ' + c.tip, 'works', { ms: 5000 }); }
       return;
     }
     this.ui.showInspect(null);
@@ -169,6 +170,7 @@ class App {
   handleFx(f) {
     const g = this.game, w = g.world, ov = this.overlay, ui = this.ui;
     this.scene.onFx(f);
+    if (this.attract) return;   // Kulisse hinter dem Menü: keine Meldungen, keine Klänge
     switch (f.t) {
       case 'built': {
         const n = f.placed.length;
@@ -204,7 +206,7 @@ class App {
       case 'weekend':
         AUDIO.play('week');
         this.engine.rig.goal.dist = Math.min(this.engine.rig.maxDist, this.engine.rig.goal.dist * 1.25 + 4);
-        setTimeout(() => { if (this.game === g) ui.showWeek(f.summary); }, 900);
+        ui.queueWeek(f.summary, 900);
         break;
       case 'newweek':
         ui.bigText('Woche ' + g.week, 'week', 1500);
