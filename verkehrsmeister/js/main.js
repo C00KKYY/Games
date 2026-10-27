@@ -142,7 +142,18 @@ class App {
   // Klick ohne Ziehen: Stau-Lupe
   inspect(t, mouse) {
     const g = this.game;
-    if (!g || t < 0) { this.ui.showInspect(null); return; }
+    if (!g) return;
+    // Engstellen-Schilder liegen über allem: zuerst prüfen, das zuletzt gezeichnete (oberste) gewinnt
+    const probs = g.city.problems;
+    for (let k = probs.length - 1; k >= 0; k--) {
+      const pr = probs[k], s = pr.screen;
+      if (!s || Math.abs(mouse.x - s.x) >= s.w / 2 || Math.abs(mouse.y - s.y) >= s.h / 2) continue;
+      if (pr.J) this.ui.showInspect({ J: pr.J }); else if (pr.b) this.ui.showInspect({ d: pr.b });
+      else { const c = CAUSES[pr.cause]; if (c) this.ui.toast(c.title + ': ' + c.tip, 'works', { ms: 5000 }); }
+      AUDIO.play('click');
+      return;
+    }
+    if (t < 0) { this.ui.showInspect(null); return; }
     const w = g.world;
     const p = this.scene.pickPoint(mouse.x, mouse.y);
     let best = null, bd = 0.5;
@@ -156,12 +167,6 @@ class App {
     if (b && b.kind === 'dest') { this.ui.showInspect({ d: b }); AUDIO.play('click'); return; }
     if (b) { this.ui.showInspect({ h: b }); AUDIO.play('click'); return; }
     if (w.jc[t]) { this.ui.showInspect({ J: w.jc[t] }); AUDIO.play('click'); return; }
-    // Klick auf ein Engstellen-Schild
-    for (const pr of g.city.problems) if (pr.screen && Math.abs(mouse.x - pr.screen.x) < pr.screen.w / 2 && Math.abs(mouse.y - pr.screen.y) < pr.screen.h / 2) {
-      if (pr.J) this.ui.showInspect({ J: pr.J }); else if (pr.b) this.ui.showInspect({ d: pr.b });
-      else { const c = CAUSES[pr.cause]; if (c) this.ui.toast(c.title + ': ' + c.tip, 'works', { ms: 5000 }); }
-      return;
-    }
     this.ui.showInspect(null);
   }
 

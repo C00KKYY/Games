@@ -637,7 +637,7 @@ class Scene3D {
     this.congT = 0.4;
     const w = this.w, mesh = this.congMesh;
     // Bodenstraßen: die Fahrbahn selbst färbt sich rot (eigene Kontur, unter den Markierungen)
-    let n = 0, key = '';
+    let n = 0, key = this.roads.gen + '|';
     const ground = [];
     for (let i = 0; i < w.N; i++) {
       if (!w.road[i]) continue;

@@ -30,6 +30,7 @@ class Roads3D {
   }
 
   build(world) {
+    this.gen = (this.gen || 0) + 1;   // Zähler für abhängige Darstellungen (Stau-Färbung)
     if (this.mesh) { this.group.remove(this.mesh); this.mesh.geometry.dispose(); this.mesh = null; }
     const G = new GeoBuilder();
     for (let i = 0; i < world.N; i++) {

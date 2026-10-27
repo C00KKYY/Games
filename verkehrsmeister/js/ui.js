@@ -292,10 +292,12 @@ class UI {
   // ---- Stau-Lupe ---------------------------------------------------------------------
   showInspect(data, mouse) {
     this.inspectData = data;
-    this.tutEl.style.visibility = data ? 'hidden' : '';
-    if (!data) { this.inspectEl.classList.remove('show'); return; }
+    if (!data) { this.inspectEl.classList.remove('show'); this.tutEl.style.visibility = ''; return; }
     this.inspectEl.classList.add('show');
     this.renderInspect();
+    // Tipp-Box nur verstecken, wenn sie sich mit der Lupe überdeckt (schmale Fenster)
+    const a = this.inspectEl.getBoundingClientRect(), b = this.tutEl.getBoundingClientRect();
+    this.tutEl.style.visibility = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom ? 'hidden' : '';
   }
 
   renderInspect() {
@@ -440,7 +442,7 @@ class UI {
     this.openModal(`
       <div class="rep-head"><div class="rep-title">Stillstand in ${esc(def.name)}!</div><div class="rep-sub">${esc(PALETTE[R.dest.pi].name)} konnte nicht mehr beliefert werden · Woche ${R.week}, ${DAYS[Math.min(4, R.day - 1)]}</div></div>
       <div class="rep-score"><span class="big">${fmtInt(R.score)}</span><span>Punkte</span>${medal}${prog.newBest ? '<span class="newbest">Neuer Rekord!</span>' : ''}</div>
-      <div class="rep-btns"><button class="btn primary" data-a="again">Nochmal ${esc(def.name)}</button>${prog.unlockedId ? `<button class="btn" data-a="city" data-id="${prog.unlockedId}">Neu: ${esc(prog.unlocked)}</button>` : '<button class="btn" data-a="menu">Andere Stadt</button>'}</div>
+      <div class="rep-btns"><button class="btn primary" data-a="again">Nochmal ${esc(def.name)}</button>${prog.unlockedId ? `<button class="btn" data-a="city" data-id="${prog.unlockedId}">Neu: ${esc(prog.unlocked)}</button>` : ''}<button class="btn" data-a="menu">Andere Stadt</button></div>
       <div class="rep-grid">
         <div class="rep-col">
           <h4>Woran es lag</h4>
@@ -567,6 +569,8 @@ class UI {
   updateTutorial(dt) {
     const T = this.tut, g = this.app.game;
     if (!T || !g) return;
+    // solange die Tipp-Box nicht zu sehen ist, läuft nichts weiter (sonst verpasst man Lektionen)
+    if (this.tutEl.style.visibility === 'hidden' || this.modalOpen || g.phase === 'week') return;
     T.t += dt; T.curT += dt;
     const ov = this.app.overlay, D = T.done, city = g.city;
     const conn = city.houses.filter(h => h.conn);

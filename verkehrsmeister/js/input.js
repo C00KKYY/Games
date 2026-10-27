@@ -136,6 +136,8 @@ class Input {
     // Zielwahl: wer zieht, will die Karte verschieben
     if (D.kind === 'target') { if (D.moved) { D.kind = 'pan'; D.lx = D.sx; D.ly = D.sy; this.move(e); } return; }
     if (D.kind === 'road') {
+      // beim Bauen stört die Haus-Lupe (und verdeckt ggf. die Tipp-Box)
+      if (D.moved && this.app.ui.inspectData && this.app.ui.inspectData.h) this.app.ui.showInspect(null);
       if (!D.path.length) { const s = this.snap(t); if (s >= 0) D.path.push(s); }
       else this.extendPath(D.path, this.snap(t, D.path[D.path.length - 1]));
       this.updatePreview();

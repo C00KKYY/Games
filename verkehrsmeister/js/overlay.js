@@ -29,7 +29,7 @@ class Overlay {
   }
 
   // Zoomfaktor für Größen: weiter weg → kleiner
-  zf() { return clamp(30 / this.e.rig.cur.dist, 0.65, 1.35) * clamp(Math.min(this.cv.clientWidth, this.cv.clientHeight) / 700, 0.78, 1); }
+  zf() { return Math.max(0.65, clamp(30 / this.e.rig.cur.dist, 0.65, 1.35) * clamp(Math.min(this.cv.clientWidth, this.cv.clientHeight) / 700, 0.78, 1)); }
 
   draw(game, dt, ui) {
     this.time += dt;
@@ -215,14 +215,17 @@ class Overlay {
       const sp = this.e.project(p.x, p.kind === 'dest' ? 0.4 : 0.55, p.y);
       if (!c || sp.behind) { p.screen = null; continue; }
       const w = ctx.measureText(c.title).width + 34 * zf, h = 22 * zf;
-      const dir = p.kind === 'dest' ? 1 : -1;
-      let x = clamp(sp.x, w / 2 + 6, W - w / 2 - 6);
-      let y = p.kind === 'dest' ? sp.y + 40 * zf : sp.y - 18 * zf;
-      for (let k = 0; k < 6; k++) {
+      // erst in den freien Bereich klemmen, dann Überlappungen auflösen (am Rand Richtung wechseln)
+      const lo = S.top + h / 2, hi = Math.max(lo, S.bottom - h / 2);
+      let dir = p.kind === 'dest' ? 1 : -1;
+      const x = clamp(sp.x, w / 2 + 6, W - w / 2 - 6);
+      let y = clamp(p.kind === 'dest' ? sp.y + 40 * zf : sp.y - 18 * zf, lo, hi);
+      for (let k = 0; k < 8; k++) {
         if (!placed.some(r => Math.abs(r.x - x) < (r.w + w) / 2 + 4 && Math.abs(r.y - y) < (r.h + h) / 2 + 3)) break;
-        y += dir * (h + 4 * zf);
+        let ny = y + dir * (h + 4 * zf);
+        if (ny < lo || ny > hi) { dir = -dir; ny = y + dir * (h + 4 * zf); }
+        y = clamp(ny, lo, hi);
       }
-      y = clamp(y, S.top + h / 2, S.bottom - h / 2);
       placed.push({ x, y, w, h });
       this.problemSign(ctx, p, zf, x, y, sp);
     }
