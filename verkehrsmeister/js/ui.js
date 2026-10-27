@@ -470,7 +470,8 @@ class UI {
   // ---- Tutorial -----------------------------------------------------------------------
   startTutorial() {
     this.tut = { step: 0, t: 0 };
-    this.showTut('Zieh mit gedrückter Maustaste eine Straße von einem <b>Haus</b> zur <b>Bäckerei</b>.');
+    const touch = matchMedia('(pointer: coarse)').matches;
+    this.showTut((touch ? 'Zieh mit dem Finger' : 'Zieh mit gedrückter Maustaste') + ' eine Straße von einem <b>Haus</b> zur <b>Bäckerei</b>.');
   }
 
   showTut(html) {
@@ -506,7 +507,7 @@ class UI {
     } else if (T.step === 4) {
       if (T.t > 12 || [...g.world.junctions].some(J => J.type !== 'auto')) { T.step = 5; T.t = 0; this.tutEl.classList.remove('show'); }
     } else if (T.step === 5) {
-      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. <b>Rechtsklick-Ziehen</b> reißt ab und gibt Kacheln zurück.'); }
+      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. ' + (matchMedia('(pointer: coarse)').matches ? 'Der <b>Radierer</b>' : '<b>Rechtsklick-Ziehen</b>') + ' reißt ab und gibt Kacheln zurück.'); }
     } else if (T.step === 6) {
       if (T.t > 10) this.endTutorial();
     }

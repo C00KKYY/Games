@@ -1,89 +1,67 @@
-# Verkehrsmeister
+# Verkehrsmeister 3D
 
-Ein Verkehrsmanagement-Spiel für den Browser. Du planst das Straßennetz einer wachsenden Stadt, regelst Kreuzungen und hältst den Verkehr am Fließen – mit einer echten Verkehrssimulation, in der jedes Auto seine eigene Route fährt, an Kreuzungen nach deutschen Regeln wartet und im Stau stehen bleibt.
+Ein Verkehrs-Puzzlespiel in 3D für den Browser. Farbige Häuser schicken ihre Autos zu Zielen derselben Farbe – du baust die Straßen dazwischen und hältst die Kreuzungen frei. Jede erledigte Fahrt zählt. Staut es sich so sehr, dass ein Ziel nicht mehr beliefert wird, steht die Stadt still.
 
-Keine Installation, keine Abhängigkeiten: **`index.html` im Browser öffnen** und losspielen (funktioniert auch direkt per Doppelklick von der Festplatte).
+Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Festplatte). Läuft mit Maus und Tastatur oder per Touch auf Tablet und Handy.
 
-## Spielmodi
+## Spielprinzip
 
-- **Kampagne** – 8 Level mit steigender Schwierigkeit und neuen Werkzeugen, je bis zu drei Sterne:
-  1. *Lindenau* – Tutorial: Häuser mit dem Büro verbinden
-  2. *Brückenfeld* – ein Fluss teilt Wohnen und Arbeiten; Einbahnstraßen
-  3. *Altstadt Kreuzberg* – vorgebautes Raster, überall rechts vor links; Ampeln und Vorfahrt
-  4. *Hügelheim* – Felsen, Tunnel, Kreisverkehre
-  5. *Hafen Nordstrand* – Fabriken, LKW-Lieferverkehr, Pendler von außerhalb, Schnellstraßen
-  6. *Neustadt am Main* – Durchgangsverkehr, Stromausfälle, Brände
-  7. *Seestadt* – Busse und Haltestellen rund um einen See
-  8. *Metropole Rheinhafen* – alles zusammen, mit Stadion und Einkaufszentrum
-- **Endlosmodus** – fünf Landschaften, die Stadt wächst und der Verkehr nimmt täglich zu. Rekorde werden gespeichert.
-- **Freies Bauen** – unbegrenztes Geld, Gebäude selbst platzieren, Wachstum und Ereignisse schaltbar.
+- **Häuser** (je 2 Autos) und **Ziele** (Bäckerei, Klinik, Büro, Gärtnerei, Kino, Fabrik) haben Farben. Ein Auto fährt zum Ziel seiner Farbe, erledigt dort einen Auftrag und fährt wieder heim.
+- **Aufträge** sammeln sich als Punkte unter dem Ziel. Ab dem 7. offenen Auftrag läuft ein **roter Ring** – ist er nach 35 Sekunden voll, ist das Spiel vorbei. Sinkt die Zahl wieder, baut sich der Ring doppelt so schnell ab.
+- Jedes angeschlossene Haus erzeugt zusätzliche Nachfrage. Die Stadt wächst ständig: alle paar Sekunden kündigt sich ein neues Haus mit seinem Schatten an, alle vier Tage ein neues Ziel – oft in einer neuen Farbe.
+- Ein Tag dauert 40 Sekunden mit **Morgen- und Feierabendwelle**. Nach fünf Tagen ist Wochenende: +20 Straßen, +1 Polizei, die Ortsgrenze wächst, und du wählst **eine von drei Karten** (Ampeln, Kreisel, Autobahn, Brücken, Tunnel, Grüne Welle, Parkhaus, Tempo 60, Gleitzeit, Zweitwagen, Feierabend-Stopp, Pakt-Karten …).
+- Es gibt kein Geld, sondern ein **Inventar**: Straßenkacheln, Brücken (bis 4 Felder über Wasser), Tunnel (bis 5 Felder durch Berge), Ampeln, Kreisel, Autobahnen und Polizei-Einsätze. Abreißen gibt Bauteile zurück.
 
-## Was simuliert wird
+## Kreuzungen
 
-- **Fahrzeuge**: PKW, Lieferwagen, LKW, Linienbusse, Rettungswagen und Feuerwehr mit eigenem Beschleunigungs- und Folgeverhalten, Blinkern, Bremslichtern und Scheinwerfern bei Nacht.
-- **Routenplanung**: A*-Suche über Kacheln und Fahrtrichtungen, berücksichtigt Tempolimits, Abbiegevorgänge, Wartezeiten an Kreuzungen und aktuelle Staus; Fahrzeuge suchen bei Stau neue Wege.
-- **Kreuzungsregeln**:
-  - *Rechts vor links* inklusive „Linksabbieger lässt Gegenverkehr durch“ und Auflösung von Patt-Situationen
-  - *Vorfahrtsstraße* (auch abknickend) mit Haifischzähnen und Schildern
-  - *Ampeln* mit frei programmierbaren Phasen (Pfeile pro Zufahrt anklicken), Gelb- und Räumzeiten, Vorlagen, Versatz für die **Grüne Welle** (inkl. Automatik zur Nachbarampel) und **adaptiver Steuerung**
-  - *Kreisverkehr* – wer im Kreis fährt, hat Vorfahrt
-  - *Linksabbiegeverbote* pro Zufahrt
-  - „Kreuzung nicht blockieren“: Einfahrt nur, wenn hinter der Kreuzung Platz ist; Ketten direkt benachbarter Kreuzungen werden gemeinsam freigegeben
-- **Stadtleben**: Pendler zur Arbeit und zurück, Einkäufe, Freizeit, Lieferverkehr, Durchgangsverkehr über Ortseingänge; Tagesgang mit Berufsverkehr und Wochenende; die Stadt wächst abhängig von der Zufriedenheit.
-- **Ereignisse**: Unfälle (Kreuzung gesperrt, Rettungswagen, Abschleppdienst), Baustellen, Stromausfälle, Brände, Fußballspiele im Stadion, Regen, Nebel und Schnee.
-- **Busse**: Haltestellen, Linien mit beliebig vielen Bussen, Fahrgäste mit Wartezeiten und Umstieg vom Auto.
-- **Wirtschaft**: Baukosten (Brücken und Tunnel teurer), Unterhalt pro Tag, Einnahmen pro Fahrt, Steuern abhängig von der Zufriedenheit.
+- Ohne Regel gilt **rechts vor links**.
+- **Vorfahrt per Wisch:** entlang einer bestehenden Straße über eine Kreuzung ziehen – diese Richtung wird Hauptstraße (kostet nichts).
+- **Ampel:** schaltet selbst nach Bedarf (4–12 s Grün), die per Wisch gewählte Hauptachse bekommt doppelt so lange Grün.
+- **Kreisel:** wer im Kreis fährt, hat Vorfahrt – flüssig bei Verkehr aus allen Richtungen.
+- **Autobahn:** gerade Hochstraße mit zwei Rampen, überquert Straßen, Wasser und Gleise, Tempo 130.
+- **Polizei:** regelt eine Kreuzung 15 Sekunden lang von Hand und lässt alles durch, was sich nicht kreuzt.
+
+Gelbe Schilder zeigen die drei größten Engstellen samt Ursache. Ein Klick auf ein Auto, eine Kreuzung oder ein Ziel öffnet die **Stau-Lupe** mit Erklärung und Tipp. Nach dem Stillstand gibt es einen **Stau-Report** mit Wartezeit-Karte, den drei schlimmsten Kreuzungen und Bestenliste.
+
+## Städte
+
+| Stadt | Besonderheit |
+|---|---|
+| Kleinbüttel | Dorf am Bach, mit Tutorial |
+| Hafenstadt | Kanäle; die Klappbrücke öffnet alle 30 s für ein Schiff |
+| Ruhrstadt | zwei Bahnstrecken, Schranken schließen alle 20 s |
+| Alpendorf | Berge und Tunnel, Schneetage machen alle langsamer |
+| Messestadt | Messe-Ansturm mit 20 Aufträgen auf einmal |
+| Hauptstadt | vorgebauter schneller Ring, bis zu sechs Farben |
+
+Jede Stadt hat Bronze/Silber/Gold-Marken und eine lokale Bestenliste. Die **Tageschallenge** kombiniert jeden Tag eine Stadt mit einer Sonderregel. Gesammelte Fahrten bringen **Ränge** (ab Rang 2 gibt es Pakt-Karten).
 
 ## Bedienung
 
 | Eingabe | Aktion |
 |---|---|
-| Linke Maustaste ziehen | Straßen bauen / abreißen (je nach Werkzeug) |
-| Klick | Auswählen, Ampel/Vorfahrt/Kreisverkehr setzen, Haltestellen |
-| Rechte/mittlere Maustaste ziehen, W A S D, Pfeiltasten | Karte verschieben |
-| Mausrad, + / − | Zoomen |
-| Leertaste | Pause |
-| 1 · 2 · 3 | Spieltempo |
-| Strg + Z | Rückgängig |
-| H | Verkehrsdichte (Stau-Heatmap) |
-| S (kurz tippen) | Statistik |
-| Q R E T X L V K B N | Werkzeuge |
-| Enter | Buslinie abschließen |
-| Esc | Abbrechen / Menü |
+| Linke Maustaste ziehen | Straße bauen / per Wisch Vorfahrt setzen |
+| Rechte Maustaste ziehen | Abreißen |
+| Klick | Stau-Lupe (Auto, Kreuzung, Ziel) |
+| Mausrad / Pinch | Zoomen |
+| Mittlere Maustaste, Umschalt+Ziehen, WASD | Kamera verschieben |
+| Q / E | Kamera drehen |
+| 1 / 2 / 3 / 4 | Straße / Ampel / Kreisel / Autobahn |
+| P, X, F | Polizei, Radierer, Feierabend-Stopp |
+| Leertaste, Tab | Pause, Tempo 1×/2×/3× |
+| Strg+Z | Rückgängig (10 Schritte) |
+| Touch | ein Finger baut, zwei Finger verschieben/zoomen/drehen |
 
-Auf Touch-Geräten: ein Finger baut bzw. verschiebt, zwei Finger zoomen und verschieben.
+## Technik
 
-Spielstände (drei Plätze plus automatisches Speichern) liegen im Browser-Speicher (`localStorage`).
-
-## Projektstruktur
+- Reines JavaScript ohne Build-Schritt, 3D mit [Three.js](https://threejs.org/) r128 (liegt in `vendor/`).
+- Kachelbasierte Mikrosimulation: jedes Auto fährt auf Bézier-Bahnen durch die Kacheln, hält Abstand, wartet an Kreuzungen nach Konflikttabellen, plant per A* und weicht Staus aus. Kreuzungsketten werden gemeinsam freigegeben, Patt-Situationen löst ein „Nach Ihnen!“-Ventil.
+- Hochstraßen liegen auf einer eigenen Kachelebene; Rampen verbinden sie mit dem Boden.
+- Alle Klänge und die Musik werden live per WebAudio erzeugt.
 
 ```
-index.html          Einstieg
-css/style.css       Gestaltung (Verkehrsschild-Optik)
-js/util.js          Helfer: Richtungen, Zufall, Heap, Formatierung
-js/config.js        Balancing: Kosten, Tempo, Nachfragekurven, Fahrzeug- und Gebäudetypen
-js/world.js         Gelände, Straßennetz, Gebäude
-js/geometry.js      Fahrwege innerhalb einer Kachel, Konflikttabellen
-js/pathfinding.js   A*-Routensuche
-js/junction.js      Kreuzungssteuerung (Regeln, Ampeln, Kreisverkehr)
-js/traffic.js       Fahrzeuge, Folgeverhalten, Spuren, Ausparken, Umleiten
-js/city.js          Nachfrage, Rückfahrten, Wachstum, Ereignisse, Busse
-js/mapgen.js        Level und Kartengenerator
-js/game.js          Spielzustand, Geld, Zufriedenheit, Ziele, Bauaktionen, Speichern
-js/render.js        Canvas-Darstellung (gecachte Chunks + dynamische Ebenen)
-js/ui.js            Oberfläche, Menüs, Ampel-Editor, Statistik, Tutorial
-js/input.js         Maus, Touch, Tastatur
-js/audio.js         Synthetische Klänge (WebAudio)
-js/main.js          Start
-tools/simtest.js    Headless-Simulationstest (Node)
-tools/bot.js        Bot, der Level automatisch spielt (Balance-Tests)
-tools/build-single.js  bündelt alles in eine einzelne HTML-Datei
+node tools/simtest.js kleinbuettel 6      # Simulation headless mit Bau-Bot testen
+node tools/build-single.js out.html        # alles in eine HTML-Datei bündeln (--cdn: Three.js vom CDN)
 ```
 
-## Entwicklung
-
-```bash
-node tools/simtest.js demo 12000      # Simulation ohne Browser, prüft Spuren auf Überlappungen
-node tools/bot.js all 3               # Bot spielt alle Kampagnen-Level je 3 Spieltage
-node tools/build-single.js dist/verkehrsmeister.html   # Einzeldatei erzeugen
-```
+Das Spieldesign ist in [`docs/DESIGN.md`](docs/DESIGN.md) beschrieben.

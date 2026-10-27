@@ -42,11 +42,13 @@ class Scene3D {
   }
 
   dispose() {
-    this.e.scene.remove(this.root);
-    this.terrain.dispose(); this.e.scene.remove(this.terrain.group);
-    this.e.scene.remove(this.roads.group);
-    for (const k in this.fleet.kinds) this.e.scene.remove(this.fleet.kinds[k]);
-    this.e.scene.remove(this.fleet.head); this.e.scene.remove(this.fleet.brake); this.e.scene.remove(this.fleet.siren);
+    const S = this.e.scene;
+    const freeGeo = o => o.traverse(c => { if (c.geometry) c.geometry.dispose(); });
+    S.remove(this.root); freeGeo(this.root);
+    this.terrain.dispose(); S.remove(this.terrain.group);
+    S.remove(this.roads.group); freeGeo(this.roads.group);
+    for (const k in this.fleet.kinds) { S.remove(this.fleet.kinds[k]); this.fleet.kinds[k].geometry.dispose(); }
+    for (const m of [this.fleet.head, this.fleet.brake, this.fleet.siren]) { S.remove(m); m.geometry.dispose(); }
   }
 
   // ---- Instanzierte Helfer -----------------------------------------------------------
@@ -117,7 +119,7 @@ class Scene3D {
   rebuildAll() {
     const w = this.w;
     this.terrain.build(w, w.bounds);
-    this.boundsKey = JSON.stringify(w.bounds);
+    this.boundsKey = w.bounds.x0 + ',' + w.bounds.y0 + ',' + w.bounds.x1 + ',' + w.bounds.y1;
     this.roads.build(w);
     this.roadVersion = w.version;
     for (const b of w.buildings) if (!this.bmeshes.has(b.id)) this.addBuilding(b, true);
@@ -291,7 +293,8 @@ class Scene3D {
     this.time += dt;
     this.night = this.e.setTimeOfDay(g.hour);
     WINDOW_MAT.emissiveIntensity = Math.min(1, this.night * 1.3);
-    if (JSON.stringify(w.bounds) !== this.boundsKey) this.rebuildAll();
+    const bk = w.bounds.x0 + ',' + w.bounds.y0 + ',' + w.bounds.x1 + ',' + w.bounds.y1;
+    if (bk !== this.boundsKey) this.rebuildAll();
     if (w.version !== this.roadVersion && !this.roads.pops.length) { this.roads.build(w); this.roadVersion = w.version; this.syncStatic(); }
     this.roads.update(dt, w);
     this.terrain.update(dt);
@@ -396,7 +399,7 @@ class Scene3D {
     const w = this.w, mesh = this.lampMesh;
     let n = 0;
     const blink = Math.floor(this.time * 2) % 2 === 0;
-    const RED = col('#ff2a2a'), YEL = col('#ffc21a'), GRN = col('#22e06a'), OFF = col('#3a3a3a');
+    const RED = this.colOf('#ff2a2a'), YEL = this.colOf('#ffc21a'), GRN = this.colOf('#22e06a'), OFF = this.colOf('#3a3a3a');
     for (const J of w.junctions) {
       if (J.type !== 'light' || !J.light) continue;
       const x = w.tx(J.i), y = w.ty(J.i), cx = x + 0.5, cz = y + 0.5;
@@ -500,7 +503,7 @@ class Scene3D {
         this.v3.set(w.tx(i) + 0.5, h + 0.06, w.ty(i) + 0.5); this.q.identity(); this.s3.set(0.86 * pulse, 1, 0.86 * pulse);
         this.m4.compose(this.v3, this.q, this.s3);
         mesh.setMatrixAt(n, this.m4);
-        mesh.setColorAt(n, col(PREVIEW_COL[it.kind] || '#ffffff'));
+        mesh.setColorAt(n, this.colOf(PREVIEW_COL[it.kind] || '#ffffff'));
         n++;
       }
     }
@@ -508,7 +511,7 @@ class Scene3D {
     if (this.hover >= 0 && !(P && P.items && P.items.length > 1)) {
       this.hoverMesh.visible = true;
       this.hoverMesh.position.set(w.tx(this.hover) + 0.5, 0.05, w.ty(this.hover) + 0.5);
-      this.hoverMesh.material.color.copy(col(this.hoverColor || '#ffffff'));
+      this.hoverMesh.material.color.copy(this.colOf(this.hoverColor || '#ffffff'));
     } else this.hoverMesh.visible = false;
   }
 
@@ -562,7 +565,7 @@ class Scene3D {
       this.v3.set(w.tx(i) + 0.5, h, w.ty(i) + 0.5); this.q.identity(); this.s3.set(0.62, 1, 0.62);
       this.m4.compose(this.v3, this.q, this.s3);
       mesh.setMatrixAt(n, this.m4);
-      this.c.copy(col('#ffb020')).lerp(col('#ff2020'), f);
+      this.c.copy(this.colOf('#ffb020')).lerp(this.colOf('#ff2020'), f);
       mesh.setColorAt(n, this.c);
       n++;
     }
@@ -575,7 +578,7 @@ class Scene3D {
     let n = 0;
     const draw = (tile, h, route, ri, color, max) => {
       let t = tile;
-      const c = col(color);
+      const c = this.colOf(color);
       for (let k = ri; k < route.length && n < max; k++) {
         const d = route[k];
         const j = w.nb(t, d);

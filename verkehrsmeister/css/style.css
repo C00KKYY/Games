@@ -231,9 +231,12 @@ svg { width: 1em; height: 1em; display: block; }
   .clock-phase { font-size: 11px; }
   .hbtn { width: 38px; height: 38px; font-size: 17px; }
   .hud-tr { gap: 6px; }
-  .tool { width: 52px; min-width: 52px; height: 54px; }
+  .toolbar { gap: 2px; padding: 5px; }
+  .tool { width: 44px; min-width: 44px; height: 52px; }
+  .tool .ic { font-size: 21px; }
   .tool .lbl { display: none; }
-  .tool[data-t=road] { width: 70px; }
+  .tool .cnt { top: 1px; right: 0; min-width: 17px; height: 17px; line-height: 17px; font-size: 10.5px; padding: 0 4px; }
+  .tool[data-t=road] { width: 62px; min-width: 62px; }
   .toasts { top: calc(max(12px, env(safe-area-inset-top)) + 110px); }
   .toast { font-size: 13px; }
   .inspect { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); }

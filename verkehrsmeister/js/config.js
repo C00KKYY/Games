@@ -132,12 +132,12 @@ const DAILY_MODS = [
 
 const RANKS = [
   { at: 0, name: 'Praktikant' },
-  { at: 500, name: 'Verkehrsplaner', unlock: 'Pakt-Karten' },
-  { at: 1500, name: 'Oberplaner', unlock: 'Taxi-Lackierung' },
-  { at: 3500, name: 'Amtsleiter', unlock: 'Käfer-Lackierung' },
-  { at: 7000, name: 'Baudezernent', unlock: 'Fachwerkhäuser' },
-  { at: 12000, name: 'Verkehrsminister', unlock: 'Trabi-Lackierung' },
-  { at: 20000, name: 'Verkehrsmeister', unlock: 'Goldene Autos' },
+  { at: 500, name: 'Verkehrsplaner', unlock: 'Pakt-Karten (stark, aber mit Haken)' },
+  { at: 1500, name: 'Oberplaner' },
+  { at: 3500, name: 'Amtsleiter' },
+  { at: 7000, name: 'Baudezernent' },
+  { at: 12000, name: 'Verkehrsminister' },
+  { at: 20000, name: 'Verkehrsmeister' },
 ];
 
 const MEDAL_NAMES = ['Bronze', 'Silber', 'Gold'];

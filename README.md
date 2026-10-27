@@ -1,7 +1,7 @@
 # Games
 
-## [Verkehrsmeister](verkehrsmeister/)
+## [Verkehrsmeister 3D](verkehrsmeister/)
 
-Verkehrsmanagement-Spiel für den Browser: Straßennetz planen, Kreuzungen mit rechts vor links, Vorfahrt, programmierbaren Ampeln (Grüne Welle, adaptiv) und Kreisverkehren regeln, Buslinien einrichten und eine wachsende Stadt durch Berufsverkehr, Unfälle, Baustellen und Stadionabende bringen. Kampagne mit 8 Leveln, Endlosmodus und freies Bauen.
+Verkehrs-Puzzlespiel in 3D: Farbige Häuser beliefern Ziele derselben Farbe, du baust die Straßen und hältst Kreuzungen mit Vorfahrt per Wisch, Ampeln, Kreiseln, Autobahn-Hochstraßen und Polizei-Einsätzen frei. Wochen mit Kartenwahl, sechs Städte mit eigenen Mechaniken (Klappbrücke, Bahnübergänge, Berge, Messe, Ring), Tageschallenge und Stau-Report.
 
 Starten: `verkehrsmeister/index.html` im Browser öffnen.
