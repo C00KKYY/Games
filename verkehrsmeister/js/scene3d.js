@@ -54,9 +54,47 @@ class Scene3D {
     this.rebuildAll();
     const b = this.w.bounds;
     const cx = (b.x0 + b.x1) / 2, cz = (b.y0 + b.y1) / 2;
-    engine.rig.focus(cx, cz, 13 + (b.x1 - b.x0) * 0.95);
-    engine.rig.cur.x = cx; engine.rig.cur.z = cz; engine.rig.cur.dist = engine.rig.goal.dist + 12;
+    engine.rig.goal.yaw = engine.rig.cur.yaw = Math.PI / 4;
+    engine.rig.goal.pitch = engine.rig.cur.pitch = 0.95;
+    // ganzen Ort zeigen; passt er nur aus großer Ferne (Handy hochkant), auf die Startgebäude zoomen
+    const base = 13 + (b.x1 - b.x0) * 0.95;
+    let fx = cx, fz = cz, dist = this.fitDist([[b.x0, b.y0], [b.x1, b.y0], [b.x0, b.y1], [b.x1, b.y1]], cx, cz, base);
+    if (dist > base * 1.25 && this.w.buildings.length) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const B of this.w.buildings) { const s2 = B.kind === 'dest' ? 2 : 1; x0 = Math.min(x0, B.x); y0 = Math.min(y0, B.y); x1 = Math.max(x1, B.x + s2); y1 = Math.max(y1, B.y + s2); }
+      x0 = Math.max(b.x0, x0 - 1.5); y0 = Math.max(b.y0, y0 - 1.5); x1 = Math.min(b.x1, x1 + 1.5); y1 = Math.min(b.y1, y1 + 1.5);
+      fx = (x0 + x1) / 2; fz = (y0 + y1) / 2;
+      dist = Math.min(dist, this.fitDist([[x0, y0], [x1, y0], [x0, y1], [x1, y1]], fx, fz, 18));
+    }
+    engine.rig.focus(fx, fz, dist);
+    engine.rig.cur.x = fx; engine.rig.cur.z = fz; engine.rig.cur.dist = engine.rig.goal.dist + 12;
     engine.rig.setBounds(-2, -2, this.w.w + 2, this.w.h + 2);
+  }
+
+  // kleinster Abstand, bei dem der ganze Ort zwischen HUD und Werkzeugleiste passt (auch hochkant)
+  fitDist(pts, cx, cz, dist) {
+    const e = this.e, rig = e.rig, W = e.W, H = e.H;
+    const cam = rig.cam.clone();
+    cam.aspect = W / H; cam.updateProjectionMatrix();
+    const yaw = Math.PI / 4, pitch = 0.95;
+    // grob der freie Bereich zwischen HUD oben und Werkzeugleiste/Tipp-Box unten (Handy: beides höher)
+    const narrow = W < 600;
+    const top = Math.max(80, H * 0.11, narrow ? 150 : 0), bottom = H - Math.max(96, H * 0.12, narrow ? 170 : 0), side = 12;
+    const v = new THREE.Vector3();
+    for (; dist < rig.maxDist; dist += 1) {
+      const r = Math.cos(pitch) * dist;
+      cam.position.set(cx + Math.sin(yaw) * r, Math.sin(pitch) * dist, cz + Math.cos(yaw) * r);
+      cam.lookAt(cx, 0, cz);
+      cam.updateMatrixWorld();
+      let ok = true;
+      for (const [x, z] of pts) {
+        v.set(x, 0, z).project(cam);
+        const px = (v.x + 1) / 2 * W, py = (1 - v.y) / 2 * H;
+        if (px < side || px > W - side || py < top || py > bottom) { ok = false; break; }
+      }
+      if (ok) break;
+    }
+    return Math.min(rig.maxDist, dist);
   }
 
   dispose() {
@@ -197,6 +235,7 @@ class Scene3D {
 
   // Bahnschranken und Klappbrücken an die aktuellen Straßen anpassen
   syncStatic() {
+    this.terrain.rebuildTrees(this.w, this.w.bounds);
     const w = this.w;
     const wantB = new Set(), wantL = new Set();
     for (let i = 0; i < w.n; i++) {
@@ -271,7 +310,7 @@ class Scene3D {
   onFx(f) {
     const w = this.w;
     switch (f.t) {
-      case 'drop': this.addBuilding(f.b, f.instant); break;
+      case 'drop': this.addBuilding(f.b, f.instant); this.terrain.rebuildTrees(w, w.bounds); break;
       case 'announce': this.addPending(f.spec); break;
       case 'built':
         this.roads.hidden.clear();
@@ -515,7 +554,7 @@ class Scene3D {
       else { m.position.set(p, 0.03, L.at + 0.5); m.rotation.y = T.dir > 0 ? 0 : Math.PI; }
     }
     for (const { S, m, z } of this.ships) {
-      m.visible = S.pos > -20;
+      m.visible = S.pos > -4 && S.pos < this.w.w + 4;
       m.position.set(S.pos, WATER_Y + 0.02, z);
     }
     for (const [i, o] of this.barriers) {
@@ -526,7 +565,8 @@ class Scene3D {
     for (const [i, o] of this.leaves) {
       const target = this.w.gate[i] ? 1.05 : 0;
       o.a += (target - o.a) * Math.min(1, dt * 2.5);
-      const sgn = (o.hingeS === 0 || o.hingeS === 3) ? -1 : 1;
+      // freies Ende nach oben: Rx(θ) hebt −z bei θ > 0, Rz(θ) hebt +x bei θ > 0
+      const sgn = (o.hingeS === 0 || o.hingeS === 3) ? 1 : -1;
       if (o.hingeS === 0 || o.hingeS === 2) o.grp.rotation.x = o.a * -sgn;
       else o.grp.rotation.z = o.a * sgn;
     }
@@ -596,21 +636,39 @@ class Scene3D {
     if (this.congT > 0) return;
     this.congT = 0.4;
     const w = this.w, mesh = this.congMesh;
-    let n = 0;
-    for (let i = 0; i < w.N && n < 1200; i++) {
+    // Bodenstraßen: die Fahrbahn selbst färbt sich rot (eigene Kontur, unter den Markierungen)
+    let n = 0, key = '';
+    const ground = [];
+    for (let i = 0; i < w.N; i++) {
       if (!w.road[i]) continue;
       const c = w.cong[i];
       if (c < 1.9) continue;
-      const f = clamp((c - 1.9) / 2.5, 0, 1);
+      const lv = Math.round(clamp((c - 1.9) / 2.5, 0, 1) * 4);
+      if (i < w.n && !(w.flags[i] & F_DRAW)) { ground.push(i, lv); key += i + ':' + lv + ':' + w.link[i] + ','; continue; }
+      if (n >= 1200) continue;
       const h = i >= w.n ? (w.edgeH(i, 0) + w.edgeH(i, 2) + w.edgeH(i, 1) + w.edgeH(i, 3)) / 4 + 0.05 : 0.031;
       this.v3.set(w.tx(i) + 0.5, h, w.ty(i) + 0.5); this.q.identity(); this.s3.set(0.62, 1, 0.62);
       this.m4.compose(this.v3, this.q, this.s3);
       mesh.setMatrixAt(n, this.m4);
-      this.c.copy(this.colOf('#ffb020')).lerp(this.colOf('#ff2020'), f);
+      this.c.copy(this.colOf('#ff5a4a')).lerp(this.colOf('#e00000'), lv / 4);
       mesh.setColorAt(n, this.c);
       n++;
     }
     flushInst(mesh, n, true);
+    if (key === this.congKey) return;
+    this.congKey = key;
+    if (this.congRoad) { this.root.remove(this.congRoad); this.congRoad.geometry.dispose(); this.congRoad = null; }
+    if (!ground.length) return;
+    const G = new GeoBuilder();
+    for (let k = 0; k < ground.length; k += 2) {
+      const i = ground[k], lk = w.link[i], J = w.jc[i];
+      const base = this.colOf(w.road[i] === 2 ? '#4c525b' : '#5c626b');
+      const c = base.clone().lerp(this.colOf('#d8261c'), 0.4 + 0.15 * ground[k + 1]);
+      this.roads.shape(G, w, i, w.tx(i), w.ty(i), -0.03, 0.023, c, lk, popcount4(lk), !!(J && J.type === 'roundabout'));
+    }
+    this.congRoad = new THREE.Mesh(G.geometry(), this.roads.mat);
+    this.congRoad.receiveShadow = true;
+    this.root.add(this.congRoad);
   }
 
   // Route des ausgewählten Fahrzeugs bzw. des angekündigten Krankenwagens

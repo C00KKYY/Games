@@ -108,7 +108,7 @@ class Game {
       if (c.id === 'police' && this.mods.policeMax) return false;
       return true;
     });
-    const weight = c => c.id === 'roads' ? 2 : c.id === 'round' ? 2 : c.id === 'lights' ? 1.6 : c.id === 'highway' ? 1.6 : c.pact ? 0.7 : 1;
+    const weight = c => c.id === 'roads' ? 2 : c.id === 'round' ? 2 : c.id === 'highway' ? 1.6 : c.pact ? 0.7 : 1;
     const out = [];
     const rng = new RNG(this.seed * 7 + this.week * 101);
     while (out.length < n && pool.length) {
@@ -183,6 +183,7 @@ class Game {
     // Polizei und Feierabend-Stopp wirken bereits – nicht zurückgeben
     s.inv.police = this.inv.police; s.inv.stops = this.inv.stops;
     this.inv = s.inv;
+    this.inv.highways += this.world.droppedHighways || 0;
     this.traffic.onTilesChanged(changed);
     this.fx.push({ t: 'rebuild', all: true });
     this.fx.push({ t: 'sfx', name: 'undo' });
@@ -203,7 +204,7 @@ class Game {
     const res = { items: [], roads: 0, bridges: 0, tunnels: 0, ok: true, reason: '', swipe: null, buildable: 0 };
     if (!tiles.length) return res;
     // Wisch über bestehende Straßen durch eine Kreuzung → Vorfahrt
-    if (tiles.length >= 3 && tiles.every(i => w.road[i])) {
+    if (tiles.length >= 2 && tiles.every(i => w.road[i])) {
       let linked = true;
       for (let k = 0; k + 1 < tiles.length; k++) {
         const d = this.dirBetween(tiles[k], tiles[k + 1]);
@@ -218,6 +219,16 @@ class Game {
           for (const i of tiles) res.items.push({ i, kind: 'swipe', ok: true });
           return res;
         }
+        // nur bis an die Kreuzung gewischt: Hinweis statt stillem Nichts
+        const last = tiles[tiles.length - 1];
+        if (w.isJ[last] || w.isJ[tiles[0]]) {
+          res.swipeShort = true; res.ok = false; res.reason = 'Für Vorfahrt weiter über die Kreuzung ziehen';
+          for (const i of tiles) res.items.push({ i, kind: 'swipe', ok: true });
+          return res;
+        }
+        res.exists = true; res.ok = false; res.reason = 'Straße besteht schon';
+        for (const i of tiles) res.items.push({ i, kind: 'exists', ok: true });
+        return res;
       }
     }
     let inv = { roads: this.inv.roads, bridges: this.inv.bridges, tunnels: this.inv.tunnels };
@@ -247,11 +258,16 @@ class Game {
         const flag = ri.kind === 'bridge' ? F_BRIDGE : F_TUNNEL;
         const before = k > 0 ? tiles[k - 1] : -1, after = e + 1 < n ? tiles[e + 1] : -1;
         const extendsOld = (before >= 0 && w.road[before] && (w.flags[before] & flag)) || (after >= 0 && w.road[after] && (w.flags[after] & flag));
-        const noShore = before < 0 || after < 0;
+        let noShore = before < 0 || after < 0;
+        if (!noShore) {
+          const ra = w.roadInfo(after);
+          const okAfter = ra.ok && ra.kind !== 'bridge' && ra.kind !== 'tunnel' && (ra.kind === 'exists' || inv.roads > 0) && this.straightOk(tiles, e + 1);
+          if (!okAfter) { noShore = true; if (ra.ok && ra.kind !== 'exists' && inv.roads <= 0) res.bankReason = 'Keine Straße fürs Ufer übrig'; }
+        }
         if (len > max || !straight || inv[key] <= 0 || extendsOld || noShore) {
           res.ok = false;
           const nm = ri.kind === 'bridge' ? 'Brücke' : 'Tunnel';
-          res.reason = extendsOld ? nm + ' lässt sich nicht verlängern' : len > max ? (ri.kind === 'bridge' ? 'Brücken höchstens ' + max + ' Felder' : 'Tunnel höchstens ' + max + ' Felder') : !straight ? (ri.kind === 'bridge' ? 'Brücken nur gerade' : 'Tunnel nur gerade') : noShore ? (ri.kind === 'bridge' ? 'Brücke muss das andere Ufer erreichen' : 'Tunnel muss durch den Berg führen') : (ri.kind === 'bridge' ? 'Keine Brücke mehr im Inventar' : 'Kein Tunnel im Inventar');
+          res.reason = extendsOld ? nm + ' lässt sich nicht verlängern' : len > max ? (ri.kind === 'bridge' ? 'Brücken höchstens ' + max + ' Felder' : 'Tunnel höchstens ' + max + ' Felder') : !straight ? (ri.kind === 'bridge' ? 'Brücken nur gerade' : 'Tunnel nur gerade') : noShore ? (res.bankReason || (ri.kind === 'bridge' ? 'Brücke muss das andere Ufer erreichen' : 'Tunnel muss durch den Berg führen')) : (ri.kind === 'bridge' ? 'Keine Brücke mehr im Inventar' : 'Kein Tunnel im Inventar');
           for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false });
           break;
         }
@@ -309,6 +325,8 @@ class Game {
       if (!n) this.fx.push({ t: 'deny', text: plan.swipeBlocked || 'Hier geht keine Vorfahrt', i: plan.swipe[0].i });
       return { ok: n > 0, swipe: true };
     }
+    if (plan.swipeShort) { this.fx.push({ t: 'deny', text: plan.reason, i: tiles[tiles.length - 1] }); return { ok: false }; }
+    if (plan.exists) return { ok: false };
     const okItems = [];
     for (const it of plan.items) { if (!it.ok) break; okItems.push(it); }
     if (!okItems.length) { if (plan.reason) this.fx.push({ t: 'deny', text: plan.reason, i: tiles[0] }); return { ok: false, reason: plan.reason }; }

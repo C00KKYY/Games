@@ -30,7 +30,7 @@ class Pathfinder {
     const w = this.w;
     const tt = turnOf(h, d);
     let v = this.speed(tile);
-    if (tt !== TT_STRAIGHT) v = Math.min(v, CFG.turnSpeed[tt]);
+    if (tt !== TT_STRAIGHT) v = Math.min(v, CFG.turnSpeed[tt] * ((w.mods && w.mods.curves) || 1));
     let c = TURN_LEN[tt] / v;
     if (!freeFlow) c *= w.cong[tile];
     if (w.isJ[tile]) {

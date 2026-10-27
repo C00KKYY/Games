@@ -17,7 +17,7 @@ const CFG = {
   driveSpeed: 1.2,
   gap: 0.07,
   yieldWindow: 2.1,
-  yellow: 1.0, allRed: 0.4,
+  yellow: 0.8, allRed: 0.3,
   ringR: 0.32,
   maxVehicles: 450,
   elevH: 0.62,                // Höhe der Autobahn-Hochstraße
@@ -67,16 +67,16 @@ const CARDS = [
   { id: 'highway', name: 'Autobahn', desc: 'Gerade Hochstraße bis 8 Felder über Straßen, Wasser und Gleise (nicht über Berge oder Gebäude), Tempo 130.', icon: 'highway', apply: g => { g.inv.highways += 1; } },
   { id: 'tunnel', name: 'Tunnel', desc: '+1 Tunnel durch einen Berg (bis 5 Kacheln).', icon: 'tunnel', apply: g => { g.inv.tunnels += 1; } },
   { id: 'bridges', name: 'Zwei Brücken', desc: '+2 Brücken über Wasser (bis 4 Kacheln).', icon: 'bridge', apply: g => { g.inv.bridges += 2; } },
-  { id: 'greenwave', name: 'Grüne Welle', desc: 'Alle Ampeln schalten schneller um: kürzere Gelb- und Räumzeiten.', icon: 'wave', passive: true, once: true, apply: g => { g.mods.greenWave = true; } },
+  { id: 'greenwave', name: 'Grüne Welle', desc: 'Alle Ampeln schalten schneller um und erkennen ankommende Autos früher.', icon: 'wave', passive: true, once: true, apply: g => { g.mods.greenWave = true; } },
   { id: 'parking', name: 'Parkhaus', desc: 'Ein Ziel deiner Wahl trägt 9 statt 6 Aufträge, bevor es kritisch wird.', icon: 'parking', target: 'dest', apply: (g, b) => { b.cap = 9; b.parking = true; } },
-  { id: 'tempo', name: 'Tempo 60', desc: 'Alle Stadtstraßen werden 15 % schneller.', icon: 'tempo', passive: true, once: true, apply: g => { g.mods.tempo = 1.15; } },
+  { id: 'tempo', name: 'Schnelle Kurven', desc: 'Abbiegen und Kreisel 25 % schneller – Kreuzungen werden schneller frei.', icon: 'tempo', passive: true, once: true, apply: g => { g.mods.curves = 1.25; } },
   { id: 'flex', name: 'Gleitzeit', desc: 'Ein Ziel deiner Wahl verteilt seine Stoßzeiten: halbe Wellen-Spitzen.', icon: 'clock', target: 'dest', apply: (g, b) => { b.flex = true; } },
   { id: 'second', name: 'Zweitwagen', desc: 'Alle Häuser einer Farbe deiner Wahl bekommen ein drittes Auto.', icon: 'car', target: 'dest', apply: (g, b) => { g.city.addCarsForColor(b.pi, 1); } },
   { id: 'stop', name: 'Feierabend-Stopp', desc: 'Joker: 8 Sekunden lang keine neuen Aufträge. Einmal einsetzbar.', icon: 'stop', apply: g => { g.inv.stops += 1; } },
   { id: 'police', name: 'Verstärkung', desc: '+2 Polizei-Einsätze (Obergrenze steigt auf 5).', icon: 'police', apply: g => { g.inv.police = Math.min(5, g.inv.police + 2); g.mods.policeMax = 5; } },
   { id: 'mega', name: 'Großbaustelle', desc: '+35 Straßen sofort, dafür nächstes Wochenende nur 5.', icon: 'road', apply: g => { g.inv.roads += 35; g.mods.lowWeek = g.week + 2; } },
   // Pakt-Karten (ab Rang 2)
-  { id: 'fest', name: 'Bürgerfest', desc: '+2 Kreisverkehre, aber nächste Woche 25 % mehr Aufträge.', icon: 'round', pact: true, apply: g => { g.inv.rounds += 2; g.mods.pactDemand = 1.25; g.mods.pactWeeks = 1; } },
+  { id: 'fest', name: 'Bürgerfest', desc: '+3 Kreisverkehre, aber nächste Woche 10 % mehr Aufträge.', icon: 'round', pact: true, apply: g => { g.inv.rounds += 3; g.mods.pactDemand = 1.1; g.mods.pactWeeks = 1; } },
   { id: 'spar', name: 'Sparhaushalt', desc: '+50 Straßen und +1 Brücke, aber nächstes Wochenende keine Karte.', icon: 'road', pact: true, apply: g => { g.inv.roads += 50; g.inv.bridges += 1; g.mods.skipCard = true; } },
 ];
 
@@ -147,11 +147,11 @@ const MEDAL_NAMES = ['Bronze', 'Silber', 'Gold'];
 
 // Farben der Linien (Haus- und Zielfarbe) mit Symbol für Farbfehlsichtige
 const PALETTE = [
-  { key: 'gelb', name: 'Bäckerei', hex: '#f5b700', light: '#ffe08a', icon: 'brot' },
-  { key: 'rot', name: 'Klinik', hex: '#e5484d', light: '#ffb3b5', icon: 'kreuz' },
-  { key: 'blau', name: 'Büro', hex: '#2f6fdb', light: '#a9c6ff', icon: 'koffer' },
-  { key: 'gruen', name: 'Gärtnerei', hex: '#1f9d55', light: '#9fe0b8', icon: 'blatt' },
-  { key: 'lila', name: 'Kino', hex: '#8b5cf6', light: '#d3c2ff', icon: 'stern' },
-  { key: 'orange', name: 'Fabrik', hex: '#f0702a', light: '#ffc29e', icon: 'zahnrad' },
+  { key: 'gelb', name: 'Bäckerei', article: 'der', hex: '#f5b700', light: '#ffe08a', icon: 'brot' },
+  { key: 'rot', name: 'Klinik', article: 'der', hex: '#e5484d', light: '#ffb3b5', icon: 'kreuz' },
+  { key: 'blau', name: 'Büro', article: 'dem', hex: '#2f6fdb', light: '#a9c6ff', icon: 'koffer' },
+  { key: 'gruen', name: 'Gärtnerei', article: 'der', hex: '#1f9d55', light: '#9fe0b8', icon: 'blatt' },
+  { key: 'lila', name: 'Kino', article: 'dem', hex: '#8b5cf6', light: '#d3c2ff', icon: 'stern' },
+  { key: 'orange', name: 'Fabrik', article: 'der', hex: '#f0702a', light: '#ffc29e', icon: 'zahnrad' },
 ];
 

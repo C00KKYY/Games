@@ -109,8 +109,8 @@ class Roads3D {
       const deck = col(RCOL.deck);
       const hw = 0.46;
       G.box(cx - hw, -0.07, cz - hw, cx + hw, Y_CURB - 0.002, cz + hw, deck, { top: deck });
-      const pill = col(RCOL.pillar);
-      G.box(cx - 0.07, BED_Y, cz - 0.07, cx + 0.07, -0.07, cz + 0.07, pill);
+      // Klappbrücke: kein Mittelpfeiler (die Klappe schwenkt hoch)
+      if (!(i < w.n && (w.flags[i] & F_DRAW))) G.box(cx - 0.07, BED_Y, cz - 0.07, cx + 0.07, -0.07, cz + 0.07, col(RCOL.pillar));
       const rail = col(RCOL.rail);
       if (lk === 0b0101) { G.box(cx - hw, 0, y, cx - hw + 0.04, 0.12, y + 1, rail); G.box(cx + hw - 0.04, 0, y, cx + hw, 0.12, y + 1, rail); }
       else if (lk === 0b1010) { G.box(x, 0, cz - hw, x + 1, 0.12, cz - hw + 0.04, rail); G.box(x, 0, cz + hw - 0.04, x + 1, 0.12, cz + hw, rail); }
@@ -124,8 +124,10 @@ class Roads3D {
     this.shape(G, w, i, x, y, 0.07, Y_CURB, curb, lk, deg, round);
     this.shape(G, w, i, x, y, 0, Y_ASPH, asph, lk, deg, round);
     if (round) {
-      G.disc(cx, cz, 0.21, Y_ASPH + 0.004, curb, 18);
-      G.disc(cx, cz, 0.18, Y_ASPH + 0.03, col(RCOL.island), 18);
+      G.disc(cx, cz, 0.24, Y_ASPH + 0.004, curb, 20);
+      G.disc(cx, cz, 0.21, Y_ASPH + 0.03, col(RCOL.island), 20);
+      // gestrichelter Außenring
+      for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; G.arcBand(cx, cz, 0.425, 0.445, a, a + Math.PI / 8, Y_MARK, col(RCOL.mark), 3); }
       // kleiner Baum in der Mitte
       G.box(cx - 0.02, Y_ASPH, cz - 0.02, cx + 0.02, 0.14, cz + 0.02, col(TCOL.trunk));
       const tc = col('#4a9a52');
@@ -229,19 +231,21 @@ class Roads3D {
     }
   }
 
-  arm(G, x, y, s, h, ext, yy, color) {
+  // Fahrbahnstück von der Kachelkante bis `inner` vor die Mitte
+  arm(G, x, y, s, h, ext, yy, color, inner = 0) {
     const cx = x + 0.5, cz = y + 0.5;
-    if (s === 0) G.rect(cx - h, y - ext, cx + h, cz, yy, color);
-    else if (s === 2) G.rect(cx - h, cz, cx + h, y + 1 + ext, yy, color);
-    else if (s === 1) G.rect(cx, cz - h, x + 1 + ext, cz + h, yy, color);
-    else G.rect(x - ext, cz - h, cx, cz + h, yy, color);
+    if (s === 0) G.rect(cx - h, y - ext, cx + h, cz - inner, yy, color);
+    else if (s === 2) G.rect(cx - h, cz + inner, cx + h, y + 1 + ext, yy, color);
+    else if (s === 1) G.rect(cx + inner, cz - h, x + 1 + ext, cz + h, yy, color);
+    else G.rect(x - ext, cz - h, cx - inner, cz + h, yy, color);
   }
 
   shape(G, w, i, x, y, ext, yy, color, lk, deg, round) {
     const cx = x + 0.5, cz = y + 0.5;
     if (round) {
+      // Arme enden im Kreis, damit die Kontur rund bleibt
       G.disc(cx, cz, 0.47 + ext * 0.5, yy, color, 22);
-      for (let s = 0; s < 4; s++) if ((lk >> s) & 1) this.arm(G, x, y, s, roadHalf3(w, i, s) + ext, 0, yy, color);
+      for (let s = 0; s < 4; s++) if ((lk >> s) & 1) this.arm(G, x, y, s, roadHalf3(w, i, s) + ext, 0, yy, color, 0.3);
       return;
     }
     if (deg === 2 && lk !== 0b0101 && lk !== 0b1010) {
@@ -361,17 +365,34 @@ class Roads3D {
       }
       // Schildmast an der rechten Ecke
       const sx = cx + DX[side] * 0.56 + DX[r] * 0.46, sz = cz + DY[side] * 0.56 + DY[r] * 0.46;
-      // flaches Schild quer zur Zufahrt (dem Verkehr zugewandt)
-      const panel = (y0, y1, c, wd = 0.065) => {
-        const t = 0.012;
-        if (DX[h] !== 0) G.box(sx - t, y0, sz - wd, sx + t, y1, sz + wd, c);
-        else G.box(sx - wd, y0, sz - t, sx + wd, y1, sz + t, c);
+      // flaches Schild quer zur Zufahrt, dem ankommenden Verkehr zugewandt:
+      // pts = Umriss in (seitlich u, Höhe v), n = Abstand vor der Mastebene
+      const sign = (pts, c, n) => {
+        const P = ([u, v]) => [sx + DX[r] * u - DX[h] * n, v, sz + DY[r] * u - DY[h] * n];
+        let mu = 0, mv = 0;
+        for (const q of pts) { mu += q[0] / pts.length; mv += q[1] / pts.length; }
+        const m = P([mu, mv]);
+        for (let k = 0; k < pts.length; k++) {
+          const a = P(pts[k]), b = P(pts[(k + 1) % pts.length]);
+          G.tri(m, a, b, c); G.tri(m, b, a, c);
+        }
       };
+      const ngon = (k, rad, v0, rot = 0) => Array.from({ length: k }, (_, q) => [Math.cos(rot + q / k * Math.PI * 2) * rad, v0 + Math.sin(rot + q / k * Math.PI * 2) * rad]);
       if (J.type === 'priority' || J.type === 'roundabout') {
         G.box(sx - 0.012, 0, sz - 0.012, sx + 0.012, 0.3, sz + 0.012, col('#8a8f96'));
-        if (J.type === 'roundabout') { panel(0.24, 0.37, col('#1d4ed8')); panel(0.28, 0.33, col('#ffffff'), 0.035); }
-        else if (J.isMain(h)) { panel(0.25, 0.37, col('#ffffff')); panel(0.27, 0.35, col(RCOL.yellow), 0.045); }
-        else { panel(0.25, 0.37, col('#e5484d')); panel(0.27, 0.35, col('#ffffff'), 0.045); }
+        if (J.type === 'roundabout') {
+          sign(ngon(14, 0.068, 0.31), col('#1d4ed8'), 0.014);
+          sign(ngon(14, 0.046, 0.31), col('#ffffff'), 0.016);
+          sign(ngon(14, 0.03, 0.31), col('#1d4ed8'), 0.018);
+        } else if (J.isMain(h)) {
+          // Vorfahrtstraße: gelbe Raute mit weißem Rand
+          sign(ngon(4, 0.078, 0.31), col('#ffffff'), 0.014);
+          sign(ngon(4, 0.055, 0.31), col(RCOL.yellow), 0.016);
+        } else {
+          // Vorfahrt achten: Dreieck mit der Spitze nach unten
+          sign([[-0.08, 0.375], [0, 0.235], [0.08, 0.375]], col('#e5484d'), 0.014);
+          sign([[-0.045, 0.358], [0, 0.28], [0.045, 0.358]], col('#ffffff'), 0.016);
+        }
       } else if (J.type === 'light') {
         G.box(sx - 0.015, 0, sz - 0.015, sx + 0.015, 0.42, sz + 0.015, col('#3a3f46'));
         G.box(sx - 0.05, 0.4, sz - 0.05, sx + 0.05, 0.58, sz + 0.05, col('#2a2e35'));

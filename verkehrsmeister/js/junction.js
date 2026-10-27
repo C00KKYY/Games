@@ -101,7 +101,7 @@ class Junction {
 
   lightTimes() {
     const gw = this.w.mods && this.w.mods.greenWave;
-    return { yellow: gw ? 0.6 : CFG.yellow, allRed: gw ? 0.2 : CFG.allRed };
+    return { yellow: gw ? 0.5 : CFG.yellow, allRed: gw ? 0.1 : CFG.allRed };
   }
 
   updateLight(dt) {
@@ -113,7 +113,7 @@ class Junction {
     const ph = L.phases[L.idx];
     if (L.stage === 0) {
       const main = this.lightMain === ph.axis, side = this.lightMain >= 0 && !main;
-      const minG = main ? 5 : 2.5, maxG = main ? 22 : (side ? 8 : 11);
+      const minG = main ? 3 : 1.5, maxG = main ? 16 : (side ? 6 : 8);
       const other = this.demand & ~(1 << L.idx);
       const near = (this.demandNear >> L.idx) & 1;
       if (L.t >= minG && other && (!near || L.t >= maxG)) { L.stage = 1; L.t = 0; }
@@ -150,10 +150,17 @@ class Junction {
   }
 
   // Rechts vor links: bei Querverkehr erst fast anhalten, dann einfahren („kurzes Zögern“)
+  // Nebenstraße an einer Vorfahrtsstraße: bei kreuzendem Hauptverkehr ebenfalls erst anhalten
   hesitate(r) {
-    if (this.type !== 'auto' || this.police > 0 || r.v.emergency || r.v.v < 0.12) return false;
-    for (const a of this.appr) if (a.v !== r.v && a.h !== r.h && a.tta < 2.0) return true;
-    for (const o of this.occ) if (o.v !== r.v && o.h !== r.h && o.v.t === this.i) return true;
+    if (this.police > 0 || r.v.emergency || r.v.v < 0.12) return false;
+    if (this.type === 'priority') {
+      if (this.isMain(r.h)) return false;
+      for (const a of this.appr) if (a.v !== r.v && this.isMain(a.h) && a.tta < 2.0 && this.conf[r.m * 16 + a.m]) return true;
+      return false;
+    }
+    if (this.type !== 'auto') return false;
+    for (const a of this.appr) if (a.v !== r.v && a.h !== r.h && a.tta < 2.0 && this.conf[r.m * 16 + a.m]) return true;
+    for (const o of this.occ) if (o.v !== r.v && o.h !== r.h && o.v.t === this.i && this.conf[r.m * 16 + o.m]) return true;
     return false;
   }
 
@@ -353,7 +360,7 @@ class Junction {
       const ph = this.light.phases;
       for (const a of A) {
         for (let p = 0; p < ph.length; p++) {
-          if ((ph[p].hs >> a.h) & 1) { dem |= 1 << p; if (a.tta < 3.2) near |= 1 << p; }
+          if ((ph[p].hs >> a.h) & 1) { dem |= 1 << p; if (a.tta < (this.w.mods && this.w.mods.greenWave ? 3 : 2)) near |= 1 << p; }
         }
       }
       dem |= this.extDemand; near |= this.extDemand; this.extDemand = 0;

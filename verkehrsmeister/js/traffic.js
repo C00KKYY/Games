@@ -75,8 +75,9 @@ class Traffic {
     let road = CFG.roadSpeed[w.road[tile]] || 2;
     if (w.road[tile] === 1 && w.mods && w.mods.tempo) road *= w.mods.tempo;
     let lim = road * v.vf;
-    if (P.round) lim = Math.min(lim, CFG.roundSpeed);
-    else if (P.turn !== TT_STRAIGHT) lim = Math.min(lim, CFG.turnSpeed[P.turn]);
+    const cv = (w.mods && w.mods.curves) || 1;
+    if (P.round) lim = Math.min(lim, CFG.roundSpeed * cv);
+    else if (P.turn !== TT_STRAIGHT) lim = Math.min(lim, CFG.turnSpeed[P.turn] * cv);
     const lk = w.link[tile];
     if (!((lk >> OPP[h]) & 1) || !((lk >> d) & 1)) lim = Math.min(lim, CFG.driveSpeed);
     if (w.flags[tile] & F_RAMP) lim = Math.min(lim, 2.6);

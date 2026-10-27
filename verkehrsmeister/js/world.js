@@ -425,7 +425,20 @@ class World {
       for (const a of b.kind === 'dest' ? [b.acc, b.acc2] : [b.acc]) if (!this.road[a]) { this.placeRoad(a); changed.push(a); }
       if (b.kind === 'dest') { this.out[b.acc] |= 1 << b.sideDir; this.out[b.acc2] |= 1 << OPP[b.sideDir]; }
     }
-    this.highways = s.highways.map(h => ({ a: h.a, b: h.b, d: h.d, mid: h.mid.slice() }));
+    this.highways = [];
+    this.droppedHighways = 0;
+    for (const h of s.highways) {
+      const tiles = [h.a, h.b].concat(h.mid);
+      if (tiles.some(g => this.bld[g] >= 0)) {
+        // dort steht inzwischen ein Gebäude: Hochstraße entfällt (Autobahn geht zurück ins Inventar)
+        for (const g of h.mid) { this.road[g + this.n] = 0; this.out[g + this.n] = 0; this.flags[g + this.n] = 0; this.down[g] = 0; changed.push(g + this.n); }
+        this.up[h.a] &= ~(1 << h.d); this.up[h.b] &= ~(1 << OPP[h.d]);
+        this.out[h.a] &= ~(1 << h.d); this.out[h.b] &= ~(1 << OPP[h.d]);
+        this.droppedHighways++;
+        continue;
+      }
+      this.highways.push({ a: h.a, b: h.b, d: h.d, mid: h.mid.slice() });
+    }
     for (let i = 0; i < this.N; i++) this.refreshTile(i);
     for (const o of s.jc) {
       let J = this.jc[o.i];

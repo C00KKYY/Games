@@ -29,7 +29,7 @@ class Overlay {
   }
 
   // Zoomfaktor für Größen: weiter weg → kleiner
-  zf() { return clamp(30 / this.e.rig.cur.dist, 0.65, 1.35); }
+  zf() { return clamp(30 / this.e.rig.cur.dist, 0.65, 1.35) * clamp(Math.min(this.cv.clientWidth, this.cv.clientHeight) / 700, 0.78, 1); }
 
   draw(game, dt, ui) {
     this.time += dt;
@@ -40,16 +40,41 @@ class Overlay {
     if (!game) return;
     const zf = this.zf();
     const city = game.city;
-    // Engstellen-Schilder
-    if (!game.over) for (const p of city.problems) this.problemSign(ctx, p, zf);
+    const S = this.safe || { top: 90, bottom: H - 90 };
+    // unverbundene Häuser (dezent markiert, sobald sie ein paar Sekunden stehen)
+    for (const h of city.houses) {
+      if (h.conn || game.time - h.born < 4 || !city.dests.some(d => d.pi === h.pi)) continue;
+      const sp = this.e.project(h.ax + 0.5, 0.12, h.ay + 0.5);
+      if (sp.behind || sp.x < -20 || sp.x > W + 20 || sp.y < -20 || sp.y > H + 20) continue;
+      const r = 6 * zf, a = 0.55 + 0.35 * Math.sin(this.time * 3 + h.id);
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = PALETTE[h.pi].hex; ctx.lineWidth = 2.2;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, r + 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = PALETTE[h.pi].hex;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    // Engstellen-Schilder (ohne Überlappung, im Bild gehalten)
+    if (!game.over) this.placeSigns(ctx, city.problems, zf, W, S);
     // Ziele
     const offs = [];
     for (const d of city.dests) {
       const roof = (d._roof || 0.8);
       const sp = this.e.project(d.cx, roof + 0.95, d.cy);
-      const on = !sp.behind && sp.x > 20 && sp.y > 60 && sp.x < W - 20 && sp.y < H - 90;
-      if (!on && (d.pins > d.cap * 0.6 || d.ring > 0)) offs.push({ d, sp });
+      const base = this.e.project(d.cx, 0, d.cy);
+      const vis = p => !p.behind && p.x > 20 && p.x < W - 20 && p.y > S.top - 30 && p.y < S.bottom;
+      const fresh = game.time - d.born < 20;
+      if (!vis(sp) && !vis(base) && (fresh || d.pins > d.cap * 0.6 || d.ring > 0)) offs.push({ d, sp });
       if (!sp.behind) this.destBadge(ctx, d, sp.x, sp.y, zf, game);
+    }
+    // angekündigte Ziele außerhalb des Bildes ebenfalls anzeigen
+    for (const p of city.pending) {
+      if (p.kind !== 'dest') continue;
+      const sp = this.e.project(p.x + 1, 0, p.y + 1);
+      if (sp.behind || sp.x < 20 || sp.x > W - 20 || sp.y < S.top - 30 || sp.y > S.bottom) offs.push({ d: { pi: p.pi, ring: 0 }, sp });
     }
     for (const o of offs) this.edgeArrow(ctx, o.d, o.sp, W, H);
     // Ankündigungen neuer Ziele
@@ -181,15 +206,33 @@ class Overlay {
     ctx.restore();
   }
 
-  problemSign(ctx, p, zf) {
-    const sp = this.e.project(p.x, p.kind === 'dest' ? 0.4 : 0.55, p.y);
-    if (sp.behind) return;
+  // Schilder nach Dringlichkeit platzieren, ohne sich zu überdecken
+  placeSigns(ctx, probs, zf, W, S) {
+    const placed = [];
+    ctx.font = `700 ${Math.round(12 * zf)}px "Barlow", sans-serif`;
+    for (const p of probs) {
+      const c = CAUSES[p.cause];
+      const sp = this.e.project(p.x, p.kind === 'dest' ? 0.4 : 0.55, p.y);
+      if (!c || sp.behind) { p.screen = null; continue; }
+      const w = ctx.measureText(c.title).width + 34 * zf, h = 22 * zf;
+      const dir = p.kind === 'dest' ? 1 : -1;
+      let x = clamp(sp.x, w / 2 + 6, W - w / 2 - 6);
+      let y = p.kind === 'dest' ? sp.y + 40 * zf : sp.y - 18 * zf;
+      for (let k = 0; k < 6; k++) {
+        if (!placed.some(r => Math.abs(r.x - x) < (r.w + w) / 2 + 4 && Math.abs(r.y - y) < (r.h + h) / 2 + 3)) break;
+        y += dir * (h + 4 * zf);
+      }
+      y = clamp(y, S.top + h / 2, S.bottom - h / 2);
+      placed.push({ x, y, w, h });
+      this.problemSign(ctx, p, zf, x, y, sp);
+    }
+  }
+
+  problemSign(ctx, p, zf, x, y, sp) {
     const c = CAUSES[p.cause];
-    if (!c) return;
-    const y = p.kind === 'dest' ? sp.y + 40 * zf : sp.y - 18 * zf;
     ctx.save();
     const bob = Math.sin(this.time * 3 + p.x) * 2;
-    ctx.translate(sp.x, y + bob);
+    ctx.translate(x, y + bob);
     ctx.font = `700 ${Math.round(12 * zf)}px "Barlow", sans-serif`;
     const tw = ctx.measureText(c.title).width;
     const w = tw + 34 * zf, h = 22 * zf;
@@ -203,30 +246,31 @@ class Overlay {
     ctx.fillStyle = '#ffffff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText(c.title, -w / 2 + 25 * zf, 1);
     // Stiel zur Kreuzung
-    if (p.kind !== 'dest') { ctx.strokeStyle = 'rgba(25,28,36,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(0, h / 2 + 10 * zf); ctx.stroke(); }
+    if (p.kind !== 'dest') { ctx.strokeStyle = 'rgba(25,28,36,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, h / 2); ctx.lineTo(sp.x - x, sp.y - y - bob); ctx.stroke(); }
     ctx.restore();
-    p.screen = { x: sp.x, y: y, w, h };
+    p.screen = { x, y, w, h };
   }
 
   edgeArrow(ctx, d, sp, W, H) {
-    const cx = W / 2, cy = H / 2;
-    let dx = sp.x - cx, dy = sp.y - cy;
-    if (sp.behind) { dx = -dx; dy = -dy; }
-    const m = 34;
-    const k = Math.min((W / 2 - m) / Math.max(1e-3, Math.abs(dx)), (H / 2 - m) / Math.max(1e-3, Math.abs(dy)));
-    // nicht unter Uhr, Punktestand oder Werkzeugleiste
+    // auf dem Strahl zum Ziel bleiben, aber innerhalb des freien Bereichs zwischen HUD und Werkzeugleiste
     const S = this.safe || { top: 90, bottom: H - 90 };
-    const x = cx + dx * k, y = clamp(cy + dy * k, S.top, S.bottom);
+    const m = 30, cx = W / 2, ccy = (S.top + S.bottom) / 2;
+    let dx = sp.x - cx, dy = sp.y - ccy;
+    if (sp.behind) { dx = -dx; dy = -dy; }
+    const hx = W / 2 - m, hy = (S.bottom - S.top) / 2 - 4;
+    const k = Math.min(hx / Math.max(1e-3, Math.abs(dx)), hy / Math.max(1e-3, Math.abs(dy)));
+    const x = cx + dx * k, y = ccy + dy * k;
     const a = Math.atan2(dy, dx);
     ctx.save();
     ctx.translate(x, y);
     const pulse = 1 + 0.12 * Math.sin(this.time * 7);
     ctx.scale(pulse, pulse);
-    ctx.fillStyle = d.ring > 0 ? '#e5484d' : PALETTE[d.pi].hex;
-    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 2); ctx.fill();
     ctx.rotate(a);
+    // Tropfenform zeigt eindeutig zum Ziel
+    ctx.fillStyle = d.ring > 0 ? '#e5484d' : PALETTE[d.pi].hex;
+    ctx.beginPath(); ctx.arc(-3, 0, 14, Math.PI * 0.25, Math.PI * 1.75); ctx.lineTo(17, 0); ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-4, -7); ctx.lineTo(-4, 7); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(9, 0); ctx.lineTo(-5, -6.5); ctx.lineTo(-2, 0); ctx.lineTo(-5, 6.5); ctx.closePath(); ctx.fill();
     ctx.restore();
     d._edge = { x, y };
   }

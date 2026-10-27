@@ -233,7 +233,7 @@ svg { width: 1em; height: 1em; display: block; }
   .medal { display: none; }
   .save-line { font-size: 10.5px; margin-top: 2px; }
   .city-name { font-size: 10px; }
-  .hud-tc { top: calc(max(12px, env(safe-area-inset-top)) + 54px); left: max(12px, env(safe-area-inset-left)); transform: none; padding: 5px 10px 5px 6px; }
+  .hud-tc { top: calc(max(12px, env(safe-area-inset-top)) + 80px); left: max(12px, env(safe-area-inset-left)); transform: none; padding: 5px 10px 5px 6px; }
   .dial { width: 34px; height: 34px; }
   .clock-day { font-size: 14px; }
   .clock-phase { font-size: 11px; }
@@ -246,7 +246,7 @@ svg { width: 1em; height: 1em; display: block; }
   .tool .lbl { display: none; }
   .tool .cnt { top: 1px; right: 0; min-width: 17px; height: 17px; line-height: 17px; font-size: 10.5px; padding: 0 4px; }
   .tool[data-t=road] { width: 56px; min-width: 56px; }
-  .toasts { top: calc(max(12px, env(safe-area-inset-top)) + 110px); }
+  .toasts { top: calc(max(12px, env(safe-area-inset-top)) + 134px); }
   .toast { font-size: 13px; }
   .inspect { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 74px); }
   .tutorial { bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px); font-size: 14px; }

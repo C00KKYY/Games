@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------------------
 
 const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+const HOUSE_ADJ = ['gelben', 'roten', 'blauen', 'grünen', 'lila', 'orangen'];
 
 function el(tag, cls, html) {
   const e = document.createElement(tag);
@@ -248,6 +249,8 @@ class UI {
     let html = '';
     if (plan.erase) html = `<b class="neg">Abreißen</b> ${plan.n ? plan.n + ' Felder' : ''}`;
     else if (plan.highway) html = plan.ok ? `<b>Autobahn</b> ${plan.n} Felder Hochstraße` : `<b class="neg">${esc(plan.reason || '')}</b>`;
+    else if (plan.swipeShort) html = `<b class="prio">Vorfahrt?</b> Weiter über die Kreuzung ziehen`;
+    else if (plan.exists) html = 'Straße besteht schon';
     else if (plan.swipe) html = plan.swipeBlocked ? `<b class="neg">${esc(plan.swipeBlocked)}</b>` : `<b class="prio">Vorfahrt</b> entlang dieser Straße`;
     else {
       const parts = [];
@@ -320,6 +323,13 @@ class UI {
         <div class="ins-row">${d.pins} offene Aufträge (Grenze ${d.cap}) · ${d.assigned} Autos unterwegs</div>
         <div class="ins-row dim">${d.nhc || 0} von ${d.nh || 0} Häusern angeschlossen · ${d.delivered} geliefert${d.outQ.length ? ' · ' + d.outQ.length + ' warten auf Ausfahrt' : ''}</div>
         ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : ''}`;
+    } else if (D.h) {
+      const h = D.h, P = PALETTE[h.pi], d = h.near;
+      const where = d ? `${P.article === 'der' ? 'zur' : 'zum'} <b>${P.name}</b>` : `zu ${P.article} <b>${P.name}</b>`;
+      html = `<div class="ins-h"><i class="dot" style="background:${P.hex}"></i><b>Haus · ${P.name}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
+        <div class="ins-row">${h.home} von ${h.cars} Autos daheim</div>
+        ${h.conn ? `<div class="ins-row dim">Angeschlossen – die Autos holen Aufträge ${where} ab.</div>`
+          : `<div class="ins-cause"><b>Nicht angeschlossen</b><br>Zieh eine Straße von hier ${where}${d ? ' (' + (Math.abs(d.cx - h.x - 0.5) + Math.abs(d.cy - h.y - 0.5)).toFixed(0) + ' Felder)' : ''}. Auch ohne Straße bringt das Haus Aufträge – nur seine ${h.cars} Autos fehlen dann.</div>`}`;
     } else if (D.J) {
       const J = D.J;
       if (!g.world.jc[J.i]) { this.showInspect(null); return; }
@@ -430,6 +440,7 @@ class UI {
     this.openModal(`
       <div class="rep-head"><div class="rep-title">Stillstand in ${esc(def.name)}!</div><div class="rep-sub">${esc(PALETTE[R.dest.pi].name)} konnte nicht mehr beliefert werden · Woche ${R.week}, ${DAYS[Math.min(4, R.day - 1)]}</div></div>
       <div class="rep-score"><span class="big">${fmtInt(R.score)}</span><span>Punkte</span>${medal}${prog.newBest ? '<span class="newbest">Neuer Rekord!</span>' : ''}</div>
+      <div class="rep-btns"><button class="btn primary" data-a="again">Nochmal ${esc(def.name)}</button>${prog.unlockedId ? `<button class="btn" data-a="city" data-id="${prog.unlockedId}">Neu: ${esc(prog.unlocked)}</button>` : '<button class="btn" data-a="menu">Andere Stadt</button>'}</div>
       <div class="rep-grid">
         <div class="rep-col">
           <h4>Woran es lag</h4>
@@ -445,7 +456,6 @@ class UI {
       </div>
       ${prog.rankUp ? `<div class="rankup">${ICON.rank} Neuer Rang: <b>${esc(prog.rankUp.name)}</b>${prog.rankUp.unlock ? ' – freigeschaltet: ' + esc(prog.rankUp.unlock) : ''}</div>` : ''}
       ${prog.unlocked ? `<div class="rankup">${ICON.lock} Neue Stadt freigeschaltet: <b>${esc(prog.unlocked)}</b></div>` : ''}
-      <div class="rep-btns"><button class="btn primary" data-a="again">Noch eine Stadt</button><button class="btn" data-a="menu">Andere Stadt</button></div>
     `, 'report');
     this.drawHeat(this.modal.querySelector('canvas.heat'), g);
   }
@@ -525,10 +535,16 @@ class UI {
   }
 
   // ---- Tutorial -----------------------------------------------------------------------
+  // Kleine Lektionen, ausgelöst von dem, was gerade in der Stadt passiert
   startTutorial() {
-    this.tut = { step: 0, t: 0 };
-    const touch = matchMedia('(pointer: coarse)').matches;
-    this.showTut((touch ? 'Zieh mit dem Finger' : 'Zieh mit gedrückter Maustaste') + ' eine Straße von einem <b>Haus</b> zur <b>Bäckerei</b>.');
+    this.tut = { t: 0, done: {}, cur: null, curT: 0, unconT: new Map() };
+    this.lesson('build', (this.touch ? 'Zieh mit dem Finger' : 'Zieh mit gedrückter Maustaste') + ' eine Straße von einem <b>Haus</b> zur <b>Bäckerei</b>.');
+  }
+
+  lesson(key, html) {
+    const T = this.tut;
+    T.done[key] = true; T.cur = key; T.curT = 0;
+    this.showTut(html);
   }
 
   showTut(html) {
@@ -537,6 +553,8 @@ class UI {
     const x = this.tutEl.querySelector('[data-tut=skip]');
     x.onclick = () => { this.endTutorial(); };
   }
+
+  hideTut() { this.tut.cur = null; this.tutEl.classList.remove('show'); }
 
   endTutorial() {
     this.tut = null;
@@ -549,24 +567,55 @@ class UI {
   updateTutorial(dt) {
     const T = this.tut, g = this.app.game;
     if (!T || !g) return;
-    T.t += dt;
-    const ov = this.app.overlay;
-    if (T.step === 0) {
-      const h = g.city.houses.find(x => !x.conn);
-      ov.hint = h ? { x: h.x + 0.5, y: h.y + 0.5, z: 0.6 } : null;
-      if (g.city.houses.some(x => x.conn)) { T.step = 1; T.t = 0; ov.hint = null; }
-    } else if (T.step === 1) {
-      if (g.score >= 1) { T.step = 2; T.t = 0; this.showTut('Jedes Auto holt einen <b>Auftrag</b> ab. Mehr als <b>6 offene Aufträge</b> lassen den roten Ring laufen – ist er voll, steht die Stadt still.'); }
-    } else if (T.step === 2) {
-      if (T.t > 9) { T.step = 3; T.t = 0; this.tutEl.classList.remove('show'); }
-    } else if (T.step === 3) {
-      if ([...g.world.junctions].length > 0 || g.dayIndex >= 2) { T.step = 4; T.t = 0; this.showTut('Kreuzungen bremsen: ' + (this.touch ? 'Wisch' : 'Zieh') + ' <b>entlang der Straße über die Kreuzung</b>, um Vorfahrt zu geben – oder setz einen <b>Kreisel</b> ' + (this.touch ? '(unten wählen, Kreuzung antippen).' : '(Taste 3).')); }
-    } else if (T.step === 4) {
-      if (T.t > 12 || [...g.world.junctions].some(J => J.type !== 'auto')) { T.step = 5; T.t = 0; this.tutEl.classList.remove('show'); }
-    } else if (T.step === 5) {
-      if (g.inv.roads <= 12) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp: Nachschub gibt es erst am Wochenende – und jede <b>übrige Straße</b> bringt dann ' + CFG.savingsBonus + ' Punkte <b>Sparprämie</b>. ' + (this.touch ? 'Der <b>Abriss</b>-Knopf' : '<b>Rechtsklick-Ziehen</b>') + ' gibt Straßen zurück.'); }
-    } else if (T.step === 6) {
-      if (T.t > 10) this.endTutorial();
+    T.t += dt; T.curT += dt;
+    const ov = this.app.overlay, D = T.done, city = g.city;
+    const conn = city.houses.filter(h => h.conn);
+    // wie lange ist jedes Haus schon ohne Anschluss?
+    for (const h of city.houses) { if (h.conn) T.unconT.delete(h); else T.unconT.set(h, (T.unconT.get(h) || 0) + dt); }
+    let hint = null;
+    if (T.cur === 'build') {
+      const h = city.houses.find(x => !x.conn);
+      if (h) hint = { x: h.x + 0.5, y: h.y + 0.5, z: 0.6 };
+      if (conn.length) this.lesson('wait', 'Prima! Gleich fährt das erste Auto los und holt einen <b>Auftrag</b> bei der Bäckerei ab.');
+    } else if (T.cur === 'wait') {
+      if (g.score >= 1) this.lesson('orders', 'Jede Lieferung bringt einen Punkt. Mehr als <b>6 offene Aufträge</b> an einem Ziel lassen den <b>roten Ring</b> laufen – ist er voll, steht die Stadt still.');
+    } else if (T.cur === 'orders' && T.curT > 9) this.hideTut();
+    else if (T.cur === 'houses') {
+      const h = T.houseFocus;
+      if (h && !h.conn) hint = { x: h.x + 0.5, y: h.y + 0.5, z: 0.6 };
+      if (!h || h.conn || T.curT > 14) this.hideTut();
+    } else if (T.cur === 'newdest') {
+      const d = T.destFocus;
+      if (d) hint = { x: d.cx, y: d.cy, z: 1.3 };
+      if (!d || d.nhc > 0 || T.curT > 16) this.hideTut();
+    } else if ((T.cur === 'junction' && (T.curT > 12 || [...g.world.junctions].some(J => J.type !== 'auto'))) || (T.cur === 'roads' && T.curT > 11)) this.hideTut();
+    // nächste Lektion, wenn gerade keine läuft
+    if (!T.cur && D.orders) {
+      const newDest = city.dests.find(d => d !== city.dests[0] && city.dests.slice(0, city.dests.indexOf(d)).every(o => o.pi !== d.pi) && !d.nhc);
+      let oldest = null, ot = 8;
+      for (const [h, t] of T.unconT) if (t > ot && city.dests.some(d => d.pi === h.pi)) { ot = t; oldest = h; }
+      if (newDest && !D.newdest) {
+        T.destFocus = newDest;
+        const P = PALETTE[newDest.pi];
+        this.lesson('newdest', `Neue Farbe! Verbinde die <b style="color:${P.hex}">${HOUSE_ADJ[newDest.pi]} Häuser</b> mit ${P.article} <b>${P.name}</b>.`);
+      } else if (oldest && !D.houses) {
+        T.houseFocus = oldest;
+        this.lesson('houses', 'Es kommen immer neue Häuser dazu. Jedes will Aufträge erledigen – liefern kann es aber nur mit Straße. <b>Verbinde es</b>, aber bau sparsam.');
+      } else if (!D.junction && g.world.junctions.size > 0) {
+        this.lesson('junction', 'Kreuzungen bremsen: ' + (this.touch ? 'Wisch' : 'Zieh') + ' <b>entlang der Straße über die Kreuzung hinweg</b>, um Vorfahrt zu geben – oder setz einen <b>Kreisel</b> ' + (this.touch ? '(unten wählen, Kreuzung antippen).' : '(Taste 3).'));
+      } else if (!D.roads && g.inv.roads <= 12) {
+        this.lesson('roads', 'Straßen sind knapp: Nachschub gibt es erst am Wochenende – und jede <b>übrige Straße</b> bringt dann ' + CFG.savingsBonus + ' Punkte <b>Sparprämie</b>. ' + (this.touch ? 'Der <b>Abriss</b>-Knopf' : '<b>Rechtsklick-Ziehen</b>') + ' gibt Straßen zurück.');
+      }
     }
+    // in Woche 1 zeigt der Pfeil auf das am längsten unverbundene Haus
+    if (!hint && g.week === 1 && T.cur !== 'orders') {
+      let oldest = null, ot = 10;
+      for (const [h, t] of T.unconT) if (t > ot && city.dests.some(d => d.pi === h.pi)) { ot = t; oldest = h; }
+      if (oldest) hint = { x: oldest.x + 0.5, y: oldest.y + 0.5, z: 0.6 };
+    }
+    ov.hint = hint;
+    if (g.week >= 2 && !T.cur && D.junction && D.roads) this.endTutorial();
+    else if (g.week >= 3 && !T.cur) this.endTutorial();
   }
+
 }

@@ -20,7 +20,7 @@ class Events {
     if (m.rails && this.w.railLines) {
       this.w.railLines.forEach((L, k) => this.trains.push({ line: L, k, phase: 7 + k * 9, closed: false, pos: -10, dir: k % 2 ? -1 : 1 }));
     }
-    if (m.drawbridge) this.ships.push({ phase: 12, open: false, pos: -10 });
+    if (m.drawbridge) this.ships.push({ phase: 0, open: false, pos: -4 });
   }
 
   // Tageswechsel: neue Ereignisse planen
@@ -144,17 +144,25 @@ class Events {
       const tt = ph - (period - 5.5);
       T.pos = tt > 0 ? -6 + tt / 6.5 * (w.w + 12) : -50;
     }
+    // Schiff fährt gleichmäßig den Kanal entlang; jede Klappbrücke öffnet nur, solange es in der Nähe ist
+    if (this.ships.length && this.drawKey !== w.topo) {
+      this.drawKey = w.topo;
+      this.drawTiles = [];
+      for (let i = 0; i < w.n; i++) if (w.road[i] && (w.flags[i] & F_DRAW)) this.drawTiles.push(i);
+    }
     for (const S of this.ships) {
       const period = 30;
       const ph = (g.time + S.phase) % period;
-      const open = ph >= period - 5;
-      if (open !== S.open) {
-        S.open = open;
-        this.setGate(i => w.flags[i] & F_DRAW, open);
-        if (open) g.fx.push({ t: 'horn' });
+      S.pos = -4 + ph / period * (w.w + 8);
+      let any = false;
+      for (const i of this.drawTiles) {
+        const tx = w.tx(i) + 0.5;
+        const open = S.pos > tx - 6 && S.pos < tx + 2;
+        if (open) any = true;
+        w.gate[i] = open ? 1 : 0;
       }
-      const tt = ph - (period - 9);
-      S.pos = tt > 0 ? -4 + tt / 12 * (w.w + 8) : -50;
+      if (any && !S.open) g.fx.push({ t: 'horn' });
+      S.open = any;
     }
     g.traffic.speedMul = (this.snow ? 0.8 : 1) * (g.mods.daily === 'schnee' ? 0.85 : 1);
   }
@@ -215,7 +223,7 @@ class Events {
     const g = this.g, city = g.city;
     const d = city.dests.filter(x => g.world.link[x.acc]).sort((a, b) => b.delivered - a.delivered)[0];
     if (!d) return;
-    d.fair = 50; d.fairPins = 15; d.cap = (d.parking ? 9 : CFG.pinCap) + 15;
+    d.fair = 90; d.fairPins = 15; d.cap = (d.parking ? 9 : CFG.pinCap) + 15;
     g.fx.push({ t: 'toast', text: 'Messe! 15 Aufträge auf einmal für ' + PALETTE[d.pi].name + '.', icon: 'fair', at: d.acc });
     g.fx.push({ t: 'fair', b: d });
   }

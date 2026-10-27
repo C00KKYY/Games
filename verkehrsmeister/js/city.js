@@ -5,10 +5,11 @@
 // ---------------------------------------------------------------------------
 
 const CAUSES = {
-  rvl: { title: 'Rechts vor links bremst', tip: 'Bei Querverkehr muss jeder fast anhalten. Per Wisch Vorfahrt geben, einen Kreisel oder eine Ampel setzen.' },
-  side: { title: 'Nebenstraße kommt nicht raus', tip: 'Ampel oder Kreisel setzen – oder per Wisch die Vorfahrt in die andere Richtung drehen.' },
+  rvl: { title: 'Rechts vor links bremst', tip: 'Bei Querverkehr muss jeder fast anhalten. Per Wisch Vorfahrt geben oder einen Kreisel setzen – bei starkem Verkehr aus zwei Richtungen hilft eine Ampel.' },
+  side: { title: 'Nebenstraße kommt nicht raus', tip: 'Kreisel setzen oder per Wisch die Vorfahrt drehen – bei starkem Querverkehr eine Ampel.' },
   main: { title: 'Zu viele kreuzende Ströme', tip: 'Kreisel setzen, den Verkehr auf eine zweite Route verteilen oder eine Autobahn darüberlegen.' },
-  light: { title: 'Ampel bremst', tip: 'Per Wisch die Hauptachse festlegen (doppelt Grün) – oder einen Kreisel probieren.' },
+  light: { title: 'Ampel bremst', tip: 'Eine Ampel lohnt sich nur bei starkem Verkehr aus zwei Richtungen. Sonst Kreisel setzen oder die Ampel entfernen.' },
+  acc: { title: 'Kreuzung direkt vor einer Einfahrt', tip: 'Hier geht kein Kreisel. Die Querstraße eine Kachel weiter anschließen oder eine zweite Route bauen.' },
   round: { title: 'Kreisel ist voll', tip: 'Zweite Route bauen, damit sich der Verkehr verteilt.' },
   spill: { title: 'Rückstau von vorn', tip: 'Die Straße hinter der Kreuzung ist voll. Engstelle weiter vorne entschärfen, Kreuzungen nicht so dicht setzen oder eine Umgehung bauen.' },
   exit: { title: 'Parkplatz verstopft', tip: 'Beide Zufahrten des Ziels anschließen und Kreuzungen direkt davor vermeiden.' },
@@ -22,6 +23,10 @@ const CAUSES = {
 // Ursache einer Kreuzung aus den gesammelten Blockiergründen
 function junctionCause(J) {
   const w = J.why;
+  if (J.w.accOf[J.i] >= 0 || J.w.up[J.i]) {
+    const box = w[3] + w[5] + w[6];
+    if (box >= w[4] + w[7] && box >= w[2]) return 'acc';
+  }
   const spill = w[4] + w[7], yieldT = w[5] + w[6], box = w[3], red = w[2];
   const m = Math.max(spill, yieldT, box, red);
   if (m <= 0) return J.type === 'auto' ? 'rvl' : J.type === 'light' ? 'light' : J.type === 'roundabout' ? 'round' : 'main';
@@ -229,7 +234,9 @@ class City {
       const g = this.g;
       if (!this.dests.some(d => L.comp[d.acc] === ca) && g.inv.bridges + g.inv.tunnels === 0) {
         const rock = this.w.terrain.some((t, i) => t === T_ROCK && this.w.inBounds(this.w.tx(i), this.w.ty(i)));
-        if (rock && !this.w.terrain.some((t, i) => t === T_WATER && this.w.inBounds(this.w.tx(i), this.w.ty(i)))) g.inv.tunnels++; else g.inv.bridges++;
+        const key = rock && !this.w.terrain.some((t, i) => t === T_WATER && this.w.inBounds(this.w.tx(i), this.w.ty(i))) ? 'tunnels' : 'bridges';
+        g.inv[key]++;
+        for (const s of g.undoStack) s.inv[key]++;
         g.fx.push({ t: 'toast', text: 'Das neue Ziel liegt abseits – dafür gibt es ein Bauteil (Brücke/Tunnel) dazu.', icon: 'bridge' });
       }
     }
@@ -312,17 +319,19 @@ class City {
     }
     // Aufträge
     const week = g.week;
-    const grow = (1 + CFG.pinWeekGrowth * (week - 1)) * (g.mods.pactDemand && g.mods.pactWeek === week ? g.mods.pactDemand : 1);
+    const grow = (1 + CFG.pinWeekGrowth * (week - 1)) * (g.mods.pactDemand && g.mods.pactWeek === week ? g.mods.pactDemand : 1) * (g.opts.tutorial && week === 1 ? 0.7 : 1);
     for (const d of this.dests) {
       d.ramp = Math.min(1, d.ramp + dt / 25);
       if (d.fair > 0) {
         d.fair -= dt;
         if (d.fairPins > 0) { const add = Math.min(d.fairPins, dt * 2); d.fairAcc = (d.fairAcc || 0) + add; d.fairPins -= add; while (d.fairAcc >= 1) { d.fairAcc--; d.pins++; } }
         if (d.fair <= 0) {
-          d.cap = d.parking ? 9 : CFG.pinCap;
+          // Grenze sinkt mit jeder Lieferung auf normal zurück, Besucher ohne Auto gehen heim
+          const base = d.parking ? 9 : CFG.pinCap;
+          d.cap = Math.max(base, d.assigned);
+          d.capShrink = d.cap > base;
           d.fairPins = 0;
-          // Besucher ohne Auto gehen nach Hause
-          d.pins = Math.min(d.pins, Math.max(d.cap, d.assigned));
+          d.pins = Math.min(d.pins, d.cap);
           g.fx.push({ t: 'toast', text: 'Die Messe ist vorbei.', icon: 'fair' });
         }
       }
@@ -440,6 +449,7 @@ class City {
       d.assigned = Math.max(0, d.assigned - 1);
       d.delivered++;
       d.intakeT = g.time + CFG.intakeEvery;
+      if (d.capShrink) { const base = d.parking ? 9 : CFG.pinCap; d.cap = Math.max(base, d.cap - 1); if (d.cap <= base) d.capShrink = false; }
       g.addScore(1);
       // Kombo
       if (g.time - this.lastDeliver < CFG.comboWindow) this.combo++; else this.combo = 1;
@@ -475,12 +485,14 @@ class City {
         const c = Math.abs(d.cx - h.x - 0.5) + Math.abs(d.cy - h.y - 0.5);
         if (c < bc) { bc = c; best = d; }
       }
+      h.near = best;
       if (best) best.nh++;
       if (!this.w.link[h.acc]) continue;
       for (const d of this.dests) {
         if (d.pi !== h.pi || !this.w.link[d.acc]) continue;
-        if (isFinite(this.pf.field(d.acc)[h.acc])) { h.conn = true; d.nhc++; break; }
+        if (isFinite(this.pf.field(d.acc)[h.acc])) { h.conn = true; break; }
       }
+      if (h.conn && best && this.w.link[best.acc] && isFinite(this.pf.field(best.acc)[h.acc])) best.nhc++;
     }
   }
 
@@ -525,9 +537,11 @@ class City {
         const md = Math.abs(h.ax - d.ax) + Math.abs(h.ay - d.ay);
         bestRatio = Math.min(bestRatio, c / (md / CFG.roadSpeed[1] + 1.5));
       }
-      d.waitQ = d.outQ.length;
+      let ready = 0;
+      for (const q of d.outQ) if (q.t <= g.time) ready++;
+      d.waitQ = ready;
       if (!reach) d.cause = 'nocon';
-      else if (d.outQ.length >= 4) d.cause = 'exit';
+      else if (ready >= 4) d.cause = 'exit';
       else if (open > 0 && !free) d.cause = 'nocar';
       else if (bestRatio > 2.6 && d.pins > 3) d.cause = 'detour';
       else if (open <= 0 && d.pins > d.cap) d.cause = 'jam';

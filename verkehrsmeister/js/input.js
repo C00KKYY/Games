@@ -91,6 +91,7 @@ class Input {
     this.setMouse(e);
     this.cv.setPointerCapture && this.cv.setPointerCapture(e.pointerId);
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+    this.app.ui.hoverInfo(-1);
     if (this.pointers.size >= 2) { this.cancelDrag(); this.startGesture(); return; }
     const t = this.tileAt(e);
     const sx = e.clientX, sy = e.clientY;
@@ -132,6 +133,8 @@ class Input {
       return;
     }
     if (Math.hypot(e.clientX - D.sx, e.clientY - D.sy) > 6) D.moved = true;
+    // Zielwahl: wer zieht, will die Karte verschieben
+    if (D.kind === 'target') { if (D.moved) { D.kind = 'pan'; D.lx = D.sx; D.ly = D.sy; this.move(e); } return; }
     if (D.kind === 'road') {
       if (!D.path.length) { const s = this.snap(t); if (s >= 0) D.path.push(s); }
       else this.extendPath(D.path, this.snap(t, D.path[D.path.length - 1]));
@@ -157,6 +160,13 @@ class Input {
   }
 
   up(e) {
+    const D = this.drag;
+    this.release(e);
+    // nach dem Ziehen den Tooltip mit frischem Stand zeigen (nur Maus, nur über der Karte)
+    if (this.game && D && D.moved && e.pointerType === 'mouse' && e.target === this.cv && !this.drag) this.app.ui.hoverInfo(this.tileAt(e), this.mouse);
+  }
+
+  release(e) {
     if (!this.game) return;
     if (e.target === this.cv || this.pointers.has(e.pointerId)) this.setMouse(e);
     const had = this.pointers.has(e.pointerId);

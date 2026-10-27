@@ -32,7 +32,7 @@ class Terrain3D {
   }
 
   dispose() {
-    for (const c of [...this.group.children]) { this.group.remove(c); if (c.geometry) c.geometry.dispose(); }
+    for (const c of [...this.group.children]) { this.group.remove(c); if (c.geometry && !c.geometry.userData.shared) c.geometry.dispose(); }
   }
 
   // Höhe eines Berg-Eckpunkts (Ecke zwischen 4 Kacheln)
@@ -146,7 +146,23 @@ class Terrain3D {
     this.buildBoundary(w, bounds);
   }
 
+  // nach Bauarbeiten: Bäume unter neuen Straßen/Gebäuden entfernen (bzw. nach Abriss zurückholen)
+  rebuildTrees(w, bounds) {
+    const key = this.treeKey(w);
+    if (key === this._treeKey) return;
+    if (this.treeMesh) { this.group.remove(this.treeMesh); this.treeMesh.dispose && this.treeMesh.dispose(); this.treeMesh = null; }
+    this.buildTrees(w, bounds);
+  }
+
+  treeKey(w) {
+    let h = 0;
+    for (let i = 0; i < w.n; i++) if (w.road[i] || w.bld[i] >= 0 || w.accOf[i] >= 0 || w.road[i + w.n]) h = (h * 31 + i) | 0;
+    return h;
+  }
+
   buildTrees(w, bounds) {
+    this._treeKey = this.treeKey(w);
+    this.treeMesh = null;
     const pos = [];
     for (let y = 0; y < w.h; y++) for (let x = 0; x < w.w; x++) {
       const i = y * w.w + x;
@@ -173,7 +189,8 @@ class Terrain3D {
     };
     cone(0.12, 0.2, 0.32, col('#ffffff'));
     cone(0.3, 0.15, 0.28, col('#ffffff'));
-    const geo = B.geometry();
+    const geo = this.treeGeo || (this.treeGeo = B.geometry());
+    geo.userData.shared = true;
     const mat = this.matTree;
     // Stammfarbe soll erhalten bleiben → Instanzfarbe multipliziert; daher Krone weiß, Instanzfarbe = Grün
     const mesh = new THREE.InstancedMesh(geo, mat, pos.length);
@@ -192,6 +209,7 @@ class Terrain3D {
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     this.group.add(mesh);
+    this.treeMesh = mesh;
   }
 
   // Ortsgrenze: gelbe Pfosten an den Ecken und eine dezente Linie

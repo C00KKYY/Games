@@ -100,7 +100,7 @@ class App {
     const def = CITIES.find(c => c.id === id) || CITIES[0];
     if (this.scene) this.scene.dispose();
     const seed = opts.dailySeed || (opts.attract || opts.tutorial ? def.seed : (def.seed + Math.floor(Math.random() * 1e6)));
-    this.game = new Game(def, { seed, daily: opts.daily, dailySeed: opts.dailySeed, dailyKey: opts.dailyKey, rank: this.rankInfo().idx, mobile: this.mobile });
+    this.game = new Game(def, { seed, daily: opts.daily, dailySeed: opts.dailySeed, dailyKey: opts.dailyKey, rank: this.rankInfo().idx, mobile: this.mobile, tutorial: !!opts.tutorial });
     this.scene = new Scene3D(this.engine, this.game);
     this.scene.onLand = b => AUDIO.play(b.kind === 'dest' ? 'dropBig' : 'drop');
     this.overlay.floats.length = 0;
@@ -154,6 +154,7 @@ class App {
     this.scene.selected = null;
     const b = w.bld[t] >= 0 ? w.buildings[w.bld[t]] : null;
     if (b && b.kind === 'dest') { this.ui.showInspect({ d: b }); AUDIO.play('click'); return; }
+    if (b) { this.ui.showInspect({ h: b }); AUDIO.play('click'); return; }
     if (w.jc[t]) { this.ui.showInspect({ J: w.jc[t] }); AUDIO.play('click'); return; }
     // Klick auf ein Engstellen-Schild
     for (const pr of g.city.problems) if (pr.screen && Math.abs(mouse.x - pr.screen.x) < pr.screen.w / 2 && Math.abs(mouse.y - pr.screen.y) < pr.screen.h / 2) {
@@ -189,7 +190,18 @@ class App {
       case 'confetti': AUDIO.play('confetti'); ui.bigText(f.combo + 'er-Kombo!', 'combo', 1200); break;
       case 'honk': AUDIO.play('honk'); if (Math.random() < 0.5) ov.float(f.x, f.y, (f.z || 0) + 0.35, 'Hup!', '#ffffff', { size: 12, max: 0.9, rise: 14 }); break;
       case 'valve': AUDIO.play('valve'); ov.float(w.tx(f.i) + 0.5, w.ty(f.i) + 0.5, 0.5, 'Nach Ihnen!', '#bfe3ff', { size: 13, max: 1.4, rise: 16 }); break;
-      case 'warn': AUDIO.play('warn'); ui.toast(PALETTE[f.b.pi].name + ' ist überlastet!', 'flag', { cls: 'bad', at: f.b.acc }); break;
+      case 'warn': {
+        AUDIO.play('warn');
+        const c = CAUSES[f.b.cause];
+        ui.toast(PALETTE[f.b.pi].name + (c ? ': ' + c.title + ' – roter Ring läuft!' : ' ist überlastet – roter Ring läuft!'), 'flag', { cls: 'bad', at: f.b.acc, ms: 5000 });
+        break;
+      }
+      case 'announce':
+        if (f.spec.kind === 'dest' && g.time > 1) {
+          const P = PALETTE[f.spec.pi];
+          ui.toast(`Neues Ziel: ${P.name} – verbinde die ${HOUSE_ADJ[f.spec.pi]} Häuser`, 'flag', { at: w.idx(f.spec.x + 1, f.spec.y + 1), ms: 5500 });
+        }
+        break;
       case 'newday': AUDIO.play('newday'); break;
       case 'priority': AUDIO.play('priority'); ov.float(w.tx(f.tiles[0]) + 0.5, w.ty(f.tiles[0]) + 0.5, 0.5, 'Vorfahrt!', '#ffd23f', { size: 15 }); break;
       case 'police': ov.float(w.tx(f.i) + 0.5, w.ty(f.i) + 0.5, 0.6, 'Polizei regelt!', '#9cc3ff', { size: 15 }); break;
@@ -241,8 +253,8 @@ class App {
     const rec = P.cities[id] || (P.cities[id] = { best: 0, medal: -1, plays: 0, board: [] });
     rec.plays++;
     const prog = { newBest: R.score > rec.best };
-    rec.best = Math.max(rec.best, R.score);
     const beforeOpen = CITIES.filter(c => this.cityUnlocked(c)).map(c => c.id);
+    rec.best = Math.max(rec.best, R.score);
     rec.medal = Math.max(rec.medal === undefined ? -1 : rec.medal, g.medal());
     const before = this.rankInfo().idx;
     P.total = (P.total || 0) + R.score;
@@ -250,7 +262,7 @@ class App {
     if (after.idx > before) prog.rankUp = RANKS[after.idx];
     const nowOpen = CITIES.filter(c => this.cityUnlocked(c));
     const fresh = nowOpen.find(c => beforeOpen.indexOf(c.id) < 0);
-    if (fresh) prog.unlocked = fresh.name;
+    if (fresh) { prog.unlocked = fresh.name; prog.unlockedId = fresh.id; }
     const d = new Date();
     const entry = { score: R.score, week: R.week, date: pad2(d.getDate()) + '.' + pad2(d.getMonth() + 1) + '.', t: Date.now() };
     let board;
