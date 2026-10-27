@@ -35,8 +35,9 @@ class UI {
     this.hud = hud;
     // Punkte
     const tl = el('div', 'hud-tl card');
-    tl.innerHTML = `<div class="city-name"></div><div class="score"><span class="odo">0</span><span class="unit">Fahrten</span></div><div class="medal"><div class="medal-bar"><i></i></div><span class="medal-next"></span></div>`;
+    tl.innerHTML = `<div class="city-name"></div><div class="score"><span class="odo">0</span><span class="unit">Punkte</span></div><div class="medal"><div class="medal-bar"><i></i></div><span class="medal-next"></span></div><div class="save-line" title="Jede Straße, die am Wochenende noch im Inventar liegt, bringt ${CFG.savingsBonus} Punkte."></div>`;
     hud.appendChild(tl);
+    this.elSave = tl.querySelector('.save-line');
     this.elCity = tl.querySelector('.city-name'); this.elScore = tl.querySelector('.odo'); this.elMedalBar = tl.querySelector('.medal-bar i'); this.elMedalNext = tl.querySelector('.medal-next');
     // Uhr
     const tc = el('div', 'hud-tc card');
@@ -180,6 +181,10 @@ class UI {
     if (g.stopT > 0) ph = 'Feierabend-Stopp ' + Math.ceil(g.stopT) + ' s';
     this.elPhase.textContent = ph;
     this.elPhase.classList.toggle('wave', ph.indexOf('welle') >= 0);
+    // Sparprämie live
+    const sp = Math.max(0, g.inv.roads) * CFG.savingsBonus;
+    const spTxt = sp ? `Sparprämie am Wochenende: <b>+${fmtInt(sp)}</b>` : 'Sparprämie: alle Straßen verbaut';
+    if (spTxt !== this._spTxt) { this.elSave.innerHTML = spTxt; this._spTxt = spTxt; this.elSave.classList.toggle('zero', !sp); }
     // Inventar
     for (const c of this.toolbar.querySelectorAll('[data-inv]')) {
       const v = g.inv[c.dataset.inv] || 0;
@@ -371,9 +376,10 @@ class UI {
     this.modalKind = 'week';
     const worst = S.worst ? `<div class="wk-worst"><span>Größte Engstelle: <b>${CAUSES[S.worst.cause] ? CAUSES[S.worst.cause].title : 'Kreuzung'}</b> (${Math.round(S.worst.wait)} s Wartezeit)</span><button class="btn small" data-a="focus" data-i="${S.worst.i}">${ICON.eye} Zeigen</button></div>` : '<div class="wk-worst good">Keine großen Engstellen diese Woche.</div>';
     const cards = S.cards.map((c, k) => `<button class="pcard${c.pact ? ' pact' : ''}" data-a="card" data-k="${k}"><span class="pc-ic">${ICON[c.icon] || ICON.star}</span><b>${esc(c.name)}</b><span>${esc(c.desc)}</span>${c.target ? '<em>Ziel wählen</em>' : ''}${c.pact ? '<em class="pact">Pakt</em>' : ''}</button>`).join('');
-    const bonus = `+${g.mods.daily === 'sparsam' || g.mods.lowWeek === g.week + 1 ? 10 : CFG.weekRoads} Straßen · +1 Polizei · die Ortsgrenze wächst`;
+    const bonus = `+${g.mods.lowWeek === g.week + 1 ? 5 : g.mods.daily === 'sparsam' ? 8 : CFG.weekRoads} Straßen · +1 Polizei · die Ortsgrenze wächst`;
     this.openModal(`
-      <div class="wk-head"><div class="wk-title">Woche ${S.week} geschafft!</div><div class="wk-sub">${fmtInt(S.trips)} Fahrten diese Woche · ${fmtInt(S.total)} insgesamt</div></div>
+      <div class="wk-head"><div class="wk-title">Woche ${S.week} geschafft!</div><div class="wk-sub">${fmtInt(S.trips)} Fahrten diese Woche · ${fmtInt(S.total)} Punkte insgesamt</div></div>
+      <div class="wk-save${S.bonus ? '' : ' none'}">${ICON.road}<span>${S.bonus ? `<b>Sparprämie +${fmtInt(S.bonus)}</b> für ${S.saved} übrige Straßen` : 'Keine Sparprämie – alle Straßen verbaut. Übrige Straßen bringen am Wochenende je ' + CFG.savingsBonus + ' Punkte.'}</span></div>
       <div class="wk-stats"><span>${ICON.house}${S.houses} Häuser</span><span>${ICON.flag}${S.dests} Ziele</span></div>
       ${worst}
       <div class="wk-bonus">${bonus}</div>
@@ -423,7 +429,7 @@ class UI {
     const board = (prog.board || []).slice(0, 10).map((e, n) => `<tr class="${e.cur ? 'cur' : ''}"><td>${n + 1}.</td><td>${fmtInt(e.score)}</td><td>Woche ${e.week}</td><td>${esc(e.date)}</td></tr>`).join('');
     this.openModal(`
       <div class="rep-head"><div class="rep-title">Stillstand in ${esc(def.name)}!</div><div class="rep-sub">${esc(PALETTE[R.dest.pi].name)} konnte nicht mehr beliefert werden · Woche ${R.week}, ${DAYS[Math.min(4, R.day - 1)]}</div></div>
-      <div class="rep-score"><span class="big">${fmtInt(R.score)}</span><span>Fahrten</span>${medal}${prog.newBest ? '<span class="newbest">Neuer Rekord!</span>' : ''}</div>
+      <div class="rep-score"><span class="big">${fmtInt(R.score)}</span><span>Punkte</span>${medal}${prog.newBest ? '<span class="newbest">Neuer Rekord!</span>' : ''}</div>
       <div class="rep-grid">
         <div class="rep-col">
           <h4>Woran es lag</h4>
@@ -489,7 +495,7 @@ class UI {
       ${inGame ? `<button class="btn primary wide" data-a="resume">Weiterspielen</button>` : ''}
       <div class="cities">${cities}</div>
       <button class="daily" data-a="daily"><span class="d-ic">${ICON.calendar}</span><span><b>Tageschallenge</b> · ${esc(daily.city.name)}<br><span class="dim">${esc(daily.mod.name)}: ${esc(daily.mod.desc)}${daily.best ? ' · heute bester: ' + fmtInt(daily.best) : ''}</span></span></button>
-      <div class="rank">${ICON.rank}<span>Rang: <b>${esc(rank.name)}</b> · ${fmtInt(rank.total)} Fahrten insgesamt${rank.next ? ` · nächster Rang bei ${fmtInt(rank.next.at)}` : ''}</span></div>
+      <div class="rank">${ICON.rank}<span>Rang: <b>${esc(rank.name)}</b> · ${fmtInt(rank.total)} Punkte insgesamt${rank.next ? ` · nächster Rang bei ${fmtInt(rank.next.at)}` : ''}</span></div>
       <div class="menu-foot">
         <button class="btn small" data-a="help">${ICON.help} Anleitung</button>
         <button class="btn small" data-a="toggle-sound">${AUDIO.enabled ? ICON.sound + ' Ton an' : ICON.mute + ' Ton aus'}</button>
@@ -511,7 +517,8 @@ class UI {
         <p><b>Ampeln</b> schalten selbst nach Bedarf, <b>Kreisel</b> sind flüssig bei Verkehr aus allen Richtungen, die <b>Autobahn</b> ist eine gerade Hochstraße über Straßen, Wasser und Gleise hinweg. Die <b>Polizei</b> regelt eine Kreuzung 15 Sekunden lang von Hand. ${t ? 'Werkzeug unten wählen und die Kreuzung antippen.' : 'Tasten 2, 3, 4 und P.'}</p>
         <p><b>Stau-Lupe:</b> ${t ? 'Tipp' : 'Klick'} auf ein Auto, eine Kreuzung oder ein Ziel zeigt, was los ist. Dunkle Schilder markieren die größten Engstellen samt Ursache.</p>
         <p><b>Kamera:</b> ${t ? 'Mit zwei Fingern schieben, zoomen und drehen.' : 'Mausrad zoomen, mittlere Maustaste oder Umschalt+Ziehen bzw. WASD verschieben, Q/E drehen. Leertaste Pause, Tab Tempo, Strg+Z rückgängig.'}</p>
-        <p><b>Wochen:</b> Nach fünf Tagen gibt es Nachschub und du wählst eine von drei Karten.</p>
+        <p><b>Sparsam bauen lohnt sich:</b> Straßen sind knapp, und jede Straße, die am Wochenende noch im Inventar liegt, bringt ${CFG.savingsBonus} Punkte Sparprämie. Autos parken kurz am Ziel, bevor sie heimfahren – ein Ziel braucht deshalb mehrere angeschlossene Häuser.</p>
+        <p><b>Wochen:</b> Nach fünf Tagen gibt es ${CFG.weekRoads} neue Straßen und du wählst eine von drei Karten.</p>
       </div>
       <button class="btn primary" data-a="back">Zurück</button>
     `, 'help');
@@ -557,7 +564,7 @@ class UI {
     } else if (T.step === 4) {
       if (T.t > 12 || [...g.world.junctions].some(J => J.type !== 'auto')) { T.step = 5; T.t = 0; this.tutEl.classList.remove('show'); }
     } else if (T.step === 5) {
-      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. ' + (this.touch ? 'Der <b>Abriss</b>-Knopf' : '<b>Rechtsklick-Ziehen</b>') + ' reißt ab und gibt Kacheln zurück.'); }
+      if (g.inv.roads <= 12) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp: Nachschub gibt es erst am Wochenende – und jede <b>übrige Straße</b> bringt dann ' + CFG.savingsBonus + ' Punkte <b>Sparprämie</b>. ' + (this.touch ? 'Der <b>Abriss</b>-Knopf' : '<b>Rechtsklick-Ziehen</b>') + ' gibt Straßen zurück.'); }
     } else if (T.step === 6) {
       if (T.t > 10) this.endTutorial();
     }

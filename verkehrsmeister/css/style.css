@@ -47,6 +47,9 @@ svg { width: 1em; height: 1em; display: block; }
 .medal-bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: #c98a4b; transition: width .4s; }
 .medal-bar i.m1 { background: #b0b7c3; } .medal-bar i.m2 { background: #e6b422; } .medal-bar i.m3 { background: #e6b422; }
 .medal-next svg { display: inline; vertical-align: -2px; color: #e6b422; }
+.save-line { margin-top: 6px; font: 600 11.5px var(--font); color: #14633a; }
+.save-line b { font-weight: 800; }
+.save-line.zero { color: var(--dim); }
 
 /* Uhr */
 .hud-tc { position: absolute; left: 50%; transform: translateX(-50%); top: max(12px, env(safe-area-inset-top)); display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 8px; }
@@ -157,6 +160,9 @@ svg { width: 1em; height: 1em; display: block; }
 .wk-stats span { display: flex; align-items: center; gap: 6px; }
 .wk-worst { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff6e0; border-radius: 12px; padding: 10px 12px; font-size: 14px; }
 .wk-worst.good { background: #e7f7ee; justify-content: center; }
+.wk-save { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 10px auto 0; padding: 8px 12px; border-radius: 11px; background: #e7f7ee; color: #14633a; font-size: 14px; width: fit-content; max-width: 100%; }
+.wk-save svg { font-size: 18px; flex-shrink: 0; }
+.wk-save.none { background: #f3f5f8; color: var(--ink2); }
 .wk-bonus { text-align: center; margin: 12px 0 4px; color: var(--good); font-weight: 700; font-size: 14px; }
 .wk-pick { text-align: center; font: 800 20px var(--cond); margin: 12px 0 10px; letter-spacing: .02em; }
 .pcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -225,6 +231,7 @@ svg { width: 1em; height: 1em; display: block; }
   .hud-tl { min-width: 0; padding: 7px 10px; }
   .odo { font-size: 26px; }
   .medal { display: none; }
+  .save-line { font-size: 10.5px; margin-top: 2px; }
   .city-name { font-size: 10px; }
   .hud-tc { top: calc(max(12px, env(safe-area-inset-top)) + 54px); left: max(12px, env(safe-area-inset-left)); transform: none; padding: 5px 10px 5px 6px; }
   .dial { width: 34px; height: 34px; }

@@ -75,8 +75,13 @@ class Game {
     this.phase = 'week';
     let worst = null;
     for (const J of this.world.junctions) if (!worst || (J.weekWait || 0) > (worst.weekWait || 0)) worst = J;
+    // Sparprämie: übrige Straßen zahlen sich aus
+    const saved = Math.max(0, this.inv.roads);
+    const bonus = saved * CFG.savingsBonus;
+    const trips = this.weekScore;
+    if (bonus) this.addScore(bonus);
     const summary = {
-      week: this.week, trips: this.weekScore, total: this.score,
+      week: this.week, trips, saved, bonus, total: this.score,
       worst: worst && worst.weekWait > 20 ? { i: worst.i, wait: worst.weekWait, cause: worst.cause || junctionCause(worst) } : null,
       houses: this.city.houses.length, dests: this.city.dests.length,
     };
@@ -130,7 +135,7 @@ class Game {
   nextWeek() {
     this.week++; this.day = 1; this.dayIndex++; this.dayT = 0; this.phase = 'day';
     this.weekScore = 0;
-    this.inv.roads += (this.mods.daily === 'sparsam' || this.mods.lowWeek === this.week) ? 10 : CFG.weekRoads;
+    this.inv.roads += this.mods.lowWeek === this.week ? 5 : this.mods.daily === 'sparsam' ? 8 : CFG.weekRoads;
     this.inv.police = Math.min(this.mods.policeMax || CFG.policeMax, this.inv.police + 1);
     // Ortsgrenze wächst
     const b = this.world.bounds, W = this.world.w, H = this.world.h;

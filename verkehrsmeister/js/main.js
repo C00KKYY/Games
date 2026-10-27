@@ -70,7 +70,7 @@ class App {
   }
   unlockText(c) {
     const u = c.unlock;
-    if (u.city) return u.score + ' Fahrten in ' + CITIES.find(x => x.id === u.city).name;
+    if (u.city) return u.score + ' Punkte in ' + CITIES.find(x => x.id === u.city).name;
     if (u.bronze) return u.bronze + '× Bronze';
     return '';
   }

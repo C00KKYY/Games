@@ -46,7 +46,7 @@ class City {
     this.honkT = 0;
     this.combo = 0; this.lastDeliver = -10;
     this.cleanRun = 0;
-    this.nextDestDay = 3;
+    this.nextDestDay = CFG.firstDestDay;
     this.destsMade = 0;
     this.extraCars = {};
     this.problems = [];
@@ -70,7 +70,7 @@ class City {
     dest.ramp = 0.35;
     // zwei Häuser
     for (let k = 0; k < 2; k++) {
-      const h = this.findHouseSpot(first, dest, k === 0 ? 4 : 5);
+      const h = this.findHouseSpot(first, dest, k === 0 ? 4.5 : 5.5);
       if (h) this.place({ kind: 'house', pi: first, x: h.x, y: h.y, dir: h.dir, seed: this.rng.int(1, 1e9) }, true);
     }
     if (def.colors && def.colors > 1) {
@@ -256,7 +256,7 @@ class City {
     });
     const ds = this.dests.filter(d => d.pi === pi);
     const near = this.rng.pick(ds);
-    const spot = this.findHouseSpot(pi, near, 3.5 + this.rng.range(0, 3));
+    const spot = this.findHouseSpot(pi, near, 4.5 + this.rng.range(0, 3));
     if (!spot) return;
     this.announce({ kind: 'house', pi, x: spot.x, y: spot.y, dir: spot.dir, seed: this.rng.int(1, 1e9) });
   }
@@ -449,7 +449,7 @@ class City {
       g.fx.push({ t: 'deliver', b: d, combo: this.combo, clean });
       if (clean && this.cleanRun > 0 && this.cleanRun % CFG.greenWave === 0) g.fx.push({ t: 'greenwave', n: this.cleanRun });
       if (this.combo > 0 && this.combo % 10 === 0) g.fx.push({ t: 'confetti', b: d, combo: this.combo });
-      d.outQ.push({ house: v.house, t: g.time + 0.7 });
+      d.outQ.push({ house: v.house, t: g.time + CFG.dwell });
     } else {
       v.house.home++;
       g.fx.push({ t: 'home', b: v.house });
