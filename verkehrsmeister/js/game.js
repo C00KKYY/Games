@@ -1,597 +1,445 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Spielzustand: Zeit, Geld, Zufriedenheit, Ziele, Bauaktionen, Speichern
+// Spielzustand: Zeit (Tag/Woche), Inventar, Bauen/Abreißen, Werkzeuge, Karten,
+// Undo, Niederlage und Wertung
 // ---------------------------------------------------------------------------
 
-class FX {
-  constructor() { this.parts = []; this.texts = []; }
-  add(p) { if (this.parts.length < 600) this.parts.push(p); }
-  puff(x, y, color, size = 1) {
-    for (let k = 0; k < 8 * size; k++) {
-      const a = Math.random() * Math.PI * 2, s = 0.2 + Math.random() * 0.5;
-      this.add({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: 0.7 + Math.random() * 0.5, r: 0.08 + Math.random() * 0.08 * size, color, kind: 'smoke' });
-    }
-  }
-  build(x, y) {
-    for (let k = 0; k < 14; k++) {
-      const a = Math.random() * Math.PI * 2, s = 0.4 + Math.random() * 0.6;
-      this.add({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: 0.6 + Math.random() * 0.4, r: 0.07 + Math.random() * 0.06, color: '#d6cbb3', kind: 'smoke' });
-    }
-  }
-  crash(x, y) {
-    for (let k = 0; k < 18; k++) {
-      const a = Math.random() * Math.PI * 2, s = 0.8 + Math.random() * 1.6;
-      this.add({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0, max: 0.35 + Math.random() * 0.4, r: 0.03, color: k % 2 ? '#fbbf24' : '#f97316', kind: 'spark' });
-    }
-    this.puff(x, y, '#64748b', 1.5);
-  }
-  text(x, y, str, color) { if (this.texts.length < 60) this.texts.push({ x, y, str, color: color || '#16a34a', life: 0, max: 1.6 }); }
-  update(dt) {
-    for (const p of this.parts) { p.life += dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.94; p.vy *= 0.94; if (p.kind === 'smoke') p.r += dt * 0.12; }
-    this.parts = this.parts.filter(p => p.life < p.max);
-    for (const t of this.texts) { t.life += dt; t.y -= dt * 0.5; }
-    this.texts = this.texts.filter(t => t.life < t.max);
-  }
-}
-
-const ACHIEVEMENTS = [
-  { id: 'road', name: 'Spatenstich', desc: 'Baue deine erste Straße.' },
-  { id: 'trips100', name: 'Pendlerprofi', desc: '100 erfolgreiche Fahrten in einem Spiel.' },
-  { id: 'trips1000', name: 'Verkehrsader', desc: '1.000 erfolgreiche Fahrten in einem Spiel.' },
-  { id: 'trips5000', name: 'Lebensnerv der Stadt', desc: '5.000 erfolgreiche Fahrten in einem Spiel.' },
-  { id: 'light', name: 'Rot – Gelb – Grün', desc: 'Stelle deine erste Ampel auf.' },
-  { id: 'greenwave', name: 'Grüne Welle', desc: 'Drei Ampeln mit eingestelltem Versatz.' },
-  { id: 'smart', name: 'Mitdenkende Ampel', desc: 'Schalte eine Ampel auf adaptive Steuerung.' },
-  { id: 'round5', name: 'Kreiselkönig', desc: 'Fünf Kreisverkehre gleichzeitig.' },
-  { id: 'bridge10', name: 'Brückenbauer', desc: 'Zehn Brückenfelder gebaut.' },
-  { id: 'tunnel', name: 'Durch den Berg', desc: 'Baue einen Tunnel.' },
-  { id: 'bus', name: 'Bitte einsteigen', desc: 'Richte eine Buslinie ein.' },
-  { id: 'pax500', name: 'ÖPNV-Held', desc: '500 Busfahrgäste in einem Spiel.' },
-  { id: 'happy90', name: 'Stadt der Glücklichen', desc: 'Zufriedenheit über 90 % nach mindestens 300 Fahrten.' },
-  { id: 'rescue10', name: 'Freie Rettungsgasse', desc: '10 erfolgreiche Rettungseinsätze.' },
-  { id: 'rich', name: 'Volle Stadtkasse', desc: '150.000 € in der Kasse.' },
-  { id: 'noacc', name: 'Null Unfälle', desc: 'Ein ganzer Tag ohne Unfall mit mindestens 400 Fahrten.' },
-  { id: 'pop500', name: 'Großstadt', desc: '500 Einwohner in einer Stadt.' },
-  { id: 'campaign', name: 'Verkehrsmeister', desc: 'Schließe alle Kampagnen-Level ab.' },
-  { id: 'stars', name: 'Musterplaner', desc: 'Hole drei Sterne in einem Kampagnen-Level.' },
-];
-
 class Game {
-  constructor(cfg) {
-    const level = cfg.level;
-    this.level = level;
-    this.mode = level.demo ? 'demo' : level.sandbox ? 'sandbox' : level.endless ? 'endless' : 'campaign';
-    this.seed = cfg.seed !== undefined ? cfg.seed : level.seed;
-    const save = cfg.save;
-    this.world = save ? World.deserialize(save.world) : generateWorld(level, this.seed);
+  constructor(def, opts = {}) {
+    this.def = def;
+    this.opts = opts;
+    this.seed = opts.seed || def.seed;
+    this.world = generateCity(def, this.seed);
+    this.mods = {};
+    this.world.mods = this.mods;
+    if (opts.daily) this.mods.daily = opts.daily;
+    if (this.mods.daily === 'rush') this.mods.rush = true;
+    this.world.emit = (t, d) => this.onEmit(t, d);
+    this.inv = Object.assign({}, CFG.start, def.start || {});
+    if (this.mods.daily === 'rvl') { this.inv.lights = 0; this.inv.rounds = 0; }
+    this.maxVehicles = opts.mobile ? 300 : CFG.maxVehicles;
     this.time = 0;
-    this.startMin = (level.startHour !== undefined ? level.startHour : 6) * 60;
-    this.money = level.money;
-    this.tripRating = 72; this.penaltyV = 0; this.satisfaction = 72;
-    this.lowSatT = 0; this.lowMoneyT = 0;
-    this.speed = 1; this.paused = false; this.over = false; this.won = false;
-    this.buildVersion = 0; this.stopVersion = 0;
-    this.stats = { trips: 0, busPax: 0, accidents: 0, rescues: 0, gaveUp: 0, income: 0, spent: 0, built: 0, durSum: 0, ratingSum: 0, failed: 0 };
-    this.statsDay = this.freshDay();
-    this.statsHour = { trips: 0, ratingSum: 0, durSum: 0, failed: 0 };
-    this.history = [];
-    this.days = [];
-    this.notes = [];
-    this.noteId = 1;
-    this.throttle = {};
-    this.fx = new FX();
-    this.audio = (typeof AUDIO !== 'undefined') ? AUDIO : { play() {} };
+    this.phase = 'day';
+    this.dayT = 0; this.nightT = 0;
+    this.day = 1; this.week = 1; this.dayIndex = 1;
+    this.hour = 6;
+    this.score = 0; this.weekScore = 0;
+    this.stopT = 0;
+    this.fx = [];
+    this.undoStack = [];
+    this.over = false;
+    this.weekLog = [];
+    this.cardsTaken = {};
     this.traffic = new Traffic(this);
     this.city = new City(this);
-    this.undoStack = [];
-    this.failWhy = {};
-    this.demandRamp = 1;
-    this.acc = 0;
-    this.onNote = null; this.onEnd = null; this.onAchievement = null;
-    this.achieved = new Set(Store.get('vm_ach', []));
-    this.counters = { lights: 0, smart: 0 };
-    if (save) this.applySave(save);
-    else setupLevel(this);
-    this.world.computeComponents();
-    this.lastHour = this.hourAbs;
-    this.lastDay = this.dayIndex;
-    this.achT = 0;
+    this.events = new Events(this);
+    if (!opts.empty) this.city.setup();
+    this.events.onNewDay();
+    this.stats = { built: 0, maxCombo: 0, saved: 0 };
   }
 
-  freshDay() { return { trips: 0, ratingSum: 0, busPax: 0, accidents: 0, income: 0, failed: 0 }; }
+  get bounds() { return this.world.bounds; }
 
-  get minutes() { return this.startMin + this.time * CFG.minPerSec; }
-  get hour() { return Math.floor(this.minutes / 60) % 24; }
-  get hourAbs() { return Math.floor(this.minutes / 60); }
-  get dayIndex() { return Math.floor(this.minutes / 1440); }
-  get weekday() { return this.dayIndex % 7; }
-  get sandbox() { return this.mode === 'sandbox'; }
-
-  population() { let p = 0; for (const b of this.world.buildings) if (!b.dead) p += b.pop; return p; }
-  jobsTotal() { let p = 0; for (const b of this.world.buildings) if (!b.dead) p += b.jobs; return p; }
-
-  // ---- Benachrichtigungen ----------------------------------------------------------
-  notify(text, kind = 'info', tile = -1) {
-    const n = { id: this.noteId++, text, kind, tile, min: this.minutes };
-    this.notes.push(n);
-    if (this.notes.length > 60) this.notes.shift();
-    if (this.onNote) this.onNote(n);
-    return n;
-  }
-  notifyThrottled(key, text, kind, tile) {
-    const t = this.throttle[key] || -1e9;
-    if (this.time - t < 40) return;
-    this.throttle[key] = this.time;
-    this.notify(text, kind, tile);
+  addScore(n) {
+    this.score += n; this.weekScore += n;
   }
 
-  // ---- Geld & Zufriedenheit ------------------------------------------------------------
-  addMoney(amount, label, x, y) {
-    this.money += amount;
-    if (amount > 0) { this.stats.income += amount; this.statsDay.income += amount; }
-    if (label && x !== undefined) this.fx.text(x, y, (amount >= 0 ? '+' : '') + fmtMoney(amount), amount >= 0 ? '#15803d' : '#b91c1c');
-  }
-  spend(amount, label) {
-    if (this.sandbox) return true;
-    if (this.money < amount) {
-      this.notifyThrottled('money', 'Nicht genug Geld! Dir fehlen ' + fmtMoney(amount - this.money) + '.', 'danger');
-      this.audio.play('error');
-      return false;
+  // ---- Zeit ---------------------------------------------------------------------------
+  step(dt) {
+    if (this.over || this.phase === 'week') return;
+    this.time += dt;
+    if (this.stopT > 0) this.stopT -= dt;
+    if (this.phase === 'day') {
+      this.dayT += dt;
+      this.hour = 6 + 16 * this.dayT / CFG.dayLen;
+      if (this.dayT >= CFG.dayLen) { this.phase = 'night'; this.nightT = 0; }
+    } else if (this.phase === 'night') {
+      this.nightT += dt;
+      this.hour = 22 + 8 * this.nightT / CFG.nightLen;
+      if (this.nightT >= CFG.nightLen) {
+        this.hour = 6;
+        if (this.day >= CFG.workDays) { this.weekEnd(); return; }
+        this.day++; this.dayIndex++; this.dayT = 0; this.phase = 'day';
+        this.events.onNewDay();
+        this.fx.push({ t: 'newday' });
+      }
     }
-    this.money -= amount;
-    this.stats.spent += amount;
+    this.events.step(dt);
+    this.city.step(dt);
+    if (this.over) return;
+    this.traffic.step(dt);
+  }
+
+  // ---- Woche ------------------------------------------------------------------------
+  weekEnd() {
+    this.phase = 'week';
+    let worst = null;
+    for (const J of this.world.junctions) if (!worst || (J.weekWait || 0) > (worst.weekWait || 0)) worst = J;
+    const summary = {
+      week: this.week, trips: this.weekScore, total: this.score,
+      worst: worst && worst.weekWait > 20 ? { i: worst.i, wait: worst.weekWait, cause: worst.cause || (worst.type === 'auto' ? 'rvl' : worst.type === 'light' ? 'light' : worst.type === 'roundabout' ? 'round' : 'main') } : null,
+      houses: this.city.houses.length, dests: this.city.dests.length,
+    };
+    this.weekLog.push(summary);
+    for (const J of this.world.junctions) J.weekWait = 0;
+    summary.cards = this.mods.skipCard ? [] : this.drawCards(3);
+    this.mods.skipCard = false;
+    this.pendingWeek = summary;
+    this.fx.push({ t: 'weekend', summary });
+  }
+
+  drawCards(n) {
+    const rank = this.opts.rank || 0;
+    const w = this.world;
+    let hasRock = false, hasWater = false;
+    for (let i = 0; i < w.n; i++) { if (w.terrain[i] === T_ROCK) hasRock = true; if (w.terrain[i] === T_WATER) hasWater = true; }
+    const pool = CARDS.filter(c => {
+      if (c.pact && rank < 1) return false;
+      if (c.once && this.cardsTaken[c.id]) return false;
+      if (this.mods.daily === 'rvl' && (c.id === 'lights' || c.id === 'round' || c.id === 'fest')) return false;
+      if (c.id === 'tunnel' && !hasRock) return false;
+      if (c.id === 'bridges' && !hasWater) return false;
+      if (c.id === 'highway' && this.week < 2) return false;
+      if (c.id === 'police' && this.mods.policeMax) return false;
+      return true;
+    });
+    const weight = c => c.id === 'roads' ? 3 : c.id === 'lights' || c.id === 'round' ? 2.2 : c.id === 'highway' ? 1.6 : c.pact ? 0.7 : 1;
+    const out = [];
+    const rng = new RNG(this.seed * 7 + this.week * 101);
+    while (out.length < n && pool.length) {
+      const c = rng.weighted(pool, weight);
+      out.push(c); pool.splice(pool.indexOf(c), 1);
+    }
+    return out;
+  }
+
+  // Karte wählen (target = Ziel-Gebäude bei Karten mit Ziel)
+  chooseCard(card, target) {
+    if (card) {
+      if (card.target && !target) return false;
+      card.apply(this, target);
+      this.cardsTaken[card.id] = (this.cardsTaken[card.id] || 0) + 1;
+      if (card.id === 'fest') this.mods.pactWeek = this.week + 1;
+      this.fx.push({ t: 'card', card });
+    }
+    this.nextWeek();
     return true;
   }
-  canAfford(amount) { return this.sandbox || this.money >= amount; }
 
-  rateTrip(rating, purpose, building, v, dur) {
-    const fail = purpose === 'queue' || purpose === 'gaveup' || purpose === 'noroute' || purpose === 'bus-cancel' || purpose === 'bus-wait';
-    const k = fail ? (purpose === 'queue' ? 0.02 : 0.035) : 0.022;
-    this.tripRating += (rating - this.tripRating) * k;
-    if (fail) { this.stats.failed++; this.statsDay.failed++; this.statsHour.failed++; this.failWhy[purpose] = (this.failWhy[purpose] || 0) + 1; return; }
-    this.stats.trips++; this.statsDay.trips++; this.statsHour.trips++;
-    this.stats.ratingSum += rating; this.statsDay.ratingSum += rating; this.statsHour.ratingSum += rating;
-    if (dur) { this.stats.durSum += dur; this.statsHour.durSum += dur; }
-    if (v && !this.sandbox) {
-      let inc = (2 + 0.35 * v.dist) * (rating >= 50 ? 1 : 0.6);
-      if (purpose === 'through') inc += 2;
-      if (v.type === 'truck' || v.type === 'van') inc += 3;
-      this.addMoney(Math.round(inc * 10) / 10);
-    }
+  nextWeek() {
+    this.week++; this.day = 1; this.dayIndex++; this.dayT = 0; this.phase = 'day';
+    this.weekScore = 0;
+    this.inv.roads += this.mods.daily === 'sparsam' ? 10 : CFG.weekRoads;
+    this.inv.police = Math.min(this.mods.policeMax || CFG.policeMax, this.inv.police + 1);
+    // Ortsgrenze wächst
+    const b = this.world.bounds, W = this.world.w, H = this.world.h;
+    const nb = { x0: Math.max(0, b.x0 - 2), y0: Math.max(0, b.y0 - 2), x1: Math.min(W, b.x1 + 2), y1: Math.min(H, b.y1 + 2) };
+    const grew = nb.x0 !== b.x0 || nb.x1 !== b.x1 || nb.y0 !== b.y0 || nb.y1 !== b.y1;
+    this.world.bounds = nb;
+    this.pendingWeek = null;
+    this.undoStack.length = 0;
+    this.events.onNewDay();
+    this.fx.push({ t: 'newweek', grew });
   }
 
-  penalize(points) {
-    this.penaltyV = Math.max(-10, this.penaltyV + points);
-  }
-
-  upkeep() {
-    const c = this.world.countRoads();
-    let u = c.road * CFG.upkeep.road + c.hw * CFG.upkeep.highway + c.bridge * CFG.upkeep.bridge + c.tunnel * CFG.upkeep.tunnel + c.stops * CFG.upkeep.stop;
-    for (const J of this.world.junctions || []) {
-      if (J.type === 'light') u += J.light && J.light.smart ? CFG.upkeep.smart : CFG.upkeep.light;
-      else if (J.type === 'roundabout') u += CFG.upkeep.roundabout;
-      else if (J.type === 'priority') u += CFG.upkeep.priority;
-    }
-    let buses = 0;
-    for (const l of this.city.lines) buses += l.buses.size;
-    u += buses * CFG.upkeep.bus;
-    return Math.round(u);
-  }
-
-  taxes() {
-    const f = 0.4 + this.satisfaction / 100;
-    return Math.round((this.population() * 7 + this.jobsTotal() * 5) * f);
-  }
-
-  // ---- Simulation ---------------------------------------------------------------------------
-  tick(realDt) {
-    if (this.paused || this.over) return 0;
-    this.acc += Math.min(0.25, realDt) * this.speed;
-    let steps = 0;
-    const maxSteps = 12;
-    const t0 = performance.now();
-    while (this.acc >= CFG.dt && steps < maxSteps) {
-      this.step(CFG.dt);
-      this.acc -= CFG.dt;
-      steps++;
-      if (this.over) break;
-      if (performance.now() - t0 > 28) break;
-    }
-    if (this.acc > CFG.dt * 6) this.acc = CFG.dt * 6;
-    return steps;
-  }
-
-  step(dt) {
-    this.time += dt;
-    this.traffic.step(dt, this.time);
-    this.city.update(dt);
-    // Zufriedenheit
-    if (this.mode !== 'demo') {
-      const unc = this.city.unconnectedCount(this.level.grace || 80);
-      this.penaltyV += 0.03 * unc * dt;
-      this.penaltyV *= Math.exp(-dt / 110);
-      this.satisfaction = clamp(this.tripRating - this.penaltyV, 0, 100);
-    }
-    // Stunden- und Tageswechsel
-    const ha = this.hourAbs;
-    if (ha !== this.lastHour) { this.lastHour = ha; this.onHour(); }
-    const day = this.dayIndex;
-    if (day !== this.lastDay) { this.lastDay = day; this.onDay(); }
-    if (this.mode === 'endless' && this.level.ramp) this.demandRamp = 1 + Math.min(1.2, this.dayIndex * 0.08);
-    // Ende prüfen
-    if (this.mode === 'campaign' || this.mode === 'endless') this.checkEnd(dt);
-    this.achT += dt;
-    if (this.achT > 2) { this.achT = 0; this.checkAchievements(); }
-  }
-
-  onHour() {
-    const w = this.world;
-    const h = this.statsHour;
-    this.history.push({
-      h: this.hourAbs - 1,
-      trips: h.trips, rating: h.trips ? h.ratingSum / h.trips : null, dur: h.trips ? h.durSum / h.trips * CFG.minPerSec : null,
-      failed: h.failed, sat: this.satisfaction, money: this.money, veh: this.traffic.vehicles.length,
-    });
-    if (this.history.length > 24 * 14) this.history.shift();
-    this.statsHour = { trips: 0, ratingSum: 0, durSum: 0, failed: 0 };
-    for (let i = 0; i < w.n; i++) {
-      if (w.flowCnt[i] || w.flow[i] > 0.01) { w.flow[i] = w.flow[i] * 0.55 + w.flowCnt[i] * 0.45; w.flowCnt[i] = 0; }
-    }
-    for (const J of w.junctions || []) { J.flowHr = J.flowHr * 0.5 + J.passCnt * 0.5; J.passCnt = 0; }
-    if (this.mode !== 'demo' && this.hour % 3 === 0 && this.onAutosave) this.onAutosave();
-  }
-
-  onDay() {
-    if (this.mode === 'demo') return;
-    const tax = this.sandbox ? 0 : this.taxes();
-    const up = this.sandbox ? 0 : this.upkeep();
-    this.money += tax - up;
-    this.stats.income += tax;
-    const d = this.statsDay;
-    const rep = { day: this.dayIndex - 1, trips: d.trips, rating: d.trips ? d.ratingSum / d.trips : 0, tax, upkeep: up, income: d.income, accidents: d.accidents, busPax: d.busPax, failed: d.failed, sat: this.satisfaction, pop: this.population() };
-    this.days.push(rep);
-    if (d.accidents === 0 && d.trips >= 400) this.unlock('noacc');
-    this.statsDay = this.freshDay();
-    for (const l of this.city.lines) l.paxDay = 0;
-    if (this.onDayReport) this.onDayReport(rep);
-    if (!this.sandbox) this.notify('Tagesabschluss ' + WEEKDAYS[rep.day % 7] + ': ' + fmtInt(rep.trips) + ' Fahrten, Steuern +' + fmtMoney(tax) + ', Unterhalt −' + fmtMoney(up) + '.', 'money');
-  }
-
-  goalStatus() {
-    const res = [];
-    for (const g of this.level.goals || []) {
-      let cur = 0, label = '', done = false, fmt = fmtInt;
-      if (g.type === 'trips') { cur = this.stats.trips; label = 'Erfolgreiche Fahrten'; done = cur >= g.n; }
-      else if (g.type === 'sat') { cur = this.satisfaction; label = 'Zufriedenheit mind. ' + g.n + ' %'; done = cur >= g.n; fmt = x => Math.round(x) + ' %'; }
-      else if (g.type === 'days') { cur = this.dayIndex; label = g.n + ' Tage durchhalten'; done = cur >= g.n; fmt = x => x + ''; }
-      else if (g.type === 'money') { cur = this.money; label = 'Stadtkasse'; done = cur >= g.n; fmt = fmtMoney; }
-      else if (g.type === 'bus') { cur = this.stats.busPax; label = 'Busfahrgäste'; done = cur >= g.n; }
-      else if (g.type === 'pop') { cur = this.population(); label = 'Einwohner'; done = cur >= g.n; }
-      res.push({ type: g.type, label, cur, target: g.n, done, fmt, live: g.type === 'sat' });
-    }
-    return res;
-  }
-
-  checkEnd(dt) {
+  // ---- Niederlage ------------------------------------------------------------------
+  gameOver(dest) {
     if (this.over) return;
-    const fail = this.level.fail || 18;
-    if (this.satisfaction < fail && this.stats.trips + this.stats.failed > 25) this.lowSatT += dt; else this.lowSatT = Math.max(0, this.lowSatT - dt * 2);
-    if (this.money < -15000) this.lowMoneyT += dt; else this.lowMoneyT = 0;
-    if (this.lowSatT > 45) { this.end(false, 'sat'); return; }
-    if (this.lowMoneyT > 30) { this.end(false, 'money'); return; }
-    if (this.mode === 'campaign') {
-      const gs = this.goalStatus();
-      if (gs.length && gs.every(g => g.done)) this.end(true);
-    }
-  }
-
-  end(won, reason) {
-    this.over = true; this.won = won;
-    let stars = 0;
-    if (won) {
-      stars = 1 + (this.satisfaction >= 70 ? 1 : 0) + (this.satisfaction >= 85 ? 1 : 0);
-      const prog = Store.get('vm_progress', {});
-      prog[this.level.id] = Math.max(prog[this.level.id] || 0, stars);
-      Store.set('vm_progress', prog);
-      if (stars === 3) this.unlock('stars');
-      if (LEVELS.every(l => prog[l.id])) this.unlock('campaign');
-      this.audio.play('win');
-    } else this.audio.play('lose');
-    this.endInfo = { won, reason, stars };
-    if (this.onEnd) this.onEnd(this.endInfo);
-  }
-
-  // ---- Erfolge ----------------------------------------------------------------------------
-  unlock(id) {
-    if (this.mode === 'demo' || this.achieved.has(id)) return;
-    this.achieved.add(id);
-    Store.set('vm_ach', [...this.achieved]);
-    const a = ACHIEVEMENTS.find(x => x.id === id);
-    if (a && this.onAchievement) this.onAchievement(a);
-    this.audio.play('achievement');
-  }
-
-  checkAchievements() {
-    if (this.mode === 'demo') return;
-    const s = this.stats;
-    if (s.trips >= 100) this.unlock('trips100');
-    if (s.trips >= 1000) this.unlock('trips1000');
-    if (s.trips >= 5000) this.unlock('trips5000');
-    if (s.busPax >= 500) this.unlock('pax500');
-    if (s.rescues >= 10) this.unlock('rescue10');
-    if (this.money >= 150000 && !this.sandbox) this.unlock('rich');
-    if (this.satisfaction >= 90 && s.trips >= 300) this.unlock('happy90');
-    let lights = 0, wave = 0, smart = 0, round = 0;
-    for (const J of this.world.junctions || []) {
-      if (J.type === 'light') { lights++; if (J.light && J.light.offset) wave++; if (J.light && J.light.smart) smart++; }
-      if (J.type === 'roundabout') round++;
-    }
-    if (lights) this.unlock('light');
-    if (wave >= 3) this.unlock('greenwave');
-    if (smart) this.unlock('smart');
-    if (round >= 5) this.unlock('round5');
-    const c = this.world.countRoads();
-    if (c.road + c.hw > 0 && this.stats.built > 0) this.unlock('road');
-    if (c.bridge >= 10) this.unlock('bridge10');
-    if (c.tunnel >= 1) this.unlock('tunnel');
-    if (this.city.lines.length) this.unlock('bus');
-    if (this.population() >= 500) this.unlock('pop500');
-  }
-
-  // ---- Bauaktionen -------------------------------------------------------------------------
-  snapshot(tiles) {
-    const w = this.world, set = new Set();
-    for (const t of tiles) { set.add(t); for (let d = 0; d < 4; d++) { const j = w.nb(t, d); if (j >= 0) set.add(j); } }
-    const snap = [];
-    for (const i of set) snap.push({ i, road: w.road[i], out: w.out[i], flags: w.flags[i], terrain: w.terrain[i], jc: w.jc[i] ? w.jc[i].serialize() : null, stop: this.city.stops.get(i) ? this.city.stops.get(i).name : null });
-    return snap;
-  }
-
-  restore(snap) {
+    this.over = true;
+    this.lostAt = dest;
     const w = this.world;
-    const tiles = snap.map(s => s.i);
-    for (const s of snap) {
-      if (!s.road && w.road[s.i]) w.removeRoad(s.i);
-      w.road[s.i] = s.road; w.out[s.i] = s.out; w.flags[s.i] = s.flags & ~F_STOP; w.terrain[s.i] = s.terrain;
-      w.markDirty(s.i);
-    }
-    for (const s of snap) w.refreshTile(s.i);
-    for (const s of snap) {
-      if (s.jc && w.jc[s.i]) w.jc[s.i].deserialize(s.jc);
-      else if (s.jc && s.jc.type === 'roundabout' && w.road[s.i]) { w.jc[s.i] = new Junction(w, s.i); w.jc[s.i].deserialize(s.jc); w.isJ[s.i] = 1; }
-      else if (!s.jc && w.jc[s.i] && w.jc[s.i].type !== 'auto') w.jc[s.i].setType('auto');
-      if (s.stop && !this.city.stops.has(s.i) && w.road[s.i]) this.city.addStop(s.i, s.stop);
-      if (!s.stop && this.city.stops.has(s.i)) this.city.removeStop(s.i);
-    }
-    for (const s of snap) w.refreshTile(s.i);
-    w.bump();
-    this.onWorldEdit(tiles);
+    const top = [...w.junctions].filter(J => (J.totalWait || 0) > 15).sort((a, b) => b.totalWait - a.totalWait).slice(0, 3)
+      .map(J => ({ i: J.i, x: w.tx(J.i), y: w.ty(J.i), wait: J.totalWait, cause: J.cause || (J.type === 'auto' ? 'rvl' : J.type === 'light' ? 'light' : J.type === 'roundabout' ? 'round' : 'main') }));
+    this.report = {
+      city: this.def, score: this.score, week: this.week, day: this.day, dest, cause: dest.cause || 'nocar', top,
+      houses: this.city.houses.length, dests: this.city.dests.length, stats: this.stats,
+    };
+    this.fx.push({ t: 'gameover', report: this.report });
   }
 
-  pushUndo(label, snap, cost) {
-    this.undoStack.push({ label, snap, cost, t: this.time });
-    if (this.undoStack.length > 25) this.undoStack.shift();
+  medal() {
+    const m = this.def.medals;
+    let k = -1;
+    for (let i = 0; i < m.length; i++) if (this.score >= m[i]) k = i;
+    return k;
+  }
+
+  // ---- Undo -------------------------------------------------------------------------
+  pushUndo() {
+    this.undoStack.push({ world: this.world.snapshot(), inv: Object.assign({}, this.inv) });
+    if (this.undoStack.length > 10) this.undoStack.shift();
   }
 
   undo() {
-    const u = this.undoStack.pop();
-    if (!u) { this.notify('Nichts zum Rückgängigmachen.', 'info'); return false; }
-    this.restore(u.snap);
-    if (!this.sandbox) { this.money += u.cost; this.stats.spent -= Math.max(0, u.cost); }
-    this.notify('Rückgängig: ' + u.label + (u.cost && !this.sandbox ? ' (' + (u.cost > 0 ? '+' : '') + fmtMoney(u.cost) + ')' : ''), 'info');
-    this.audio.play('undo');
+    const s = this.undoStack.pop();
+    if (!s) return false;
+    const changed = this.world.restore(s.world);
+    this.inv = s.inv;
+    this.traffic.onTilesChanged(changed);
+    this.fx.push({ t: 'rebuild', all: true });
+    this.fx.push({ t: 'sfx', name: 'undo' });
     return true;
   }
 
-  onWorldEdit(tiles, silent) {
-    this.world.bump();
-    this.traffic.onTilesChanged(tiles);
-    if (this.onEdit) this.onEdit(tiles);
+  onEmit(t, d) {
+    if (t === 'refund' && !this._restoring) {
+      if (d.type === 'light') this.inv.lights++;
+      if (d.type === 'roundabout') this.inv.rounds++;
+    } else if (t === 'valve') this.fx.push({ t: 'valve', i: d.i });
   }
 
-  // Werkzeugklasse für Straßenbau
-  roadPlan(path, tool) {
+  // ---- Bauen --------------------------------------------------------------------------
+  // Liefert eine Vorschau: je Kachel {i, kind, ok}, plus Kosten, ob es reicht, und ob es eine Wisch-Vorfahrt ist
+  planPath(tiles) {
     const w = this.world;
-    let cost = 0, valid = 0, reason = '';
-    const kinds = [];
-    for (let k = 0; k < path.length; k++) {
-      const i = path[k];
-      const cls = tool === 'highway' ? 2 : (tool === 'oneway' ? (w.road[i] || 1) : 1);
-      const info = w.roadBuildInfo(i, cls);
-      if (!info.ok) { reason = info.reason; break; }
-      if (tool === 'road' && w.road[i] === 2) info.cost = 0; // Rückbau kostenlos
-      cost += info.cost;
-      kinds.push(info.kind);
-      valid++;
-    }
-    // Verbindungen ohne Kosten; Einbahn-Umwandlung kostet nichts
-    return { cost: Math.round(cost), valid, reason, kinds };
-  }
-
-  buildRoad(path, tool) {
-    const w = this.world;
-    if (!path.length) return false;
-    const plan = this.roadPlan(path, tool);
-    const tiles = path.slice(0, plan.valid);
-    if (!tiles.length) { if (plan.reason) this.notify(plan.reason + '.', 'warn'); this.audio.play('error'); return false; }
-    // Prüfen, ob überhaupt etwas passiert
-    let changes = plan.cost > 0;
-    if (!changes) {
-      for (let k = 0; k < tiles.length; k++) {
-        if (!w.road[tiles[k]]) { changes = true; break; }
-        if (tool === 'road' && w.road[tiles[k]] === 2) { changes = true; break; }
-        if (k > 0) {
-          const d = dirBetween(w, tiles[k - 1], tiles[k]);
-          if (d < 0) continue;
-          const a = tiles[k - 1], b = tiles[k];
-          const ab = (w.out[a] >> d) & 1, ba = (w.out[b] >> OPP[d]) & 1;
-          if (tool === 'oneway' ? (!ab || ba) : (!ab || !ba)) { changes = true; break; }
+    const res = { items: [], roads: 0, bridges: 0, tunnels: 0, ok: true, reason: '', swipe: null, buildable: 0 };
+    if (!tiles.length) return res;
+    // Wisch über bestehende Straßen durch eine Kreuzung → Vorfahrt
+    if (tiles.length >= 3 && tiles.every(i => w.road[i])) {
+      let linked = true;
+      for (let k = 0; k + 1 < tiles.length; k++) {
+        const d = this.dirBetween(tiles[k], tiles[k + 1]);
+        if (d < 0 || !((w.link[tiles[k]] >> d) & 1) || w.nb(tiles[k], d) !== tiles[k + 1]) { linked = false; break; }
+      }
+      if (linked) {
+        const js = [];
+        for (let k = 1; k + 1 < tiles.length; k++) if (w.isJ[tiles[k]]) js.push(k);
+        if (js.length) {
+          res.swipe = js.map(k => ({ i: tiles[k], a: this.dirBetween(tiles[k], tiles[k - 1]), b: this.dirBetween(tiles[k], tiles[k + 1]) }));
+          for (const i of tiles) res.items.push({ i, kind: 'swipe', ok: true });
+          return res;
         }
       }
     }
-    if (!changes) return false;
-    if (!this.spend(plan.cost, 'Straßenbau')) return false;
-    const snap = this.snapshot(tiles);
-    for (const i of tiles) {
-      if (!w.road[i]) w.placeRoad(i, tool === 'highway' ? 2 : 1);
-      else if (tool === 'highway') w.road[i] = 2;
-      else if (tool === 'road') w.road[i] = 1;
-      w.markDirty(i);
-    }
-    for (let k = 1; k < tiles.length; k++) {
-      const d = dirBetween(w, tiles[k - 1], tiles[k]);
-      if (d >= 0) w.connect(tiles[k - 1], d, tool === 'oneway' ? 'one' : 'two');
-    }
-    for (const i of tiles) w.refresh(i);
-    // Haltestellen auf jetzt ungeeigneten Kacheln entfernen
-    for (const i of tiles) if (this.city.stops.has(i) && (w.isJ[i] || w.road[i] === 2)) this.city.removeStop(i);
-    this.stats.built += tiles.length;
-    this.pushUndo(tool === 'highway' ? 'Schnellstraße' : tool === 'oneway' ? 'Einbahnstraße' : 'Straße', snap, plan.cost);
-    this.onWorldEdit(tiles);
-    const last = tiles[tiles.length - 1];
-    this.fx.build(w.tx(last) + 0.5, w.ty(last) + 0.5);
-    this.audio.play('build');
-    if (plan.cost > 0 && !this.sandbox) this.fx.text(w.tx(last) + 0.5, w.ty(last), '−' + fmtMoney(plan.cost), '#b91c1c');
-    if (plan.valid < path.length && plan.reason) this.notify(plan.reason + ' – Bau dort gestoppt.', 'warn');
-    return true;
-  }
-
-  bulldoze(path) {
-    const w = this.world;
-    const tiles = [];
-    let refund = 0;
-    for (const i of path) {
-      if (w.road[i]) {
-        tiles.push(i);
-        refund += w.roadValue(i) * CFG.refund;
-        const J = w.jc[i];
-        if (J && J.type !== 'auto') refund += this.controlCost(J.type) * CFG.refund;
-        if (w.flags[i] & F_STOP) refund += CFG.cost.stop * CFG.refund;
-      } else if (this.sandbox && w.bld[i] >= 0) {
-        const b = w.buildings[w.bld[i]];
-        if (b && !b.dead) { this.city.fires = this.city.fires.filter(f => f.b !== b); w.removeBuilding(b); this.buildVersion++; tiles.push(b.acc); }
+    let inv = { roads: this.inv.roads, bridges: this.inv.bridges, tunnels: this.inv.tunnels };
+    let k = 0;
+    const n = tiles.length;
+    while (k < n) {
+      const i = tiles[k];
+      const ri = w.roadInfo(i);
+      if (!ri.ok) { res.ok = false; res.reason = ri.reason; for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false }); break; }
+      // Verbindung zum Vorgänger prüfen
+      if (k > 0) {
+        const p = tiles[k - 1], d = this.dirBetween(p, i);
+        if (d < 0 || (w.road[p] && w.nb(p, d) !== i) || (w.road[i] && w.nb(i, OPP[d]) !== p)) { res.ok = false; res.reason = 'Autobahnrampe im Weg'; for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false }); break; }
+        if (!this.straightOk(tiles, k)) { res.ok = false; res.reason = 'Brücken, Tunnel und Bahnübergänge nur gerade'; for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false }); break; }
       }
+      if (ri.kind === 'bridge' || ri.kind === 'tunnel') {
+        // ganzer Abschnitt
+        let e = k;
+        while (e + 1 < n && w.roadInfo(tiles[e + 1]).kind === ri.kind) e++;
+        const len = e - k + 1;
+        const max = ri.kind === 'bridge' ? CFG.bridgeMax : CFG.tunnelMax;
+        const key = ri.kind === 'bridge' ? 'bridges' : 'tunnels';
+        let straight = true;
+        const d0 = k > 0 ? this.dirBetween(tiles[k - 1], tiles[k]) : (e > k ? this.dirBetween(tiles[k], tiles[k + 1]) : -1);
+        for (let q = k; q <= e + 1 && q < n; q++) if (q > 0 && this.dirBetween(tiles[q - 1], tiles[q]) !== d0) straight = false;
+        if (len > max || !straight || inv[key] <= 0) {
+          res.ok = false;
+          res.reason = len > max ? (ri.kind === 'bridge' ? 'Brücken höchstens ' + max + ' Felder' : 'Tunnel höchstens ' + max + ' Felder') : !straight ? (ri.kind === 'bridge' ? 'Brücken nur gerade' : 'Tunnel nur gerade') : (ri.kind === 'bridge' ? 'Keine Brücke mehr im Inventar' : 'Kein Tunnel im Inventar');
+          for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false });
+          break;
+        }
+        inv[key]--; res[key]++;
+        for (let q = k; q <= e; q++) res.items.push({ i: tiles[q], kind: ri.kind, ok: true });
+        k = e + 1;
+        continue;
+      }
+      if (ri.kind === 'exists') { res.items.push({ i, kind: 'exists', ok: true }); k++; continue; }
+      if (inv.roads <= 0) { res.ok = false; res.reason = 'Keine Straßen mehr – neue gibt es zum Wochenende'; res.outOfRoads = true; for (let q = k; q < n; q++) res.items.push({ i: tiles[q], kind: 'bad', ok: false }); break; }
+      inv.roads--; res.roads++;
+      res.items.push({ i, kind: ri.kind, ok: true });
+      k++;
     }
-    if (!tiles.length) return false;
-    const snap = this.snapshot(tiles.filter(i => w.road[i]));
-    for (const i of tiles) {
-      if (!w.road[i]) continue;
-      if (this.city.stops.has(i)) this.city.removeStop(i);
-      for (const a of this.city.accidents.slice()) if (a.tile === i) this.city.clearAccident(a);
-      w.removeRoad(i);
+    res.buildable = res.items.filter(it => it.ok).length;
+    return res;
+  }
+
+  // Brücke/Tunnel/Bahnübergang: an Kachel k darf der Weg nicht abknicken
+  straightOk(tiles, k) {
+    const w = this.world;
+    const i = tiles[k], p = tiles[k - 1];
+    const d = this.dirBetween(p, i);
+    const strict = j => (w.road[j] ? (w.flags[j] & (F_BRIDGE | F_TUNNEL | F_CROSSING)) : (w.terrain[j] === T_WATER || w.terrain[j] === T_ROCK || w.rail[j]));
+    // Knick an p?
+    if (k >= 2 && strict(p) && this.dirBetween(tiles[k - 2], p) !== d) return false;
+    if (strict(p)) { const lk = w.road[p] ? w.link[p] : 0; const ax = (d & 1) ? 0b1010 : 0b0101; if (lk & ~ax) return false; }
+    if (strict(i)) { const lk = w.road[i] ? w.link[i] : 0; const ax = (d & 1) ? 0b1010 : 0b0101; if (lk & ~ax) return false; }
+    // Bahn: quer zum Gleis
+    const rl = j => w.rail[j];
+    const vert = d === 0 || d === 2;
+    if (rl(i) && ((rl(i) === 1) === vert)) return false;
+    if (rl(p) && ((rl(p) === 1) === vert)) return false;
+    return true;
+  }
+
+  dirBetween(a, b) {
+    const w = this.world;
+    const ax = w.tx(a), ay = w.ty(a), bx = w.tx(b), by = w.ty(b);
+    for (let d = 0; d < 4; d++) if (ax + DX[d] === bx && ay + DY[d] === by) return d;
+    return -1;
+  }
+
+  buildPath(tiles) {
+    const w = this.world;
+    const plan = this.planPath(tiles);
+    if (plan.swipe) {
+      let n = 0;
+      for (const s of plan.swipe) { const J = w.jc[s.i]; if (J && this.mods.daily !== 'rvl' && J.setMain(s.a, s.b)) n++; }
+      if (n) {
+        this.world.bump();
+        this.fx.push({ t: 'rebuild' });
+        this.fx.push({ t: 'priority', tiles: plan.swipe.map(s => s.i) });
+      }
+      return { ok: n > 0, swipe: true };
     }
-    for (const i of tiles) w.refresh(i);
-    refund = Math.round(refund);
-    if (!this.sandbox) this.addMoney(refund, 'Abriss', w.tx(tiles[0]) + 0.5, w.ty(tiles[0]));
-    this.pushUndo('Abriss', snap, -refund);
-    this.onWorldEdit(tiles);
-    this.fx.puff(w.tx(tiles[0]) + 0.5, w.ty(tiles[0]) + 0.5, '#a8a29e');
-    this.audio.play('demolish');
-    return true;
-  }
-
-  controlCost(type) {
-    if (type === 'light') return CFG.cost.light;
-    if (type === 'priority') return CFG.cost.priority;
-    if (type === 'roundabout') return CFG.cost.roundabout;
-    return 0;
-  }
-
-  setControl(i, type) {
-    const w = this.world;
-    const J = w.jc[i];
-    if (!J) { this.notify('Hier ist keine Kreuzung. Steuerungen brauchen mindestens drei Straßenarme.', 'warn'); this.audio.play('error'); return false; }
-    if (J.type === type) return false;
-    if (type === 'roundabout') {
-      if (w.drive[i]) { this.notify('Ein Kreisverkehr geht nicht direkt vor einer Einfahrt.', 'warn'); this.audio.play('error'); return false; }
-      if (w.road[i] === 2) { this.notify('Kreisverkehre gehen nicht auf Schnellstraßen.', 'warn'); this.audio.play('error'); return false; }
+    const okItems = [];
+    for (const it of plan.items) { if (!it.ok) break; okItems.push(it); }
+    if (!okItems.length) { if (plan.reason) this.fx.push({ t: 'deny', text: plan.reason, i: tiles[0] }); return { ok: false, reason: plan.reason }; }
+    // Nichts Neues? (nur eine einzelne bestehende Kachel)
+    const placed = [];
+    let newLinks = 0;
+    for (let k = 0; k + 1 < okItems.length; k++) {
+      const a = okItems[k].i, b = okItems[k + 1].i, d = this.dirBetween(a, b);
+      if (!(w.road[a] && w.road[b] && ((w.out[a] >> d) & 1))) newLinks++;
     }
-    const cost = this.controlCost(type);
-    if (!this.spend(cost, 'Kreuzung')) return false;
-    const snap = this.snapshot([i]);
-    const refund = this.controlCost(J.type) * CFG.refund;
-    if (refund && !this.sandbox) this.money += refund;
-    J.setType(type);
-    this.pushUndo(JTYPE_NAME[type], snap, cost - refund);
-    w.markDirty(i);
-    this.onWorldEdit([i]);
-    this.fx.build(w.tx(i) + 0.5, w.ty(i) + 0.5);
-    this.audio.play('build');
-    return true;
+    const newTiles = okItems.filter(it => it.kind !== 'exists').length;
+    if (!newTiles && !newLinks) return { ok: false };
+    this.pushUndo();
+    for (const it of okItems) {
+      if (it.kind !== 'exists') { w.placeRoad(it.i); placed.push(it.i); }
+    }
+    this.inv.roads -= plan.roads; this.inv.bridges -= plan.bridges; this.inv.tunnels -= plan.tunnels;
+    // nur so viele Ressourcen abbuchen wie tatsächlich verbaut (plan zählt bis zum ersten Fehler)
+    const touched = new Set();
+    for (let k = 0; k + 1 < okItems.length; k++) {
+      const a = okItems[k].i, b = okItems[k + 1].i, d = this.dirBetween(a, b);
+      w.connect(a, d);
+      touched.add(a); touched.add(b);
+    }
+    for (const it of okItems) touched.add(it.i);
+    for (const i of touched) w.refresh(i);
+    this.traffic.onTilesChanged([...touched]);
+    this.stats.built += placed.length;
+    this.fx.push({ t: 'built', placed, tiles: okItems.map(it => it.i) });
+    if (!plan.ok && plan.reason) this.fx.push({ t: 'deny', text: plan.reason, i: tiles[okItems.length] });
+    return { ok: true, placed };
   }
 
-  removeControl(i) {
-    const J = this.world.jc[i];
-    if (!J || J.type === 'auto') return false;
-    const snap = this.snapshot([i]);
-    const refund = Math.round(this.controlCost(J.type) * CFG.refund);
-    if (!this.sandbox) this.addMoney(refund, 'Rückbau', this.world.tx(i) + 0.5, this.world.ty(i));
-    J.setType('auto');
-    this.pushUndo('Rückbau', snap, -refund);
-    this.world.markDirty(i);
-    this.onWorldEdit([i]);
-    this.audio.play('demolish');
-    return true;
-  }
-
-  placeStop(i) {
+  // Abreißen entlang eines Pfads (Rechtsklick-Ziehen)
+  erasePath(tiles) {
     const w = this.world;
-    if (!w.road[i]) return false;
-    if (this.city.stops.has(i)) return false;
-    if (w.isJ[i]) { this.notify('Haltestellen gehören auf gerade Straßenstücke, nicht auf Kreuzungen.', 'warn'); this.audio.play('error'); return false; }
-    if (w.road[i] === 2) { this.notify('Auf Schnellstraßen sind keine Haltestellen erlaubt.', 'warn'); this.audio.play('error'); return false; }
-    if (!this.spend(CFG.cost.stop, 'Haltestelle')) return false;
-    this.city.addStop(i);
-    this.onWorldEdit([i]);
-    this.audio.play('build');
+    let did = false;
+    const touched = new Set();
+    const removed = [];
+    const pre = () => { if (!did) { this.pushUndo(); did = true; } };
+    for (const g of tiles) {
+      if (g < 0 || g >= w.n) continue;
+      // Autobahn darüber oder Rampe
+      const hw = w.hasElev(g) || (w.flags[g] & F_RAMP) ? w.highwayAt(g) : null;
+      if (hw) {
+        pre();
+        for (const m of hw.mid) { touched.add(m + w.n); removed.push(m + w.n); }
+        touched.add(hw.a); touched.add(hw.b);
+        w.removeHighway(hw);
+        this.inv.highways++;
+        continue;
+      }
+      if (!w.road[g]) continue;
+      if (w.accOf[g] >= 0) {
+        // Einfahrt bleibt, nur Verbindungen lösen
+        if (w.link[g]) { pre(); for (let d = 0; d < 4; d++) { const j = w.nb(g, d); if (j >= 0) touched.add(j); w.disconnect(g, d); } touched.add(g); }
+        continue;
+      }
+      pre();
+      const f = w.flags[g];
+      if (f & (F_BRIDGE | F_TUNNEL)) {
+        // ganzen Abschnitt entfernen, ein Bauteil zurück
+        const flag = f & F_BRIDGE ? F_BRIDGE : F_TUNNEL;
+        const run = [g];
+        for (const d of [0, 1, 2, 3]) {
+          let j = w.nb(g, d);
+          while (j >= 0 && j < w.n && w.road[j] && (w.flags[j] & flag) && ((w.link[w.nb(j, OPP[d])] >> d) & 1)) { run.push(j); j = w.nb(j, d); }
+        }
+        for (const j of run) { for (let d = 0; d < 4; d++) { const q = w.nb(j, d); if (q >= 0) touched.add(q); } w.removeRoad(j); removed.push(j); touched.add(j); }
+        if (flag === F_BRIDGE) this.inv.bridges++; else this.inv.tunnels++;
+        continue;
+      }
+      for (let d = 0; d < 4; d++) { const q = w.nb(g, d); if (q >= 0) touched.add(q); }
+      w.removeRoad(g);
+      if (w.terrain[g] !== T_WATER) this.inv.roads++;
+      removed.push(g); touched.add(g);
+    }
+    if (!did) return false;
+    for (const i of touched) w.refresh(i);
+    this.traffic.onTilesChanged([...touched]);
+    this.fx.push({ t: 'erased', tiles: removed });
     return true;
   }
 
-  placeBuildingManual(type, x, y, dir) {
+  // ---- Werkzeuge auf Kreuzungen --------------------------------------------------------
+  junctionAt(g) { const J = this.world.jc[g]; return J || null; }
+
+  useTool(tool, g) {
     const w = this.world;
-    if (!w.footprintOk(type, x, y, dir, { allowForest: true, allowEdge: type === 'gate' })) return null;
-    const b = w.addBuilding(type, x, y, dir, Math.floor(Math.random() * 1e9));
-    if (type === 'gate') b.name = GATE_NAMES[b.id % GATE_NAMES.length];
-    b.born = this.time;
-    this.buildVersion++;
-    this.onWorldEdit([b.acc]);
-    this.fx.build(b.x + b.w / 2, b.y + b.h / 2);
-    this.audio.play('build');
-    return b;
+    const J = this.junctionAt(g);
+    const deny = text => { this.fx.push({ t: 'deny', text, i: g }); return false; };
+    if (tool === 'light') {
+      if (!J) return deny('Ampeln nur auf Kreuzungen (3 oder 4 Arme)');
+      if (J.type === 'light') { this.pushUndo(); J.setType('auto'); this.inv.lights++; this.fx.push({ t: 'device', i: g, kind: 'remove' }); return true; }
+      if (this.inv.lights <= 0) return deny('Keine Ampel im Inventar');
+      this.pushUndo();
+      if (J.type === 'roundabout') { this.inv.rounds++; }
+      J.setType('light'); this.inv.lights--;
+      w.bump();
+      this.fx.push({ t: 'device', i: g, kind: 'light' });
+      return true;
+    }
+    if (tool === 'round') {
+      if (!J) return deny('Kreisel nur auf Kreuzungen (3 oder 4 Arme)');
+      if (J.type === 'roundabout') { this.pushUndo(); J.setType('auto'); this.inv.rounds++; this.traffic.onTilesChanged([g]); this.fx.push({ t: 'device', i: g, kind: 'remove' }); return true; }
+      if (w.accOf[g] >= 0) return deny('Nicht direkt vor einer Einfahrt');
+      if (w.up[g]) return deny('Nicht auf einer Autobahnrampe');
+      if (this.inv.rounds <= 0) return deny('Kein Kreisel im Inventar');
+      this.pushUndo();
+      if (J.type === 'light') this.inv.lights++;
+      J.setType('roundabout'); this.inv.rounds--;
+      w.bump();
+      this.traffic.onTilesChanged([g]);
+      this.fx.push({ t: 'device', i: g, kind: 'round' });
+      return true;
+    }
+    if (tool === 'police') {
+      if (!J) return deny('Die Polizei regelt nur Kreuzungen');
+      if (J.police > 0) return deny('Hier steht schon jemand');
+      if (this.inv.police <= 0) return deny('Keine Polizei mehr verfügbar');
+      this.inv.police--;
+      J.police = CFG.policeTime;
+      this.fx.push({ t: 'police', i: g });
+      return true;
+    }
+    return false;
   }
 
-  // ---- Speichern & Laden -------------------------------------------------------------------
-  serialize() {
-    return {
-      v: 1, levelId: this.level.id, level: (this.mode === 'endless' || this.mode === 'sandbox') ? this.level : null,
-      seed: this.seed, time: this.time, startMin: this.startMin, money: this.money,
-      tripRating: this.tripRating, penaltyV: this.penaltyV, stats: this.stats, statsDay: this.statsDay,
-      history: this.history.slice(-24 * 7), days: this.days, demandRamp: this.demandRamp,
-      world: this.world.serialize(), city: this.city.serialize(), savedAt: Date.now(),
-    };
+  buildHighway(tiles, d) {
+    const w = this.world;
+    if (this.inv.highways <= 0) { this.fx.push({ t: 'deny', text: 'Keine Autobahn im Inventar (Wochenkarte)', i: tiles[0] }); return false; }
+    const chk = w.highwayCheck(tiles, d);
+    if (!chk.ok) { this.fx.push({ t: 'deny', text: chk.reason, i: tiles[chk.bad || 0] }); return false; }
+    this.pushUndo();
+    const hw = w.addHighway(tiles, d);
+    this.inv.highways--;
+    const touched = tiles.concat(hw.mid.map(g => g + w.n));
+    this.traffic.onTilesChanged(touched);
+    this.fx.push({ t: 'built', placed: touched, tiles: touched, highway: true });
+    return true;
   }
 
-  applySave(o) {
-    this.time = o.time; this.startMin = o.startMin; this.money = o.money;
-    this.tripRating = o.tripRating; this.penaltyV = o.penaltyV;
-    Object.assign(this.stats, o.stats || {});
-    Object.assign(this.statsDay, o.statsDay || {});
-    this.history = o.history || [];
-    this.days = o.days || [];
-    this.demandRamp = o.demandRamp || 1;
-    this.satisfaction = clamp(this.tripRating - this.penaltyV, 0, 100);
-    this.city.deserialize(o.city || {});
-    this.buildVersion++;
+  useStop() {
+    if (this.inv.stops <= 0 || this.stopT > 0) return false;
+    this.inv.stops--;
+    this.stopT = 8;
+    this.fx.push({ t: 'toast', text: 'Feierabend-Stopp: 8 Sekunden keine neuen Aufträge.', icon: 'stop' });
+    return true;
   }
-
-  static fromSave(o) {
-    let level = o.level || LEVELS.find(l => l.id === o.levelId);
-    if (!level) return null;
-    return new Game({ level, seed: o.seed, save: o });
-  }
-}
-
-function dirBetween(w, a, b) {
-  for (let d = 0; d < 4; d++) if (w.nb(a, d) === b) return d;
-  return -1;
 }

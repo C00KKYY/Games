@@ -1,365 +1,303 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Eingabe: Maus, Touch, Tastatur – Werkzeuge und Kamera
+// Bedienung: Maus, Touch, Tastatur → Bauen, Abreißen, Werkzeuge, Kamera
 // ---------------------------------------------------------------------------
 
 class Input {
   constructor(app, canvas) {
     this.app = app;
     this.cv = canvas;
+    this.tool = 'road';
+    this.drag = null;          // laufende Aktion
     this.pointers = new Map();
-    this.drag = null;       // {kind:'pan'|'road'|'bulldoze'|'maybe', ...}
+    this.gesture = null;
     this.keys = new Set();
-    this.pinch = null;
-    this.bind();
-  }
-
-  get game() { return this.app.game; }
-  get ui() { return this.app.ui; }
-  get r() { return this.app.renderer; }
-
-  bind() {
-    const cv = this.cv;
-    cv.addEventListener('pointerdown', e => this.down(e));
-    cv.addEventListener('pointermove', e => this.move(e));
-    cv.addEventListener('pointerup', e => this.up(e));
-    cv.addEventListener('pointercancel', e => this.cancel(e));
-    cv.addEventListener('pointerleave', () => { if (!this.drag) { this.r.hover = -1; this.ui.hideCostTip(); } });
-    cv.addEventListener('wheel', e => { e.preventDefault(); if (!this.app.inGame) return; const f = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)); this.r.zoomAt(e.offsetX, e.offsetY, f); }, { passive: false });
-    cv.addEventListener('contextmenu', e => e.preventDefault());
-    window.addEventListener('keydown', e => this.key(e));
-    window.addEventListener('keyup', e => { this.keys.delete(e.key.toLowerCase()); this.keyUpS(e); });
+    this.mouse = { x: 0, y: 0, inside: false };
+    canvas.addEventListener('pointerdown', e => this.down(e));
+    window.addEventListener('pointermove', e => this.move(e));
+    window.addEventListener('pointerup', e => this.up(e));
+    window.addEventListener('pointercancel', e => this.cancel(e));
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('wheel', e => this.wheel(e), { passive: false });
+    canvas.addEventListener('pointerleave', () => { this.mouse.inside = false; if (this.app.scene) this.app.scene.hover = -1; });
+    window.addEventListener('keydown', e => this.keydown(e));
+    window.addEventListener('keyup', e => this.keys.delete(e.key.toLowerCase()));
     window.addEventListener('blur', () => this.keys.clear());
   }
 
-  tileAt(e) {
-    const g = this.game;
-    if (!g) return -1;
-    const p = this.r.toWorld(e.offsetX, e.offsetY);
-    const x = Math.floor(p.x), y = Math.floor(p.y);
-    return g.world.inb(x, y) ? g.world.idx(x, y) : -1;
+  get game() { return this.app.game; }
+  get scene() { return this.app.scene; }
+
+  setTool(t) {
+    if (this.tool === t && t !== 'road') t = 'road';
+    this.tool = t;
+    this.cancelDrag();
+    this.app.ui.onTool(t);
+    AUDIO.play('tool');
   }
 
+  // ---- Kachel-Hilfen -------------------------------------------------------------------
+  tileAt(e) { return this.scene ? this.scene.pickTile(e.clientX - this.rect().left, e.clientY - this.rect().top) : -1; }
+  rect() { return this._rect || (this._rect = this.cv.getBoundingClientRect()); }
+
+  // Gebäudekacheln auf ihre Zufahrt abbilden
+  snap(t, from) {
+    const w = this.game.world;
+    if (t < 0) return t;
+    const b = w.bld[t] >= 0 ? w.buildings[w.bld[t]] : null;
+    if (!b) return t;
+    if (b.kind === 'house') return b.acc;
+    if (from === undefined || from < 0) return b.acc;
+    const d1 = Math.abs(w.tx(from) - w.tx(b.acc)) + Math.abs(w.ty(from) - w.ty(b.acc));
+    const d2 = Math.abs(w.tx(from) - w.tx(b.acc2)) + Math.abs(w.ty(from) - w.ty(b.acc2));
+    return d2 < d1 ? b.acc2 : b.acc;
+  }
+
+  extendPath(path, t) {
+    const w = this.game.world;
+    if (t < 0 || !path.length) return;
+    const last = path[path.length - 1];
+    if (t === last) return;
+    const k = path.indexOf(t);
+    if (k >= 0) { path.length = k + 1; return; }
+    let x = w.tx(last), y = w.ty(last);
+    const tx = w.tx(t), ty = w.ty(t);
+    let guard = 0;
+    while ((x !== tx || y !== ty) && guard++ < 80) {
+      const dx = tx - x, dy = ty - y;
+      // Hauptachse zuerst, aber nicht durch Gebäude
+      let nx = x, ny = y;
+      const first = Math.abs(dx) >= Math.abs(dy);
+      if (first) nx += Math.sign(dx); else ny += Math.sign(dy);
+      if (w.bld[w.idx(nx, ny)] >= 0 && (first ? dy : dx) !== 0) {
+        nx = x; ny = y;
+        if (first) ny += Math.sign(dy); else nx += Math.sign(dx);
+      }
+      x = nx; y = ny;
+      const i = w.idx(x, y);
+      const kk = path.indexOf(i);
+      if (kk >= 0) path.length = kk + 1; else path.push(i);
+      if (path.length > 70) break;
+    }
+  }
+
+  // ---- Zeiger ----------------------------------------------------------------------------
   down(e) {
+    if (!this.game) return;
     AUDIO.init(); AUDIO.resume();
-    if (!this.app.inGame) return;
-    this.cv.setPointerCapture(e.pointerId);
-    this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
-    if (this.pointers.size === 2) {
-      // Zwei Finger: Zoomen und Verschieben, laufende Aktion abbrechen
-      this.abortDrag();
-      const [a, b] = [...this.pointers.values()];
-      this.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
-      return;
-    }
-    const ui = this.ui, g = this.game;
-    if (e.button === 1 || e.button === 2) {
-      if (e.button === 2 && ui.tool === 'place') { ui.placeDir = (ui.placeDir + 1) & 3; AUDIO.play('click'); return; }
-      if (e.button === 2 && ui.tool === 'busline' && ui.lineDraft.length) { ui.lineDraft.pop(); return; }
-      this.drag = { kind: 'pan', sx: e.offsetX, sy: e.offsetY, cx: this.r.cam.x, cy: this.r.cam.y, moved: false, button: e.button };
-      return;
-    }
+    this._rect = null;
+    this.cv.setPointerCapture && this.cv.setPointerCapture(e.pointerId);
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, type: e.pointerType });
+    if (this.pointers.size >= 2) { this.cancelDrag(); this.startGesture(); return; }
     const t = this.tileAt(e);
-    const tool = ui.tool;
-    if (tool === 'road' || tool === 'oneway' || tool === 'highway') {
-      if (t < 0) return;
-      this.drag = { kind: 'road', path: [t], tool };
-      this.updateRoadPreview(e);
-    } else if (tool === 'bulldoze') {
-      if (t < 0) return;
-      this.drag = { kind: 'bulldoze', path: [t], set: new Set([t]) };
-      this.r.preview = { tiles: [t], ok: true, valid: 1, tool: 'bulldoze' };
+    const sx = e.clientX, sy = e.clientY;
+    if (e.button === 1 || (e.button === 0 && (e.shiftKey || e.altKey)) || this.tool === 'pan') { this.drag = { kind: 'pan', sx, sy, lx: sx, ly: sy }; return; }
+    if (this.game.over || this.app.blocked()) return;
+    if (e.button === 2 || this.tool === 'erase') { this.drag = { kind: 'erase', path: t >= 0 ? [t] : [], sx, sy, moved: false }; this.updatePreview(); return; }
+    if (e.button !== 0) return;
+    if (this.app.ui.targeting) { this.drag = { kind: 'target', t, sx, sy }; return; }
+    if (this.tool === 'road') {
+      const s = this.snap(t);
+      this.drag = { kind: 'road', path: s >= 0 ? [s] : [], sx, sy, moved: false, start: t };
+      this.updatePreview();
+    } else if (this.tool === 'highway') {
+      this.drag = { kind: 'highway', s: t, path: t >= 0 ? [t] : [], d: -1, sx, sy, moved: false };
+      this.updatePreview();
     } else {
-      this.drag = { kind: 'maybe', sx: e.offsetX, sy: e.offsetY, cx: this.r.cam.x, cy: this.r.cam.y, tile: t, wx: this.r.toWorld(e.offsetX, e.offsetY) };
+      this.drag = { kind: 'tool', t, sx, sy };
     }
-    void g;
   }
 
   move(e) {
-    if (!this.app.inGame) return;
-    if (this.pointers.has(e.pointerId)) this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
-    if (this.pinch && this.pointers.size >= 2) {
-      const [a, b] = [...this.pointers.values()];
-      const d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
-      if (this.pinch.d > 0) this.r.zoomAt(cx, cy, d / this.pinch.d);
-      this.r.cam.x -= (cx - this.pinch.cx) / this.r.cam.z;
-      this.r.cam.y -= (cy - this.pinch.cy) / this.r.cam.z;
-      this.r.clampCam();
-      this.pinch = { d, cx, cy };
-      return;
-    }
+    if (!this.game) return;
+    const r = this.rect();
+    this.mouse.x = e.clientX - r.left; this.mouse.y = e.clientY - r.top;
+    this.mouse.inside = e.target === this.cv;
+    const p = this.pointers.get(e.pointerId);
+    if (p) { p.x = e.clientX; p.y = e.clientY; }
+    if (this.gesture) { this.updateGesture(); return; }
     const t = this.tileAt(e);
-    this.r.hover = t;
-    const d = this.drag;
-    if (!d) { this.hoverInfo(e, t); return; }
-    if (d.kind === 'pan' || d.kind === 'maybe') {
-      const dx = e.offsetX - d.sx, dy = e.offsetY - d.sy;
-      if (d.kind === 'maybe' && Math.hypot(dx, dy) > 7) d.kind = 'pan';
-      if (d.kind === 'pan') {
-        d.moved = true;
-        this.r.cam.x = d.cx - dx / this.r.cam.z;
-        this.r.cam.y = d.cy - dy / this.r.cam.z;
-        this.r.clampCam();
-        this.app.follow = null;
-      }
+    if (this.scene) {
+      this.scene.hover = t;
+      this.scene.hoverColor = this.hoverColor(t);
+    }
+    const D = this.drag;
+    if (!D) { this.app.ui.hoverInfo(t, this.mouse); return; }
+    if (D.kind === 'pan') {
+      this.app.engine.rig.panPixels(e.clientX - D.lx, e.clientY - D.ly, this.app.engine.H);
+      D.lx = e.clientX; D.ly = e.clientY;
       return;
     }
-    if (t < 0) return;
-    if (d.kind === 'road') {
-      this.extendPath(d.path, t);
-      this.updateRoadPreview(e);
-    } else if (d.kind === 'bulldoze') {
-      const last = d.path[d.path.length - 1];
-      for (const k of this.line(last, t)) if (!d.set.has(k)) { d.set.add(k); d.path.push(k); }
-      if (d.path[d.path.length - 1] !== t) d.path.push(t);
-      this.r.preview = { tiles: [...d.set], ok: true, valid: d.set.size, tool: 'bulldoze' };
-      const g = this.game;
-      let refund = 0;
-      for (const i of d.set) if (g.world.road[i]) refund += g.world.roadValue(i) * CFG.refund;
-      this.ui.showCostTip(e.offsetX, e.offsetY, refund ? 'Abriss · +' + fmtMoney(refund) : 'Abriss', false);
+    if (Math.hypot(e.clientX - D.sx, e.clientY - D.sy) > 6) D.moved = true;
+    if (D.kind === 'road') {
+      if (!D.path.length) { const s = this.snap(t); if (s >= 0) D.path.push(s); }
+      else this.extendPath(D.path, this.snap(t, D.path[D.path.length - 1]));
+      this.updatePreview();
+    } else if (D.kind === 'erase') {
+      if (!D.path.length) { if (t >= 0) D.path.push(t); } else this.extendPath(D.path, t);
+      this.updatePreview();
+    } else if (D.kind === 'highway' && D.s >= 0 && t >= 0) {
+      const w = this.game.world;
+      const dx = w.tx(t) - w.tx(D.s), dy = w.ty(t) - w.ty(D.s);
+      const path = [D.s];
+      let d = -1;
+      if (Math.abs(dx) >= Math.abs(dy) && dx !== 0) d = dx > 0 ? 1 : 3;
+      else if (dy !== 0) d = dy > 0 ? 2 : 0;
+      if (d >= 0) {
+        const n = Math.min(CFG.highwayMax + 1, Math.abs(d & 1 ? dx : dy));
+        let g = D.s;
+        for (let k = 0; k < n; k++) { g = w.gnb(g, d); if (g < 0) break; path.push(g); }
+      }
+      D.path = path; D.d = d;
+      this.updatePreview();
     }
   }
 
   up(e) {
-    if (!this.app.inGame) return;
+    if (!this.game) return;
+    const had = this.pointers.has(e.pointerId);
     this.pointers.delete(e.pointerId);
-    if (this.pinch) { if (this.pointers.size < 2) this.pinch = null; this.drag = null; return; }
-    const d = this.drag;
+    if (this.gesture) { if (this.pointers.size < 2) this.gesture = null; return; }
+    if (!had) return;
+    const D = this.drag;
     this.drag = null;
-    if (!d) return;
-    const g = this.game, ui = this.ui;
-    if (d.kind === 'road') {
-      if (d.path.length >= 2) g.buildRoad(d.path, d.tool);
-      else if (d.path.length === 1 && g.world.road[d.path[0]] && d.tool !== 'oneway') g.buildRoad(d.path, d.tool);
-      else ui.flashHint('Halte die Maustaste gedrückt und ziehe von Feld zu Feld, um eine Straße zu bauen.');
-      this.r.preview = null;
-      ui.hideCostTip();
-      ui.tutCheck();
-    } else if (d.kind === 'bulldoze') {
-      g.bulldoze(d.path);
-      this.r.preview = null;
-      ui.hideCostTip();
-      if (this.r.selected && this.r.selected.kind === 'tile' && !g.world.road[this.r.selected.i]) ui.select(null);
-    } else if (d.kind === 'maybe') {
-      this.click(d.tile, d.wx, e);
-    } else if (d.kind === 'pan' && !d.moved && d.button === 2) {
-      // Rechtsklick ohne Ziehen: Werkzeug abbrechen
-      if (ui.tool !== 'inspect') ui.setTool('inspect');
+    if (!D) return;
+    const g = this.game;
+    if (D.kind === 'pan') return;
+    if (D.kind === 'target') { if (D.t >= 0) this.app.ui.pickTarget(D.t); this.clearPreview(); return; }
+    if (D.kind === 'road') {
+      if (!D.moved || D.path.length < 2) { this.clearPreview(); this.app.inspect(this.tileAt(e), this.mouse); return; }
+      const res = g.buildPath(D.path);
+      this.app.afterAction(res);
+    } else if (D.kind === 'erase') {
+      if (D.path.length) { if (g.erasePath(D.path)) AUDIO.play('erase'); }
+    } else if (D.kind === 'highway') {
+      if (D.d >= 0 && D.path.length >= 2) g.buildHighway(D.path, D.d);
+      else if (!D.moved) this.app.inspect(this.tileAt(e), this.mouse);
+    } else if (D.kind === 'tool') {
+      if (D.t >= 0) {
+        const tool = this.tool;
+        if (g.useTool(tool, D.t)) {
+          AUDIO.play(tool === 'police' ? 'police' : 'device');
+          if (tool === 'police' && g.inv.police <= 0) this.setTool('road');
+          else if (tool === 'light' && g.inv.lights <= 0) this.setTool('road');
+          else if (tool === 'round' && g.inv.rounds <= 0) this.setTool('road');
+        }
+      }
+    }
+    this.clearPreview();
+  }
+
+  cancel(e) { this.pointers.delete(e.pointerId); if (this.pointers.size < 2) this.gesture = null; this.cancelDrag(); }
+
+  cancelDrag() { this.drag = null; this.clearPreview(); }
+
+  clearPreview() { if (this.scene) this.scene.preview = null; this.app.ui.costHint(null); }
+
+  hoverColor(t) {
+    const g = this.game;
+    if (!g || t < 0) return '#ffffff';
+    if (this.tool === 'light' || this.tool === 'round' || this.tool === 'police') return g.world.jc[t] ? '#22e06a' : '#ff4d4d';
+    if (this.tool === 'erase') return '#ff6b5b';
+    return '#ffffff';
+  }
+
+  updatePreview() {
+    const D = this.drag, g = this.game, sc = this.scene;
+    if (!D || !sc) return;
+    if (D.kind === 'road') {
+      if (D.path.length < 2) { sc.preview = { items: D.path.map(i => ({ i, kind: 'tool' })) }; this.app.ui.costHint(null); return; }
+      const plan = g.planPath(D.path);
+      sc.preview = plan;
+      if (D.path.length !== D._lastLen) {
+        if (D._lastLen && D.path.length > D._lastLen) AUDIO.play('click');
+        D._lastLen = D.path.length;
+      }
+      this.app.ui.costHint(plan, this.mouse);
+    } else if (D.kind === 'erase') {
+      sc.preview = { items: D.path.map(i => ({ i, kind: 'erase' })) };
+      this.app.ui.costHint({ erase: true, n: D.path.filter(i => g.world.road[i] || g.world.hasElev(i)).length }, this.mouse);
+    } else if (D.kind === 'highway') {
+      const w = g.world;
+      const chk = D.path.length >= 2 ? w.highwayCheck(D.path, D.d) : { ok: false, reason: 'Ziehen: gerade Linie' };
+      const items = D.path.map((i, k) => ({ i: (k === 0 || k === D.path.length - 1) ? i : i + w.n, kind: chk.ok ? 'highway' : (chk.bad === k ? 'bad' : 'highway') }));
+      if (!chk.ok) for (const it of items) it.kind = 'bad';
+      if (g.inv.highways <= 0) for (const it of items) it.kind = 'bad';
+      sc.preview = { items };
+      this.app.ui.costHint({ highway: true, ok: chk.ok && g.inv.highways > 0, reason: g.inv.highways <= 0 ? 'Keine Autobahn im Inventar' : chk.reason, n: Math.max(0, D.path.length - 2) }, this.mouse);
     }
   }
 
-  cancel(e) {
-    this.pointers.delete(e.pointerId);
-    this.pinch = null;
-    this.abortDrag();
+  // ---- Gesten (zwei Finger) ------------------------------------------------------------
+  startGesture() {
+    const P = [...this.pointers.values()];
+    const a = P[0], b = P[1];
+    this.gesture = { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, d: Math.hypot(a.x - b.x, a.y - b.y), ang: Math.atan2(b.y - a.y, b.x - a.x) };
+  }
+  updateGesture() {
+    const P = [...this.pointers.values()];
+    if (P.length < 2) return;
+    const a = P[0], b = P[1], G = this.gesture;
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, d = Math.hypot(a.x - b.x, a.y - b.y), ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const rig = this.app.engine.rig;
+    rig.panPixels(cx - G.cx, cy - G.cy, this.app.engine.H);
+    if (G.d > 10 && d > 10) rig.zoom(G.d / d);
+    let da = ang - G.ang;
+    if (da > Math.PI) da -= Math.PI * 2; else if (da < -Math.PI) da += Math.PI * 2;
+    rig.rotate(-da);
+    Object.assign(G, { cx, cy, d, ang });
   }
 
-  abortDrag() {
-    this.drag = null;
-    this.r.preview = null;
-    this.ui.hideCostTip();
-  }
-
-  // Klick mit Werkzeug
-  click(t, wp, e) {
-    const g = this.game, ui = this.ui, w = g.world;
-    const tool = ui.tool;
-    if (tool === 'inspect') { this.selectAt(t, wp); return; }
-    if (t < 0) return;
-    if (tool === 'light' || tool === 'priority' || tool === 'roundabout') {
-      const J = w.jc[t];
-      if (!J) { g.notify('Klicke auf eine Kreuzung (mindestens drei Straßenarme treffen sich).', 'warn'); AUDIO.play('error'); return; }
-      if (tool === 'priority' && J.type === 'priority') { J.cycleMain(); w.markDirty(t); g.onWorldEdit([t]); AUDIO.play('click'); }
-      else if (J.type !== tool) g.setControl(t, tool);
-      ui.select({ kind: 'tile', i: t });
+  wheel(e) {
+    e.preventDefault();
+    const rig = this.app.engine.rig;
+    const lineMode = e.deltaMode !== 0;
+    const pinch = e.ctrlKey;
+    if (pinch) { rig.zoom(Math.exp(e.deltaY * 0.01)); return; }
+    if (!lineMode && Math.abs(e.deltaY) < 40 && (Math.abs(e.deltaX) > 0 || e.deltaY % 1 !== 0)) {
+      rig.panPixels(-e.deltaX, -e.deltaY, this.app.engine.H);
       return;
     }
-    if (tool === 'stop') {
-      if (g.city.stops.has(t)) { ui.select({ kind: 'tile', i: t }); return; }
-      if (!w.road[t]) { g.notify('Haltestellen gehören auf eine Straße.', 'warn'); AUDIO.play('error'); return; }
-      if (g.placeStop(t)) ui.select({ kind: 'tile', i: t });
-      return;
-    }
-    if (tool === 'busline') {
-      if (!g.city.stops.has(t)) { g.notify('Klicke auf Haltestellen (gelbe Schilder). Setze sie vorher mit dem Haltestellen-Werkzeug (B).', 'warn'); AUDIO.play('error'); return; }
-      const dr = ui.lineDraft;
-      if (dr.length >= 2 && t === dr[0]) { this.finishLine(); return; }
-      if (dr[dr.length - 1] === t) return;
-      dr.push(t);
-      AUDIO.play('click');
-      return;
-    }
-    if (tool === 'place') {
-      const b = g.placeBuildingManual(ui.placeType, w.tx(t), w.ty(t), ui.placeDir);
-      if (!b) { AUDIO.play('error'); }
-      return;
-    }
-    void e;
+    const dy = lineMode ? e.deltaY * 33 : e.deltaY;
+    rig.zoom(Math.exp(clamp(dy, -200, 200) * 0.0012));
   }
 
-  finishLine() {
-    const g = this.game, ui = this.ui;
-    const dr = ui.lineDraft;
-    if (dr.length < 2) { g.notify('Eine Linie braucht mindestens zwei Haltestellen.', 'warn'); return; }
-    if (!g.canAfford(CFG.cost.bus)) { g.notify('Für die Linie brauchst du mindestens einen Bus (' + fmtMoney(CFG.cost.bus) + ').', 'danger'); AUDIO.play('error'); return; }
-    const line = g.city.createLine(dr);
-    g.city.addBus(line);
-    ui.lineDraft = [];
-    AUDIO.play('good');
-    g.notify(line.name + ' eingerichtet. Im Info-Fenster kannst du weitere Busse kaufen.', 'good', line.stops[0]);
-    ui.setTool('inspect', true);
-    ui.select({ kind: 'line', line });
-  }
-
-  selectAt(t, wp) {
-    const g = this.game, ui = this.ui, w = g.world;
-    // Fahrzeug in der Nähe?
-    let best = null, bd = 0.35 * 0.35;
-    for (const v of g.traffic.vehicles) {
-      const dd = dist2(v.x, v.y, wp.x, wp.y);
-      if (dd < bd) { bd = dd; best = v; }
-    }
-    if (best) { ui.select({ kind: 'vehicle', id: best.id }); AUDIO.play('click'); return; }
-    if (t < 0) { ui.select(null); return; }
-    if (w.bld[t] >= 0) { ui.select({ kind: 'building', b: w.buildings[w.bld[t]] }); AUDIO.play('click'); return; }
-    if (w.road[t]) { ui.select({ kind: 'tile', i: t }); AUDIO.play('click'); return; }
-    // Unfall auf Nachbarfeld (Wracks ragen hinein)
-    ui.select(null);
-  }
-
-  // Hover: Kosten / Hinweise für Klickwerkzeuge
-  hoverInfo(e, t) {
-    const g = this.game, ui = this.ui;
-    if (!g || t < 0) { ui.hideCostTip(); return; }
-    const w = g.world;
-    const tool = ui.tool;
-    if (tool === 'light' || tool === 'priority' || tool === 'roundabout') {
-      const J = w.jc[t];
-      if (J) {
-        const same = J.type === tool;
-        ui.showCostTip(e.offsetX, e.offsetY, same ? (tool === 'priority' ? 'Hauptrichtung wechseln' : JTYPE_NAME[tool] + ' – Einstellungen') : JTYPE_NAME[tool] + ' · ' + fmtMoney(g.controlCost(tool)), !same && !g.canAfford(g.controlCost(tool)));
-      } else ui.hideCostTip();
-    } else if (tool === 'stop') {
-      if (w.road[t] && !w.isJ[t] && w.road[t] !== 2 && !g.city.stops.has(t)) ui.showCostTip(e.offsetX, e.offsetY, 'Haltestelle · ' + fmtMoney(CFG.cost.stop), !g.canAfford(CFG.cost.stop));
-      else ui.hideCostTip();
-    } else if (tool === 'busline') {
-      if (g.city.stops.has(t)) ui.showCostTip(e.offsetX, e.offsetY, ui.lineDraft.length >= 2 && ui.lineDraft[0] === t ? 'Linie abschließen' : 'Haltestelle „' + g.city.stops.get(t).name + '“', false);
-      else ui.hideCostTip();
-    } else if (tool === 'road' || tool === 'oneway' || tool === 'highway') {
-      const info = w.roadBuildInfo(t, tool === 'highway' ? 2 : 1);
-      if (!info.ok) ui.showCostTip(e.offsetX, e.offsetY, info.reason, true);
-      else if (info.kind === 'bridge' || info.kind === 'tunnel') ui.showCostTip(e.offsetX, e.offsetY, (info.kind === 'bridge' ? 'Brücke' : 'Tunnel') + ' · ' + fmtMoney(info.cost) + '/Feld', false);
-      else ui.hideCostTip();
-    } else ui.hideCostTip();
-  }
-
-  // Pfad um Kachel t erweitern (4er-Nachbarschaft, Zurückziehen löscht)
-  extendPath(path, t) {
-    const w = this.game.world;
-    let last = path[path.length - 1];
-    if (t === last) return;
-    if (path.length >= 2 && path[path.length - 2] === t) { path.pop(); return; }
-    let guard = 0;
-    while (last !== t && guard++ < 300) {
-      const lx = w.tx(last), ly = w.ty(last), tx = w.tx(t), ty = w.ty(t);
-      let nx = lx, ny = ly;
-      // Richtung des letzten Segments beibehalten, wenn möglich
-      const prev = path.length >= 2 ? path[path.length - 2] : -1;
-      const horiz = prev >= 0 ? w.ty(prev) === ly : Math.abs(tx - lx) >= Math.abs(ty - ly);
-      if ((horiz && tx !== lx) || ty === ly) nx += Math.sign(tx - lx); else ny += Math.sign(ty - ly);
-      const n = w.idx(nx, ny);
-      if (path.length >= 2 && path[path.length - 2] === n) path.pop(); else path.push(n);
-      last = n;
-      if (path.length > 400) break;
-    }
-  }
-
-  line(a, b) {
-    const w = this.game.world, out = [];
-    let x0 = w.tx(a), y0 = w.ty(a);
-    const x1 = w.tx(b), y1 = w.ty(b);
-    let guard = 0;
-    while ((x0 !== x1 || y0 !== y1) && guard++ < 300) {
-      if (Math.abs(x1 - x0) >= Math.abs(y1 - y0)) x0 += Math.sign(x1 - x0); else y0 += Math.sign(y1 - y0);
-      out.push(w.idx(x0, y0));
-    }
-    return out;
-  }
-
-  updateRoadPreview(e) {
-    const d = this.drag, g = this.game;
-    const plan = g.roadPlan(d.path, d.tool);
-    this.r.preview = { tiles: d.path.slice(), ok: plan.valid === d.path.length && g.canAfford(plan.cost), valid: plan.valid, tool: d.tool };
-    const n = new Set(d.path.slice(0, plan.valid)).size;
-    let txt;
-    if (plan.valid < d.path.length) txt = plan.reason;
-    else {
-      const extras = [];
-      if (plan.kinds.includes('bridge')) extras.push('Brücke');
-      if (plan.kinds.includes('tunnel')) extras.push('Tunnel');
-      txt = n + (n === 1 ? ' Feld' : ' Felder') + (extras.length ? ' · ' + extras.join(' + ') : '') + ' · ' + (g.sandbox ? 'kostenlos' : fmtMoney(plan.cost));
-    }
-    this.ui.showCostTip(e.offsetX, e.offsetY, txt, !this.r.preview.ok);
-  }
-
-  // ---- Tastatur ----------------------------------------------------------------------
-  key(e) {
+  // ---- Tastatur ----------------------------------------------------------------------------
+  keydown(e) {
     const tag = (e.target && e.target.tagName) || '';
-    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     const k = e.key.toLowerCase();
-    const ui = this.ui;
-    if (!this.app.inGame) return;
-    if (k === 'escape') {
-      if (ui.topModalClose()) return;
-      if (this.drag) { this.abortDrag(); return; }
-      if (ui.tool === 'busline' && ui.lineDraft.length) { ui.lineDraft = []; return; }
-      if (ui.tool !== 'inspect') { ui.setTool('inspect'); return; }
-      if (this.r.selected) { ui.select(null); return; }
-      ui.showPause();
-      return;
-    }
-    if (ui.hasModal()) return;
-    if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); this.game.undo(); return; }
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const app = this.app;
+    if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); if (this.game && !app.blocked() && this.game.undo()) AUDIO.play('undo'); return; }
+    if (k === 'escape') { if (app.ui.onEscape()) return; this.setTool('road'); return; }
+    if (app.blocked() && k !== ' ') return;
     this.keys.add(k);
-    if (k === ' ') { e.preventDefault(); ui.togglePause(); return; }
-    if (k === '1') { ui.setSpeed(1); return; }
-    if (k === '2') { ui.setSpeed(2); return; }
-    if (k === '3') { ui.setSpeed(4); return; }
-    if (k === 'h') { ui.toggleOverlay(); return; }
-    if (k === 'm') { ui.toggleSound(); return; }
-    if (k === 'enter' && ui.tool === 'busline') { this.finishLine(); return; }
-    if (k === '+' || k === '=') { this.r.zoomAt(this.r.W / 2, this.r.H / 2, 1.2); return; }
-    if (k === '-') { this.r.zoomAt(this.r.W / 2, this.r.H / 2, 1 / 1.2); return; }
-    if (k === 's' && !this.keys.has('shift') && !['w', 'a', 'd'].some(x => this.keys.has(x)) && !e.repeat) {
-      // S wird auch zum Scrollen verwendet: nur kurz tippen öffnet die Statistik
-      this._sDown = performance.now();
-      return;
-    }
-    const allowed = this.game.level.tools || [];
-    for (const t of TOOLS) {
-      if (t.key.toLowerCase() === k && allowed.includes(t.id)) { ui.setTool(t.id); return; }
+    switch (k) {
+      case ' ': e.preventDefault(); app.togglePause(); break;
+      case 'tab': e.preventDefault(); app.cycleSpeed(); break;
+      case '1': this.setTool('road'); break;
+      case '2': this.setTool('light'); break;
+      case '3': this.setTool('round'); break;
+      case '4': this.setTool('highway'); break;
+      case 'p': this.setTool('police'); break;
+      case 'x': this.setTool('erase'); break;
+      case 'q': app.engine.rig.rotate(Math.PI / 2); break;
+      case 'e': app.engine.rig.rotate(-Math.PI / 2); break;
+      case 'f': if (this.game) app.useStop(); break;
+      case '+': case '=': app.engine.rig.zoom(0.85); break;
+      case '-': app.engine.rig.zoom(1.18); break;
+      default: break;
     }
   }
 
-  // Kamerabewegung per Tastatur (pro Frame)
+  // Kamera-Bewegung per Tastatur (jedes Bild)
   update(dt) {
-    if (!this.app.inGame) return;
-    const sp = 14 / Math.max(0.5, this.r.cam.z / 36) * dt;
+    const rig = this.app.engine.rig;
     let dx = 0, dy = 0;
-    const K = this.keys;
-    if (K.has('arrowleft') || K.has('a')) dx -= 1;
-    if (K.has('arrowright') || K.has('d')) dx += 1;
-    if (K.has('arrowup') || K.has('w')) dy -= 1;
-    if (K.has('arrowdown') || (K.has('s') && this._sDown && performance.now() - this._sDown > 180)) dy += 1;
-    if (dx || dy) { this.r.cam.x += dx * sp; this.r.cam.y += dy * sp; this.r.clampCam(); this.app.follow = null; }
-  }
-
-  keyUpS(e) {
-    if (e.key.toLowerCase() === 's' && this._sDown) {
-      const held = performance.now() - this._sDown;
-      this._sDown = 0;
-      if (held < 180 && this.app.inGame && !this.ui.hasModal()) this.ui.showStats();
-    }
+    if (this.keys.has('w') || this.keys.has('arrowup')) dy += 1;
+    if (this.keys.has('s') || this.keys.has('arrowdown')) dy -= 1;
+    if (this.keys.has('a') || this.keys.has('arrowleft')) dx += 1;
+    if (this.keys.has('d') || this.keys.has('arrowright')) dx -= 1;
+    if (dx || dy) rig.panPixels(dx * 700 * dt, dy * 700 * dt, this.app.engine.H);
   }
 }

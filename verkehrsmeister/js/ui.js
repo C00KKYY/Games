@@ -1,1289 +1,514 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Benutzeroberfläche: HUD, Werkzeuge, Info-Fenster, Menüs, Statistik, Tutorial
+// Oberfläche: HUD, Werkzeugleiste, Hinweise, Wochenbilanz mit Kartenwahl,
+// Stau-Report, Menü, Tutorial, Stau-Lupe
 // ---------------------------------------------------------------------------
 
-function h(tag, attrs, ...kids) {
-  const el = document.createElement(tag);
-  if (attrs) for (const k in attrs) {
-    const v = attrs[k];
-    if (v === null || v === undefined || v === false) continue;
-    if (k === 'class') el.className = v;
-    else if (k === 'html') el.innerHTML = v;
-    else if (k === 'text') el.textContent = v;
-    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
-    else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
-    else el.setAttribute(k, v === true ? '' : v);
-  }
-  for (const c of kids.flat(3)) if (c !== null && c !== undefined && c !== false) el.append(c.nodeType ? c : document.createTextNode(String(c)));
-  return el;
-}
-function icon(name, cls) { return h('span', { class: 'ic ' + (cls || ''), html: ICON[name] || '' }); }
+const DAYS = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
-const PURPOSE_DE = { commute: 'Weg zur Arbeit', shop: 'Einkauf', leisure: 'Freizeit', delivery: 'Lieferung', through: 'Durchgangsverkehr', home: 'Heimweg', event: 'Stadionbesuch', emergency: 'Einsatzfahrt' };
-const ARM_DE = ['Nord', 'Ost', 'Süd', 'West'];
+function el(tag, cls, html) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 class UI {
-  constructor(app) {
+  constructor(app, root) {
     this.app = app;
-    this.root = document.getElementById('ui');
-    this.tool = 'inspect';
-    this.placeType = 'house'; this.placeDir = 2;
-    this.lineDraft = [];
-    this.settings = Object.assign({ sound: true, volume: 0.55, grid: false, autosave: true }, Store.get('vm_settings', {}));
-    this.hudT = 0; this.inspT = 0; this.miniT = 0;
-    this.inspHold = false;
-    this.game = null;
-    this.feedItems = [];
+    this.root = root;
+    this.targeting = null;
+    this.modalOpen = false;
+    this.toastList = [];
+    this.lastScore = -1;
+    this.shownScore = 0;
+    this.tut = null;
     this.build();
   }
 
-  saveSettings() { Store.set('vm_settings', this.settings); }
-
+  // ---- Aufbau -----------------------------------------------------------------------
   build() {
-    const r = this.root;
-    r.innerHTML = '';
-    this.hud = h('header', { class: 'hud', hidden: true });
-    this.toolbar = h('nav', { class: 'toolbar', hidden: true, 'aria-label': 'Werkzeuge' });
-    this.goalsEl = h('section', { class: 'goals', hidden: true });
-    this.insp = h('aside', { class: 'inspector', hidden: true });
-    this.feed = h('div', { class: 'feed', hidden: true, 'aria-live': 'polite' });
-    this.miniWrap = h('div', { class: 'minimap', hidden: true });
-    this.mini = h('canvas', { width: 200, height: 130 });
-    this.miniWrap.append(this.mini);
-    this.tip = h('div', { class: 'tip', hidden: true });
-    this.toasts = h('div', { class: 'toasts' });
-    this.modalRoot = h('div', { class: 'modal-root' });
-    this.tut = h('div', { class: 'tutorial', hidden: true });
-    this.menu = h('div', { class: 'menu', hidden: true });
-    this.toolTip = h('div', { class: 'tooltip', hidden: true });
-    r.append(this.hud, this.toolbar, this.goalsEl, this.insp, this.feed, this.miniWrap, this.tip, this.tut, this.toasts, this.menu, this.modalRoot, this.toolTip);
-    this.insp.addEventListener('pointerdown', () => { this.inspHold = true; });
-    window.addEventListener('pointerup', () => { this.inspHold = false; });
-    this.bindMinimap();
-  }
-
-  // ======================================================================
-  // Spiel betreten / verlassen
-  // ======================================================================
-  enterGame(game) {
-    this.game = game;
-    game.ui = this;
-    this.tool = 'inspect';
-    this.lineDraft = [];
-    this.feedItems = [];
-    this.feed.innerHTML = '';
-    this.closeModals();
-    this.menu.hidden = true;
-    for (const el of [this.hud, this.toolbar, this.goalsEl, this.feed, this.miniWrap]) el.hidden = false;
-    this.insp.hidden = true;
-    this.buildHUD();
-    this.buildToolbar();
-    this.renderGoals();
-    this.miniDirty = true;
-    this.app.renderer.showGrid = this.settings.grid;
-    this.tutStep = -1;
-    this.tut.hidden = true;
-  }
-
-  leaveGame() {
-    this.game = null;
-    for (const el of [this.hud, this.toolbar, this.goalsEl, this.insp, this.feed, this.miniWrap, this.tip, this.tut]) el.hidden = true;
-  }
-
-  // ======================================================================
-  // HUD
-  // ======================================================================
-  buildHUD() {
-    const g = this.game;
-    const hud = this.hud;
-    hud.innerHTML = '';
-    const el = {};
-    this.hudEl = el;
-    const brand = h('div', { class: 'brand' },
-      h('div', { class: 'brand-name', text: 'Verkehrsmeister' }),
-      h('div', { class: 'brand-level', text: g.level.name + (g.level.sub ? ' · ' + g.level.sub : '') }));
-    el.money = h('span', { class: 'v' });
-    el.moneyChip = h('div', { class: 'chip plate', title: 'Stadtkasse' }, h('span', { class: 'k', text: 'Kasse' }), el.money);
-    el.clock = h('span', { class: 'v mono' });
-    el.day = h('span', { class: 'k' });
-    el.weather = h('span', { class: 'wx' });
-    el.rush = h('span', { class: 'rush', hidden: true });
-    const clockChip = h('div', { class: 'chip clock', title: 'Spielzeit' }, el.day, el.clock, el.weather, el.rush);
-    el.satBar = h('i');
-    el.satVal = h('span', { class: 'v' });
-    el.satChip = h('div', { class: 'chip sat', title: 'Zufriedenheit der Bürger: hängt von Fahrzeiten, Staus, Unfällen und angeschlossenen Gebäuden ab' },
-      h('span', { class: 'k', text: 'Zufriedenheit' }), h('span', { class: 'meter' }, el.satBar), el.satVal);
-    el.trips = h('span', { class: 'v' });
-    el.veh = h('span', { class: 'v' });
-    el.pop = h('span', { class: 'v' });
-    const stats = h('div', { class: 'chip stats' },
-      h('span', { class: 'st', title: 'Erfolgreiche Fahrten' }, icon('flag'), el.trips),
-      h('span', { class: 'st', title: 'Fahrzeuge unterwegs' }, icon('car'), el.veh),
-      h('span', { class: 'st', title: 'Einwohner' }, h('span', { class: 'ic', html: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4" fill="currentColor"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8z" fill="currentColor"/></svg>' }), el.pop));
-    const speeds = h('div', { class: 'speeds', role: 'group', 'aria-label': 'Spieltempo' });
-    el.speedBtns = [];
-    const sp = [[0, 'pause', 'Pause (Leertaste)'], [1, 'play', 'Normal (1)'], [2, 'ff', 'Schnell (2)'], [4, 'fff', 'Sehr schnell (3)']];
-    for (const [v, ic, title] of sp) {
-      const b = h('button', { class: 'sbtn', title, 'aria-label': title, onclick: () => { this.setSpeed(v); AUDIO.play('click'); } }, icon(ic));
-      b.dataset.v = v;
-      el.speedBtns.push(b);
-      speeds.append(b);
-    }
-    el.heatBtn = h('button', { class: 'hbtn', title: 'Verkehrsdichte anzeigen (H)', onclick: () => this.toggleOverlay() }, icon('heat'), h('span', { text: 'Verkehr' }));
-    const undo = h('button', { class: 'hbtn', title: 'Rückgängig (Strg+Z)', onclick: () => this.game.undo() }, icon('undo'));
-    const statsB = h('button', { class: 'hbtn', title: 'Statistik (S)', onclick: () => this.showStats() }, icon('stats'));
-    el.soundBtn = h('button', { class: 'hbtn', title: 'Ton an/aus (M)', onclick: () => this.toggleSound() }, icon(this.settings.sound ? 'sound' : 'mute'));
-    const menuB = h('button', { class: 'hbtn', title: 'Menü (Esc)', onclick: () => this.showPause() }, icon('menu'));
-    hud.append(brand, h('div', { class: 'hud-mid' }, el.moneyChip, clockChip, el.satChip, stats), h('div', { class: 'hud-right' }, speeds, el.heatBtn, undo, statsB, el.soundBtn, menuB));
-    this.updateHUD();
-  }
-
-  updateHUD() {
-    const g = this.game, el = this.hudEl;
-    if (!g || !el) return;
-    el.money.textContent = g.sandbox ? '∞' : fmtMoney(g.money);
-    el.moneyChip.classList.toggle('neg', g.money < 0);
-    el.clock.textContent = fmtClock(g.minutes);
-    el.day.textContent = WEEKDAYS_SHORT[g.weekday] + ' · Tag ' + (g.dayIndex + 1);
-    const wx = g.city.weather;
-    if (el.weather.dataset.w !== wx) { el.weather.dataset.w = wx; el.weather.innerHTML = ICON[WEATHER[wx].icon]; el.weather.title = WEATHER[wx].name; }
-    const hr = (g.minutes % 1440) / 60;
-    const rush = g.weekday < 5 && ((hr >= 6.5 && hr < 9) || (hr >= 15.5 && hr < 18.5));
-    const ev = g.city.stadium && g.city.stadium.pre;
-    const label = ev ? 'Spieltag' : rush ? 'Berufsverkehr' : (g.weekday >= 5 ? 'Wochenende' : '');
-    if (el.rush.textContent !== label) { el.rush.textContent = label; el.rush.hidden = !label; el.rush.classList.toggle('hot', !!(rush || ev)); }
-    const s = g.satisfaction;
-    el.satBar.style.width = s + '%';
-    el.satChip.dataset.lvl = s >= 60 ? 'good' : s >= 35 ? 'warn' : 'bad';
-    el.satVal.textContent = Math.round(s) + ' %';
-    el.trips.textContent = fmtInt(g.stats.trips);
-    el.veh.textContent = fmtInt(g.traffic.vehicles.length);
-    el.pop.textContent = fmtInt(g.population());
-    const cur = g.paused ? 0 : g.speed;
-    for (const b of el.speedBtns) b.classList.toggle('on', +b.dataset.v === cur);
-    el.heatBtn.classList.toggle('on', this.app.renderer.overlay === 'traffic');
-  }
-
-  setSpeed(v) {
-    const g = this.game;
-    if (!g || g.over) return;
-    if (v === 0) g.paused = true; else { g.paused = false; g.speed = v; }
-    this.updateHUD();
-  }
-  togglePause() { const g = this.game; if (!g) return; g.paused = !g.paused; this.updateHUD(); }
-  toggleOverlay() {
-    const r = this.app.renderer;
-    r.overlay = r.overlay === 'traffic' ? 'none' : 'traffic';
-    AUDIO.play('click');
-    this.updateHUD();
-  }
-  toggleSound() {
-    this.settings.sound = !this.settings.sound;
-    AUDIO.setEnabled(this.settings.sound);
-    this.saveSettings();
-    if (this.hudEl) this.hudEl.soundBtn.innerHTML = ICON[this.settings.sound ? 'sound' : 'mute'];
-  }
-
-  // ======================================================================
-  // Werkzeugleiste
-  // ======================================================================
-  buildToolbar() {
-    const g = this.game;
-    const tb = this.toolbar;
-    tb.innerHTML = '';
+    const R = this.root;
+    R.innerHTML = '';
+    const hud = el('div', 'hud');
+    this.hud = hud;
+    // Punkte
+    const tl = el('div', 'hud-tl card');
+    tl.innerHTML = `<div class="city-name"></div><div class="score"><span class="odo">0</span><span class="unit">Fahrten</span></div><div class="medal"><div class="medal-bar"><i></i></div><span class="medal-next"></span></div>`;
+    hud.appendChild(tl);
+    this.elCity = tl.querySelector('.city-name'); this.elScore = tl.querySelector('.odo'); this.elMedalBar = tl.querySelector('.medal-bar i'); this.elMedalNext = tl.querySelector('.medal-next');
+    // Uhr
+    const tc = el('div', 'hud-tc card');
+    tc.innerHTML = `<svg class="dial" viewBox="0 0 40 40"><circle cx="20" cy="20" r="17" class="dial-bg"/><path class="dial-wave m"/><path class="dial-wave e"/><circle cx="20" cy="20" r="12.5" class="dial-face"/><line x1="20" y1="20" x2="20" y2="9" class="dial-hand"/><circle cx="20" cy="20" r="2" class="dial-dot"/></svg><div class="clock-txt"><div class="clock-day"></div><div class="clock-phase"></div></div>`;
+    hud.appendChild(tc);
+    this.elDay = tc.querySelector('.clock-day'); this.elPhase = tc.querySelector('.clock-phase'); this.elHand = tc.querySelector('.dial-hand');
+    const arc = (h0, h1, r) => {
+      const a = h => (-90 + (h - 6) / 16 * 300) * Math.PI / 180;
+      const p = h => [20 + Math.cos(a(h)) * r, 20 + Math.sin(a(h)) * r];
+      const [x0, y0] = p(h0), [x1, y1] = p(h1);
+      return `M${x0} ${y0} A${r} ${r} 0 0 1 ${x1} ${y1}`;
+    };
+    tc.querySelector('.dial-wave.m').setAttribute('d', arc(7, 9.5, 15));
+    tc.querySelector('.dial-wave.e').setAttribute('d', arc(16, 19, 15));
+    // Steuerung oben rechts
+    const tr = el('div', 'hud-tr');
+    tr.innerHTML = `<button class="hbtn" data-a="pause" title="Pause (Leertaste)">${ICON.pause}</button><button class="hbtn speed" data-a="speed" title="Tempo (Tab)">${ICON.play}</button><button class="hbtn" data-a="sound" title="Ton an/aus">${ICON.sound}</button><button class="hbtn" data-a="menu" title="Menü">${ICON.menu}</button>`;
+    tr.addEventListener('click', e => { const b = e.target.closest('button'); if (b) this.app.hudAction(b.dataset.a); });
+    hud.appendChild(tr);
+    this.btnPause = tr.querySelector('[data-a=pause]'); this.btnSpeed = tr.querySelector('[data-a=speed]'); this.btnSound = tr.querySelector('[data-a=sound]');
+    // Werkzeugleiste
+    const tb = el('div', 'toolbar card');
+    const tools = [
+      { id: 'road', icon: 'road', label: 'Straße', key: '1', inv: 'roads' },
+      { id: 'erase', icon: 'erase', label: 'Abriss', key: 'X / Rechtsklick' },
+      { id: 'light', icon: 'light', label: 'Ampel', key: '2', inv: 'lights' },
+      { id: 'round', icon: 'round', label: 'Kreisel', key: '3', inv: 'rounds' },
+      { id: 'highway', icon: 'highway', label: 'Autobahn', key: '4', inv: 'highways' },
+      { id: 'police', icon: 'police', label: 'Polizei', key: 'P', inv: 'police' },
+      { id: 'stop', icon: 'stop', label: 'Feierabend', key: 'F', inv: 'stops', action: true },
+      { id: 'undo', icon: 'undo', label: 'Zurück', key: 'Strg+Z', action: true },
+    ];
     this.toolBtns = {};
-    const allowed = g.level.tools || [];
-    for (const t of TOOLS) {
-      if (!allowed.includes(t.id)) continue;
-      const cost = this.toolCost(t.id);
-      const b = h('button', { class: 'tool', 'aria-label': t.name + ' (' + t.key + ')', onclick: () => this.setTool(t.id) },
-        icon(t.id), h('span', { class: 'key', text: t.key }), h('span', { class: 'lbl', text: t.name }));
-      b.addEventListener('pointerenter', () => this.showToolTip(b, t, cost));
-      b.addEventListener('pointerleave', () => { this.toolTip.hidden = true; });
+    for (const t of tools) {
+      const b = el('button', 'tool' + (t.action ? ' act' : ''));
+      b.dataset.t = t.id;
+      b.title = t.label + ' (' + t.key + ')';
+      b.innerHTML = `<span class="ic">${ICON[t.icon]}</span><span class="lbl">${t.label}</span>` + (t.inv ? `<span class="cnt" data-inv="${t.inv}">0</span>` : '');
+      tb.appendChild(b);
       this.toolBtns[t.id] = b;
-      tb.append(b);
-      if (t.id === 'inspect' || t.id === 'bulldoze') tb.append(h('div', { class: 'tsep' }));
-    }
-    if (allowed.includes('place')) {
-      const sel = h('select', { class: 'place-sel', id: 'place-type', 'aria-label': 'Gebäudetyp', onchange: e => { this.placeType = e.target.value; this.setTool('place'); } },
-        Object.keys(BT).map(k => h('option', { value: k, selected: k === this.placeType ? true : null, text: BT[k].name })));
-      tb.append(sel);
-    }
-    this.setTool('inspect', true);
-  }
-
-  toolCost(id) {
-    const c = CFG.cost;
-    return { road: c.road + ' €/Feld', oneway: c.oneway + ' €/Feld', highway: c.highway + ' €/Feld', light: fmtMoney(c.light), priority: fmtMoney(c.priority), roundabout: fmtMoney(c.roundabout), stop: fmtMoney(c.stop), busline: fmtMoney(c.bus) + '/Bus', bulldoze: '35 % zurück' }[id] || '';
-  }
-
-  showToolTip(btn, t, cost) {
-    const tt = this.toolTip;
-    tt.innerHTML = '';
-    tt.append(h('div', { class: 'tt-head' }, h('b', { text: t.name }), h('kbd', { text: t.key })), cost ? h('div', { class: 'tt-cost', text: cost }) : null, h('p', { text: t.desc }));
-    if (t.id === 'road' || t.id === 'highway') tt.append(h('p', { class: 'tt-small', text: 'Brücke +' + fmtMoney(CFG.cost.bridge) + ' · Tunnel +' + fmtMoney(CFG.cost.tunnel) + ' je Feld' }));
-    tt.hidden = false;
-    const r = btn.getBoundingClientRect();
-    const narrow = window.innerWidth < 760;
-    if (narrow) { tt.style.left = Math.max(8, Math.min(window.innerWidth - 268, r.left)) + 'px'; tt.style.top = ''; tt.style.bottom = (window.innerHeight - r.top + 8) + 'px'; }
-    else { tt.style.left = (r.right + 10) + 'px'; tt.style.top = Math.max(8, r.top - 4) + 'px'; tt.style.bottom = ''; }
-  }
-
-  setTool(id, silent) {
-    if (this.tool === 'busline' && id !== 'busline') this.lineDraft = [];
-    this.tool = id;
-    for (const k in this.toolBtns) this.toolBtns[k].classList.toggle('on', k === id);
-    this.app.renderer.preview = null;
-    this.tip.hidden = true;
-    if (!silent) AUDIO.play('tool');
-    if (id === 'busline') this.flashHint('Klicke Haltestellen der Reihe nach an. Enter oder Klick auf die erste Haltestelle schließt die Linie ab. Esc bricht ab.');
-    else if (id === 'place') this.flashHint('Gebäude: ' + BT[this.placeType].name + '. Rechtsklick dreht die Einfahrt.');
-    if (this.tutStep >= 0) this.tutCheck();
-  }
-
-  flashHint(text) {
-    const n = h('div', { class: 'hint', text });
-    this.toasts.append(n);
-    setTimeout(() => n.classList.add('out'), 4200);
-    setTimeout(() => n.remove(), 4800);
-  }
-
-  // Kostenanzeige am Mauszeiger
-  showCostTip(x, y, text, bad) {
-    const t = this.tip;
-    t.hidden = false;
-    t.textContent = text;
-    t.classList.toggle('bad', !!bad);
-    t.style.left = (x + 16) + 'px';
-    t.style.top = (y + 14) + 'px';
-  }
-  hideCostTip() { this.tip.hidden = true; }
-
-  // ======================================================================
-  // Ziele
-  // ======================================================================
-  renderGoals() {
-    const g = this.game, el = this.goalsEl;
-    if (!g) return;
-    el.innerHTML = '';
-    if (g.mode === 'campaign') {
-      const gs = g.goalStatus();
-      el.append(h('div', { class: 'goals-head' }, icon('target'), h('span', { text: 'Ziele' })));
-      for (const s of gs) {
-        let f;
-        if (s.type === 'sat') f = s.cur / s.target;
-        else f = s.cur / s.target;
-        const others = gs.filter(x => !x.live).every(x => x.done);
-        const cls = s.live ? (s.done ? (others ? ' done' : ' live ok') : ' live low') : (s.done ? ' done' : '');
-        const row = h('div', { class: 'goal' + cls },
-          h('div', { class: 'goal-top' }, h('span', { text: s.label }), h('b', { text: s.type === 'sat' ? fmtPct(s.cur) : s.fmt(Math.min(s.cur, s.target)) + ' / ' + s.fmt(s.target) })),
-          h('div', { class: 'bar' }, h('i', { style: { width: clamp(f, 0, 1) * 100 + '%' } })));
-        el.append(row);
+      if (t.id === 'road') {
+        const chips = el('span', 'chips');
+        chips.innerHTML = `<span class="chip" title="Brücken (über Wasser, bis 4 Felder)">${ICON.bridge}<b data-inv="bridges">0</b></span><span class="chip" title="Tunnel (durch Berge, bis 5 Felder)">${ICON.tunnel}<b data-inv="tunnels">0</b></span>`;
+        b.appendChild(chips);
       }
-    } else if (g.mode === 'endless') {
-      el.append(h('div', { class: 'goals-head' }, icon('flag'), h('span', { text: 'Endlos · ' + g.level.name })),
-        h('div', { class: 'goal' }, h('div', { class: 'goal-top' }, h('span', { text: 'Überstandene Tage' }), h('b', { text: String(g.dayIndex) }))),
-        h('div', { class: 'goal' }, h('div', { class: 'goal-top' }, h('span', { text: 'Verkehrsaufkommen' }), h('b', { text: '×' + fmtDec(g.demandRamp * (g.level.demand || 1), 2) }))));
-    } else if (g.mode === 'sandbox') {
-      const growth = h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'sb-growth', checked: g.level.growth > 0 ? true : null, onchange: e => { g.level.growth = e.target.checked ? 50 : 0; } }), ' Stadt wächst');
-      const ev = h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'sb-events', checked: g.level.events.accidents ? true : null, onchange: e => { const on = e.target.checked; g.level.events = on ? { accidents: true, works: true, outage: true, fire: true, ambulance: true, stadium: true } : {}; } }), ' Ereignisse');
-      const dem = h('label', { class: 'rng' }, 'Verkehr', h('input', { type: 'range', id: 'sb-demand', min: 0.3, max: 3, step: 0.1, value: g.level.demand, oninput: e => { g.level.demand = +e.target.value; } }));
-      el.append(h('div', { class: 'goals-head' }, icon('place'), h('span', { text: 'Freies Bauen' })), growth, ev, dem);
-    } else el.hidden = true;
-  }
-
-  // ======================================================================
-  // Meldungen
-  // ======================================================================
-  addNote(n) {
-    if (!this.game) return;
-    const kindIcon = { danger: 'help', warn: 'help', good: 'star', money: 'save', event: 'flag', weather: 'cloud', new: 'place', info: 'eye' };
-    const el = h('button', { class: 'note k-' + n.kind, onclick: () => { if (n.tile >= 0) this.jumpTo(n.tile); } },
-      h('span', { class: 'note-time mono', text: fmtClock(n.min) }), h('span', { class: 'note-text', text: n.text }));
-    this.feed.prepend(el);
-    this.feedItems.unshift({ el, t: performance.now() });
-    while (this.feedItems.length > 5) { const o = this.feedItems.pop(); o.el.remove(); }
-    if (n.kind === 'danger') AUDIO.play('warn');
-    else if (n.kind === 'event' || n.kind === 'good') AUDIO.play('note');
-    if (n.kind === 'danger' && this.settings.pauseOnDanger && this.game) this.game.paused = true;
-  }
-
-  updateFeed() {
-    const now = performance.now();
-    for (let k = this.feedItems.length - 1; k >= 0; k--) {
-      const it = this.feedItems[k];
-      const age = now - it.t;
-      if (age > 14000) { it.el.remove(); this.feedItems.splice(k, 1); }
-      else if (age > 11000) it.el.classList.add('fade');
     }
-  }
-
-  jumpTo(tile) {
-    const w = this.game.world;
-    const r = this.app.renderer;
-    r.centerOn(w.tx(tile) + 0.5, w.ty(tile) + 0.5, Math.max(r.cam.z, 34));
-    if (this.tool === 'inspect') this.select({ kind: 'tile', i: tile });
-  }
-
-  toast(title, text, cls) {
-    const n = h('div', { class: 'toast ' + (cls || '') }, h('div', { class: 'toast-k', text: title }), h('div', { class: 'toast-t', text }));
-    this.toasts.append(n);
-    setTimeout(() => n.classList.add('out'), 4500);
-    setTimeout(() => n.remove(), 5200);
-  }
-
-  // ======================================================================
-  // Auswahl & Info-Fenster
-  // ======================================================================
-  select(sel) {
-    const r = this.app.renderer;
-    r.selected = sel;
-    this.app.follow = null;
-    if (!sel) { this.insp.hidden = true; return; }
-    this.insp.hidden = false;
-    this.renderInspector(true);
-  }
-
-  renderInspector(force) {
-    const sel = this.app.renderer.selected, g = this.game;
-    if (!sel || !g) { this.insp.hidden = true; return; }
-    const ins = this.insp;
-    const scroll = ins.querySelector('.insp-body') ? ins.querySelector('.insp-body').scrollTop : 0;
-    let content = null;
-    if (sel.kind === 'tile') {
-      const w = g.world;
-      if (!w.road[sel.i]) { this.select(null); return; }
-      content = w.isJ[sel.i] && w.jc[sel.i] ? this.junctionPanel(w.jc[sel.i]) : this.roadPanel(sel.i);
-    } else if (sel.kind === 'building') content = this.buildingPanel(sel.b);
-    else if (sel.kind === 'vehicle') content = this.vehiclePanel(sel.id);
-    else if (sel.kind === 'line') content = this.linePanel(sel.line);
-    if (!content) { this.select(null); return; }
-    // Nur austauschen, wenn sich die Anzeige wirklich geändert hat (kein Flackern)
-    const html = content.outerHTML;
-    if (!force && html === this._inspHtml && ins.firstChild) return;
-    this._inspHtml = html;
-    ins.innerHTML = '';
-    ins.append(content);
-    const body = ins.querySelector('.insp-body');
-    if (body) body.scrollTop = scroll;
-  }
-
-  panel(title, sub, accent, ...body) {
-    return h('div', { class: 'panel' },
-      h('div', { class: 'insp-head', style: accent ? { background: accent } : null },
-        h('div', {}, h('div', { class: 'insp-title', text: title }), sub ? h('div', { class: 'insp-sub', text: sub }) : null),
-        h('button', { class: 'xbtn', 'aria-label': 'Schließen', onclick: () => this.select(null) }, icon('close'))),
-      h('div', { class: 'insp-body' }, ...body));
-  }
-
-  kv(k, v, cls) { return h('div', { class: 'kv ' + (cls || '') }, h('span', { text: k }), h('b', { text: v })); }
-
-  roadPanel(i) {
-    const g = this.game, w = g.world;
-    const cls = w.road[i];
-    const one = w.link[i] !== w.two[i];
-    const name = (cls === 2 ? 'Schnellstraße' : 'Stadtstraße') + (one ? ' (Einbahn)' : '');
-    const parts = [];
-    if (w.flags[i] & F_BRIDGE) parts.push('Brücke');
-    if (w.flags[i] & F_TUNNEL) parts.push('Tunnel');
-    const c = w.cong[i];
-    const state = c < 1.4 ? 'frei' : c < 2.5 ? 'zähfließend' : 'Stau';
-    const body = [
-      this.kv('Tempolimit', cls === 2 ? '90 km/h' : '50 km/h'),
-      this.kv('Verkehr', Math.round(w.flow[i]) + ' Fz/Std'),
-      this.kv('Verkehrsfluss', state, c < 1.4 ? 'ok' : c < 2.5 ? 'warn' : 'bad'),
-    ];
-    if (w.works[i] > 0) {
-      body.push(h('div', { class: 'banner warn' }, h('b', { text: 'Baustelle' }), h('span', { text: ' noch ca. ' + fmtDuration(w.works[i] * CFG.minPerSec) }),
-        h('button', { class: 'btn small', onclick: () => { if (g.city.rushWorks(i)) this.renderInspector(); } }, 'Beschleunigen (' + fmtMoney(CFG.worksRushCost) + ')')));
-    }
-    const st = g.city.stops.get(i);
-    if (st) {
-      const lines = g.city.lines.filter(l => l.stops.includes(i));
-      body.push(h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Haltestelle „' + st.name + '“' }),
-        this.kv('Wartende Fahrgäste', String(st.waiting.length)),
-        this.kv('Eingestiegen gesamt', fmtInt(st.served)),
-        lines.length ? h('div', { class: 'chips' }, lines.map(l => h('button', { class: 'line-chip', style: { background: l.color }, onclick: () => this.select({ kind: 'line', line: l }) }, l.name))) : h('p', { class: 'muted', text: 'Noch keine Linie hält hier. Nutze das Buslinien-Werkzeug (N).' }),
-        h('button', { class: 'btn small ghost', onclick: () => { g.city.removeStop(i); if (!g.sandbox) g.addMoney(Math.round(CFG.cost.stop * CFG.refund)); g.onWorldEdit([i]); this.renderInspector(); } }, 'Haltestelle entfernen')));
-    }
-    return this.panel(name, parts.join(' · ') || 'Straßenabschnitt', null, ...body);
-  }
-
-  junctionPanel(J) {
-    const g = this.game, w = g.world, i = J.i;
-    const body = [];
-    // Typauswahl
-    const types = [['auto', 'Rechts vor links', 0], ['priority', 'Vorfahrt', CFG.cost.priority], ['light', 'Ampel', CFG.cost.light], ['roundabout', 'Kreisverkehr', CFG.cost.roundabout]];
-    const allowed = g.level.tools || [];
-    const seg = h('div', { class: 'seg' });
-    for (const [t, name, cost] of types) {
-      const toolId = t === 'auto' ? null : t;
-      if (toolId && !allowed.includes(toolId)) continue;
-      const b = h('button', { class: 'seg-b' + (J.type === t ? ' on' : ''), onclick: () => {
-        if (J.type === t) return;
-        if (t === 'auto') g.removeControl(i); else g.setControl(i, t);
-        this.renderInspector();
-      } }, h('span', { text: name }), cost && J.type !== t ? h('small', { text: fmtMoney(cost) }) : null);
-      seg.append(b);
-    }
-    if (seg.children.length > 1) body.push(seg);
-    // Unfälle / Stromausfall
-    const acc = g.city.accidents.find(a => a.tile === i);
-    if (acc) body.push(h('div', { class: 'banner bad' }, h('b', { text: 'Unfall! ' }), h('span', { text: 'Gesperrt für ca. ' + fmtDuration(acc.t * CFG.minPerSec) + '. ' }),
-      h('button', { class: 'btn small', onclick: () => { g.city.towAccident(acc); this.renderInspector(); } }, 'Abschleppen (' + fmtMoney(CFG.towCost) + ')')));
-    const out = g.city.outageAt(i);
-    if (out) body.push(h('div', { class: 'banner warn' }, h('b', { text: 'Stromausfall. ' }), h('span', { text: 'Ampel ist aus – es gilt rechts vor links. ' }),
-      h('button', { class: 'btn small', onclick: () => { g.city.fixOutage(out); this.renderInspector(); } }, 'Notstrom (' + fmtMoney(CFG.powerFixCost) + ')')));
-    // Statistik je Zufahrt
-    const q = g.traffic.queueAt(J);
-    const tbl = h('table', { class: 'arms' }, h('thead', {}, h('tr', {}, h('th', { text: 'Zufahrt' }), h('th', { text: 'Wartend' }), h('th', { text: 'Ø Wartezeit' }))));
-    const tb = h('tbody');
-    for (let s = 0; s < 4; s++) {
-      const hd = OPP[s];
-      if (!((J.inMask >> hd) & 1)) continue;
-      const wt = J.waitEma[hd];
-      tb.append(h('tr', {}, h('td', { text: 'von ' + ARM_DE[s] }), h('td', { class: 'num', text: String(q[hd]) }),
-        h('td', { class: 'num ' + (wt > 10 ? 'bad' : wt > 5 ? 'warn' : ''), text: fmtDec(wt * CFG.minPerSec, 1) + ' Min' })));
-    }
-    tbl.append(tb);
-    body.push(h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Verkehr an dieser Kreuzung' }), this.kv('Durchfahrten', Math.round(J.flowHr) + ' pro Stunde'), tbl,
-      J.accidents ? this.kv('Unfälle bisher', String(J.accidents), 'bad') : null));
-    // Linksabbiegeverbote
-    if (J.type !== 'roundabout') {
-      const row = h('div', { class: 'chips' });
-      for (let s = 0; s < 4; s++) {
-        const hd = OPP[s];
-        if (!((J.inMask >> hd) & 1)) continue;
-        if (!((J.arms >> ((hd + 3) & 3)) & 1)) continue; // kein linker Arm
-        const on = (J.noLeft >> hd) & 1;
-        row.append(h('button', { class: 'tog' + (on ? ' on' : ''), title: 'Linksabbiegen für Fahrzeuge von ' + ARM_DE[s] + ' ' + (on ? 'wieder erlauben' : 'verbieten'), onclick: () => {
-          J.noLeft ^= (1 << hd); g.world.markDirty(i); g.onWorldEdit([i]); AUDIO.play('click'); this.renderInspector();
-        } }, (on ? '⛔ ' : '') + 'von ' + ARM_DE[s]));
-      }
-      if (row.children.length) body.push(h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Linksabbiegen verboten' }), row,
-        h('p', { class: 'muted small', text: 'Verbotene Linksabbieger suchen sich andere Wege. Das entschärft Konflikte, kann aber Umwege erzeugen.' })));
-    }
-    // Typ-spezifisch
-    if (J.type === 'auto') body.push(h('p', { class: 'muted', text: 'Ohne Schilder gilt rechts vor links: Wer von rechts kommt, fährt zuerst. Linksabbieger lassen den Gegenverkehr durch. Sicher bei wenig Verkehr, bei Stau schnell überfordert.' }));
-    if (J.type === 'priority') body.push(this.priorityEditor(J));
-    if (J.type === 'roundabout') body.push(h('p', { class: 'muted', text: 'Im Kreisverkehr hat Vorfahrt, wer schon im Kreis fährt. Einfahrende warten auf eine Lücke. Wenig Unfälle, geringer Unterhalt.' }));
-    if (J.type === 'light') body.push(this.lightEditor(J));
-    return this.panel('Kreuzung', JTYPE_NAME[J.type] + (J.type === 'light' && J.light && J.light.smart ? ' · adaptiv' : ''), null, ...body);
-  }
-
-  armsDiagram(J, size, draw) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('viewBox', '0 0 100 100');
-    svg.setAttribute('width', size); svg.setAttribute('height', size);
-    svg.classList.add('jdia');
-    const add = (tag, attrs) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); svg.append(e); return e; };
-    add('rect', { x: 32, y: 32, width: 36, height: 36, fill: '#6b7078' });
-    for (let s = 0; s < 4; s++) {
-      if (!((J.arms >> s) & 1)) continue;
-      const r = [[32, 0, 36, 34], [66, 32, 34, 36], [32, 66, 36, 34], [0, 32, 34, 36]][s];
-      add('rect', { x: r[0], y: r[1], width: r[2], height: r[3], fill: '#6b7078' });
-    }
-    if (draw) draw(add, svg);
-    return svg;
-  }
-
-  priorityEditor(J) {
-    const g = this.game;
-    const dia = this.armsDiagram(J, 92, add => {
-      for (let s = 0; s < 4; s++) {
-        if (!((J.mainArms >> s) & 1)) continue;
-        const r = [[46, 0, 8, 50], [50, 46, 50, 8], [46, 50, 8, 50], [0, 46, 50, 8]][s];
-        add('rect', { x: r[0], y: r[1], width: r[2], height: r[3], fill: '#f2c200' });
-      }
+    tb.addEventListener('click', e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      const t = b.dataset.t;
+      if (t === 'undo') { if (this.app.game && !this.app.blocked() && this.app.game.undo()) AUDIO.play('undo'); return; }
+      if (t === 'stop') { this.app.useStop(); return; }
+      this.app.input.setTool(t);
     });
-    return h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Hauptstraße' }),
-      h('div', { class: 'row' }, dia, h('div', {},
-        h('p', { class: 'muted', text: 'Gelb markierte Arme haben Vorfahrt. Alle anderen müssen warten.' }),
-        h('button', { class: 'btn small', onclick: () => { J.cycleMain(); g.world.markDirty(J.i); g.onWorldEdit([J.i]); this.renderInspector(); AUDIO.play('click'); } }, 'Hauptrichtung wechseln'))));
+    hud.appendChild(tb);
+    this.toolbar = tb;
+    // diverse Ebenen
+    this.toasts = el('div', 'toasts'); hud.appendChild(this.toasts);
+    this.vignette = el('div', 'vignette'); hud.appendChild(this.vignette);
+    this.hint = el('div', 'costhint'); hud.appendChild(this.hint);
+    this.inspectEl = el('div', 'inspect card'); hud.appendChild(this.inspectEl);
+    this.inspectEl.addEventListener('click', e => { if (e.target.closest('[data-a=ins-close]')) { this.showInspect(null); if (this.app.scene) this.app.scene.selected = null; } });
+    this.big = el('div', 'bigtext'); hud.appendChild(this.big);
+    this.tutEl = el('div', 'tutorial card'); hud.appendChild(this.tutEl);
+    this.banner = el('div', 'banner'); hud.appendChild(this.banner);
+    this.tooltip = el('div', 'tooltip'); hud.appendChild(this.tooltip);
+    R.appendChild(hud);
+    this.modal = el('div', 'modal-wrap');
+    R.appendChild(this.modal);
+    this.modal.addEventListener('click', e => this.modalClick(e));
   }
 
-  phaseDiagram(J, ph, k, editable) {
-    const ns = 'http://www.w3.org/2000/svg';
-    const g = this.game;
-    return this.armsDiagram(J, 84, (add, svg) => {
-      for (let hd = 0; hd < 4; hd++) {
-        if (!((J.inMask >> hd) & 1)) continue;
-        const grp = document.createElementNS(ns, 'g');
-        grp.setAttribute('transform', `rotate(${hd * 90} 50 50)`);
-        svg.append(grp);
-        const arrows = [
-          [TT_STRAIGHT, 'M58 96 L58 66', 'M53 70 L58 62 L63 70'],
-          [TT_RIGHT, 'M58 96 L58 84 Q58 76 66 76 L80 76', 'M76 71 L84 76 L76 81'],
-          [TT_LEFT, 'M58 96 L58 82 Q58 66 44 66 L24 66', 'M28 61 L20 66 L28 71'],
-        ];
-        for (const [tt, d, head] of arrows) {
-          // existiert der Ausgang?
-          const ex = (hd + tt) & 3;
-          if (!((J.arms >> ex) & 1)) continue;
-          const on = (ph.allow[hd] >> tt) & 1;
-          const col = on ? '#16a34a' : '#cbd5e1';
-          const p = document.createElementNS(ns, 'path');
-          p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', col); p.setAttribute('stroke-width', on ? 5 : 3.5); p.setAttribute('stroke-linecap', 'round');
-          const hp = document.createElementNS(ns, 'path');
-          hp.setAttribute('d', head); hp.setAttribute('fill', 'none'); hp.setAttribute('stroke', col); hp.setAttribute('stroke-width', on ? 5 : 3.5); hp.setAttribute('stroke-linecap', 'round'); hp.setAttribute('stroke-linejoin', 'round');
-          grp.append(p, hp);
-          if (editable) {
-            const hit = document.createElementNS(ns, 'path');
-            hit.setAttribute('d', d); hit.setAttribute('fill', 'none'); hit.setAttribute('stroke', 'transparent'); hit.setAttribute('stroke-width', 14);
-            hit.style.cursor = 'pointer';
-            const title = document.createElementNS(ns, 'title');
-            title.textContent = 'Von ' + ARM_DE[OPP[hd]] + ' ' + TT_NAME[tt] + ': ' + (on ? 'grün' : 'rot') + ' (klicken zum Umschalten)';
-            hit.append(title);
-            hit.addEventListener('click', () => {
-              ph.allow[hd] ^= (1 << tt);
-              if (tt === TT_LEFT) ph.allow[hd] = (ph.allow[hd] & ~(1 << TT_UTURN)) | (((ph.allow[hd] >> TT_LEFT) & 1) << TT_UTURN);
-              AUDIO.play('click');
-              this.renderInspector();
-            });
-            grp.append(hit);
-          }
-        }
-      }
-    });
+  onGameStart(game) {
+    this.elCity.textContent = game.def.name + (game.opts.daily ? ' · Tageschallenge' : '');
+    this.lastScore = -1; this.shownScore = 0;
+    this.closeModal();
+    this.inspectEl.classList.remove('show');
+    this.hud.classList.add('on');
+    this.onTool('road');
   }
 
-  lightEditor(J) {
-    const g = this.game, L = J.light;
-    const box = h('div', { class: 'sec light-ed' });
-    box.append(h('div', { class: 'sec-h', text: 'Ampelprogramm' }));
-    // Modus
-    const smartCost = L.paid ? 0 : CFG.cost.smart;
-    const allowedSmart = true;
-    const mode = h('div', { class: 'seg small' },
-      h('button', { class: 'seg-b' + (!L.smart ? ' on' : ''), onclick: () => { L.smart = false; this.renderInspector(); } }, 'Festzeit'),
-      allowedSmart ? h('button', { class: 'seg-b' + (L.smart ? ' on' : ''), onclick: () => {
-        if (L.smart) return;
-        if (!L.paid) { if (!g.spend(CFG.cost.smart, 'Adaptive Ampel')) return; L.paid = true; }
-        L.smart = true; L.t = 0; L.stage = 0; this.renderInspector(); AUDIO.play('build');
-      } }, h('span', { text: 'Adaptiv' }), smartCost ? h('small', { text: fmtMoney(smartCost) }) : null) : null);
-    box.append(mode);
-    box.append(h('p', { class: 'muted small', text: L.smart ? 'Adaptiv: Sensoren verlängern Grün, solange Autos kommen, und überspringen leere Phasen. Die Grünzeit gilt als Richtwert.' : 'Festzeit: Phasen laufen im festen Takt. Mit dem Versatz stimmst du benachbarte Ampeln zu einer Grünen Welle ab.' }));
-    // Vorlagen
-    box.append(h('div', { class: 'presets' }, h('span', { class: 'muted small', text: 'Vorlage:' }),
-      [['axis', '2 Phasen'], ['left', 'Mit Linksabbiegern'], ['each', 'Rundum']].map(([p, n]) => h('button', { class: 'btn tiny ghost', onclick: () => { L.phases = J.presetPhases(p); L.idx = 0; L.t = 0; this.renderInspector(); AUDIO.play('click'); } }, n))));
-    // Phasen
-    const list = h('div', { class: 'phases' });
-    L.phases.forEach((ph, k) => {
-      const active = L.idx === k;
-      const prog = active ? (L.stage === 0 ? (L.smart ? 'grün' : 'grün · noch ' + Math.ceil(L.rem) + ' s') : L.stage === 1 ? 'gelb' : 'rot (Räumzeit)') : '';
-      const slider = h('input', { type: 'range', id: 'ph-g-' + k, min: 4, max: 60, step: 1, value: ph.g, 'aria-label': 'Grünzeit Phase ' + (k + 1), oninput: e => { ph.g = +e.target.value; val.textContent = ph.g + ' s'; } });
-      const val = h('b', { class: 'mono', text: ph.g + ' s' });
-      list.append(h('div', { class: 'phase' + (active ? ' active s' + L.stage : '') },
-        this.phaseDiagram(J, ph, k, true),
-        h('div', { class: 'ph-side' },
-          h('div', { class: 'ph-top' }, h('b', { text: 'Phase ' + (k + 1) }), active ? h('span', { class: 'ph-now', text: prog }) : null),
-          h('label', { class: 'ph-g' }, h('span', { text: 'Grün' }), slider, val),
-          h('div', { class: 'ph-btns' },
-            h('button', { class: 'ib', title: 'Nach oben', disabled: k === 0 ? true : null, onclick: () => { L.phases.splice(k - 1, 0, L.phases.splice(k, 1)[0]); this.renderInspector(); } }, icon('up')),
-            h('button', { class: 'ib', title: 'Nach unten', disabled: k === L.phases.length - 1 ? true : null, onclick: () => { L.phases.splice(k + 1, 0, L.phases.splice(k, 1)[0]); this.renderInspector(); } }, icon('down')),
-            h('button', { class: 'ib', title: 'Phase löschen', disabled: L.phases.length <= 1 ? true : null, onclick: () => { L.phases.splice(k, 1); L.idx = 0; this.renderInspector(); } }, icon('trash'))))));
-    });
-    box.append(list);
-    box.append(h('button', { class: 'btn small ghost', disabled: L.phases.length >= 6 ? true : null, onclick: () => { L.phases.push({ g: 10, allow: [0, 0, 0, 0] }); this.renderInspector(); } }, icon('plus'), ' Phase hinzufügen'));
-    box.append(h('p', { class: 'muted small', text: 'Tipp: Klicke auf die Pfeile, um Fahrtrichtungen grün oder rot zu schalten.' }));
-    if (!L.smart) {
-      const cyc = J.cycleLen();
-      const off = h('input', { type: 'range', id: 'ph-off', min: 0, max: Math.round(cyc), step: 1, value: Math.round(L.offset % cyc), 'aria-label': 'Versatz', oninput: e => { L.offset = +e.target.value; offv.textContent = L.offset + ' s'; } });
-      const offv = h('b', { class: 'mono', text: Math.round(L.offset % cyc) + ' s' });
-      box.append(h('div', { class: 'kv' }, h('span', { text: 'Umlaufzeit' }), h('b', { class: 'mono', text: Math.round(cyc) + ' s' })));
-      box.append(h('label', { class: 'ph-g wide' }, h('span', { text: 'Versatz' }), off, offv));
-      box.append(h('button', { class: 'btn small ghost', title: 'Umlaufzeit und Versatz auf die nächste Ampel in gerader Linie abstimmen', onclick: () => {
-        const r = J.greenWave();
-        this.toast(r.ok ? 'Grüne Welle' : 'Nicht möglich', r.msg, r.ok ? '' : 'bad');
-        if (r.ok) AUDIO.play('good');
-        this.renderInspector();
-      } }, 'Grüne Welle zur Nachbarampel'));
-    }
-    return box;
+  onTool(t) {
+    for (const k in this.toolBtns) this.toolBtns[k].classList.toggle('on', k === t);
+    this.root.classList.toggle('tool-erase', t === 'erase');
   }
 
-  buildingPanel(b) {
-    const g = this.game, w = g.world;
-    if (b.dead) return null;
-    const bt = BT[b.type];
-    const body = [];
-    if (b.cat === 'gate') {
-      body.push(h('p', { class: 'muted', text: 'Hier fahren Autos in die Stadt hinein und wieder hinaus: Durchgangsverkehr und Pendler aus dem Umland.' }));
-    }
-    if (bt.pop) body.push(this.kv('Einwohner', String(bt.pop)));
-    if (bt.jobs) body.push(this.kv('Arbeitsplätze', String(bt.jobs)));
-    if (b.cat !== 'res' && b.cat !== 'gate') body.push(this.kv('Gerade anwesend', String(b.present)));
-    body.push(this.kv('Abfahrten', fmtInt(b.sent)), this.kv('Ankünfte', fmtInt(b.recv)));
-    if (b.rateN) { const r = b.rateSum / b.rateN; body.push(this.kv('Ø Bewertung der Fahrten', Math.round(r) + ' / 100', r >= 65 ? 'ok' : r >= 40 ? 'warn' : 'bad')); }
-    if (b.queue.length) body.push(this.kv('Warten auf Ausfahrt', String(b.queue.length), b.queue.length > 5 ? 'bad' : 'warn'));
-    if (!w.road[b.acc]) body.push(h('div', { class: 'banner ' + (b.unconnected > (g.level.grace || 80) ? 'bad' : 'warn') }, h('b', { text: 'Nicht angeschlossen. ' }), h('span', { text: 'Baue eine Straße auf das markierte Feld vor der Einfahrt.' })));
-    else if (b.noRoute > 0) body.push(h('div', { class: 'banner bad' }, h('b', { text: 'Keine Route. ' }), h('span', { text: 'Ziele sind von hier nicht erreichbar – prüfe Einbahnstraßen und Lücken im Netz.' })));
-    if (b.fire) body.push(h('div', { class: 'banner bad' }, h('b', { text: 'Es brennt! ' }), h('span', { text: 'Die Feuerwehr ist alarmiert.' })));
-    const sub = b.name || (b.cat === 'res' ? 'Wohngebäude' : b.cat === 'gate' ? 'Stadtgrenze' : '');
-    if (g.sandbox) body.push(h('button', { class: 'btn small ghost', onclick: () => { w.removeBuilding(b); g.buildVersion++; g.onWorldEdit([b.acc]); this.select(null); } }, 'Gebäude abreißen'));
-    return this.panel(bt.name, sub, null, ...body);
-  }
-
-  vehiclePanel(id) {
-    const g = this.game;
-    const v = g.traffic.byId.get(id);
-    if (!v) return null;
-    const body = [];
-    const kmh = Math.round(v.v / CFG.roadSpeed[1] * 50);
-    body.push(this.kv('Tempo', kmh + ' km/h'));
-    if (v.bus) {
-      const line = g.city.lines.find(l => l.id === v.bus.line);
-      body.push(this.kv('Linie', line ? line.name : '–'), this.kv('Fahrgäste', v.pax + ' / 40'));
-      const st = g.city.stops.get(v.bus.stopTile);
-      body.push(this.kv('Nächster Halt', st ? st.name : '–'));
-    } else {
-      body.push(this.kv('Zweck', PURPOSE_DE[v.purpose] || v.purpose || '–'));
-      if (v.from) body.push(this.kv('Von', BT[v.from.type].name + (v.from.name ? ' (' + v.from.name + ')' : '')));
-      if (v.to) body.push(this.kv('Nach', BT[v.to.type].name + (v.to.name ? ' (' + v.to.name + ')' : '')));
-      const dur = (g.time - v.t0) * CFG.minPerSec;
-      const ideal = v.ideal * CFG.minPerSec;
-      body.push(this.kv('Unterwegs seit', fmtDuration(dur), dur > ideal * 2 ? 'bad' : dur > ideal * 1.4 ? 'warn' : 'ok'));
-      body.push(this.kv('Erwartet', 'ca. ' + fmtDuration(ideal)));
-    }
-    if (v.stuck > 5) body.push(this.kv('Steht seit', fmtDuration(v.stuck * CFG.minPerSec), 'bad'));
-    const follow = this.app.follow === id;
-    body.push(h('button', { class: 'btn small' + (follow ? '' : ' ghost'), onclick: () => { this.app.follow = follow ? null : id; this.renderInspector(); } }, icon('eye'), follow ? ' Verfolgen beenden' : ' Kamera folgt'));
-    return this.panel(VT[v.type].name, v.emergency ? 'Einsatz mit Blaulicht' : '', null, ...body);
-  }
-
-  linePanel(line) {
-    const g = this.game, city = g.city;
-    if (!city.lines.includes(line)) return null;
-    const pending = city.pendingBuses.filter(p => p.line === line.id).length;
-    let waiting = 0;
-    for (const t of line.stops) { const s = city.stops.get(t); if (s) waiting += s.waiting.filter(p => p.line === line.id).length; }
-    const body = [
-      h('div', { class: 'row gap' }, h('span', { class: 'muted', text: 'Busse' }),
-        h('button', { class: 'ib', title: 'Bus verkaufen', onclick: () => { city.removeBus(line); this.renderInspector(); } }, icon('minus')),
-        h('b', { class: 'big mono', text: String(line.buses.size + pending) }),
-        h('button', { class: 'ib', title: 'Bus kaufen (' + fmtMoney(CFG.cost.bus) + ')', onclick: () => { if (city.addBus(line)) AUDIO.play('cash'); this.renderInspector(); } }, icon('plus')),
-        h('small', { class: 'muted', text: fmtMoney(CFG.cost.bus) + ' je Bus' })),
-      this.kv('Fahrgäste heute', fmtInt(line.paxDay)),
-      this.kv('Fahrgäste gesamt', fmtInt(line.pax)),
-      this.kv('Wartende an den Haltestellen', fmtInt(waiting)),
-      h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Haltestellen' }),
-        h('ol', { class: 'stops' }, line.stops.map(t => h('li', {}, h('button', { class: 'linkish', onclick: () => this.jumpTo(t) }, (city.stops.get(t) || {}).name || '?'))))),
-      h('button', { class: 'btn small ghost', onclick: () => this.confirm('Linie löschen?', 'Busse werden zum halben Preis verkauft.', () => { city.deleteLine(line); this.select(null); }) }, icon('trash'), ' Linie löschen'),
-    ];
-    return this.panel(line.name, line.stops.length + ' Haltestellen', line.color, ...body);
-  }
-
-  // ======================================================================
-  // Bild pro Frame
-  // ======================================================================
+  // ---- jedes Bild ---------------------------------------------------------------------
   update(dt) {
-    const g = this.game;
+    const g = this.app.game;
     if (!g) return;
-    this.hudT += dt; this.inspT += dt; this.miniT += dt;
-    if (this.hudT > 0.25) { this.hudT = 0; this.updateHUD(); this.updateFeed(); if (g.mode !== 'sandbox') this.renderGoalsLight(); }
-    if (this.inspT > 0.5 && !this.insp.hidden && !this.inspHold) { this.inspT = 0; this.renderInspector(); }
-    if (this.miniT > 0.1) { this.miniT = 0; this.drawMinimap(); }
-    if (this.tutStep >= 0) { this.tutT = (this.tutT || 0) + dt; if (this.tutT > 0.5) { this.tutT = 0; this.tutCheck(); } }
+    // Punkte rollen
+    if (this.shownScore < g.score) this.shownScore = Math.min(g.score, this.shownScore + Math.max(1, (g.score - this.shownScore) * dt * 8));
+    const s = Math.floor(this.shownScore);
+    if (s !== this.lastScore) {
+      this.elScore.textContent = fmtInt(s);
+      if (this.lastScore >= 0) { this.elScore.classList.remove('bump'); void this.elScore.offsetWidth; this.elScore.classList.add('bump'); }
+      this.lastScore = s;
+      const m = g.def.medals, k = g.medal();
+      const prev = k >= 0 ? m[k] : 0, next = k + 1 < m.length ? m[k + 1] : null;
+      this.elMedalBar.style.width = next ? clamp((g.score - prev) / (next - prev), 0, 1) * 100 + '%' : '100%';
+      this.elMedalBar.className = 'm' + (k + 1);
+      this.elMedalNext.innerHTML = next ? `${MEDAL_NAMES[k + 1]} bei ${fmtInt(next)}` : `${ICON.star} Gold erreicht`;
+    }
+    // Uhr
+    const h = g.phase === 'night' ? 22 : clamp(g.hour, 6, 22);
+    const ang = -90 + (h - 6) / 16 * 300;
+    this.elHand.setAttribute('transform', `rotate(${ang + 90} 20 20)`);
+    this.elDay.textContent = `Woche ${g.week} · ${DAYS[Math.min(4, g.day - 1)]}`;
+    let ph;
+    if (g.phase === 'week') ph = 'Wochenende';
+    else if (g.phase === 'night') ph = 'Nacht';
+    else if (g.hour >= 7 && g.hour < 9.5) ph = 'Morgenwelle';
+    else if (g.hour >= 16 && g.hour < 19) ph = 'Feierabendwelle';
+    else if (g.hour >= 19) ph = 'Abend';
+    else ph = pad2(Math.floor(g.hour)) + ':' + pad2(Math.floor((g.hour % 1) * 60 / 15) * 15) + ' Uhr';
+    if (g.stopT > 0) ph = 'Feierabend-Stopp ' + Math.ceil(g.stopT) + ' s';
+    this.elPhase.textContent = ph;
+    this.elPhase.classList.toggle('wave', ph.indexOf('welle') >= 0);
+    // Inventar
+    for (const c of this.toolbar.querySelectorAll('[data-inv]')) {
+      const v = g.inv[c.dataset.inv] || 0;
+      if (c.textContent !== String(v)) { c.textContent = v; c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); }
+    }
+    this.toolBtns.light.classList.toggle('empty', !g.inv.lights);
+    this.toolBtns.round.classList.toggle('empty', !g.inv.rounds);
+    this.toolBtns.highway.classList.toggle('empty', !g.inv.highways);
+    this.toolBtns.police.classList.toggle('empty', !g.inv.police);
+    this.toolBtns.stop.classList.toggle('hidden', !g.inv.stops && g.stopT <= 0);
+    this.toolBtns.road.classList.toggle('low', g.inv.roads <= 5);
+    this.toolBtns.undo.classList.toggle('empty', !g.undoStack.length);
+    // Gefahr
+    let worst = 0;
+    for (const d of g.city.dests) worst = Math.max(worst, d.ring);
+    this.vignette.style.opacity = g.over ? 0.85 : clamp((worst - 0.45) / 0.5, 0, 1) * 0.8;
+    AUDIO.danger = clamp((worst - 0.3) / 0.6, 0, 1);
+    // Toasts altern
+    const now = performance.now();
+    for (const t of this.toastList) if (!t.gone && now > t.until) { t.gone = true; t.el.classList.add('out'); setTimeout(() => t.el.remove(), 400); }
+    this.toastList = this.toastList.filter(t => !t.gone || t.el.isConnected);
+    // Stau-Lupe aktualisieren
+    if (this.inspectData) this.renderInspect();
+    this.updateTutorial(dt);
   }
 
-  renderGoalsLight() {
-    // Ziele nur neu zeichnen, wenn sich Werte ändern
-    const g = this.game;
-    const key = g.mode === 'campaign' ? g.goalStatus().map(s => Math.floor(s.type === 'sat' ? s.cur : s.cur)).join('|') : g.dayIndex + ':' + g.demandRamp.toFixed(2);
-    if (key !== this._goalKey) { this._goalKey = key; this.renderGoals(); }
+  setPaused(p) { this.btnPause.innerHTML = p ? ICON.play : ICON.pause; this.btnPause.classList.toggle('on', p); }
+  setSpeed(s) { this.btnSpeed.innerHTML = s === 1 ? ICON.play : s === 2 ? ICON.ff : ICON.fff; this.btnSpeed.dataset.s = s + '×'; }
+  setSound(on) { this.btnSound.innerHTML = on ? ICON.sound : ICON.mute; }
+
+  toast(text, icon, opt = {}) {
+    const t = el('div', 'toast' + (opt.cls ? ' ' + opt.cls : ''), `${icon && ICON[icon] ? '<span class="ic">' + ICON[icon] + '</span>' : ''}<span>${esc(text)}</span>`);
+    this.toasts.appendChild(t);
+    const rec = { el: t, until: performance.now() + (opt.ms || 3600) };
+    if (opt.at !== undefined) { t.classList.add('click'); t.addEventListener('click', () => this.app.focusTile(opt.at)); }
+    this.toastList.push(rec);
+    while (this.toasts.children.length > 4) this.toasts.firstChild.remove();
   }
 
-  // ======================================================================
-  // Minikarte
-  // ======================================================================
-  bindMinimap() {
-    const mv = e => {
-      if (!this.game) return;
-      const r = this.mini.getBoundingClientRect();
-      const w = this.game.world;
-      const x = (e.clientX - r.left) / r.width * w.w, y = (e.clientY - r.top) / r.height * w.h;
-      this.app.renderer.centerOn(x, y);
-    };
-    let down = false;
-    this.mini.addEventListener('pointerdown', e => { down = true; this.mini.setPointerCapture(e.pointerId); mv(e); });
-    this.mini.addEventListener('pointermove', e => { if (down) mv(e); });
-    this.mini.addEventListener('pointerup', () => { down = false; });
+  bigText(text, cls, ms = 1600) {
+    this.big.className = 'bigtext show ' + (cls || '');
+    this.big.textContent = text;
+    clearTimeout(this._bigT);
+    this._bigT = setTimeout(() => { this.big.className = 'bigtext'; }, ms);
   }
 
-  drawMinimap() {
-    const g = this.game;
-    if (!g || this.miniWrap.hidden) return;
-    const w = g.world, cv = this.mini;
-    const sc = Math.max(1, Math.floor(Math.min(200 / w.w, 140 / w.h)));
-    if (cv.width !== w.w * sc || cv.height !== w.h * sc) { cv.width = w.w * sc; cv.height = w.h * sc; this.miniDirty = true; }
-    const ctx = cv.getContext('2d');
-    if (this.miniDirty || !this.miniBase || this.miniVer !== w.version) {
-      this.miniDirty = false; this.miniVer = w.version;
-      const img = ctx.createImageData(w.w, w.h);
-      const col = { [T_GRASS]: [196, 216, 150], [T_WATER]: [120, 186, 216], [T_FOREST]: [120, 165, 100], [T_ROCK]: [180, 170, 152], [T_SAND]: [235, 222, 180], [T_FIELD]: [228, 214, 150] };
-      for (let i = 0; i < w.n; i++) {
-        let c = col[w.terrain[i]];
-        if (w.road[i]) c = w.road[i] === 2 ? [60, 64, 72] : [92, 97, 105];
-        else if (w.bld[i] >= 0) { const b = w.buildings[w.bld[i]]; c = b.cat === 'res' ? [231, 111, 81] : b.cat === 'gate' ? [242, 194, 0] : b.cat === 'shop' ? [224, 122, 95] : [74, 111, 165]; }
-        img.data[i * 4] = c[0]; img.data[i * 4 + 1] = c[1]; img.data[i * 4 + 2] = c[2]; img.data[i * 4 + 3] = 255;
+  // Kosten-Anzeige beim Ziehen
+  costHint(plan, mouse) {
+    const H = this.hint;
+    if (!plan) { H.classList.remove('show'); return; }
+    let html = '';
+    if (plan.erase) html = `<b class="neg">Abreißen</b> ${plan.n ? plan.n + ' Felder' : ''}`;
+    else if (plan.highway) html = plan.ok ? `<b>Autobahn</b> ${plan.n} Felder Hochstraße` : `<b class="neg">${esc(plan.reason || '')}</b>`;
+    else if (plan.swipe) html = `<b class="prio">Vorfahrt</b> entlang dieser Straße`;
+    else {
+      const parts = [];
+      if (plan.roads) parts.push(`${ICON.road}<b>−${plan.roads}</b>`);
+      if (plan.bridges) parts.push(`${ICON.bridge}<b>−${plan.bridges}</b>`);
+      if (plan.tunnels) parts.push(`${ICON.tunnel}<b>−${plan.tunnels}</b>`);
+      html = parts.join(' ');
+      if (!plan.ok && plan.reason) html += (html ? ' · ' : '') + `<b class="neg">${esc(plan.reason)}</b>`;
+      if (!html) html = 'Verbinden';
+    }
+    H.innerHTML = html;
+    H.classList.add('show');
+    if (mouse) { H.style.left = mouse.x + 18 + 'px'; H.style.top = mouse.y + 14 + 'px'; }
+  }
+
+  hoverInfo(t, mouse) {
+    const g = this.app.game;
+    if (!g || t < 0 || this.modalOpen) { this.tooltip.classList.remove('show'); return; }
+    const w = g.world;
+    let txt = null;
+    const b = w.bld[t] >= 0 ? w.buildings[w.bld[t]] : null;
+    if (b && b.kind === 'dest') txt = `<b style="color:${PALETTE[b.pi].hex}">${PALETTE[b.pi].name}</b> · ${b.pins} Aufträge${b.cause ? ' · ' + CAUSES[b.cause].title : ''}`;
+    else if (b) txt = `Haus · <b style="color:${PALETTE[b.pi].hex}">${PALETTE[b.pi].name}</b> · ${b.home}/${b.cars} Autos daheim${b.conn ? '' : ' · <span class="neg">nicht angeschlossen</span>'}`;
+    else if (w.jc[t]) { const J = w.jc[t]; txt = `<b>${J.police > 0 ? 'Polizei regelt' : JTYPE_NAME[J.type]}</b>`; }
+    if (!txt) { this.tooltip.classList.remove('show'); return; }
+    this.tooltip.innerHTML = txt;
+    this.tooltip.style.left = mouse.x + 16 + 'px'; this.tooltip.style.top = mouse.y + 16 + 'px';
+    this.tooltip.classList.add('show');
+  }
+
+  // ---- Stau-Lupe ---------------------------------------------------------------------
+  showInspect(data, mouse) {
+    this.inspectData = data;
+    if (!data) { this.inspectEl.classList.remove('show'); return; }
+    this.inspectEl.classList.add('show');
+    this.renderInspect();
+  }
+
+  renderInspect() {
+    const D = this.inspectData, g = this.app.game;
+    if (!D || !g) return;
+    let html = '';
+    if (D.v) {
+      const v = D.v;
+      if (v.dead) { this.showInspect(null); this.app.scene.selected = null; return; }
+      const to = v.emergency ? 'Notfall-Einsatz' : v.leg === 'out' ? 'unterwegs zu ' + PALETTE[v.dest.pi].name : 'fährt heim';
+      let st = 'fährt flüssig';
+      if (v.v < 0.06) {
+        if (v.cause === 1) { const J = v.waitJ; st = `wartet an Kreuzung (${J ? (J.police > 0 ? 'Polizei' : JTYPE_NAME[J.type]) : '?'})`; }
+        else if (v.cause === 4) st = 'wartet an Schranke/Klappbrücke';
+        else if (v.cause === 3) st = 'wartet auf Platz am Ziel';
+        else st = 'steht im Stau';
+      } else if (v.v < v.vlim * 0.5) st = 'zähfließend';
+      html = `<div class="ins-h"><i class="dot" style="background:${v.color === '#ffffff' ? '#e5484d' : v.color}"></i><b>${esc(to)}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
+        <div class="ins-row">${st}${v.wait > 2 ? ` · insgesamt ${Math.round(v.wait)} s gewartet` : ''}</div>
+        <div class="ins-row dim">Halte: ${v.stops} · unterwegs seit ${Math.round(g.time - v.t0)} s</div>`;
+    } else if (D.d) {
+      const d = D.d;
+      const c = d.cause ? CAUSES[d.cause] : null;
+      html = `<div class="ins-h"><i class="dot" style="background:${PALETTE[d.pi].hex}"></i><b>${PALETTE[d.pi].name}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
+        <div class="ins-row">${d.pins} offene Aufträge (Grenze ${d.cap}) · ${d.assigned} Autos unterwegs</div>
+        <div class="ins-row dim">${d.nh || 0} Häuser angeschlossen · ${d.delivered} geliefert${d.outQ.length ? ' · ' + d.outQ.length + ' warten auf Ausfahrt' : ''}</div>
+        ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : ''}`;
+    } else if (D.J) {
+      const J = D.J;
+      if (!g.world.jc[J.i]) { this.showInspect(null); return; }
+      const c = J.cause && J.score > 5 ? CAUSES[J.cause] : null;
+      let wait = 0; for (let h = 0; h < 4; h++) wait += J.waitEma[h];
+      html = `<div class="ins-h"><b>${J.police > 0 ? 'Polizei regelt (' + Math.ceil(J.police) + ' s)' : JTYPE_NAME[J.type]}</b><button class="x" data-a="ins-close">${ICON.close}</button></div>
+        <div class="ins-row">${J.pass} Durchfahrten · Ø Wartezeit ${wait.toFixed(1)} s</div>
+        ${c ? `<div class="ins-cause"><b>${c.title}</b><br>${c.tip}</div>` : `<div class="ins-row dim">Tipp: Über die Kreuzung entlang der Straße ziehen = Vorfahrt. Taste 2 Ampel, 3 Kreisel, P Polizei.</div>`}`;
+    }
+    if (html !== this._insHtml) { this.inspectEl.innerHTML = html; this._insHtml = html; }
+  }
+
+  // ---- Modals ---------------------------------------------------------------------------
+  openModal(html, cls) {
+    this.modal.innerHTML = `<div class="modal ${cls || ''}">${html}</div>`;
+    this.modal.classList.add('show');
+    this.modalOpen = true;
+    this.tooltip.classList.remove('show');
+  }
+  closeModal() { this.modal.classList.remove('show'); this.modal.innerHTML = ''; this.modalOpen = false; }
+
+  onEscape() {
+    if (this.targeting) { this.targeting = null; this.banner.classList.remove('show'); this.showWeek(this.app.game.pendingWeek); return true; }
+    if (this.inspectData) { this.showInspect(null); this.app.scene.selected = null; return true; }
+    if (this.modalOpen && this.modalKind === 'menu' && this.app.game && !this.app.game.over) { this.closeModal(); this.app.setPaused(false); return true; }
+    return false;
+  }
+
+  modalClick(e) {
+    const b = e.target.closest('[data-a]');
+    if (!b) return;
+    const a = b.dataset.a;
+    const app = this.app;
+    AUDIO.play('click');
+    if (a === 'card') this.chooseCard(+b.dataset.k);
+    else if (a === 'skip') { this.closeModal(); app.game.chooseCard(null); }
+    else if (a === 'focus') { this.closeModal(); app.focusTile(+b.dataset.i); setTimeout(() => this.showWeek(app.game.pendingWeek), 1600); }
+    else if (a === 'again') app.startCity(app.game.def.id, { daily: app.game.opts.daily, dailySeed: app.game.opts.dailySeed });
+    else if (a === 'menu') this.showMenu();
+    else if (a === 'city') app.startCity(b.dataset.id);
+    else if (a === 'daily') app.startDaily();
+    else if (a === 'resume') { this.closeModal(); app.setPaused(false); }
+    else if (a === 'help') this.showHelp();
+    else if (a === 'toggle-sound') { app.toggleSound(); this.showMenu(); }
+    else if (a === 'toggle-music') { AUDIO.setMusic(!AUDIO.musicOn); app.saveSettings(); this.showMenu(); }
+    else if (a === 'toggle-quality') { app.toggleQuality(); this.showMenu(); }
+    else if (a === 'back') this.showMenu();
+  }
+
+  // Wochenbilanz + Kartenwahl
+  showWeek(S) {
+    if (!S) return;
+    const g = this.app.game;
+    this.modalKind = 'week';
+    const worst = S.worst ? `<div class="wk-worst"><span>Größte Engstelle: <b>${CAUSES[S.worst.cause] ? CAUSES[S.worst.cause].title : 'Kreuzung'}</b> (${Math.round(S.worst.wait)} s Wartezeit)</span><button class="btn small" data-a="focus" data-i="${S.worst.i}">${ICON.eye} Zeigen</button></div>` : '<div class="wk-worst good">Keine großen Engstellen diese Woche.</div>';
+    const cards = S.cards.map((c, k) => `<button class="pcard${c.pact ? ' pact' : ''}" data-a="card" data-k="${k}"><span class="pc-ic">${ICON[c.icon] || ICON.star}</span><b>${esc(c.name)}</b><span>${esc(c.desc)}</span>${c.target ? '<em>Ziel wählen</em>' : ''}${c.pact ? '<em class="pact">Pakt</em>' : ''}</button>`).join('');
+    const bonus = `+${g.mods.daily === 'sparsam' ? 10 : CFG.weekRoads} Straßen · +1 Polizei · die Ortsgrenze wächst`;
+    this.openModal(`
+      <div class="wk-head"><div class="wk-title">Woche ${S.week} geschafft!</div><div class="wk-sub">${fmtInt(S.trips)} Fahrten diese Woche · ${fmtInt(S.total)} insgesamt</div></div>
+      <div class="wk-stats"><span>${ICON.house}${S.houses} Häuser</span><span>${ICON.flag}${S.dests} Ziele</span></div>
+      ${worst}
+      <div class="wk-bonus">${bonus}</div>
+      ${S.cards.length ? `<div class="wk-pick">Wähle eine Karte</div><div class="pcards">${cards}</div>` : `<div class="wk-pick">Sparhaushalt: diese Woche keine Karte</div><button class="btn primary" data-a="skip">Weiter</button>`}
+    `, 'week');
+  }
+
+  chooseCard(k) {
+    const g = this.app.game;
+    const c = g.pendingWeek.cards[k];
+    AUDIO.play('card');
+    if (c.target) {
+      this.closeModal();
+      this.targeting = c;
+      this.banner.innerHTML = `${ICON.target}<span><b>${esc(c.name)}:</b> Klicke auf ein Ziel</span>`;
+      this.banner.classList.add('show');
+      return;
+    }
+    this.closeModal();
+    g.chooseCard(c);
+  }
+
+  pickTarget(t) {
+    const g = this.app.game, w = g.world;
+    const b = w.bld[t] >= 0 ? w.buildings[w.bld[t]] : null;
+    if (!b || b.kind !== 'dest') { this.toast('Bitte auf ein Ziel (großes Gebäude) klicken.', 'target'); AUDIO.play('deny'); return; }
+    const c = this.targeting;
+    this.targeting = null;
+    this.banner.classList.remove('show');
+    g.chooseCard(c, b);
+  }
+
+  // Stau-Report nach dem Stillstand
+  showReport(R, prog) {
+    const app = this.app, g = app.game;
+    this.modalKind = 'report';
+    const def = R.city;
+    const k = g.medal();
+    const medal = k >= 0 ? `<span class="medal-chip m${k + 1}">${ICON.trophy}${MEDAL_NAMES[k]}</span>` : `<span class="medal-chip m0">Bronze bei ${fmtInt(def.medals[0])}</span>`;
+    const cause = CAUSES[R.cause] || CAUSES.nocar;
+    const top = R.top.length ? R.top.map((t, n) => `<li><b>${n + 1}. ${CAUSES[t.cause] ? CAUSES[t.cause].title : 'Kreuzung'}</b> – ${Math.round(t.wait)} s Wartezeit<br><span>${CAUSES[t.cause] ? CAUSES[t.cause].tip : ''}</span></li>`).join('') : '<li>Keine Kreuzung war ein größeres Problem.</li>';
+    const board = (prog.board || []).slice(0, 10).map((e, n) => `<tr class="${e.cur ? 'cur' : ''}"><td>${n + 1}.</td><td>${fmtInt(e.score)}</td><td>Woche ${e.week}</td><td>${esc(e.date)}</td></tr>`).join('');
+    this.openModal(`
+      <div class="rep-head"><div class="rep-title">Stillstand in ${esc(def.name)}!</div><div class="rep-sub">${esc(PALETTE[R.dest.pi].name)} konnte nicht mehr beliefert werden · Woche ${R.week}, ${DAYS[Math.min(4, R.day - 1)]}</div></div>
+      <div class="rep-score"><span class="big">${fmtInt(R.score)}</span><span>Fahrten</span>${medal}${prog.newBest ? '<span class="newbest">Neuer Rekord!</span>' : ''}</div>
+      <div class="rep-grid">
+        <div class="rep-col">
+          <h4>Woran es lag</h4>
+          <div class="rep-cause"><b>${cause.title}</b><br>${cause.tip}</div>
+          <h4>Die drei größten Engstellen</h4>
+          <ol class="rep-top">${top}</ol>
+        </div>
+        <div class="rep-col">
+          <h4>Wo am meisten gewartet wurde</h4>
+          <canvas class="heat" width="200" height="200"></canvas>
+          ${board ? `<h4>Bestenliste ${esc(def.name)}${g.opts.daily ? ' (heute)' : ''}</h4><table class="board">${board}</table>` : ''}
+        </div>
+      </div>
+      ${prog.rankUp ? `<div class="rankup">${ICON.rank} Neuer Rang: <b>${esc(prog.rankUp.name)}</b>${prog.rankUp.unlock ? ' – freigeschaltet: ' + esc(prog.rankUp.unlock) : ''}</div>` : ''}
+      ${prog.unlocked ? `<div class="rankup">${ICON.lock} Neue Stadt freigeschaltet: <b>${esc(prog.unlocked)}</b></div>` : ''}
+      <div class="rep-btns"><button class="btn primary" data-a="again">Noch eine Stadt</button><button class="btn" data-a="menu">Andere Stadt</button></div>
+    `, 'report');
+    this.drawHeat(this.modal.querySelector('canvas.heat'), g);
+  }
+
+  drawHeat(cv, g) {
+    if (!cv) return;
+    const w = g.world, ctx = cv.getContext('2d');
+    const b = w.bounds;
+    const sw = b.x1 - b.x0, sh = b.y1 - b.y0, s = Math.min(cv.width / sw, cv.height / sh);
+    ctx.fillStyle = '#eef1ea'; ctx.fillRect(0, 0, cv.width, cv.height);
+    let max = 1;
+    for (let i = 0; i < w.n; i++) max = Math.max(max, w.waitAcc[i]);
+    for (let y = b.y0; y < b.y1; y++) for (let x = b.x0; x < b.x1; x++) {
+      const i = w.idx(x, y);
+      let c = null;
+      if (w.terrain[i] === T_WATER) c = '#bfe0ee';
+      if (w.road[i]) {
+        const f = Math.sqrt(w.waitAcc[i] / max);
+        c = f > 0.02 ? `hsl(${50 - f * 50}, 95%, ${60 - f * 18}%)` : '#9aa0a6';
       }
-      const tmp = this.miniTmp || (this.miniTmp = document.createElement('canvas'));
-      tmp.width = w.w; tmp.height = w.h;
-      tmp.getContext('2d').putImageData(img, 0, 0);
-      this.miniBase = tmp;
+      if (w.bld[i] >= 0) c = PALETTE[w.buildings[w.bld[i]].pi].hex;
+      if (!c) continue;
+      ctx.fillStyle = c;
+      ctx.fillRect((x - b.x0) * s, (y - b.y0) * s, s + 0.5, s + 0.5);
     }
-    ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(this.miniBase, 0, 0, cv.width, cv.height);
-    // Unfälle
-    for (const a of g.city.accidents) { ctx.fillStyle = '#dc2626'; ctx.fillRect(w.tx(a.tile) * sc - 2, w.ty(a.tile) * sc - 2, sc + 4, sc + 4); }
-    // Sichtfenster
-    const r = this.app.renderer;
-    const tl = r.toWorld(0, 0), br = r.toWorld(r.W, r.H);
-    ctx.strokeStyle = '#0b4f9c'; ctx.lineWidth = 2;
-    ctx.strokeRect(tl.x * sc, tl.y * sc, (br.x - tl.x) * sc, (br.y - tl.y) * sc);
   }
 
-  // ======================================================================
-  // Modale Fenster
-  // ======================================================================
-  modal(opts) {
-    const wrap = h('div', { class: 'modal-wrap' + (opts.cls ? ' ' + opts.cls : '') });
-    const card = h('div', { class: 'modal' + (opts.wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': opts.title || 'Dialog' });
-    if (opts.head !== false) {
-      card.append(h('div', { class: 'modal-head' + (opts.headCls ? ' ' + opts.headCls : '') }, h('h2', { text: opts.title || '' }),
-        opts.closable !== false ? h('button', { class: 'xbtn', 'aria-label': 'Schließen', onclick: () => close() }, icon('close')) : null));
-    }
-    const body = h('div', { class: 'modal-body' });
-    if (opts.body) body.append(opts.body);
-    card.append(body);
-    if (opts.buttons && opts.buttons.length) {
-      const foot = h('div', { class: 'modal-foot' });
-      for (const b of opts.buttons) foot.append(h('button', { class: 'btn' + (b.primary ? '' : ' ghost') + (b.danger ? ' danger' : ''), onclick: () => { if (b.onClick && b.onClick() === false) return; if (!b.keep) close(); } }, b.label));
-      card.append(foot);
-    }
-    wrap.append(card);
-    this.modalRoot.append(wrap);
-    const close = () => { wrap.remove(); if (opts.onClose) opts.onClose(); };
-    wrap.addEventListener('pointerdown', e => { if (e.target === wrap && opts.closable !== false) close(); });
-    wrap._close = close;
-    const first = card.querySelector('.modal-foot .btn:not(.ghost)') || card.querySelector('button');
-    if (first) setTimeout(() => first.focus({ preventScroll: true }), 30);
-    return { close, body, card };
-  }
-  closeModals() { for (const m of [...this.modalRoot.children]) { if (m._close) m._close(); else m.remove(); } }
-  hasModal() { return this.modalRoot.children.length > 0; }
-  topModalClose() { const m = this.modalRoot.lastElementChild; if (m && m._close) { m._close(); return true; } return false; }
-
-  confirm(title, text, onYes, yesLabel) {
-    this.modal({ title, body: h('p', { text }), buttons: [{ label: 'Abbrechen' }, { label: yesLabel || 'Ja', primary: true, onClick: onYes }] });
-  }
-
-  // ---- Pause ---------------------------------------------------------------------------
-  showPause() {
-    const g = this.game;
-    if (!g) return;
-    const wasPaused = g.paused;
-    g.paused = true;
-    const item = (ic, label, fn) => h('button', { class: 'menu-row', onclick: fn }, icon(ic, 'mrow-ic'), h('span', { text: label }), icon('arrow', 'mrow-arrow'));
-    const body = h('div', { class: 'menu-list' },
-      item('play', 'Weiterspielen', () => m.close()),
-      g.mode !== 'demo' ? item('save', 'Spiel speichern', () => { m.close(); this.showSaveDialog(); }) : null,
-      item('stats', 'Statistik', () => { m.close(); this.showStats(); }),
-      item('help', 'Anleitung', () => { m.close(); this.showHelp(); }),
-      item('grid', 'Einstellungen', () => { m.close(); this.showSettings(); }),
-      g.mode === 'campaign' ? item('undo', 'Level neu starten', () => { m.close(); this.confirm('Level neu starten?', 'Der aktuelle Fortschritt geht verloren.', () => this.app.startLevel(g.level)); }) : null,
-      item('flag', 'Zum Hauptmenü', () => { m.close(); this.confirm('Zum Hauptmenü?', 'Nicht gespeicherter Fortschritt geht verloren. Ein automatischer Spielstand wird alle drei Spielstunden angelegt.', () => this.app.toMenu(), 'Zum Menü'); }));
-    const m = this.modal({ title: 'Pause', body, onClose: () => { if (this.game === g && !g.over) g.paused = wasPaused; this.updateHUD(); } });
-  }
-
-  // ---- Speichern / Laden --------------------------------------------------------------
-  slotInfo(key) {
-    const o = Store.get(key);
-    if (!o) return null;
-    const lv = o.level || LEVELS.find(l => l.id === o.levelId);
-    const min = o.startMin + o.time * CFG.minPerSec;
-    return { name: lv ? lv.name : '?', sub: lv ? lv.sub : '', day: Math.floor(min / 1440) + 1, clock: fmtClock(min), savedAt: o.savedAt, trips: o.stats ? o.stats.trips : 0 };
-  }
-
-  showSaveDialog() {
-    const g = this.game;
-    const list = h('div', { class: 'slots' });
-    const m = this.modal({ title: 'Spiel speichern', body: list });
-    const render = () => {
-      list.innerHTML = '';
-      for (const k of [1, 2, 3]) {
-        const key = 'vm_save_' + k;
-        const inf = this.slotInfo(key);
-        list.append(h('button', { class: 'slot', onclick: () => {
-          const ok = Store.set(key, g.serialize());
-          if (ok) { this.toast('Gespeichert', 'Spielstand ' + k + ' wurde gesichert.'); m.close(); }
-          else this.toast('Fehler', 'Speichern nicht möglich (Browser-Speicher nicht verfügbar).', 'bad');
-        } }, h('b', { text: 'Platz ' + k }), h('span', { text: inf ? inf.name + ' · Tag ' + inf.day + ' ' + inf.clock + ' · ' + new Date(inf.savedAt).toLocaleString('de-DE') : 'leer' })));
-      }
-    };
-    render();
-  }
-
-  // ---- Einstellungen -------------------------------------------------------------------
-  showSettings(back) {
-    const s = this.settings;
-    const body = h('div', { class: 'settings' },
-      h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'set-sound', checked: s.sound ? true : null, onchange: e => { s.sound = e.target.checked; AUDIO.setEnabled(s.sound); this.saveSettings(); if (this.hudEl) this.hudEl.soundBtn.innerHTML = ICON[s.sound ? 'sound' : 'mute']; } }), ' Ton'),
-      h('label', { class: 'rng' }, 'Lautstärke', h('input', { type: 'range', id: 'set-vol', min: 0, max: 1, step: 0.05, value: s.volume, oninput: e => { s.volume = +e.target.value; AUDIO.setVolume(s.volume); this.saveSettings(); } })),
-      h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'set-grid', checked: s.grid ? true : null, onchange: e => { s.grid = e.target.checked; this.app.renderer.showGrid = s.grid; this.saveSettings(); } }), ' Raster anzeigen'),
-      h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'set-auto', checked: s.autosave ? true : null, onchange: e => { s.autosave = e.target.checked; this.saveSettings(); } }), ' Automatisch speichern (alle 3 Spielstunden)'),
-      h('label', { class: 'chk' }, h('input', { type: 'checkbox', id: 'set-pause', checked: s.pauseOnDanger ? true : null, onchange: e => { s.pauseOnDanger = e.target.checked; this.saveSettings(); } }), ' Bei Unfällen und Bränden automatisch pausieren'),
-      h('button', { class: 'btn small danger ghost', onclick: () => this.confirm('Fortschritt zurücksetzen?', 'Sterne, Erfolge und alle Spielstände werden gelöscht.', () => {
-        for (const k of ['vm_progress', 'vm_ach', 'vm_save_1', 'vm_save_2', 'vm_save_3', 'vm_save_auto']) Store.del(k);
-        if (this.game) this.game.achieved = new Set();
-        this.toast('Zurückgesetzt', 'Der Spielfortschritt wurde gelöscht.');
-      }, 'Löschen') }, 'Fortschritt zurücksetzen'));
-    this.modal({ title: 'Einstellungen', body, buttons: [{ label: 'Fertig', primary: true, onClick: back }] });
-  }
-
-  // ---- Anleitung -------------------------------------------------------------------------
-  showHelp() {
-    const sec = (t, ...p) => h('section', {}, h('h3', { text: t }), ...p.map(x => typeof x === 'string' ? h('p', { text: x }) : x));
-    const keys = [['Linke Maustaste', 'Bauen / Auswählen'], ['Rechte oder mittlere Maustaste ziehen', 'Karte verschieben'], ['Mausrad', 'Zoomen'], ['W A S D / Pfeiltasten', 'Karte verschieben'], ['Leertaste', 'Pause'], ['1 2 3', 'Spieltempo'], ['Strg + Z', 'Rückgängig'], ['H', 'Verkehrsdichte'], ['S', 'Statistik'], ['Q R E T X L V K B N', 'Werkzeuge'], ['Esc', 'Abbrechen / Menü']];
-    const body = h('div', { class: 'help' },
-      sec('Deine Aufgabe', 'Die Stadt wächst. Wohnhäuser, Büros, Geschäfte und Fabriken wollen verbunden werden. Du planst das Straßennetz und regelst die Kreuzungen so, dass alle schnell ans Ziel kommen. Gute Fahrten machen die Bürger zufrieden und bringen Geld in die Kasse. Sinkt die Zufriedenheit zu lange unter die kritische Marke, wirst du abgewählt.'),
-      sec('Straßen bauen', 'Ziehe mit gedrückter Maustaste von Feld zu Feld. Nur Felder, die du nacheinander ziehst, werden verbunden – parallele Straßen bleiben getrennt. Über Wasser entstehen Brücken, durch Felsen Tunnel. Jedes Gebäude hat eine Einfahrt: Das Feld davor (gestrichelt markiert) muss eine Straße bekommen.',
-        'Einbahnstraßen haben nur eine Spur in Zugrichtung. Schnellstraßen sind fast doppelt so schnell, Gebäude können dort aber schlecht anschließen. Ziehe ein Werkzeug über bestehende Straßen, um sie umzubauen.'),
-      sec('Kreuzungen', h('ul', {},
-        h('li', {}, h('b', { text: 'Rechts vor links' }), ' – Standard. Wer von rechts kommt, hat Vorrang; Linksabbieger warten auf den Gegenverkehr. Bei viel Verkehr staut es und kracht öfter.'),
-        h('li', {}, h('b', { text: 'Vorfahrtsstraße' }), ' – Eine Achse fährt durch, Nebenstraßen warten. Ideal für eine Hauptstraße mit wenig Querverkehr.'),
-        h('li', {}, h('b', { text: 'Ampel' }), ' – Regelt Phasen. Im Info-Fenster stellst du Grünzeiten, eigene Linksabbiegerphasen und den Versatz für eine Grüne Welle ein. Die adaptive Ampel reagiert auf den Verkehr.'),
-        h('li', {}, h('b', { text: 'Kreisverkehr' }), ' – Wer im Kreis fährt, hat Vorfahrt. Flüssig und sicher bei mittlerem Verkehr.'))),
-      sec('Busse', 'Setze Haltestellen auf gerade Straßenstücke. Mit dem Buslinien-Werkzeug klickst du Haltestellen der Reihe nach an. Häuser und Ziele im Umkreis von vier Feldern nutzen die Linie. Mehr Busse bedeuten kürzere Wartezeiten und mehr Fahrgäste.'),
-      sec('Ereignisse', 'Unfälle sperren Kreuzungen, bis ein Rettungswagen da war oder du abschleppen lässt. Baustellen bremsen den Verkehr. Bei Stromausfall fallen Ampeln aus. Brände brauchen die Feuerwehr – halte ihr den Weg frei. Am Spieltag strömen Fans zum Stadion. Regen, Nebel und Schnee machen alle langsamer.'),
-      sec('Geld', 'Jede erfolgreiche Fahrt bringt Steuereinnahmen, Busfahrgäste zahlen Fahrgeld. Um Mitternacht kommen Steuern hinzu – je zufriedener die Stadt, desto mehr – und der Unterhalt für Straßen, Ampeln und Busse wird abgezogen.'),
-      sec('Tipps', h('ul', {},
-        h('li', { text: 'Schalte mit H die Verkehrsdichte ein: Rot heißt Stau, Kreise zeigen lange Wartezeiten an Kreuzungen.' }),
-        h('li', { text: 'Klicke ein Auto an, um seine Route zu sehen.' }),
-        h('li', { text: 'Direkt benachbarte Kreuzungen behindern sich gegenseitig. Lass Platz zwischen Kreuzungen.' }),
-        h('li', { text: 'Einbahnstraßen-Paare entlasten Kreuzungen enorm – aber Achtung vor Sackgassen ohne Ausweg.' }),
-        h('li', { text: 'Wird es eng, pausiere und plane in Ruhe.' }))),
-      sec('Steuerung', h('table', { class: 'keys' }, h('tbody', {}, keys.map(([k, v]) => h('tr', {}, h('td', {}, h('kbd', { text: k })), h('td', { text: v })))))));
-    this.modal({ title: 'Anleitung', body, wide: true, buttons: [{ label: 'Verstanden', primary: true }] });
-  }
-
-  // ---- Statistik --------------------------------------------------------------------------
-  showStats() {
-    const g = this.game;
-    if (!g) return;
-    const tabs = [['verlauf', 'Verlauf'], ['kreuzungen', 'Kreuzungen'], ['finanzen', 'Finanzen'], ['meldungen', 'Meldungen']];
-    const tabBar = h('div', { class: 'tabs', role: 'tablist' });
-    const content = h('div', { class: 'tab-content' });
-    const show = id => {
-      for (const b of tabBar.children) b.classList.toggle('on', b.dataset.id === id);
-      content.innerHTML = '';
-      if (id === 'verlauf') content.append(this.statsHistory());
-      else if (id === 'kreuzungen') content.append(this.statsJunctions(m));
-      else if (id === 'finanzen') content.append(this.statsFinance());
-      else content.append(this.statsNotes(m));
-    };
-    for (const [id, n] of tabs) { const b = h('button', { class: 'tab', role: 'tab', text: n, onclick: () => show(id) }); b.dataset.id = id; tabBar.append(b); }
-    const s = g.stats;
-    const avgR = s.trips ? s.ratingSum / s.trips : 0;
-    const avgDur = s.trips ? s.durSum / s.trips * CFG.minPerSec : 0;
-    const kpis = h('div', { class: 'kpis' },
-      this.kpi('Fahrten', fmtInt(s.trips)), this.kpi('Ø Bewertung', Math.round(avgR) + ' / 100'), this.kpi('Ø Fahrzeit', fmtDec(avgDur, 1) + ' Min'),
-      this.kpi('Abgebrochen', fmtInt(s.failed + g.traffic.stats.gaveUp)), this.kpi('Unfälle', fmtInt(s.accidents)), this.kpi('Busfahrgäste', fmtInt(s.busPax)));
-    const body = h('div', {}, kpis, tabBar, content);
-    const m = this.modal({ title: 'Statistik', body, wide: true });
-    show('verlauf');
-  }
-
-  kpi(k, v) { return h('div', { class: 'kpi' }, h('span', { text: k }), h('b', { text: v })); }
-
-  statsHistory() {
-    const g = this.game;
-    const H = g.history.slice(-48);
-    const wrap = h('div', { class: 'charts' });
-    if (H.length < 2) { wrap.append(h('p', { class: 'muted', text: 'Noch zu wenig Daten – die Verlaufskurven füllen sich mit jeder Spielstunde.' })); return wrap; }
-    const lab = x => WEEKDAYS_SHORT[Math.floor(x.h / 24) % 7] + ' ' + pad2(x.h % 24) + ':00';
-    const mk = (title, key, fmt, opts = {}) => {
-      const cv = h('canvas', { class: 'chart', width: 460, height: 170, role: 'img', 'aria-label': title });
-      const box = h('figure', { class: 'chart-box' }, h('figcaption', { text: title }), cv);
-      wrap.append(box);
-      requestAnimationFrame(() => lineChart(cv, H.map(x => x[key]), H.map(lab), fmt, opts));
-    };
-    mk('Fahrten pro Stunde', 'trips', v => fmtInt(v), { bars: true, min0: true });
-    mk('Zufriedenheit', 'sat', v => Math.round(v) + ' %', { min: 0, max: 100 });
-    mk('Ø Fahrzeit', 'dur', v => fmtDec(v, 1) + ' Min', { min0: true, axis: v => Math.round(v) + ' Min' });
-    mk('Fahrzeuge unterwegs', 'veh', v => fmtInt(v), { min0: true });
-    if (!g.sandbox) mk('Stadtkasse', 'money', v => fmtMoney(v), { axis: v => fmtMoneyShort(v) });
-    return wrap;
-  }
-
-  statsJunctions(m) {
-    const g = this.game, w = g.world;
-    const js = [...(w.junctions || [])].map(J => ({ J, wait: Math.max(...J.waitEma), flow: J.flowHr }));
-    js.sort((a, b) => b.wait - a.wait);
-    if (!js.length) return h('p', { class: 'muted', text: 'Noch keine Kreuzungen gebaut.' });
-    const tbl = h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', { text: 'Kreuzung' }), h('th', { text: 'Regelung' }), h('th', { class: 'num', text: 'Durchfahrten/Std' }), h('th', { class: 'num', text: 'Längste Ø Wartezeit' }), h('th', { class: 'num', text: 'Unfälle' }), h('th', {}))));
-    const tb = h('tbody');
-    for (const r of js.slice(0, 12)) {
-      tb.append(h('tr', {}, h('td', { class: 'mono', text: w.tx(r.J.i) + ' / ' + w.ty(r.J.i) }), h('td', { text: JTYPE_NAME[r.J.type] }), h('td', { class: 'num', text: Math.round(r.flow) + '' }),
-        h('td', { class: 'num ' + (r.wait > 10 ? 'bad' : r.wait > 5 ? 'warn' : ''), text: fmtDec(r.wait * CFG.minPerSec, 1) + ' Min' }), h('td', { class: 'num', text: r.J.accidents + '' }),
-        h('td', {}, h('button', { class: 'btn tiny ghost', onclick: () => { m.close(); this.setTool('inspect'); this.jumpTo(r.J.i); } }, 'Zeigen'))));
-    }
-    tbl.append(tb);
-    return h('div', {}, h('p', { class: 'muted', text: 'Die Kreuzungen mit den längsten Wartezeiten zuerst.' }), h('div', { class: 'tbl-wrap' }, tbl));
-  }
-
-  statsFinance() {
-    const g = this.game;
-    const c = g.world.countRoads();
-    let lights = 0, smart = 0, round = 0, prio = 0, buses = 0;
-    for (const J of g.world.junctions || []) { if (J.type === 'light') { if (J.light && J.light.smart) smart++; else lights++; } if (J.type === 'roundabout') round++; if (J.type === 'priority') prio++; }
-    for (const l of g.city.lines) buses += l.buses.size;
-    const U = CFG.upkeep;
-    const rows = [['Stadtstraßen', c.road, U.road], ['Schnellstraßen', c.hw, U.highway], ['Brückenfelder', c.bridge, U.bridge], ['Tunnelfelder', c.tunnel, U.tunnel], ['Ampeln', lights, U.light], ['Adaptive Ampeln', smart, U.smart], ['Kreisverkehre', round, U.roundabout], ['Vorfahrtsregelungen', prio, U.priority], ['Haltestellen', c.stops, U.stop], ['Busse', buses, U.bus]].filter(r => r[1]);
-    const up = h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', { text: 'Unterhalt pro Tag' }), h('th', { class: 'num', text: 'Anzahl' }), h('th', { class: 'num', text: 'je Stück' }), h('th', { class: 'num', text: 'Summe' }))),
-      h('tbody', {}, rows.map(r => h('tr', {}, h('td', { text: r[0] }), h('td', { class: 'num', text: fmtInt(r[1]) }), h('td', { class: 'num', text: fmtMoney(r[2]) }), h('td', { class: 'num', text: fmtMoney(r[1] * r[2]) })))),
-      h('tfoot', {}, h('tr', {}, h('td', { text: 'Gesamt' }), h('td'), h('td'), h('td', { class: 'num', text: fmtMoney(g.upkeep()) }))));
-    const days = h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', { text: 'Tag' }), h('th', { class: 'num', text: 'Fahrten' }), h('th', { class: 'num', text: 'Ø Bewertung' }), h('th', { class: 'num', text: 'Fahrt-Einnahmen' }), h('th', { class: 'num', text: 'Steuern' }), h('th', { class: 'num', text: 'Unterhalt' }), h('th', { class: 'num', text: 'Unfälle' }))),
-      h('tbody', {}, g.days.slice(-10).reverse().map(d => h('tr', {}, h('td', { text: WEEKDAYS[d.day % 7] + ' (Tag ' + (d.day + 1) + ')' }), h('td', { class: 'num', text: fmtInt(d.trips) }), h('td', { class: 'num', text: Math.round(d.rating) + '' }), h('td', { class: 'num', text: fmtMoney(d.income) }), h('td', { class: 'num', text: fmtMoney(d.tax) }), h('td', { class: 'num', text: '−' + fmtMoney(d.upkeep) }), h('td', { class: 'num', text: d.accidents + '' })))));
-    return h('div', {},
-      h('div', { class: 'kpis' }, this.kpi('Erwartete Steuern heute Nacht', fmtMoney(g.taxes())), this.kpi('Unterhalt pro Tag', fmtMoney(g.upkeep())), this.kpi('Einnahmen heute (Fahrten)', fmtMoney(g.statsDay.income))),
-      h('div', { class: 'tbl-wrap' }, up), g.days.length ? h('div', { class: 'tbl-wrap' }, days) : h('p', { class: 'muted', text: 'Der erste Tagesabschluss erfolgt um Mitternacht.' }));
-  }
-
-  statsNotes(m) {
-    const g = this.game;
-    const list = h('div', { class: 'notes-all' });
-    for (const n of g.notes.slice().reverse()) {
-      list.append(h('button', { class: 'note k-' + n.kind, onclick: () => { if (n.tile >= 0) { m.close(); this.jumpTo(n.tile); } } }, h('span', { class: 'note-time mono', text: 'Tag ' + (Math.floor(n.min / 1440) + 1) + ' ' + fmtClock(n.min) }), h('span', { class: 'note-text', text: n.text })));
-    }
-    if (!g.notes.length) list.append(h('p', { class: 'muted', text: 'Noch keine Meldungen.' }));
-    return list;
-  }
-
-  // ---- Levelstart, Ende, Erfolge -----------------------------------------------------------
-  showIntro(game, onGo) {
-    const lv = game.level;
-    const goals = game.goalStatus();
-    const newTools = (lv.tools || []).map(t => TOOLS.find(x => x.id === t)).filter(Boolean);
-    const idx = LEVELS.indexOf(lv);
-    const body = h('div', { class: 'intro' },
-      h('div', { class: 'ortstafel' }, h('div', { class: 'ot-in' }, h('div', { class: 'ot-name', text: lv.name }), h('div', { class: 'ot-sub', text: 'Level ' + (idx + 1) + ' · ' + lv.sub }))),
-      h('p', { class: 'lead', text: lv.intro }),
-      goals.length ? h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Ziele' }), h('ul', { class: 'goal-list' }, goals.map(s => h('li', {}, icon('target'), h('span', { text: s.type === 'sat' ? s.label + ' (beim Erreichen der übrigen Ziele)' : s.label + ': ' + s.fmt(s.target) }))))) : null,
-      h('div', { class: 'sec' }, h('div', { class: 'sec-h', text: 'Werkzeuge' }), h('div', { class: 'tool-chips' }, newTools.map(t => h('span', { class: 'tchip' }, icon(t.id), t.name)))),
-      h('p', { class: 'muted small', text: 'Startkapital ' + fmtMoney(lv.money) + '. Die Simulation startet, sobald du loslegst.' }));
-    this.modal({ title: 'Neuer Auftrag', body, closable: false, buttons: [{ label: "Los geht's", primary: true, onClick: onGo }] });
-  }
-
-  showEnd(info) {
-    const g = this.game;
-    const s = g.stats;
-    const avgR = s.trips ? Math.round(s.ratingSum / s.trips) : 0;
-    let body;
-    const kpis = h('div', { class: 'kpis' }, this.kpi('Fahrten', fmtInt(s.trips)), this.kpi('Ø Bewertung', avgR + ' / 100'), this.kpi('Zufriedenheit', Math.round(g.satisfaction) + ' %'), this.kpi('Tage', String(g.dayIndex + 1)), this.kpi('Einwohner', fmtInt(g.population())), this.kpi('Unfälle', fmtInt(s.accidents)));
-    const buttons = [];
-    if (info.won) {
-      const stars = h('div', { class: 'stars big' }, [0, 1, 2].map(k => icon('star', k < info.stars ? 'on' : 'off')));
-      const idx = LEVELS.indexOf(g.level);
-      const next = LEVELS[idx + 1];
-      body = h('div', { class: 'end win' }, h('div', { class: 'sign-blue' }, h('div', { class: 'sb-title', text: 'Auftrag erfüllt' }), h('div', { class: 'sb-sub', text: g.level.name })), stars,
-        h('p', { class: 'lead', text: info.stars === 3 ? 'Vorbildlich! Die Stadt fließt.' : info.stars === 2 ? 'Gute Arbeit. Mit noch zufriedeneren Bürgern gibt es drei Sterne (ab 85 %).' : 'Geschafft! Für mehr Sterne braucht es höhere Zufriedenheit (2 Sterne ab 70 %, 3 ab 85 %).' }), kpis);
-      buttons.push({ label: 'Weiterspielen', onClick: () => { g.over = false; g.mode = 'endless'; g.level = Object.assign({}, g.level, { goals: [], endless: true }); this.renderGoals(); } });
-      if (next) buttons.push({ label: 'Nächstes Level', primary: true, onClick: () => this.app.startLevel(next) });
-      else buttons.push({ label: 'Zum Hauptmenü', primary: true, onClick: () => this.app.toMenu() });
-    } else {
-      if (g.mode === 'endless') {
-        const recs = Store.get('vm_records', {});
-        const key = g.level.id;
-        const prev = recs[key];
-        const cur = { days: g.dayIndex, trips: s.trips, pop: g.population() };
-        const better = !prev || cur.days > prev.days || (cur.days === prev.days && cur.trips > prev.trips);
-        if (better) { recs[key] = cur; Store.set('vm_records', recs); }
-        kpis.append(this.kpi(better ? 'Neuer Rekord!' : 'Rekord', better ? cur.days + ' Tage' : prev.days + ' Tage · ' + fmtInt(prev.trips) + ' Fahrten'));
-      }
-      const reason = info.reason === 'money' ? 'Die Stadt ist pleite. Der Rat hat dir die Verantwortung entzogen.' : 'Die Bürger haben genug vom Dauerstau – du wurdest abgewählt.';
-      body = h('div', { class: 'end lose' }, h('div', { class: 'ortstafel ende' }, h('div', { class: 'ot-in' }, h('div', { class: 'ot-name', text: g.level.name }), h('div', { class: 'ot-sub', text: g.mode === 'endless' ? 'Endlos-Runde beendet' : 'Auftrag gescheitert' })), h('i', { class: 'ot-strike' })),
-        h('p', { class: 'lead', text: reason }), kpis);
-      if (g.mode === 'campaign') buttons.push({ label: 'Nochmal versuchen', primary: true, onClick: () => this.app.startLevel(g.level) });
-      buttons.push({ label: 'Zum Hauptmenü', onClick: () => this.app.toMenu() });
-    }
-    this.modal({ title: info.won ? 'Level geschafft' : 'Spielende', body, closable: false, buttons });
-  }
-
-  achievementToast(a) { this.toast('Erfolg freigeschaltet', a.name + ' – ' + a.desc, 'ach'); }
-
-  // ======================================================================
-  // Tutorial (Level 1)
-  // ======================================================================
-  startTutorial() {
-    this.tutStep = 0;
-    this.tutT = 0;
-    this.renderTut();
-  }
-
-  tutSteps() {
-    const g = this.game;
-    const anyConnected = () => {
-      if (!g) return false;
-      const w = g.world;
-      w.ensureComponents();
-      const houses = w.buildings.filter(b => b.cat === 'res' && !b.dead && w.road[b.acc]);
-      const offices = w.buildings.filter(b => b.cat !== 'res' && !b.dead && w.road[b.acc]);
-      return houses.some(hh => offices.some(o => w.comp[hh.acc] === w.comp[o.acc]));
-    };
-    return [
-      { text: 'Willkommen! Wähle das Straßen-Werkzeug (Taste R).', done: () => this.tool === 'road' },
-      { text: 'Die gestrichelten Felder vor den Einfahrten brauchen Anschluss. Ziehe mit gedrückter Maustaste eine Straße von einer Hauseinfahrt bis zur Einfahrt des Bürogebäudes.', done: anyConnected },
-      { text: 'Die ersten Pendler fahren los! Oben siehst du Kasse, Uhrzeit und Zufriedenheit. Leertaste pausiert, 1–3 ändert das Tempo.', next: true },
-      { text: 'Verbinde jetzt alle Häuser. Wird ein Rahmen rot, werden die Bewohner ungeduldig und die Zufriedenheit sinkt.', done: () => g && g.city.unconnectedCount(-1) === 0 },
-      { text: 'Treffen drei Straßen aufeinander, entsteht eine Kreuzung. Ohne Schilder gilt rechts vor links. Mit dem Auswahl-Werkzeug (Q) siehst du Wartezeiten an Kreuzungen und Details zu Autos.', next: true },
-      { text: 'Strg+Z macht den letzten Bauschritt rückgängig, Abriss (X) erstattet 35 % der Kosten. Neue Gebäude entstehen laufend – halte alles angeschlossen. Viel Erfolg!', next: true, last: true },
-    ];
-  }
-
-  renderTut() {
-    const steps = this.tutSteps();
-    const st = steps[this.tutStep];
-    if (!st) { this.tut.hidden = true; this.tutStep = -1; return; }
-    this.tut.hidden = false;
-    this.tut.innerHTML = '';
-    this.tut.append(h('div', { class: 'tut-dots' }, steps.map((_, k) => h('i', { class: k === this.tutStep ? 'on' : k < this.tutStep ? 'done' : '' }))),
-      h('p', { text: st.text }),
-      h('div', { class: 'tut-btns' },
-        h('button', { class: 'btn tiny ghost', onclick: () => { this.tutStep = -1; this.tut.hidden = true; } }, 'Tutorial beenden'),
-        st.next ? h('button', { class: 'btn tiny', onclick: () => { this.tutStep++; this.renderTut(); } }, st.last ? 'Fertig' : 'Weiter') : h('span', { class: 'muted small', text: 'Wird automatisch fortgesetzt…' })));
-  }
-
-  tutCheck() {
-    if (this.tutStep < 0) return;
-    const st = this.tutSteps()[this.tutStep];
-    if (st && st.done && st.done()) { this.tutStep++; AUDIO.play('good'); this.renderTut(); }
-  }
-
-  // ======================================================================
   // Hauptmenü
-  // ======================================================================
   showMenu() {
-    this.closeModals();
-    this.leaveGame();
-    this.menu.hidden = false;
-    this.menuMain();
+    const app = this.app, prog = app.progress;
+    this.modalKind = 'menu';
+    const inGame = app.game && !app.game.over && !app.attract;
+    if (inGame) app.setPaused(true);
+    const cities = CITIES.map(c => {
+      const p = prog.cities[c.id] || {};
+      const open = app.cityUnlocked(c);
+      const medals = [0, 1, 2].map(k => `<i class="${(p.medal || -1) >= k ? 'm' + (k + 1) : ''}">${ICON.star}</i>`).join('');
+      return `<button class="city${open ? '' : ' locked'}" data-a="${open ? 'city' : ''}" data-id="${c.id}">
+        <span class="c-name">${esc(c.name)}</span><span class="c-sub">${esc(c.sub)}</span>
+        <span class="c-best">${open ? (p.plays ? 'Rekord ' + fmtInt(p.best || 0) : 'Noch nicht gespielt') : ICON.lock + ' ' + esc(app.unlockText(c))}</span>
+        <span class="c-medals">${medals}</span></button>`;
+    }).join('');
+    const daily = app.dailyInfo();
+    const rank = app.rankInfo();
+    this.openModal(`
+      <div class="menu-head"><div class="logo">Verkehrs<span>meister</span></div><div class="tag">Halte die Stadt in Bewegung.</div></div>
+      ${inGame ? `<button class="btn primary wide" data-a="resume">Weiterspielen</button>` : ''}
+      <div class="cities">${cities}</div>
+      <button class="daily" data-a="daily"><span class="d-ic">${ICON.calendar}</span><span><b>Tageschallenge</b> · ${esc(daily.city.name)}<br><span class="dim">${esc(daily.mod.name)}: ${esc(daily.mod.desc)}${daily.best ? ' · heute bester: ' + fmtInt(daily.best) : ''}</span></span></button>
+      <div class="rank">${ICON.rank}<span>Rang: <b>${esc(rank.name)}</b> · ${fmtInt(rank.total)} Fahrten insgesamt${rank.next ? ` · nächster Rang bei ${fmtInt(rank.next.at)}` : ''}</span></div>
+      <div class="menu-foot">
+        <button class="btn small" data-a="help">${ICON.help} Anleitung</button>
+        <button class="btn small" data-a="toggle-sound">${AUDIO.enabled ? ICON.sound + ' Ton an' : ICON.mute + ' Ton aus'}</button>
+        <button class="btn small" data-a="toggle-music">${ICON.music} Musik ${AUDIO.musicOn ? 'an' : 'aus'}</button>
+        <button class="btn small" data-a="toggle-quality">${ICON.gear} Grafik: ${app.quality === 2 ? 'hoch' : app.quality === 1 ? 'mittel' : 'niedrig'}</button>
+      </div>
+    `, 'menu');
   }
 
-  menuFrame(...content) {
-    this.menu.innerHTML = '';
-    const sign = h('div', { class: 'menu-sign' }, ...content);
-    this.menu.append(sign);
-    return sign;
+  showHelp() {
+    this.modalKind = 'help';
+    this.openModal(`
+      <div class="wk-title">So geht's</div>
+      <div class="help">
+        <p><b>Ziel:</b> Häuser schicken ihre Autos zu Zielen derselben Farbe. Jede erledigte Fahrt zählt. Hat ein Ziel mehr als 6 offene Aufträge, füllt sich ein roter Ring – ist er voll, steht die Stadt still.</p>
+        <p><b>Straßen</b> ziehst du mit gedrückter linker Maustaste (Touch: ein Finger). Über Wasser entstehen Brücken, durch Berge Tunnel – beide brauchen ein Bauteil aus dem Inventar. <b>Rechtsklick-Ziehen</b> reißt ab und gibt Kacheln zurück.</p>
+        <p><b>Vorfahrt:</b> Zieh entlang einer bestehenden Straße über eine Kreuzung – diese Richtung wird Hauptstraße. Ohne Regel gilt rechts vor links.</p>
+        <p><b>Ampeln</b> (Taste 2) schalten selbst nach Bedarf, <b>Kreisel</b> (3) sind flüssig bei Verkehr aus allen Richtungen, die <b>Autobahn</b> (4) ist eine gerade Hochstraße über alles hinweg. Die <b>Polizei</b> (P) regelt eine Kreuzung 15 Sekunden lang von Hand.</p>
+        <p><b>Stau-Lupe:</b> Klick auf ein Auto, eine Kreuzung oder ein Ziel zeigt, was los ist. Gelbe Schilder markieren die größten Engstellen samt Ursache.</p>
+        <p><b>Kamera:</b> Mausrad zoomen, mittlere Maustaste oder Umschalt+Ziehen bzw. WASD verschieben, Q/E drehen. Leertaste Pause, Tab Tempo, Strg+Z rückgängig.</p>
+        <p><b>Wochen:</b> Nach fünf Tagen gibt es Nachschub und du wählst eine von drei Karten.</p>
+      </div>
+      <button class="btn primary" data-a="back">Zurück</button>
+    `, 'help');
   }
 
-  menuHeader(sub) {
-    return h('div', { class: 'menu-brand' },
-      h('div', { class: 'mb-arrow', html: '<svg viewBox="0 0 64 64"><path d="M14 54V30c0-6 4-10 10-10h18" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><path d="M36 8l14 12-14 12z" fill="currentColor"/><path d="M50 54V36" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/></svg>' }),
-      h('div', {}, h('h1', { text: 'Verkehrsmeister' }), h('div', { class: 'mb-sub', text: sub || 'Stadt im Fluss' })));
+  // ---- Tutorial -----------------------------------------------------------------------
+  startTutorial() {
+    this.tut = { step: 0, t: 0 };
+    this.showTut('Zieh mit gedrückter Maustaste eine Straße von einem <b>Haus</b> zur <b>Bäckerei</b>.');
   }
 
-  menuRow(ic, label, sub, fn, extra) {
-    return h('button', { class: 'menu-row', onclick: () => { AUDIO.init(); AUDIO.resume(); AUDIO.play('click'); fn(); } }, icon(ic, 'mrow-ic'), h('span', { class: 'mrow-t' }, h('span', { text: label }), sub ? h('small', { text: sub }) : null), extra || null, icon('arrow', 'mrow-arrow'));
+  showTut(html) {
+    this.tutEl.innerHTML = `<span class="tut-ic">${ICON.help}</span><span>${html}</span><button class="x" data-tut="skip" title="Tutorial beenden">${ICON.close}</button>`;
+    this.tutEl.classList.add('show');
+    const x = this.tutEl.querySelector('[data-tut=skip]');
+    x.onclick = () => { this.endTutorial(); };
   }
 
-  menuMain() {
-    const prog = Store.get('vm_progress', {});
-    const done = LEVELS.filter(l => prog[l.id]).length;
-    const hasAuto = !!Store.get('vm_save_auto');
-    this.menuFrame(this.menuHeader(),
-      h('div', { class: 'menu-list' },
-        hasAuto ? this.menuRow('play', 'Weiterspielen', 'Automatischer Spielstand', () => this.app.loadSlot('vm_save_auto')) : null,
-        this.menuRow('flag', 'Kampagne', done + ' von ' + LEVELS.length + ' Leveln geschafft', () => this.menuLevels()),
-        this.menuRow('fff', 'Endlosmodus', 'Wie lange hält deine Stadt durch?', () => this.menuEndless(false)),
-        this.menuRow('place', 'Freies Bauen', 'Unbegrenztes Geld, alles freigeschaltet', () => this.menuEndless(true)),
-        this.menuRow('save', 'Spiel laden', null, () => this.menuLoad()),
-        this.menuRow('star', 'Erfolge', this.achCount() + ' von ' + ACHIEVEMENTS.length, () => this.menuAchievements()),
-        this.menuRow('help', 'Anleitung', null, () => this.showHelp()),
-        this.menuRow('grid', 'Einstellungen', null, () => this.showSettings())),
-      h('div', { class: 'menu-foot', text: 'Rechts vor links · Vorfahrt · Ampelphasen · Kreisverkehr · Busse' }));
+  endTutorial() {
+    this.tut = null;
+    this.tutEl.classList.remove('show');
+    this.app.overlay.hint = null;
+    this.app.progress.tutDone = true;
+    this.app.saveProgress();
   }
 
-  achCount() { return (Store.get('vm_ach', []) || []).length; }
-
-  backRow() { return h('button', { class: 'menu-back', onclick: () => { AUDIO.play('click'); this.menuMain(); } }, '‹ Zurück'); }
-
-  menuLevels() {
-    const prog = Store.get('vm_progress', {});
-    const grid = h('div', { class: 'levels' });
-    LEVELS.forEach((lv, k) => {
-      const unlocked = k === 0 || prog[LEVELS[k - 1].id] || prog[lv.id];
-      const stars = prog[lv.id] || 0;
-      const card = h('button', { class: 'ortstafel lvl' + (unlocked ? '' : ' locked'), disabled: unlocked ? null : true, 'aria-label': 'Level ' + (k + 1) + ': ' + lv.name + (unlocked ? '' : ' (gesperrt)'), onclick: () => { AUDIO.init(); AUDIO.resume(); this.app.startLevel(lv); } },
-        h('div', { class: 'ot-in' },
-          h('div', { class: 'ot-top', text: 'Level ' + (k + 1) }),
-          h('div', { class: 'ot-name', text: lv.name }),
-          h('div', { class: 'ot-sub', text: lv.sub }),
-          unlocked ? h('div', { class: 'stars' }, [0, 1, 2].map(q => icon('star', q < stars ? 'on' : 'off'))) : h('div', { class: 'lock' }, icon('lock'), 'Vorheriges Level abschließen')));
-      grid.append(card);
-    });
-    this.menuFrame(this.menuHeader('Kampagne'), this.backRow(), grid);
-  }
-
-  menuEndless(sandbox) {
-    let mapId = ENDLESS_MAPS[0].id;
-    let seed = Math.floor(Math.random() * 1e6);
-    const maps = h('div', { class: 'map-pick' });
-    const recs = Store.get('vm_records', {});
-    const render = () => {
-      maps.innerHTML = '';
-      for (const m of ENDLESS_MAPS) {
-        const r = recs['endless_' + m.id];
-        maps.append(h('button', { class: 'map-opt' + (m.id === mapId ? ' on' : ''), onclick: () => { mapId = m.id; render(); } }, h('span', { text: m.name }), !sandbox && r ? h('small', { text: 'Rekord: ' + r.days + ' Tage' }) : null));
-      }
-    };
-    render();
-    const seedIn = h('input', { type: 'number', id: 'seed-in', value: seed, min: 0, max: 999999, oninput: e => { seed = +e.target.value || 0; } });
-    this.menuFrame(this.menuHeader(sandbox ? 'Freies Bauen' : 'Endlosmodus'), this.backRow(),
-      h('div', { class: 'menu-form' },
-        h('p', { class: 'lead light', text: sandbox ? 'Baue ohne Geldsorgen. Wachstum und Ereignisse kannst du im Spiel an- und ausschalten. Gebäude lassen sich selbst platzieren.' : 'Die Stadt wächst ohne Ende, der Verkehr nimmt jeden Tag zu. Halte die Zufriedenheit über der kritischen Marke, so lange du kannst.' }),
-        h('div', { class: 'f-label', text: 'Landschaft' }), maps,
-        h('label', { class: 'f-label' }, 'Kartennummer', seedIn),
-        h('button', { class: 'btn big', onclick: () => { AUDIO.init(); AUDIO.resume(); this.app.startEndless(mapId, seed, sandbox); } }, 'Stadt gründen')));
-  }
-
-  menuLoad() {
-    const list = h('div', { class: 'slots' });
-    const render = () => {
-      list.innerHTML = '';
-      for (const [key, label] of [['vm_save_auto', 'Automatisch'], ['vm_save_1', 'Platz 1'], ['vm_save_2', 'Platz 2'], ['vm_save_3', 'Platz 3']]) {
-        const inf = this.slotInfo(key);
-        list.append(h('div', { class: 'slot' + (inf ? '' : ' empty') },
-          h('div', { class: 'slot-t' }, h('b', { text: label }), h('span', { text: inf ? inf.name + ' · Tag ' + inf.day + ', ' + inf.clock + ' · ' + fmtInt(inf.trips) + ' Fahrten' : 'leer' }), inf ? h('small', { text: new Date(inf.savedAt).toLocaleString('de-DE') }) : null),
-          inf ? h('div', { class: 'slot-b' }, h('button', { class: 'btn small', onclick: () => this.app.loadSlot(key) }, 'Laden'), h('button', { class: 'ib', title: 'Löschen', onclick: () => this.confirm('Spielstand löschen?', label + ' wird endgültig gelöscht.', () => { Store.del(key); render(); }, 'Löschen') }, icon('trash'))) : null));
-      }
-    };
-    render();
-    this.menuFrame(this.menuHeader('Spiel laden'), this.backRow(), list);
-  }
-
-  menuAchievements() {
-    const got = new Set(Store.get('vm_ach', []));
-    const grid = h('div', { class: 'achs' }, ACHIEVEMENTS.map(a => h('div', { class: 'ach' + (got.has(a.id) ? ' got' : '') }, icon(got.has(a.id) ? 'star' : 'lock'), h('div', {}, h('b', { text: a.name }), h('span', { text: a.desc })))));
-    this.menuFrame(this.menuHeader('Erfolge'), this.backRow(), grid);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Liniendiagramm (eine Serie) mit Hover-Fadenkreuz
-// ---------------------------------------------------------------------------
-function lineChart(cv, vals, labels, fmt, opts) {
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  const cssW = cv.clientWidth || 460, cssH = cv.clientHeight || 170;
-  cv.width = cssW * dpr; cv.height = cssH * dpr;
-  const ctx = cv.getContext('2d');
-  const pad = { l: 52, r: 12, t: 10, b: 24 };
-  const pts = vals.map(v => (v === null || v === undefined || isNaN(v)) ? null : v);
-  const real = pts.filter(v => v !== null);
-  let lo = opts.min !== undefined ? opts.min : Math.min(...real), hi = opts.max !== undefined ? opts.max : Math.max(...real);
-  if (opts.min0) lo = Math.min(0, lo);
-  if (hi - lo < 1e-6) { hi = lo + 1; }
-  // schöne Achsenwerte
-  const span = hi - lo;
-  const stepRaw = span / 4;
-  const mag = Math.pow(10, Math.floor(Math.log10(stepRaw)));
-  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= stepRaw) || stepRaw;
-  if (opts.min === undefined) lo = Math.floor(lo / step) * step;
-  if (opts.max === undefined) hi = Math.ceil(hi / step) * step;
-  const W = cssW - pad.l - pad.r, Hh = cssH - pad.t - pad.b;
-  const n = pts.length;
-  const X = opts.bars ? (k => pad.l + (k + 0.5) * W / n) : (k => pad.l + (n === 1 ? W / 2 : k / (n - 1) * W));
-  const Y = v => pad.t + Hh - (v - lo) / (hi - lo) * Hh;
-  const css = getComputedStyle(cv);
-  const ink = css.getPropertyValue('--chart-ink').trim() || '#5b6472';
-  const grid = css.getPropertyValue('--chart-grid').trim() || '#e7e3d8';
-  const accent = css.getPropertyValue('--chart-accent').trim() || '#0b4f9c';
-  const surface = css.getPropertyValue('--chart-surface').trim() || '#ffffff';
-  const draw = hover => {
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, cssW, cssH);
-    ctx.font = '500 11px Barlow, system-ui, sans-serif';
-    ctx.fillStyle = ink; ctx.strokeStyle = grid; ctx.lineWidth = 1;
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-    const afmt = opts.axis || fmt;
-    for (let v = lo; v <= hi + step * 0.01; v += step) {
-      const y = Math.round(Y(v)) + 0.5;
-      ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(cssW - pad.r, y); ctx.stroke();
-      ctx.fillText(afmt(v), pad.l - 6, y);
+  updateTutorial(dt) {
+    const T = this.tut, g = this.app.game;
+    if (!T || !g) return;
+    T.t += dt;
+    const ov = this.app.overlay;
+    if (T.step === 0) {
+      const h = g.city.houses.find(x => !x.conn);
+      ov.hint = h ? { x: h.x + 0.5, y: h.y + 0.5, z: 0.6 } : null;
+      if (g.city.houses.some(x => x.conn)) { T.step = 1; T.t = 0; ov.hint = null; }
+    } else if (T.step === 1) {
+      if (g.score >= 1) { T.step = 2; T.t = 0; this.showTut('Jedes Auto holt einen <b>Auftrag</b> ab. Mehr als <b>6 offene Aufträge</b> lassen den roten Ring laufen – ist er voll, steht die Stadt still.'); }
+    } else if (T.step === 2) {
+      if (T.t > 9) { T.step = 3; T.t = 0; this.tutEl.classList.remove('show'); }
+    } else if (T.step === 3) {
+      if ([...g.world.junctions].length > 0 || g.dayIndex >= 2) { T.step = 4; T.t = 0; this.showTut('Kreuzungen bremsen: Zieh <b>entlang der Straße über die Kreuzung</b>, um Vorfahrt zu geben – oder setz eine <b>Ampel</b> (Taste 2).'); }
+    } else if (T.step === 4) {
+      if (T.t > 12 || [...g.world.junctions].some(J => J.type !== 'auto')) { T.step = 5; T.t = 0; this.tutEl.classList.remove('show'); }
+    } else if (T.step === 5) {
+      if (g.inv.roads <= 8) { T.step = 6; T.t = 0; this.showTut('Straßen sind knapp – zum Wochenende gibt es Nachschub. <b>Rechtsklick-Ziehen</b> reißt ab und gibt Kacheln zurück.'); }
+    } else if (T.step === 6) {
+      if (T.t > 10) this.endTutorial();
     }
-    ctx.textBaseline = 'top';
-    const every = Math.max(1, Math.ceil(n / 6));
-    for (let k = 0; k < n; k += every) {
-      const t = labels[k].split(' ')[1] || labels[k];
-      const x = X(k), tw = ctx.measureText(t).width;
-      ctx.textAlign = x + tw / 2 > cssW - 2 ? 'right' : (x - tw / 2 < pad.l - 4 ? 'left' : 'center');
-      ctx.fillText(t, ctx.textAlign === 'right' ? cssW - 2 : x, cssH - pad.b + 6);
-    }
-    ctx.textAlign = 'center';
-    if (opts.bars) {
-      const bw = Math.max(2, Math.min(28, W / n - 3));
-      ctx.fillStyle = accent;
-      pts.forEach((v, k) => {
-        if (v === null) return;
-        const x = X(k) - bw / 2, y = Y(v), y0 = Y(Math.max(lo, 0));
-        const hgt = Math.max(0, y0 - y);
-        ctx.globalAlpha = hover === k ? 1 : 0.82;
-        ctx.beginPath(); roundRectTop(ctx, x, y, bw, hgt, Math.min(4, bw / 2)); ctx.fill();
-      });
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.beginPath();
-      let started = false;
-      pts.forEach((v, k) => { if (v === null) { started = false; return; } if (!started) { ctx.moveTo(X(k), Y(v)); started = true; } else ctx.lineTo(X(k), Y(v)); });
-      ctx.strokeStyle = accent; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
-      // Fläche
-      ctx.globalAlpha = 0.1; ctx.fillStyle = accent;
-      ctx.beginPath();
-      let first = -1, last = -1;
-      pts.forEach((v, k) => { if (v === null) return; if (first < 0) { first = k; ctx.moveTo(X(k), Y(v)); } else ctx.lineTo(X(k), Y(v)); last = k; });
-      if (first >= 0) { ctx.lineTo(X(last), Y(lo)); ctx.lineTo(X(first), Y(lo)); ctx.closePath(); ctx.fill(); }
-      ctx.globalAlpha = 1;
-      // Endpunkt
-      if (last >= 0) { ctx.fillStyle = accent; ctx.strokeStyle = surface; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(X(last), Y(pts[last]), 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-    }
-    if (hover !== null && hover >= 0 && pts[hover] !== null) {
-      const x = X(hover);
-      ctx.strokeStyle = ink; ctx.globalAlpha = 0.4; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, pad.t + Hh); ctx.stroke();
-      ctx.globalAlpha = 1;
-      if (!opts.bars) { ctx.fillStyle = accent; ctx.strokeStyle = surface; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, Y(pts[hover]), 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
-      const txt = labels[hover] + ': ' + fmt(pts[hover]);
-      ctx.font = '600 12px Barlow, system-ui, sans-serif';
-      const tw = ctx.measureText(txt).width + 14;
-      let tx = x + 10; if (tx + tw > cssW - 4) tx = x - tw - 10;
-      ctx.fillStyle = 'rgba(17,24,39,0.92)';
-      ctx.beginPath(); roundRectPath(ctx, tx, pad.t + 2, tw, 22, 5); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-      ctx.fillText(txt, tx + 7, pad.t + 13);
-    }
-  };
-  draw(null);
-  const pick = e => {
-    const r = cv.getBoundingClientRect();
-    const x = e.clientX - r.left;
-    let k = opts.bars ? Math.floor((x - pad.l) / W * n) : Math.round((x - pad.l) / W * (n - 1));
-    k = clamp(k, 0, pts.length - 1);
-    draw(k);
-  };
-  cv.onpointermove = pick;
-  cv.onpointerdown = pick;
-  cv.onpointerleave = () => draw(null);
-}
-
-function roundRectTop(ctx, x, y, w, hgt, r) {
-  r = Math.min(r, hgt);
-  ctx.moveTo(x, y + hgt);
-  ctx.lineTo(x, y + r);
-  ctx.arcTo(x, y, x + r, y, r);
-  ctx.lineTo(x + w - r, y);
-  ctx.arcTo(x + w, y, x + w, y + r, r);
-  ctx.lineTo(x + w, y + hgt);
-  ctx.closePath();
+  }
 }

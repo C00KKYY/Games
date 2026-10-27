@@ -1,31 +1,27 @@
 'use strict';
 // ---------------------------------------------------------------------------
-// Kreuzungssteuerung: rechts vor links, Vorfahrtsschilder, Ampel, Kreisverkehr
+// Kreuzungssteuerung: rechts vor links, Vorfahrt (per Wisch), adaptive Ampel,
+// Kreisverkehr und Polizei-Einsatz (befristet, regelt alles von Hand)
 // ---------------------------------------------------------------------------
 
-const ALL_TURNS = (1 << TT_STRAIGHT) | (1 << TT_RIGHT) | (1 << TT_LEFT) | (1 << TT_UTURN);
-const SR_TURNS = (1 << TT_STRAIGHT) | (1 << TT_RIGHT);
-const L_TURNS = (1 << TT_LEFT) | (1 << TT_UTURN);
 const JTYPE_NAME = { auto: 'Rechts vor links', priority: 'Vorfahrtsstraße', light: 'Ampel', roundabout: 'Kreisverkehr' };
 
 class Junction {
   constructor(world, i) {
     this.w = world; this.i = i;
     this.type = 'auto';
-    this.occ = [];          // zugelassene Fahrzeuge {v, m, h, d}
-    this.appr = [];         // Annäherungen in diesem Schritt
-    this.mainArms = 0;      // Seiten (Arme) der Hauptstraße
-    this.noLeft = 0;        // Einfahrtsrichtungen mit Linksabbiegeverbot
+    this.occ = [];
+    this.appr = [];
+    this.mainArms = 0;
+    this.lightMain = -1;       // 0 = Nord-Süd, 1 = West-Ost bekommt doppelt Grün
     this.light = null;
-    this.off = false;       // Stromausfall
+    this.police = 0;           // Restzeit Polizei-Einsatz
     this.waitEma = new Float32Array(4);
-    this.passCnt = 0;       // Durchfahrten seit letzter Stunde
-    this.flowHr = 0;        // Durchfahrten pro Spielstunde (geglättet)
+    this.waitH = new Float32Array(4);   // aufsummierte Wartezeit je Zufahrt (für Diagnose)
+    this.waitAcc = 0;
+    this.pass = 0;
     this.demand = 0; this.demandNear = 0;
-    this.lastGrant = 0;
-    this.accidents = 0;
     this.offMask = -1;
-    if (!world.junctions) world.junctions = new Set();
     world.junctions.add(this);
     this.onTopologyChange();
   }
@@ -41,196 +37,105 @@ class Junction {
     this.offMask = w.two[i];
     this.conf = conflictTable(this.offMask);
     this.arms = w.link[i];
-    // Einfahrtsrichtungen: von Seite s kommend fährt man mit Richtung OPP[s]
     let inMask = 0;
     for (let s = 0; s < 4; s++) {
+      if (!((w.link[i] >> s) & 1)) continue;
       const j = w.nb(i, s);
       if (j >= 0 && w.road[j] && ((w.out[j] >> OPP[s]) & 1)) inMask |= 1 << OPP[s];
     }
     this.inMask = inMask;
-    if (this.type === 'priority') this.mainArms &= this.arms;
-    if (this.type === 'priority' && popcount4(this.mainArms) < 2) this.mainArms = this.defaultMain();
-    // Zugelassene Fahrzeuge, deren Bewegung nicht mehr möglich ist, behalten ihre Zulassung (sie werden umgeleitet)
+    if (this.type === 'priority') {
+      this.mainArms &= this.arms;
+      if (popcount4(this.mainArms) < 2) this.mainArms = this.defaultMain();
+    }
+    if (this.light) this.light.phases = this.lightPhases();
   }
 
-  // ---- Typwechsel ---------------------------------------------------------------
   setType(t) {
     if (t === this.type) return;
+    const prevMain = this.type === 'priority' ? this.mainArms : 0;
     this.type = t;
-    if (t === 'light' && !this.light) this.light = this.makeLight('axis');
-    if (t === 'priority') this.mainArms = this.defaultMain();
-    if (t !== 'light') this.light = null;
+    if (t === 'light') {
+      this.light = { phases: [], idx: 0, stage: 0, t: 0 };
+      this.light.phases = this.lightPhases();
+      if (prevMain) this.lightMain = (prevMain & 0b0101) === 0b0101 ? 0 : ((prevMain & 0b1010) === 0b1010 ? 1 : -1);
+    } else this.light = null;
+    if (t === 'priority' && popcount4(this.mainArms & this.arms) < 2) this.mainArms = this.defaultMain();
     this.onTopologyChange();
   }
 
   defaultMain() {
-    const w = this.w, i = this.i, a = this.arms;
+    const a = this.arms;
     const ns = ((a >> 0) & 1) + ((a >> 2) & 1), ew = ((a >> 1) & 1) + ((a >> 3) & 1);
-    const cls = s => { const j = w.nb(i, s); return j >= 0 ? w.road[j] : 0; };
-    const nsCls = cls(0) + cls(2), ewCls = cls(1) + cls(3);
-    if (ns === 2 && (ew < 2 || nsCls >= ewCls)) return 0b0101;
-    if (ew === 2) return 0b1010;
-    // Abknickende Vorfahrt als Notlösung
+    if (ns === 2 && ew < 2) return 0b0101;
+    if (ew === 2 && ns < 2) return 0b1010;
+    if (ns === 2) return 0b0101;
     let m = 0, c = 0;
     for (let s = 0; s < 4 && c < 2; s++) if ((a >> s) & 1) { m |= 1 << s; c++; }
     return m;
   }
 
-  cycleMain() {
-    // Reihenfolge möglicher Hauptstraßen (Paare von Armen)
-    const pairs = [0b0101, 0b1010, 0b0011, 0b0110, 0b1100, 0b1001];
-    const valid = pairs.filter(p => (p & this.arms) === p);
-    if (!valid.length) return;
-    const k = valid.indexOf(this.mainArms);
-    this.mainArms = valid[(k + 1) % valid.length];
+  // Vorfahrt per Wisch: Fahrt von Seite a nach Seite b wird Hauptstraße
+  setMain(a, b) {
+    if (this.type === 'roundabout') return false;
+    if (!((this.arms >> a) & 1) || !((this.arms >> b) & 1) || a === b) return false;
+    if (this.type === 'light') { this.lightMain = a & 1 ? 1 : 0; return true; }
+    this.type = 'priority';
+    this.mainArms = (1 << a) | (1 << b);
+    this.onTopologyChange();
+    return true;
   }
 
   isMain(h) { return this.type === 'priority' && ((this.mainArms >> OPP[h]) & 1) === 1; }
 
-  // ---- Ampel ---------------------------------------------------------------------
-  makeLight(preset) {
-    return { phases: this.presetPhases(preset), offset: 0, smart: false, idx: 0, stage: 0, t: 0, rem: 0 };
-  }
-
-  presetPhases(preset) {
+  // ---- Ampel (adaptiv, zwei Achsen) -----------------------------------------------
+  lightPhases() {
     const inM = this.inMask || 0b1111;
-    const has = h => (inM >> h) & 1;
-    const allow = (hs, turns) => { const a = [0, 0, 0, 0]; for (const h of hs) if (has(h)) a[h] = turns; return a; };
-    const ns = [0, 2], ew = [1, 3];
-    const nsAny = has(0) || has(2), ewAny = has(1) || has(3);
-    let ph = [];
-    if (preset === 'left') {
-      if (nsAny) { ph.push({ g: 14, allow: allow(ns, SR_TURNS) }); ph.push({ g: 7, allow: allow(ns, L_TURNS) }); }
-      if (ewAny) { ph.push({ g: 14, allow: allow(ew, SR_TURNS) }); ph.push({ g: 7, allow: allow(ew, L_TURNS) }); }
-    } else if (preset === 'each') {
-      for (let h = 0; h < 4; h++) if (has(h)) ph.push({ g: 9, allow: allow([h], ALL_TURNS) });
-    } else {
-      if (nsAny) ph.push({ g: 15, allow: allow(ns, ALL_TURNS) });
-      if (ewAny) ph.push({ g: 15, allow: allow(ew, ALL_TURNS) });
-    }
-    if (!ph.length) ph.push({ g: 15, allow: [ALL_TURNS, ALL_TURNS, ALL_TURNS, ALL_TURNS] });
+    const ph = [];
+    if ((inM & 0b0101)) ph.push({ axis: 0, hs: inM & 0b0101 });
+    if ((inM & 0b1010)) ph.push({ axis: 1, hs: inM & 0b1010 });
+    if (!ph.length) ph.push({ axis: 0, hs: 0b1111 });
     return ph;
   }
 
-  cycleLen() {
-    const L = this.light;
-    let c = 0;
-    for (const p of L.phases) c += p.g + CFG.yellow + CFG.allRed;
-    return c;
+  lightTimes() {
+    const gw = this.w.mods && this.w.mods.greenWave;
+    return { yellow: gw ? 1.2 : CFG.yellow, allRed: gw ? 0.5 : CFG.allRed };
   }
 
-  updateLight(now, dt) {
+  updateLight(dt) {
     const L = this.light;
     if (!L || !L.phases.length) return;
-    if (!L.smart) {
-      const cyc = this.cycleLen();
-      let tc = ((now + L.offset) % cyc + cyc) % cyc;
-      for (let k = 0; k < L.phases.length; k++) {
-        const g = L.phases[k].g, seg = g + CFG.yellow + CFG.allRed;
-        if (tc < seg) {
-          L.idx = k;
-          if (tc < g) { L.stage = 0; L.t = tc; L.rem = g - tc; }
-          else if (tc < g + CFG.yellow) { L.stage = 1; L.t = tc - g; L.rem = g + CFG.yellow - tc; }
-          else { L.stage = 2; L.t = tc - g - CFG.yellow; L.rem = seg - tc; }
-          break;
-        }
-        tc -= seg;
-      }
-      return;
-    }
-    // Adaptive Steuerung
+    const T = this.lightTimes();
     L.t += dt;
     if (L.idx >= L.phases.length) { L.idx = 0; L.stage = 0; L.t = 0; }
     const ph = L.phases[L.idx];
     if (L.stage === 0) {
+      const main = this.lightMain === ph.axis, side = this.lightMain >= 0 && !main;
+      const minG = main ? 6 : 4, maxG = main ? 24 : (side ? 9 : 12);
       const other = this.demand & ~(1 << L.idx);
       const near = (this.demandNear >> L.idx) & 1;
-      const maxG = Math.max(ph.g * 1.8, 12);
-      if (L.t >= 4.5 && other && (!near || L.t >= maxG)) { L.stage = 1; L.t = 0; }
-      L.rem = Math.max(0, maxG - L.t);
+      if (L.t >= minG && other && (!near || L.t >= maxG)) { L.stage = 1; L.t = 0; }
     } else if (L.stage === 1) {
-      if (L.t >= CFG.yellow) { L.stage = 2; L.t = 0; }
-      L.rem = CFG.yellow - L.t;
-    } else {
-      if (L.t >= CFG.allRed) {
-        const n = L.phases.length;
-        let next = (L.idx + 1) % n;
-        for (let k = 1; k <= n; k++) {
-          const c = (L.idx + k) % n;
-          if ((this.demand >> c) & 1) { next = c; break; }
-        }
-        L.idx = next; L.stage = 0; L.t = 0;
-      }
-      L.rem = CFG.allRed - L.t;
+      if (L.t >= T.yellow) { L.stage = 2; L.t = 0; }
+    } else if (L.t >= T.allRed) {
+      const n = L.phases.length;
+      let next = (L.idx + 1) % n;
+      for (let k = 1; k <= n; k++) { const c = (L.idx + k) % n; if ((this.demand >> c) & 1) { next = c; break; } }
+      L.idx = next; L.stage = 0; L.t = 0;
     }
   }
 
-  // Grüne Welle: Versatz und Umlaufzeit auf die nächste Festzeit-Ampel entlang einer Achse abstimmen
-  greenWave() {
-    const w = this.w, L = this.light;
-    if (!L || L.smart) return { ok: false, msg: 'Nur für Festzeit-Ampeln möglich.' };
-    let best = null;
-    for (let s = 0; s < 4; s++) {
-      let t = this.i, n = 0;
-      while (n < 16) {
-        if (!((w.link[t] >> s) & 1)) break;
-        t = w.nb(t, s); n++;
-        if (t < 0 || !w.road[t]) break;
-        const K = w.jc[t];
-        if (K && K.type === 'light' && K.light && !K.light.smart && K.light.phases.length) { if (!best || n < best.n) best = { K, n, s }; break; }
-      }
-    }
-    if (!best) return { ok: false, msg: 'Keine Festzeit-Ampel in gerader Linie (bis 16 Felder) gefunden.' };
-    const K = best.K, LK = K.light;
-    const h = OPP[best.s]; // Fahrtrichtung von K nach hier
-    const st = 1 << TT_STRAIGHT;
-    const pK = LK.phases.findIndex(p => p.allow[h] & st), pJ = L.phases.findIndex(p => p.allow[h] & st);
-    if (pK < 0 || pJ < 0) return { ok: false, msg: 'Eine der Ampeln gibt der Achse nie Grün für Geradeaus.' };
-    const lost = CFG.yellow + CFG.allRed;
-    const cycK = K.cycleLen();
-    const target = cycK - L.phases.length * lost;
-    if (target < L.phases.length * 4) return { ok: false, msg: 'Umlaufzeit der Nachbarampel ist zu kurz.' };
-    const sum = L.phases.reduce((a, p) => a + p.g, 0);
-    let acc = 0;
-    L.phases.forEach((p, k) => { p.g = k === L.phases.length - 1 ? Math.max(4, target - acc) : Math.max(4, Math.round(p.g * target / sum)); acc += p.g; });
-    const cyc = this.cycleLen();
-    const start = (Lx, idx) => { let t = 0; for (let k = 0; k < idx; k++) t += Lx.phases[k].g + lost; return t; };
-    const T = best.n / CFG.roadSpeed[w.road[this.i] === 2 ? 2 : 1];
-    let off = start(L, pJ) - start(LK, pK) + LK.offset - T;
-    off = ((off % cyc) + cyc) % cyc;
-    L.offset = Math.round(off);
-    return { ok: true, msg: 'Abgestimmt auf die Ampel ' + best.n + ' Felder ' + ['nördlich', 'östlich', 'südlich', 'westlich'][best.s] + ' (Fahrzeit ca. ' + Math.round(T) + ' s, Umlauf ' + Math.round(cyc) + ' s).' };
-  }
-
-  lightActive() { return this.type === 'light' && !this.off && this.light && this.light.phases.length > 0; }
+  lightActive() { return this.type === 'light' && this.police <= 0 && this.light && this.light.phases.length > 0; }
 
   // 0 = rot, 1 = gelb, 2 = grün
-  sigFor(h, tt) {
-    const L = this.light;
-    const ph = L.phases[L.idx];
-    if (!ph) return 0;
-    const ok = (ph.allow[h] >> tt) & 1;
-    if (!ok) return 0;
+  sigFor(h) {
+    const L = this.light, ph = L.phases[L.idx];
+    if (!ph || !((ph.hs >> h) & 1)) return 0;
     return L.stage === 0 ? 2 : (L.stage === 1 ? 1 : 0);
   }
-  // Anzeige pro Zufahrt: Hauptsignal und ob Linkspfeil geschützt ist
-  signalHead(h) {
-    if (!this.lightActive()) return null;
-    const L = this.light, ph = L.phases[L.idx];
-    const a = ph ? ph.allow[h] : 0;
-    const anyGo = (a & SR_TURNS) !== 0, leftGo = (a & (1 << TT_LEFT)) !== 0;
-    const col = L.stage === 0 ? 2 : (L.stage === 1 ? 1 : 0);
-    const oncoming = ph ? ph.allow[OPP[h]] & SR_TURNS : 0;
-    return {
-      main: anyGo ? col : 0,
-      left: leftGo ? col : 0,
-      leftProtected: leftGo && !oncoming,
-    };
-  }
 
-  // ---- Entscheidung ---------------------------------------------------------------
-  conflicts(m1, m2) { return this.conf[m1 * 16 + m2] === 1; }
-
+  // ---- Entscheidung ------------------------------------------------------------------
   occConflict(r) {
     for (let k = 0; k < this.occ.length; k++) {
       const o = this.occ[k];
@@ -270,7 +175,7 @@ class Junction {
     if (r.exitDrive) return true;
     const w = this.w;
     const k = w.nb(this.i, r.d);
-    if (k < 0 || !w.road[k] || w.closed[k]) return false;
+    if (k < 0 || !w.road[k] || w.closed[k] || w.gate[k]) return false;
     const L = traffic.lanes[k * 4 + r.d];
     let free = 1.0;
     if (L && L.length) { const last = L[L.length - 1]; free = last.s - last.len * 0.5; }
@@ -282,11 +187,20 @@ class Junction {
     return free - CFG.gap >= r.v.len;
   }
 
-  // Ist Bewegung r durch Signale / Belegung hart blockiert?
+  // Ziel lässt gerade Autos vom Parkplatz ausfahren: Einfahrende warten
+  heldOut(r) {
+    const w = this.w;
+    if (r.v.emergency) return false;
+    if (w.holdT[this.i]) return true;
+    if (r.exitDrive) return false;
+    const k = w.nb(this.i, r.d);
+    return k >= 0 && w.holdT[k] === 1;
+  }
+
   hardBlocked(r, traffic) {
-    if (this.w.closed[this.i]) return true;
+    if (this.w.closed[this.i] || this.heldOut(r)) return true;
     if (this.lightActive() && !r.v.emergency) {
-      const sg = this.sigFor(r.h, r.tt);
+      const sg = this.sigFor(r.h);
       if (sg === 0) return true;
       if (sg === 1) {
         const stopDist = r.v.v * r.v.v / (2 * 3.2) + 0.05;
@@ -302,7 +216,7 @@ class Junction {
   rvl(a, r) {
     const rel = (a.h - r.h + 4) & 3;
     if (rel === 2) return (r.tt === TT_LEFT || r.tt === TT_UTURN) && (a.tt === TT_STRAIGHT || a.tt === TT_RIGHT);
-    if (rel === 3) return true; // a kommt von rechts
+    if (rel === 3) return true;
     return false;
   }
 
@@ -311,7 +225,7 @@ class Junction {
     if (r.v.emergency) return false;
     if (this.type === 'roundabout') return false;
     if (this.lightActive()) {
-      if (this.sigFor(a.h, a.tt) === 0) return false;
+      if (this.sigFor(a.h) === 0) return false;
       return this.rvl(a, r);
     }
     if (this.type === 'priority') {
@@ -323,26 +237,26 @@ class Junction {
   }
 
   mustYield(r) {
+    if (this.police > 0) return false;
     const A = this.appr;
     for (let k = 0; k < A.length; k++) {
       const a = A[k];
       if (a.v === r.v || a.granted || a.hard) continue;
       if (this.type !== 'roundabout' && !this.conf[r.m * 16 + a.m]) continue;
       if (!a.isReq && a.tta > CFG.yieldWindow * (a.v.emergency ? 2.5 : 1)) continue;
-      if (this.lightActive() && !a.v.emergency && this.sigFor(a.h, a.tt) === 0) continue;
+      if (this.lightActive() && !a.v.emergency && this.sigFor(a.h) === 0) continue;
       if (this.hasPriority(a, r)) return true;
     }
     return false;
   }
 
-  // Probelauf für Folgekreuzung (Kette direkt benachbarter Kreuzungen)
   canAcceptDry(r, traffic) {
-    if (this.w.closed[this.i]) return false;
-    if (this.lightActive() && !r.v.emergency && this.sigFor(r.h, r.tt) !== 2) return false;
+    if (this.w.closed[this.i] || this.heldOut(r)) return false;
+    if (this.lightActive() && !r.v.emergency && this.sigFor(r.h) !== 2) return false;
     if (this.type === 'roundabout') { if (this.ringBlocked(r)) return false; }
     else if (this.occConflict(r)) return false;
     if (!this.exitOk(r, traffic)) return false;
-    // wartenden, bevorrechtigten Fahrzeugen den Vortritt lassen
+    if (this.police > 0) return true;
     for (const a of this.appr) {
       if (!a.isReq || a.granted || a.v === r.v) continue;
       if (this.type !== 'roundabout' && !this.conf[r.m * 16 + a.m]) continue;
@@ -351,7 +265,6 @@ class Junction {
     return true;
   }
 
-  // Folgekreuzungen (direkt benachbart) entlang der Route – Freigabe nur für die ganze Kette
   chainInfo(r) {
     const w = this.w;
     const out = this._chainList || (this._chainList = []);
@@ -366,9 +279,10 @@ class Junction {
       const nd = v.route[ri];
       if (nd === undefined) break;
       let c = pool[depth];
-      if (!c) c = pool[depth] = { v: null, h: 0, d: 0, m: 0, tt: 0, dist: 0, tta: 0, exitDrive: false, isReq: true, granted: false, hard: false, ri2: 0, wait: 0 };
+      if (!c) c = pool[depth] = { v: null, h: 0, d: 0, m: 0, tt: 0, dist: 0, tta: 0, exitDrive: false, isReq: true, granted: false, hard: false, ri2: 0, wait: 0, d2: -1 };
       c.v = v; c.h = dir; c.d = nd; c.m = dir * 4 + nd; c.tt = turnOf(dir, nd);
       c.dist = dist; c.tta = r.tta + depth + 1; c.ri2 = ri + 1;
+      const d2 = v.route[ri + 1]; c.d2 = d2 === undefined ? -1 : d2;
       c.exitDrive = (k === v.goal && nd === v.goalDrive);
       out.push({ J: w.jc[k], r: c });
       if (c.exitDrive) break;
@@ -395,27 +309,27 @@ class Junction {
     }
   }
 
-  // Notventil: echte Patt-Situationen nach langer Wartezeit auflösen
+  // Notventil: echte Patt-Situationen nach Wartezeit auflösen („Nach Ihnen!“)
   forceable(r) {
     const w = this.w;
     if (w.closed[this.i]) return false;
-    if (w.isJ[r.v.t] && r.v.t !== this.i && r.wait > 7) return true;
-    if (r.wait > 22) {
-      for (const o of this.occ) if (o.v.v > 0.05 || o.v.stuck < 6) return false;
+    if (w.isJ[r.v.t] && r.v.t !== this.i && r.wait > 4) return true;
+    if (r.wait > 12) {
+      for (const o of this.occ) if (o.v.v > 0.05 || o.v.stuck < 4) return false;
       return true;
     }
     return false;
   }
 
-  decide(traffic, now) {
+  decide(traffic, dt) {
     const A = this.appr;
-    // Nachfrage für adaptive Ampeln
+    if (this.police > 0) this.police = Math.max(0, this.police - dt);
     if (this.type === 'light' && this.light) {
       let dem = 0, near = 0;
       const ph = this.light.phases;
       for (const a of A) {
         for (let p = 0; p < ph.length; p++) {
-          if ((ph[p].allow[a.h] >> a.tt) & 1) { dem |= 1 << p; if (a.tta < 3.2) near |= 1 << p; }
+          if ((ph[p].hs >> a.h) & 1) { dem |= 1 << p; if (a.tta < 3.2) near |= 1 << p; }
         }
       }
       this.demand = dem; this.demandNear = near;
@@ -436,7 +350,6 @@ class Junction {
     let any = false, yieldOnly = null;
     for (const r of R) {
       if (r.hard) continue;
-      // nach neuen Zulassungen erneut prüfen
       if (this.type === 'roundabout' ? this.ringBlocked(r) : this.occConflict(r)) { r.hard = true; continue; }
       if (!this.exitOk(r, traffic)) { r.hard = true; continue; }
       if (this.mustYield(r)) {
@@ -448,20 +361,21 @@ class Junction {
       this.grant(r, ch);
       any = true;
     }
-    // Notventil für festgefahrene Situationen
     for (const r of R) {
       if (r.granted || !this.forceable(r)) continue;
       const ch = this.chainInfo(r);
       this.grant(r, ch);
       r.v.ghost = 3;
       any = true;
+      if (this.w.emit) this.w.emit('valve', this);
       break;
     }
-    // Patt auflösen (z. B. vier Fahrzeuge bei rechts vor links)
     if (!any && yieldOnly && this.occ.length === 0 && yieldOnly.wait > 0.9) {
       const ch = this.chainInfo(yieldOnly);
       if (!ch.length || this.chainOk(ch, traffic)) this.grant(yieldOnly, ch);
     }
+    // Wartezeit für die Diagnose
+    for (const r of R) if (!r.granted) { this.waitAcc += dt; this.waitH[r.h] += dt; }
     A.length = 0;
   }
 
@@ -469,37 +383,20 @@ class Junction {
     for (let k = 0; k < this.occ.length; k++) {
       if (this.occ[k].v === v) { this.occ.splice(k, 1); break; }
     }
-    this.passCnt++;
+    this.pass++;
   }
 
   // Erwartete Zusatzzeit für die Routenplanung
   penalty(h, d) {
     const tt = turnOf(h, d);
     let p;
-    if (this.type === 'roundabout') p = 0.5;
-    else if (this.lightActive()) p = 2.2;
-    else if (this.type === 'priority') p = this.isMain(h) ? 0.15 : 1.0;
-    else p = 0.8;
-    if (tt === TT_LEFT) p += 0.45;
+    if (this.police > 0) p = 0.2;
+    else if (this.type === 'roundabout') p = 0.45;
+    else if (this.lightActive()) p = 1.6;
+    else if (this.type === 'priority') p = this.isMain(h) ? 0.1 : 0.9;
+    else p = 0.7;
+    if (tt === TT_LEFT) p += 0.35;
     if (tt === TT_UTURN) p += 2;
-    return p + Math.min(30, this.waitEma[h]) * 0.8;
-  }
-
-  // ---- Speichern -------------------------------------------------------------------
-  serialize() {
-    const o = { type: this.type };
-    if (this.noLeft) o.noLeft = this.noLeft;
-    if (this.type === 'priority') o.main = this.mainArms;
-    if (this.light) o.light = { phases: this.light.phases.map(p => ({ g: p.g, allow: p.allow.slice() })), offset: this.light.offset, smart: this.light.smart, paid: !!this.light.paid };
-    return o;
-  }
-  deserialize(o) {
-    this.type = o.type;
-    this.noLeft = o.noLeft || 0;
-    if (o.type === 'priority') this.mainArms = o.main;
-    if (o.light) {
-      this.light = { phases: o.light.phases.map(p => ({ g: p.g, allow: p.allow.slice() })), offset: o.light.offset || 0, smart: !!o.light.smart, paid: !!o.light.paid || !!o.light.smart, idx: 0, stage: 0, t: 0, rem: 0 };
-    }
-    this.onTopologyChange();
+    return p + Math.min(25, this.waitEma[h]) * 0.7;
   }
 }
