@@ -255,7 +255,9 @@ const Sprites = (() => {
     let c = cache.get(key);
     if (c) return c;
     if (flash) {
-      c = tintVariant(player(color, frame, false), '#ffffff', 0.8);
+      const base = player(color, frame, false);
+      c = tintVariant(base, '#ffffff', 0.8);
+      c.size = base.size;
       cache.set(key, c);
       return c;
     }

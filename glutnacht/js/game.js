@@ -150,6 +150,7 @@ const Game = {
     for (const e of r.enemies) if (!e.dead) g.insert(e);
 
     this.updateEnemies(dt);
+    if (r.over) return;
     for (const w of r.weapons) WEAPON_FN[w.id].update(w, r, dt);
     this.updateShots(dt);
     this.updateEnemyShots(dt);
@@ -323,9 +324,9 @@ const Game = {
       const dx = p.x - e.x, dy = p.y - e.y;
       const d = Math.hypot(dx, dy) || 1;
       if (e.swarm) {
-        e.life -= dt;
+        e.life -= dt * e.slowF;
         if (e.life <= 0) { e.dead = true; continue; }
-        mx = e.sdx * e.speed; my = e.sdy * e.speed;
+        mx = e.sdx * e.speed * e.slowF; my = e.sdy * e.speed * e.slowF;
       } else if (e.boss) {
         const v = this.bossAI(e, dx, dy, d, dt);
         mx = v.x; my = v.y;
@@ -336,10 +337,12 @@ const Game = {
           if (d < 190) dir = -0.6; else if (d < 260) dir = 0.15;
           mx = dx / d * sp * dir - dy / d * sp * 0.35;
           my = dy / d * sp * dir + dx / d * sp * 0.35;
-          e.shootT -= dt;
-          if (e.shootT <= 0 && d < 380) {
-            e.shootT = rand(3.2, 4.2);
-            this.enemyShot(e.x, e.y, dx / d, dy / d, 160, e.dmg, 7);
+          if (!(e.freezeT > 0)) {
+            e.shootT -= dt;
+            if (e.shootT <= 0 && d < 380) {
+              e.shootT = rand(3.2, 4.2);
+              this.enemyShot(e.x, e.y, dx / d, dy / d, 160, e.dmg, 7);
+            }
           }
         } else {
           mx = dx / d * sp; my = dy / d * sp;
@@ -443,7 +446,7 @@ const Game = {
 
   hurtPlayer(dmg) {
     const r = this.run, p = r.p;
-    if (p.iframe > 0 || r.over) return;
+    if (p.iframe > 0 || r.over || this.state !== 'play') return;
     const taken = Math.max(1, dmg - r.stats.armor);
     p.hp -= taken;
     p.iframe = 0.5;
@@ -527,9 +530,13 @@ const Game = {
       Hooks.shake(14);
       Hooks.sfx('bossdown');
       Hooks.banner(e.boss.name + ' besiegt!', 'win');
-      if (e.boss.final && !r.won) {
+      if (e.boss.final && !r.won && !r.over) {
         r.won = true;
+        // Sieg sofort sichern, falls der Endlosmodus nie regulär endet
+        if (r.heat >= save.heatUnlocked && r.heat < HEAT.length - 1) save.heatUnlocked = r.heat + 1;
+        save.stats.wins++;
         this.checkAchievements();
+        Store.save();
         this.state = 'victory';
         Hooks.victory();
       }
@@ -697,8 +704,10 @@ const Game = {
       if (g.mag) {
         const d = Math.sqrt(d2) || 1;
         g.sp += 1100 * dt;
-        g.x += dx / d * g.sp * dt; g.y += dy / d * g.sp * dt;
-        if (d < p.r + 8) {
+        const step = g.sp * dt;
+        // Schritt nie über den Spieler hinaus, sonst pendeln schnelle Steine ewig
+        if (step >= d) { g.x = p.x; g.y = p.y; } else { g.x += dx / d * step; g.y += dy / d * step; }
+        if (d < p.r + 8 || step >= d) {
           this.gainXp(g.v);
           r.gemCombo++; r.gemComboT = 0.7;
           Hooks.sfx('gem', r.gemCombo);
@@ -711,13 +720,15 @@ const Game = {
       const it = pk[i];
       const dx = p.x - it.x, dy = p.y - it.y, d2 = dx * dx + dy * dy;
       if (it.kind === 'coin' && !it.mag && d2 < mag2) { it.mag = true; it.sp = -100; }
+      let reached = false;
       if (it.mag) {
         const d = Math.sqrt(d2) || 1;
         it.sp += 1000 * dt;
-        it.x += dx / d * it.sp * dt; it.y += dy / d * it.sp * dt;
+        const step = it.sp * dt;
+        if (step >= d) { it.x = p.x; it.y = p.y; reached = true; } else { it.x += dx / d * step; it.y += dy / d * step; }
       }
       const reach = p.r + (it.kind === 'chest' ? 22 : 14);
-      if (d2 < reach * reach) {
+      if (reached || d2 < reach * reach) {
         this.collect(it);
         pk[i] = pk[pk.length - 1]; pk.pop();
       }
@@ -1004,6 +1015,7 @@ const Game = {
   // ---------- Erfolge & Laufende ----------
   checkAchievements() {
     const r = this.run, save = Store.data;
+    let any = false;
     for (const a of ACHIEVEMENTS) {
       if (save.achievements[a.id]) continue;
       let ok = false;
@@ -1018,11 +1030,14 @@ const Game = {
       }
       if (a.id === 'win') save.heatUnlocked = Math.max(save.heatUnlocked, 1);
       Hooks.achievement(a);
+      any = true;
     }
+    if (any) Store.save();
   },
 
   continueEndless() {
     const r = this.run;
+    if (r.over) return;
     r.endless = true;
     r.endlessBossT = 120;
     this.state = 'play';
@@ -1031,8 +1046,9 @@ const Game = {
 
   endRun(won) {
     const r = this.run, save = Store.data;
+    if (r.ended) return;
+    r.ended = true;
     r.over = true;
-    if (r.won && r.heat >= save.heatUnlocked && r.heat < HEAT.length - 1) save.heatUnlocked = r.heat + 1;
     const timeBonus = Math.floor(r.t / 60) * 6;
     const bossBonus = r.bossKills * 25;
     const bonus = Math.round((timeBonus + bossBonus) * HEAT[r.heat].gold);
@@ -1043,7 +1059,6 @@ const Game = {
     save.stats.bestTime = Math.max(save.stats.bestTime, r.t);
     save.stats.bestLevel = Math.max(save.stats.bestLevel, r.level);
     save.stats.bestKills = Math.max(save.stats.bestKills, r.kills);
-    if (r.won) save.stats.wins++;
     this.checkAchievements();
     Store.save();
     this.state = 'over';

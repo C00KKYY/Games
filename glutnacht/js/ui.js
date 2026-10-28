@@ -309,20 +309,26 @@ const UI = {
         const it = SHOP.find(x => x.id === b.dataset.id);
         const lvl = s.shop[it.id] || 0, price = shopPrice(it, s);
         if (lvl >= it.max || s.gold < price) { Sfx.play('deny'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
-        s.gold -= price; s.shop[it.id] = lvl + 1; Store.save();
+        s.gold -= price; s.shop[it.id] = lvl + 1;
+        s.shopSpent = (s.shopSpent || 0) + price;
+        Store.save();
         Sfx.play('buy'); this.show('shop'); break;
       }
       case 'refund': {
         if (this.confirm !== 'refund') { this.confirm = 'refund'; this.show('shop'); return; }
         this.confirm = null;
-        let back = 0;
-        const tmp = { shop: {} };
-        // Erstattung = Summe der damaligen Preise (in Kaufreihenfolge nachgerechnet)
-        for (const it of SHOP) {
-          const lvl = s.shop[it.id] || 0;
-          for (let i = 0; i < lvl; i++) { back += shopPrice(it, tmp); tmp.shop[it.id] = (tmp.shop[it.id] || 0) + 1; }
+        // Erstattet wird genau, was bezahlt wurde (Preise hängen von der Kaufreihenfolge ab).
+        let back = s.shopSpent;
+        if (typeof back !== 'number') {
+          // Alter Spielstand ohne Buchführung: günstigste mögliche Reihenfolge nachrechnen, nie mehr als bezahlt
+          back = 0;
+          const tmp = { shop: {} };
+          for (const it of SHOP.slice().sort((a, b) => b.cost - a.cost)) {
+            const lvl = s.shop[it.id] || 0;
+            for (let i = 0; i < lvl; i++) { back += shopPrice(it, tmp); tmp.shop[it.id] = (tmp.shop[it.id] || 0) + 1; }
+          }
         }
-        s.gold += back; s.shop = {}; Store.save(); Sfx.play('coin'); this.show('shop'); break;
+        s.gold += back; s.shop = {}; s.shopSpent = 0; Store.save(); Sfx.play('coin'); this.show('shop'); break;
       }
       case 'toggle': {
         const k = b.dataset.k;
@@ -332,7 +338,7 @@ const UI = {
       }
       case 'reset':
         if (this.confirm !== 'reset') { this.confirm = 'reset'; this.show('opts'); return; }
-        this.confirm = null; Store.reset(); this.selChar = 'aron'; Sfx.applySettings(); this.toMenu(); break;
+        this.confirm = null; Game.run = null; Game.state = 'menu'; Store.reset(); this.selChar = 'aron'; Sfx.applySettings(); this.toMenu(); break;
       case 'pick': {
         const o = Game.lastLevelOptions[+b.dataset.i];
         if (!o) return;

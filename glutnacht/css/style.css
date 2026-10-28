@@ -45,14 +45,14 @@ img { -webkit-user-drag: none; }
 .slot.empty { opacity: 0.35; }
 #pslots .slot { width: 24px; height: 24px; }
 #pslots .slot img { width: 19px; height: 19px; }
-#timer { font-family: var(--head); font-size: 34px; line-height: 1; text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, 0.8); position: absolute; left: 50%; transform: translateX(-50%); top: 26px; letter-spacing: 1px; }
+#timer { font-family: var(--head); font-size: 34px; line-height: 1; text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, 0.8); position: absolute; left: 50%; transform: translateX(-50%); top: calc(26px + env(safe-area-inset-top, 0px)); letter-spacing: 1px; }
 #timer.endless { color: #ff7a9a; }
 #counters { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: var(--head); font-size: 17px; text-shadow: 0 1px 2px #000; margin-right: 44px; }
 #counters div { display: flex; align-items: center; gap: 5px; }
 #counters img { width: 20px; height: 20px; }
 #pausebtn { pointer-events: auto; position: absolute; right: calc(8px + env(safe-area-inset-right)); top: calc(26px + env(safe-area-inset-top)); width: 38px; height: 38px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(10, 6, 25, 0.7); display: flex; gap: 5px; align-items: center; justify-content: center; }
 #pausebtn i { width: 5px; height: 15px; background: #fff; border-radius: 2px; }
-#bossbar { position: absolute; left: 50%; transform: translateX(-50%); top: 70px; width: min(460px, 70vw); text-align: center; }
+#bossbar { position: absolute; left: 50%; transform: translateX(-50%); top: calc(70px + env(safe-area-inset-top, 0px)); width: min(460px, 70vw); text-align: center; }
 #bossname { font-family: var(--head); font-size: 18px; color: #ffb3c1; text-shadow: 0 2px 0 #000, 0 0 10px #ff2050; }
 #bossbar .bar { height: 12px; border-radius: 6px; background: rgba(10, 4, 20, 0.85); border: 2px solid #3a0a1a; overflow: hidden; margin-top: 3px; }
 #bossfill { height: 100%; width: 100%; background: linear-gradient(180deg, #ff6a8a, #c4123c); transition: width 0.15s; }
@@ -271,8 +271,8 @@ img { -webkit-user-drag: none; }
 .over .actions { justify-content: center; }
 
 @media (max-width: 560px) {
-  #timer { font-size: 26px; top: 82px; }
-  #bossbar { top: 112px; }
+  #timer { font-size: 26px; top: calc(82px + env(safe-area-inset-top, 0px)); }
+  #bossbar { top: calc(112px + env(safe-area-inset-top, 0px)); }
   #banner { top: 30%; }
   #toasts { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); left: 10px; right: 10px; max-width: none; }
   .toast { padding: 6px 10px; }

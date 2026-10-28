@@ -104,6 +104,7 @@ function defaultSave() {
   return {
     gold: 0,
     shop: {},
+    shopSpent: 0,
     chars: ['aron', 'mira'],
     achievements: {},
     evolved: {},

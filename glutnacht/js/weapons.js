@@ -116,7 +116,7 @@ const WEAPON_FN = {
       w.rad = 82 * st.area;
       w.cdT -= dt;
       if (w.cdT > 0) return;
-      w.cdT = st.cd;
+      w.cdT = st.cd / st.amount; // +1 Geschoss = ein zusätzlicher Puls pro Abklingzeit
       w.pulse = 1;
       let any = false;
       Game.inCircle(p.x, p.y, w.rad, e => {
