@@ -1,6 +1,7 @@
 // Bündelt das Spiel in eine einzige HTML-Datei (CSS und JS inline).
 //   node tools/build-single.js [ausgabe.html]             -> vollständige HTML-Datei
-//   node tools/build-single.js <ausgabe.html> --fragment  -> ohne <html>/<head>/<body> (für Einbettungen)
+//   node tools/build-single.js <ausgabe.html> --fragment  -> ohne <html>/<head>/<body> (für Einbettungen;
+//     die Gastseite muss UTF-8 und viewport-fit=cover deklarieren)
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -22,7 +23,9 @@ if (fragment) {
     .replace(/<\/?(html|body)[^>]*>\s*/gi, '')
     .replace(/<\/?head>\s*/gi, '')
     .replace(/<meta charset="utf-8">\s*/i, '')
-    .replace(/<meta name="viewport"[^>]*>\s*/i, '');
+    .replace(/<meta name="viewport"[^>]*>\s*/i, '')
+    .replace(/<meta name="(description|theme-color)"[^>]*>\s*/gi, '')
+    .replace('<div id="app">', '<div id="app" lang="de">');
 }
 
 fs.writeFileSync(out, html);

@@ -18,7 +18,8 @@
   Hooks.achievement = a => UI.achievement(a);
 
   window.addEventListener('resize', () => Render.resize());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) UI.pause(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { UI.pause(); Store.save(); } });
+  window.addEventListener('blur', () => UI.pause());
 
   // Audio darf erst nach einer Nutzeraktion starten.
   const unlock = () => {

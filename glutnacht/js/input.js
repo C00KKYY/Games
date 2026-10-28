@@ -2,20 +2,23 @@
 // Tastatur und virtueller Joystick (Touch/Maus: irgendwo drücken und ziehen).
 
 const Input = {
-  keys: new Set(),
+  keys: new Set(), // physische Tasten (e.code), unabhängig von Layout und Modifikatoren
   joy: null, // { id, ox, oy, x, y }
+  touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
 
   init(canvas) {
     window.addEventListener('keydown', e => {
       const k = e.key.toLowerCase();
-      this.keys.add(k);
+      // Mit gedrückter Cmd-Taste kommt auf macOS kein keyup – nichts merken
+      if (e.metaKey) this.keys.clear(); else this.keys.add(e.code);
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) && Game.state === 'play') e.preventDefault();
       UI.onKey(k, e);
     });
-    window.addEventListener('keyup', e => this.keys.delete(e.key.toLowerCase()));
+    window.addEventListener('keyup', e => { if (e.key === 'Meta') this.keys.clear(); else this.keys.delete(e.code); });
     window.addEventListener('blur', () => { this.keys.clear(); this.joy = null; });
 
     canvas.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'touch') this.touch = true;
       if (Game.state !== 'play' || this.joy) return;
       Sfx.init();
       this.joy = { id: e.pointerId, ox: e.clientX, oy: e.clientY, x: e.clientX, y: e.clientY };
@@ -37,10 +40,10 @@ const Input = {
   update() {
     let x = 0, y = 0;
     const k = this.keys;
-    if (k.has('a') || k.has('arrowleft') || k.has('q')) x -= 1;
-    if (k.has('d') || k.has('arrowright')) x += 1;
-    if (k.has('w') || k.has('arrowup') || k.has('z')) y -= 1;
-    if (k.has('s') || k.has('arrowdown')) y += 1;
+    if (k.has('KeyA') || k.has('ArrowLeft')) x -= 1;
+    if (k.has('KeyD') || k.has('ArrowRight')) x += 1;
+    if (k.has('KeyW') || k.has('ArrowUp')) y -= 1;
+    if (k.has('KeyS') || k.has('ArrowDown')) y += 1;
     if (x || y) {
       const l = Math.hypot(x, y);
       x /= l; y /= l;

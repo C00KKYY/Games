@@ -130,7 +130,10 @@ const Store = {
     } catch (e) { d = null; }
     const def = defaultSave();
     if (!d || typeof d !== 'object') d = def;
+    const legacySpent = typeof d.shopSpent !== 'number';
     for (const k in def) if (d[k] === undefined) d[k] = def[k];
+    if (!d.shop || typeof d.shop !== 'object') d.shop = {};
+    if (legacySpent) d.shopSpent = shopRefundValue(d.shop);
     for (const k in def.stats) if (d.stats[k] === undefined) d.stats[k] = def.stats[k];
     for (const k in def.settings) if (d.settings[k] === undefined) d.settings[k] = def.settings[k];
     this.data = d;

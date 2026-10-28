@@ -133,6 +133,7 @@ const Game = {
     if (p.moving) {
       const k = Math.min(1, il);
       p.dirX = ix / il; p.dirY = iy / il;
+      r.moved = true;
       p.x += p.dirX * s.speed * k * dt;
       p.y += p.dirY * s.speed * k * dt;
       p.walk += dt * 10 * k;
@@ -889,6 +890,11 @@ const Game = {
       out.push(cands[idx]);
       cands.splice(idx, 1);
     }
+    // Frühe Stufen: immer eine neue Waffe anbieten – das sichtbarste Upgrade
+    if (r.weapons.length === 1 && r.level <= 4 && out.length && !out.some(o => o.kind === 'weapon' && o.isNew)) {
+      const nw = cands.filter(c => c.kind === 'weapon' && c.isNew);
+      if (nw.length) out[out.length - 1] = pick(nw);
+    }
     if (!out.length) {
       out.push({ kind: 'gold', id: 'gold', amount: 25 });
       out.push({ kind: 'heal', id: 'heal', amount: 40 });
@@ -1049,10 +1055,14 @@ const Game = {
     if (r.ended) return;
     r.ended = true;
     r.over = true;
-    const timeBonus = Math.floor(r.t / 60) * 6;
-    const bossBonus = r.bossKills * 25;
-    const bonus = Math.round((timeBonus + bossBonus) * HEAT[r.heat].gold);
-    const total = r.gold + bonus;
+    // Boni enthalten den Nachtstufen-Faktor bereits (wie das gesammelte Gold)
+    const mul = HEAT[r.heat].gold;
+    const timeBonus = Math.round(Math.floor(r.t / 60) * 6 * mul);
+    const bossBonus = Math.round(r.bossKills * 25 * mul);
+    // Startgeschenk: Der erste Lauf reicht immer für eine erste Verbesserung
+    const cheapest = Math.min(...SHOP.map(it => shopPrice(it, save)));
+    const gift = save.stats.runs === 1 ? Math.max(0, cheapest - save.gold - r.gold - timeBonus - bossBonus) : 0;
+    const total = r.gold + timeBonus + bossBonus + gift;
     save.gold += total;
     save.stats.goldEarned += total;
     save.stats.playTime += r.t;
@@ -1062,6 +1072,6 @@ const Game = {
     this.checkAchievements();
     Store.save();
     this.state = 'over';
-    Hooks.gameOver({ won: r.won, collected: r.gold, timeBonus, bossBonus, heatMul: HEAT[r.heat].gold, total });
+    Hooks.gameOver({ won: r.won, collected: r.gold, timeBonus, bossBonus, gift, heatMul: mul, total });
   },
 };

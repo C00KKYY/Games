@@ -81,7 +81,8 @@ const Render = {
     this.dpr = dpr; this.W = W; this.H = H;
     this.cv.width = Math.round(W * dpr); this.cv.height = Math.round(H * dpr);
     this.cv.style.width = W + 'px'; this.cv.style.height = H + 'px';
-    this.zoom = clamp(Math.min(W, H) / 660, 0.55, 1.4);
+    // Hochformat-Handys: die lange Seite als zweite Untergrenze, sonst wird alles winzig
+    this.zoom = clamp(Math.max(Math.min(W, H) / 660, Math.max(W, H) / 1200), 0.55, 1.4);
     Game.view.hw = W / 2 / this.zoom;
     Game.view.hh = H / 2 / this.zoom;
     this.vignette = this.makeVignette(W, H, 'rgba(6,2,20,0)', 'rgba(6,2,20,0.78)', 0.32);
@@ -450,11 +451,11 @@ const Render = {
     ctx.restore();
     ctx.globalAlpha = 1;
     // Lebensleiste
-    const w = 34, k = Math.max(0, p.hp / r.stats.maxHp);
+    const w = 40, k = Math.max(0, p.hp / r.stats.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(p.x - w / 2 - 1, p.y + 19, w + 2, 6);
+    ctx.fillRect(p.x - w / 2 - 1, p.y + 19, w + 2, 8);
     ctx.fillStyle = k > 0.5 ? '#5dff8f' : k > 0.25 ? '#ffd34f' : '#ff5a6e';
-    ctx.fillRect(p.x - w / 2, p.y + 20, w * k, 4);
+    ctx.fillRect(p.x - w / 2, p.y + 20, w * k, 6);
   },
 
   drawScreenFx(r, dt) {
@@ -497,6 +498,23 @@ const Render = {
       const sp = Sprites.item(icon);
       ctx.drawImage(sp, -11, -11, 22, 22);
       ctx.restore();
+    }
+    // Einstiegshilfe in den ersten Läufen
+    if (Store.data.stats.runs <= 2 && r.t < 40) {
+      let txt = null;
+      if (!r.moved) txt = Input.touch ? 'Gedrückt halten und ziehen zum Laufen' : 'WASD / Pfeiltasten zum Laufen';
+      else if (r.level === 1 && r.t > 6) txt = 'Sammle die blauen Edelsteine!';
+      if (txt) {
+        const s = this.toScreen(p.x, p.y);
+        ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.25;
+        ctx.font = '19px "Lilita One", Impact, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+        ctx.strokeText(txt, s.x, s.y + 70);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(txt, s.x, s.y + 70);
+        ctx.globalAlpha = 1;
+      }
     }
     Input.drawJoystick(ctx);
   },

@@ -68,7 +68,7 @@ img { -webkit-user-drag: none; }
   80% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1) translateY(-20px); }
 }
-#toasts { position: absolute; right: 10px; top: 110px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 30; max-width: min(340px, 80vw); }
+#toasts { position: absolute; right: calc(10px + env(safe-area-inset-right, 0px)); top: calc(110px + env(safe-area-inset-top, 0px)); display: flex; flex-direction: column; gap: 6px; pointer-events: none; z-index: 30; max-width: min(340px, 80vw); }
 .toast { display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg, rgba(60, 40, 10, 0.95), rgba(30, 18, 60, 0.95)); border: 1px solid var(--gold); border-radius: 12px; padding: 8px 12px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5); animation: toastIn 0.35s ease; transition: opacity 0.5s, transform 0.5s; }
 .toast .tiny { width: 30px; height: 30px; }
 .toast b { display: block; color: var(--gold); font-family: var(--head); font-weight: 400; font-size: 16px; }
@@ -143,7 +143,7 @@ img { -webkit-user-drag: none; }
 .cdline .ic { width: 34px; height: 34px; }
 .cdline small { color: var(--muted); }
 .cdbonus { color: var(--good); font-size: 15px; }
-.unlocks { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.char .cu { font-size: 10px; line-height: 1.15; color: var(--muted); margin-top: 4px; padding: 0 2px; text-align: center; }
 .heat { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 .heat .hl { font-family: var(--head); font-size: 17px; margin-right: 4px; color: #ffb3c1; }
 .chip { background: var(--panel2); border: 2px solid transparent; border-radius: 10px; padding: 4px 10px; display: flex; flex-direction: column; align-items: center; font-family: var(--head); font-size: 16px; }
@@ -152,6 +152,7 @@ img { -webkit-user-drag: none; }
 
 /* Schmiede */
 .shopgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.s-shop .panel > .actions { position: sticky; bottom: -16px; z-index: 2; background: var(--panel); margin: 12px -18px -18px; padding: 10px 18px 16px; border-radius: 0 0 20px 20px; box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.35); }
 .shopitem { background: var(--panel2); border: 2px solid transparent; border-radius: 14px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; transition: transform 0.1s; }
 .shopitem .ic { width: 40px; height: 40px; }
 .shopitem.can { border-color: rgba(255, 211, 79, 0.6); box-shadow: 0 0 14px rgba(255, 211, 79, 0.2); }
@@ -274,7 +275,7 @@ img { -webkit-user-drag: none; }
   #timer { font-size: 26px; top: calc(82px + env(safe-area-inset-top, 0px)); }
   #bossbar { top: calc(112px + env(safe-area-inset-top, 0px)); }
   #banner { top: 30%; }
-  #toasts { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); left: 10px; right: 10px; max-width: none; }
+  #toasts { top: auto; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); left: calc(10px + env(safe-area-inset-left, 0px)); right: calc(10px + env(safe-area-inset-right, 0px)); max-width: none; }
   .toast { padding: 6px 10px; }
   #counters { font-size: 15px; }
   .slot { width: 26px; height: 26px; }
@@ -292,5 +293,6 @@ img { -webkit-user-drag: none; }
   .build { grid-template-columns: 1fr; }
   .ostats { grid-template-columns: repeat(2, 1fr); }
   .panel { padding: 14px; }
+  .s-shop .panel > .actions { margin: 12px -14px -14px; padding: 10px 14px 14px; }
   .btn.big { font-size: 22px; padding: 12px 30px; }
 }

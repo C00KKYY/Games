@@ -6,7 +6,7 @@ const TIPS = [
   'Elitegegner (goldener Schein) tragen Truhen. Bosse auch.',
   'Kohlebecken auf der Karte zerschlagen: Gold, Herzen, Magnete und Bomben.',
   'Gold bleibt nach dem Tod erhalten – in der Schmiede wirst du dauerhaft stärker.',
-  'Rote Flächen am Boden: Der Boss holt zum Schlag aus. Raus da!',
+  'Rote Flächen am Boden: Der Boss holt zum Schlag oder Sturmangriff aus. Raus da!',
   'Der Magnet zieht alle Edelsteine auf der Karte zu dir.',
   'Bei „Umzingelt!“ nicht warten – brich früh durch eine Lücke.',
   'Glück erhöht die Chance auf eine vierte Karte und auf große Truhen.',
@@ -26,7 +26,7 @@ const UI = {
       banner: $('banner'), toasts: $('toasts'), screen: $('screen'), pausebtn: $('pausebtn'),
     };
     document.querySelectorAll('img[data-icon]').forEach(img => { img.src = Sprites.iconURL(img.dataset.icon, 32); });
-    this.el.pausebtn.addEventListener('click', () => { Sfx.init(); this.pause(); });
+    this.el.pausebtn.addEventListener('click', () => { this.el.pausebtn.blur(); Sfx.init(); this.pause(); });
     this.el.screen.addEventListener('click', e => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -61,7 +61,7 @@ const UI = {
   tpl_menu() {
     const s = Store.data, st = s.stats;
     const achN = Object.keys(s.achievements).length;
-    const tip = pick(TIPS);
+    const tip = st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.';
     return '<div class="menu">' +
       '<div class="logo"><span>Glut</span><span>nacht</span></div>' +
       '<div class="tag">Überlebe die Nacht. 15 Minuten. Tausende Monster.</div>' +
@@ -69,7 +69,7 @@ const UI = {
       '<div class="row">' +
       '<button class="btn" data-act="shop">' + this.icon('armor') + 'Schmiede</button>' +
       '<button class="btn" data-act="ach">' + this.icon('trophy') + 'Erfolge <span class="pill">' + achN + '/' + ACHIEVEMENTS.length + '</span></button>' +
-      '<button class="btn" data-act="opts">' + this.icon('clock') + 'Optionen</button>' +
+      '<button class="btn" data-act="opts">' + this.icon('clock') + 'Einstellungen</button>' +
       '</div>' +
       this.goldBox() +
       (st.runs ? '<div class="statsline">Bestzeit <b>' + fmtTime(st.bestTime) + '</b> · Höchste Stufe <b>' + st.bestLevel + '</b> · <b>' + fmtNum(st.kills) + '</b> Monster besiegt · <b>' + st.wins + '</b> Siege</div>' : '') +
@@ -86,7 +86,7 @@ const UI = {
       h += '<button class="char' + (locked ? ' locked' : '') + (id === this.selChar ? ' sel' : '') + '" data-act="char" data-id="' + id + '">' +
         '<img class="portrait" src="' + Sprites.playerURL(locked ? '#2a2638' : c.color, 64) + '" alt="">' +
         (locked ? this.icon('lock', 'lockic') : '<img class="wpn" src="' + Sprites.iconURL(c.weapon, 32) + '" alt="">') +
-        '<div class="cn">' + (locked ? '???' : c.name) + '</div></button>';
+        (locked ? '<small class="cu">' + ((ACHIEVEMENTS.find(x => x.id === c.unlock) || {}).text || '') + '</small>' : '<div class="cn">' + c.name + '</div>') + '</button>';
     }
     h += '</div>';
     const c = CHARS[this.selChar];
@@ -95,14 +95,6 @@ const UI = {
       '<div><div class="cdname">' + c.name + ' <span>' + c.title + '</span></div>' +
       '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + w.name + '</b><br><small>' + w.desc + '</small></div></div>' +
       '<div class="cdbonus">' + c.text + '</div></div></div>';
-    // Gesperrte Helden: Bedingung zeigen
-    const lockedList = Object.keys(CHARS).filter(id => s.chars.indexOf(id) < 0);
-    if (lockedList.length) {
-      h += '<div class="unlocks">' + lockedList.map(id => {
-        const a = ACHIEVEMENTS.find(x => x.id === CHARS[id].unlock);
-        return '<span>' + this.icon('lock', 'tiny') + (a ? a.text : '') + '</span>';
-      }).join('') + '</div>';
-    }
     if (s.heatUnlocked > 0) {
       h += '<div class="heat"><div class="hl">Nachtstufe</div>';
       for (let i = 0; i <= s.heatUnlocked; i++) {
@@ -117,7 +109,7 @@ const UI = {
   tpl_shop() {
     const s = Store.data;
     let h = '<div class="panel wide"><div class="phead"><h2>Schmiede</h2>' + this.goldBox() + '</div>' +
-      '<p class="sub">Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht die übrigen etwas teurer.</p><div class="shopgrid">';
+      '<p class="sub">Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht alle weiteren Käufe etwas teurer.</p><div class="shopgrid">';
     for (const it of SHOP) {
       const lvl = s.shop[it.id] || 0, max = lvl >= it.max, price = shopPrice(it, s);
       const can = !max && s.gold >= price;
@@ -128,7 +120,7 @@ const UI = {
         '<div class="st">' + it.text + '</div>' +
         '<div class="price">' + (max ? 'MAX' : this.icon('coin', 'tiny') + fmtNum(price)) + '</div></button>';
     }
-    h += '</div><div class="actions"><button class="btn small ghost" data-act="refund">' + (this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' +
+    h += '</div><div class="actions">' + (s.shopSpent > 0 ? '<button class="btn small ghost" data-act="refund">' + (this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' : '') +
       '<button class="btn primary" data-act="menu">Zurück</button></div></div>';
     return h;
   },
@@ -154,9 +146,9 @@ const UI = {
   tpl_opts() {
     const st = Store.data.settings;
     const tg = (k, label) => '<button class="toggle' + (st[k] ? ' on' : '') + '" data-act="toggle" data-k="' + k + '"><span>' + label + '</span><i></i></button>';
-    return '<div class="panel"><h2>Optionen</h2>' +
-      tg('sfx', 'Soundeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
-      '<div class="controls"><b>Steuerung</b><br>Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen und ziehen.<br>Angreifen passiert automatisch.<br>Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R</div>' +
+    return '<div class="panel"><h2>Einstellungen</h2>' +
+      tg('sfx', 'Klangeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
+      '<div class="controls"><b>Steuerung</b><br>Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.<br>Angreifen passiert automatisch.<br>Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R</div>' +
       '<div class="actions"><button class="btn small danger" data-act="reset">' + (this.confirm === 'reset' ? 'Wirklich ALLES löschen?' : 'Spielstand löschen') + '</button>' +
       '<button class="btn primary" data-act="optsback">Zurück</button></div></div>';
   },
@@ -175,7 +167,7 @@ const UI = {
     const d = PASSIVES[o.id];
     let hint = '';
     for (const w of r.weapons) {
-      if (WEAPONS[w.id].evo.with === o.id && !w.evo) hint = 'Entwickelt ' + WEAPONS[w.id].name + (w.level >= WEAPON_MAX ? ' (bereit!)' : ' ab Stufe 8');
+      if (WEAPONS[w.id].evo.with === o.id && !w.evo) hint = 'Entwickelt ' + WEAPONS[w.id].name + (w.level >= WEAPON_MAX ? ' (bereit!)' : ' (ab Waffenstufe 8)');
     }
     return { icon: o.id, name: d.name, desc: d.desc, tag: o.isNew ? 'NEU!' : 'Stufe ' + o.level, hint, ready: hint.indexOf('bereit') >= 0 };
   },
@@ -191,10 +183,10 @@ const UI = {
         '<div class="cname">' + t.name + '</div><div class="cdesc">' + t.desc + '</div>' +
         (t.hint ? '<div class="chint">' + t.hint + '</div>' : '') + '<kbd>' + (i + 1) + '</kbd></button>';
     });
-    h += '</div><div class="lvactions">' +
-      '<button class="btn small" data-act="reroll"' + (r.rerolls > 0 ? '' : ' disabled') + '>' + this.icon('dice', 'tiny') + 'Neu würfeln (' + r.rerolls + ')</button>' +
-      '<button class="btn small" data-act="skip"' + (r.skips > 0 ? '' : ' disabled') + '>' + this.icon('skip', 'tiny') + 'Überspringen (' + r.skips + ')</button>' +
-      '<button class="btn small' + (this.banMode ? ' active' : '') + '" data-act="banmode"' + (r.banishes > 0 ? '' : ' disabled') + '>' + this.icon('banish', 'tiny') + 'Verbannen (' + r.banishes + ')</button>' +
+    // Nur Knöpfe zeigen, die man auch benutzen kann
+    const mb = (act, ic, label, n, cls) => n > 0 ? '<button class="btn small' + (cls || '') + '" data-act="' + act + '">' + this.icon(ic, 'tiny') + label + ' (' + n + ')</button>' : '';
+    h += '</div><div class="lvactions">' + mb('reroll', 'dice', 'Neu würfeln', r.rerolls) + mb('skip', 'skip', 'Überspringen', r.skips) +
+      mb('banmode', 'banish', 'Verbannen', r.banishes, this.banMode ? ' active' : '') +
       '</div>' + (r.rerolls + r.skips + r.banishes === 0 && Store.data.stats.runs <= 3 ? '<div class="lvnote">Neu würfeln, Überspringen und Verbannen gibt es in der Schmiede.</div>' : '') + '</div>';
     return h;
   },
@@ -226,7 +218,7 @@ const UI = {
       h += '<div class="brow">' + this.icon(w.id) + '<div><b>' + (w.evo ? d.evo.name : d.name) + '</b> <span class="lv' + (w.evo ? ' evo' : '') + '">' + (w.evo ? 'ENTWICKELT' : 'Stufe ' + w.level + '/8') + '</span>' +
         (w.evo ? '' : '<small>Entwicklung: Stufe 8 + ' + PASSIVES[d.evo.with].name + (Game.hasPassive(d.evo.with) ? ' ✓' : '') + ', dann Truhe</small>') + '</div></div>';
     }
-    h += '</div><div class="bcol"><h3>Passiv</h3>';
+    h += '</div><div class="bcol"><h3>Passive</h3>';
     for (const p of r.passives) {
       const d = PASSIVES[p.id];
       h += '<div class="brow">' + this.icon(p.id) + '<div><b>' + d.name + '</b> <span class="lv">Stufe ' + p.level + '/' + d.max + '</span><small>' + d.desc + '</small></div></div>';
@@ -236,10 +228,10 @@ const UI = {
     h += '</div></div><div class="statgrid">' +
       '<div>Leben<b>' + Math.ceil(r.p.hp) + '/' + s.maxHp + '</b></div><div>Rüstung<b>' + s.armor + '</b></div><div>Erholung<b>' + s.regen.toFixed(1).replace('.', ',') + '/s</b></div>' +
       '<div>Schaden<b>' + pct(s.might - 1) + '</b></div><div>Fläche<b>' + pct(s.area - 1) + '</b></div><div>Abklingzeit<b>' + pct(s.cooldown - 1) + '</b></div>' +
-      '<div>Geschosse<b>+' + s.amount + '</b></div><div>Tempo<b>' + pct(s.speedMul - 1) + '</b></div><div>Glück<b>' + pct(s.luck - 1) + '</b></div>' +
+      '<div>Geschosse<b>+' + s.amount + '</b></div><div>Lauftempo<b>' + pct(s.speedMul - 1) + '</b></div><div>Glück<b>' + pct(s.luck - 1) + '</b></div>' +
       '<div>Krit<b>' + Math.round(s.crit * 100) + ' %</b></div><div>Wachstum<b>' + pct(s.growth - 1) + '</b></div><div>Gier<b>' + pct(s.greed - 1) + '</b></div>' +
       '</div><div class="actions"><button class="btn danger small" data-act="quit">' + (this.confirm === 'quit' ? 'Wirklich aufgeben?' : 'Aufgeben') + '</button>' +
-      '<button class="btn small" data-act="opts">Optionen</button><button class="btn primary" data-act="resume">Weiter</button></div></div>';
+      '<button class="btn small" data-act="opts">Einstellungen</button><button class="btn primary" data-act="resume">Weiter</button></div></div>';
     return h;
   },
 
@@ -260,7 +252,8 @@ const UI = {
       '<div>' + this.icon('skull', 'tiny') + '<b>' + fmtNum(r.kills) + '</b><small>Besiegt</small></div>' +
       '<div><b>' + r.bossKills + '</b><small>Bosse</small></div></div>' +
       '<div class="goldcalc"><span>Gesammelt <b>' + sum.collected + '</b></span><span>Zeitbonus <b>' + sum.timeBonus + '</b></span><span>Bossbonus <b>' + sum.bossBonus + '</b></span>' +
-      (sum.heatMul > 1 ? '<span>Nachtstufe <b>×' + String(sum.heatMul).replace('.', ',') + '</b></span>' : '') +
+      (sum.gift ? '<span>Startgeschenk <b>' + sum.gift + '</b></span>' : '') +
+      (sum.heatMul > 1 ? '<span>(inkl. Nachtstufe ×' + String(sum.heatMul).replace('.', ',') + ')</span>' : '') +
       '<span class="gtotal">' + this.icon('coin', 'tiny') + '+' + fmtNum(sum.total) + '</span></div>';
     const dmg = Object.entries(r.dmgBy).filter(([k]) => WEAPONS[k]).sort((a, b) => b[1] - a[1]);
     if (dmg.length) {
@@ -280,9 +273,11 @@ const UI = {
     const next = ACHIEVEMENTS.find(a => !save.achievements[a.id]);
     const cheap = SHOP.filter(it => (save.shop[it.id] || 0) < it.max).map(it => ({ it, p: shopPrice(it, save) })).sort((a, b) => a.p - b.p)[0];
     h += '<div class="nextgoal">';
-    if (cheap && save.gold >= cheap.p) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + 'Du kannst dir <b>' + cheap.it.name + '</b> in der Schmiede leisten!</div>';
+    const canBuy = cheap && save.gold >= cheap.p;
+    if (canBuy) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + 'Du kannst dir <b>' + cheap.it.name + '</b> in der Schmiede leisten!</div>';
+    else if (cheap) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + 'Noch <b>' + fmtNum(cheap.p - save.gold) + ' Gold</b> bis ' + cheap.it.name + ' (' + cheap.it.text + ')</div>';
     if (next) h += '<div>' + this.icon('trophy', 'tiny') + 'Nächstes Ziel: <b>' + next.text + '</b>' + (next.unlock ? ' → ' + next.unlock : '') + '</div>';
-    h += '</div><div class="actions"><button class="btn" data-act="menu">Menü</button><button class="btn" data-act="shop">' + this.icon('armor', 'tiny') + 'Schmiede</button><button class="btn big primary" data-act="again">Nochmal!</button></div></div>';
+    h += '</div><div class="actions"><button class="btn" data-act="menu">Menü</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + 'Schmiede</button><button class="btn big primary" data-act="again">Nochmal!</button></div></div>';
     return h;
   },
 
@@ -291,7 +286,7 @@ const UI = {
     const s = Store.data;
     if (a !== 'refund' && a !== 'reset' && a !== 'quit') this.confirm = null;
     switch (a) {
-      case 'play': Sfx.play('click'); this.show('chars'); break;
+      case 'play': Sfx.play('click'); if (!s.stats.runs) this.startRun(this.selChar || 'aron'); else this.show('chars'); break;
       case 'menu': Sfx.play('click'); this.toMenu(); break;
       case 'shop': Sfx.play('click'); if (Game.state === 'over') this.toMenu(); this.show('shop'); break;
       case 'ach': Sfx.play('click'); this.show('ach'); break;
@@ -299,7 +294,7 @@ const UI = {
       case 'optsback': Sfx.play('click'); this.show(this.optsBack); break;
       case 'char': {
         const id = b.dataset.id;
-        if (s.chars.indexOf(id) < 0) { Sfx.play('deny'); return; }
+        if (s.chars.indexOf(id) < 0) { Sfx.play('deny'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
         this.selChar = id; Sfx.play('click'); this.show('chars'); break;
       }
       case 'heat': s.heat = +b.dataset.i; Store.save(); Sfx.play('click'); this.show('chars'); break;
@@ -318,16 +313,7 @@ const UI = {
         if (this.confirm !== 'refund') { this.confirm = 'refund'; this.show('shop'); return; }
         this.confirm = null;
         // Erstattet wird genau, was bezahlt wurde (Preise hängen von der Kaufreihenfolge ab).
-        let back = s.shopSpent;
-        if (typeof back !== 'number') {
-          // Alter Spielstand ohne Buchführung: günstigste mögliche Reihenfolge nachrechnen, nie mehr als bezahlt
-          back = 0;
-          const tmp = { shop: {} };
-          for (const it of SHOP.slice().sort((a, b) => b.cost - a.cost)) {
-            const lvl = s.shop[it.id] || 0;
-            for (let i = 0; i < lvl; i++) { back += shopPrice(it, tmp); tmp.shop[it.id] = (tmp.shop[it.id] || 0) + 1; }
-          }
-        }
+        const back = typeof s.shopSpent === 'number' ? s.shopSpent : shopRefundValue(s.shop);
         s.gold += back; s.shop = {}; s.shopSpent = 0; Store.save(); Sfx.play('coin'); this.show('shop'); break;
       }
       case 'toggle': {
@@ -383,6 +369,8 @@ const UI = {
     Game.newRun(charId, s.heat);
     this.el.hud.hidden = false;
     this.el.toasts.innerHTML = '';
+    clearTimeout(this.bannerT);
+    this.el.banner.className = '';
     if (s.settings.music) Sfx.startMusic();
   },
 
@@ -413,6 +401,7 @@ const UI = {
   resumeHud() { Input.joy = null; },
 
   onKey(k, e) {
+    if (e.repeat) return; // gehaltene Taste darf nicht durch mehrere Level-ups klicken
     if (k === 'escape' || k === 'p') {
       if (Game.state === 'play') { this.pause(); return; }
       if (Game.state === 'paused' && (this.cur === 'pause' || this.cur === 'opts')) { this.cur === 'opts' ? this.show('pause') : this.resume(); return; }
@@ -427,6 +416,9 @@ const UI = {
         if (b && !b.disabled) this.act('reroll', b);
       }
     }
+    // Hat ein Knopf per Tastatur den Fokus, löst Enter/Leertaste ihn selbst aus
+    const ae = document.activeElement;
+    if ((k === 'enter' || k === ' ') && ae && ae.tagName === 'BUTTON' && this.el.screen.contains(ae) && ae.matches(':focus-visible')) return;
     if ((k === 'enter' || k === ' ') && performance.now() >= this.modalReady) {
       const b = this.el.screen.querySelector('[data-act="chestok"],[data-act="again"],[data-act="start"]');
       if (b && (this.cur === 'chest' || this.cur === 'over' || this.cur === 'chars')) { e.preventDefault(); this.act(b.dataset.act, b); }
@@ -475,7 +467,7 @@ const UI = {
     Sfx.play('achievement');
     const d = document.createElement('div');
     d.className = 'toast';
-    d.innerHTML = this.icon('trophy', 'tiny') + '<div><b>' + a.name + '</b><small>' + a.text + ' · +' + a.gold + ' Gold' + (a.unlock ? ' · ' + a.unlock + '!' : '') + '</small></div>';
+    d.innerHTML = this.icon('trophy', 'tiny') + '<div><b>' + a.name + '</b><small>' + a.text + ' · +' + a.gold + ' Gold' + (a.unlock ? ' · Freigeschaltet: ' + a.unlock : '') + '</small></div>';
     this.el.toasts.appendChild(d);
     setTimeout(() => d.classList.add('out'), 3800);
     setTimeout(() => d.remove(), 4400);
