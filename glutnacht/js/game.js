@@ -1061,7 +1061,8 @@ const Game = {
     const bossBonus = Math.round(r.bossKills * 25 * mul);
     // Startgeschenk: Der erste Lauf reicht immer für eine erste Verbesserung
     const cheapest = Math.min(...SHOP.map(it => shopPrice(it, save)));
-    const gift = save.stats.runs === 1 ? Math.max(0, cheapest - save.gold - r.gold - timeBonus - bossBonus) : 0;
+    const gift = !save.giftGiven ? Math.max(0, cheapest - save.gold - r.gold - timeBonus - bossBonus) : 0;
+    save.giftGiven = true;
     const total = r.gold + timeBonus + bossBonus + gift;
     save.gold += total;
     save.stats.goldEarned += total;

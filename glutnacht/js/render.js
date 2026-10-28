@@ -81,8 +81,8 @@ const Render = {
     this.dpr = dpr; this.W = W; this.H = H;
     this.cv.width = Math.round(W * dpr); this.cv.height = Math.round(H * dpr);
     this.cv.style.width = W + 'px'; this.cv.style.height = H + 'px';
-    // Hochformat-Handys: die lange Seite als zweite Untergrenze, sonst wird alles winzig
-    this.zoom = clamp(Math.max(Math.min(W, H) / 660, Math.max(W, H) / 1200), 0.55, 1.4);
+    // Hochformat-Handys: die Höhe als zweite Untergrenze, sonst wird alles winzig
+    this.zoom = clamp(Math.max(Math.min(W, H) / 660, H > W ? H / 1200 : 0), 0.55, 1.4);
     Game.view.hw = W / 2 / this.zoom;
     Game.view.hh = H / 2 / this.zoom;
     this.vignette = this.makeVignette(W, H, 'rgba(6,2,20,0)', 'rgba(6,2,20,0.78)', 0.32);

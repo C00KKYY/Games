@@ -16,7 +16,7 @@ const TIPS = [
 
 const UI = {
   el: {}, cur: null, selChar: null, banMode: false, hudSig: '', lastHud: {}, optsBack: 'menu',
-  prevBest: 0, confirm: null, modalReady: 0, bannerT: null,
+  prevBest: 0, confirm: null, modalReady: 0, bannerT: null, kbNav: false,
 
   init() {
     const $ = id => document.getElementById(id);
@@ -27,6 +27,8 @@ const UI = {
     };
     document.querySelectorAll('img[data-icon]').forEach(img => { img.src = Sprites.iconURL(img.dataset.icon, 32); });
     this.el.pausebtn.addEventListener('click', () => { this.el.pausebtn.blur(); Sfx.init(); this.pause(); });
+    // Tastaturnavigation (Tab) bis zum nächsten Klick merken
+    window.addEventListener('pointerdown', () => { this.kbNav = false; }, true);
     this.el.screen.addEventListener('click', e => {
       const b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -120,7 +122,7 @@ const UI = {
         '<div class="st">' + it.text + '</div>' +
         '<div class="price">' + (max ? 'MAX' : this.icon('coin', 'tiny') + fmtNum(price)) + '</div></button>';
     }
-    h += '</div><div class="actions">' + (s.shopSpent > 0 ? '<button class="btn small ghost" data-act="refund">' + (this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' : '') +
+    h += '</div><div class="actions">' + (Object.values(s.shop).some(v => v > 0) ? '<button class="btn small ghost" data-act="refund">' + (this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' : '') +
       '<button class="btn primary" data-act="menu">Zurück</button></div></div>';
     return h;
   },
@@ -417,8 +419,9 @@ const UI = {
       }
     }
     // Hat ein Knopf per Tastatur den Fokus, löst Enter/Leertaste ihn selbst aus
+    if (k === 'tab') this.kbNav = true;
     const ae = document.activeElement;
-    if ((k === 'enter' || k === ' ') && ae && ae.tagName === 'BUTTON' && this.el.screen.contains(ae) && ae.matches(':focus-visible')) return;
+    if ((k === 'enter' || k === ' ') && this.kbNav && ae && ae.tagName === 'BUTTON' && this.el.screen.contains(ae)) return;
     if ((k === 'enter' || k === ' ') && performance.now() >= this.modalReady) {
       const b = this.el.screen.querySelector('[data-act="chestok"],[data-act="again"],[data-act="start"]');
       if (b && (this.cur === 'chest' || this.cur === 'over' || this.cur === 'chars')) { e.preventDefault(); this.act(b.dataset.act, b); }

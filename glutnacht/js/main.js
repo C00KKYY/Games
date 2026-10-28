@@ -18,7 +18,18 @@
   Hooks.achievement = a => UI.achievement(a);
 
   window.addEventListener('resize', () => Render.resize());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) { UI.pause(); Store.save(); } });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) return;
+    UI.pause();
+    // nur laufenden Fortschritt sichern – ein untätiger Tab soll nichts überschreiben
+    if (Game.run && !Game.run.ended) Store.save();
+  });
+  // Ein anderer Tab hat gespeichert: im Menü dessen Stand übernehmen
+  window.addEventListener('storage', e => {
+    if (e.key !== SAVE_KEY || (Game.run && !Game.run.ended)) return;
+    Store.load();
+    if (UI.cur && ['menu', 'shop', 'ach', 'chars', 'opts'].includes(UI.cur)) UI.show(UI.cur);
+  });
   window.addEventListener('blur', () => UI.pause());
 
   // Audio darf erst nach einer Nutzeraktion starten.

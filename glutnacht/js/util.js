@@ -103,8 +103,10 @@ const SAVE_KEY = 'glutnacht.v1';
 function defaultSave() {
   return {
     gold: 0,
+    saveVersion: 2,
     shop: {},
     shopSpent: 0,
+    giftGiven: false,
     chars: ['aron', 'mira'],
     achievements: {},
     evolved: {},
@@ -130,10 +132,16 @@ const Store = {
     } catch (e) { d = null; }
     const def = defaultSave();
     if (!d || typeof d !== 'object') d = def;
-    const legacySpent = typeof d.shopSpent !== 'number';
+    const ver = d.saveVersion || 1;
     for (const k in def) if (d[k] === undefined) d[k] = def[k];
     if (!d.shop || typeof d.shop !== 'object') d.shop = {};
-    if (legacySpent) d.shopSpent = shopRefundValue(d.shop);
+    if (ver < 2) {
+      // Stände von vor der Buchführung: mindestens den günstigsten möglichen Kaufpreis erstattbar machen
+      // (damals galten 8 % Preisanstieg, die Rechnung mit 5 % liegt sicher darunter)
+      d.shopSpent = Math.max(Number.isFinite(d.shopSpent) ? d.shopSpent : 0, shopRefundValue(d.shop));
+      d.giftGiven = d.stats.runs > 0;
+      d.saveVersion = 2;
+    }
     for (const k in def.stats) if (d.stats[k] === undefined) d.stats[k] = def.stats[k];
     for (const k in def.settings) if (d.settings[k] === undefined) d.settings[k] = def.settings[k];
     this.data = d;
