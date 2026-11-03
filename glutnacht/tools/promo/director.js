@@ -10,6 +10,7 @@ const Promo = {
     this.link = opts.link || '';
     setLang('en');
     Store.data.settings.dmgNums = true;
+    Store.data.stats.runs = 10; // keine Einsteiger-Hinweise im Video
     Store.data.settings.shake = true;
     // Modale nur, wenn die Regie sie will; keine Erfolgsmeldungen, kein Schaden am Helden
     const oL = Game.openLevelUp.bind(Game), oC = Game.openChest.bind(Game);
@@ -28,8 +29,8 @@ const Promo = {
         color: #fff; line-height: 1.02; letter-spacing: 1px; -webkit-text-stroke: 9px #14051f; paint-order: stroke fill;
         filter: drop-shadow(0 6px 0 rgba(10, 2, 20, 0.9)) drop-shadow(0 0 22px rgba(255, 120, 40, 0.55)); padding: 0 34px; }
       #promo .pt span { display: inline-block; white-space: pre; }
-      #promo .hl { background: linear-gradient(180deg, #fff3b0 10%, #ffb13b 50%, #ff4b1f 92%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-      #promo .vi { background: linear-gradient(180deg, #ffffff 10%, #c9b3ff 55%, #8a5cff 92%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      #promo .hl { color: #ffad33; }
+      #promo .vi { color: #c4a6ff; }
       #promo .flash { position: absolute; inset: 0; background: #fff6e0; opacity: 0; }
       #promo .tap { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%;
         border: 6px solid #fff; box-shadow: 0 0 24px #fff; opacity: 0; }
@@ -75,7 +76,7 @@ const Promo = {
     UI.hudSig = '';
     UI.lastHud = {};
     Render.resize();
-    if (opts.zoom) this.setZoom(opts.zoom);
+    this.setZoom(opts.zoom || 1.0);
     return r;
   },
 
@@ -177,7 +178,7 @@ const Promo = {
       dur: 2.4,
       setup(P) {
         P.fresh('nyx', 760, [['lightning', 8, 1], ['orbit', 8, 1], ['wand', 8, 1], ['fire', 8, 1], ['nova', 8, 1], ['whip', 8, 1]],
-          [['might', 5], ['lens', 5], ['candle', 5], ['hourglass', 5], ['heart', 5], ['armor', 5]], { hud: false, zoom: 0.95 });
+          [['might', 5], ['lens', 5], ['candle', 5], ['hourglass', 5], ['heart', 5], ['armor', 5]], { hud: false, zoom: 1.0 });
         P.spawnRing(['brute', 'wraith', 'golem', 'ghoul', 'skel', 'wraith'], 330, 180, 640);
         P.prewarm(1.2);
         P.say('1 HERO.', 0.12, 2.3, 17, 74);
@@ -199,7 +200,7 @@ const Promo = {
           Game.lastLevelOptions = opts;
           UI.levelUp(opts);
         }],
-        [1.3, P => P.say('Pick *upgrades*', 1.3, 2.85, 6.5, 52)],
+        [1.3, P => P.say('Pick *upgrades*', 1.3, 2.85, 11, 52)],
         [2.25, P => P.tapAt('[data-act="pick"][data-i="0"]', P.t)],
         [2.55, P => { UI.hide(); Game.applyOption(Game.lastLevelOptions[0]); Game.state = 'play'; }],
       ],
@@ -222,7 +223,7 @@ const Promo = {
       },
       events: [
         [0.25, P => { P.allow = true; Game.run.pendingChests = 1; Game.openChest(); P.allow = false; }],
-        [0.35, P => P.say('Then *EVOLVE* them', 0.35, 1.95, 6.5, 52)],
+        [0.35, P => P.say('Then *EVOLVE* them', 0.35, 1.95, 11, 52)],
         [1.95, P => { UI.hide(); Game.state = 'play'; }],
         [2.0, P => P.say('_Blood_ _Blade_', 2.0, 2.95, 22, 58)],
       ],
@@ -239,7 +240,7 @@ const Promo = {
           const b = Game.run.bosses[0];
           if (b) { b.x = Game.run.p.x + 170; b.y = Game.run.p.y - 230; b.skillIdx = 0; b.skillT = 0.35; }
         }],
-        [1.15, P => P.say('A *BOSS* every | 3 minutes', 1.15, 3.5, 30, 54)],
+        [1.15, P => P.say('A *BOSS* every | 3 minutes', 1.15, 3.5, 14, 54)],
       ],
     },
     { // Höhepunkt: Die Nacht
@@ -249,14 +250,14 @@ const Promo = {
           [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]], { bossIdx: 4 });
         P.spawnRing(['wraith', 'brute', 'golem', 'bat', 'ghoul', 'ghost'], 300, 170, 650);
         P.prewarm(0.4);
-        P.say('Survive *15* minutes.', 0.15, 3.5, 30, 56);
+        P.say('Survive *15* minutes.', 0.15, 3.5, 16, 56);
       },
       events: [
         [0.75, P => {
           const b = Game.run.bosses.find(x => x.boss.final);
           if (b) { b.x = Game.run.p.x - 120; b.y = Game.run.p.y - 300; }
         }],
-        [1.7, P => P.say('_If_ _you_ _can._', 1.7, 3.5, 40, 64)],
+        [1.7, P => P.say('_If_ _you_ _can._', 1.7, 3.5, 44, 64)],
       ],
     },
     { // Endkarte
