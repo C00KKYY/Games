@@ -75,7 +75,7 @@ const Promo = {
     opts = opts || {};
     UI.hide();
     this.allow = false;
-    Game.newRun(char, 0, opts.stage || 'throne');
+    Game.newRun(char, 0, opts.stage || 'nightheart');
     const r = Game.run;
     r.t = t;
     r.bossIdx = opts.bossIdx !== undefined ? opts.bossIdx : r.bossList.filter(b => b.t <= t).length;

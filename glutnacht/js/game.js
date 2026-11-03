@@ -15,8 +15,8 @@ const PROP_CHUNK = 620;
 
 function xpFor(level) {
   if (level < 20) return 5 + (level - 1) * 10;
-  if (level < 40) return 200 + (level - 20) * 17;
-  return 540 + (level - 40) * 26;
+  if (level < 40) return 200 + (level - 20) * 28;
+  return 760 + (level - 40) * 40;
 }
 
 const Game = {
@@ -180,7 +180,9 @@ const Game = {
   // ---------- Spawns ----------
   hpMul(t) {
     const m = t / 60;
-    return HEAT[this.run.heat].hp * this.run.stage.mult.hp * (1 + 0.12 * m + 0.012 * m * m);
+    // ab Minute 3 wachsen die Lebenspunkte deutlich schneller (sonst wird es ab Minute 4–5 zu leicht)
+    const q = Math.max(0, m - 3);
+    return HEAT[this.run.heat].hp * this.run.stage.mult.hp * (1 + 0.12 * m + 0.012 * m * m + 0.22 * q + 0.125 * q * q);
   },
 
   wave() {
@@ -264,12 +266,15 @@ const Game = {
 
   spawnEnemy(type, x, y) {
     const r = this.run, d = ENEMIES[type], heat = HEAT[r.heat];
-    const hp = d.hp * this.hpMul(r.t);
+    // Land-Modifikatoren: für alle Gegner und je Typ
+    const mods = r.stage.mods || {}, ma = mods.all || {}, mt = mods[type] || {};
+    const hp = d.hp * this.hpMul(r.t) * (ma.hp || 1) * (mt.hp || 1);
     const e = {
       id: r.nextId++, type, x, y, r: d.r, hp, maxHp: hp,
-      speed: d.speed * heat.speed * rand(0.92, 1.08), dmg: d.dmg * r.stage.mult.dmg * (1 + r.t / 60 * 0.04),
+      speed: d.speed * heat.speed * (ma.speed || 1) * (mt.speed || 1) * rand(0.92, 1.08),
+      dmg: d.dmg * heat.dmg * r.stage.mult.dmg * (1 + r.t / 60 * 0.07),
       tint: (r.stage.tints && r.stage.tints[type]) || null,
-      xp: d.xp, kb: d.kb, kx: 0, ky: 0, flash: 0, slowT: 0, slowF: 1, freezeT: 0,
+      xp: d.xp * (ma.xp || 1) * (mt.xp || 1), kb: d.kb, kx: 0, ky: 0, flash: 0, slowT: 0, slowF: 1, freezeT: 0,
       elite: false, boss: null, swarm: false, dead: false, hitT: {}, anim: Math.random() * 10,
       shootT: rand(1.5, 3), ranged: !!d.ranged,
     };
@@ -284,8 +289,10 @@ const Game = {
     e.boss = def;
     e.type = def.sprite;
     e.tint = def.tint || null;
-    e.hp = e.maxHp = def.hp * HEAT[r.heat].hp * mult;
-    e.r = def.r; e.speed = def.speed * HEAT[r.heat].speed; e.dmg = def.dmg * (mult > 1 ? 1 + mult * 0.15 : 1);
+    // Bosse bekommen nur 60 % des Lebenspunkte-Bonus der Nachtstufe (sonst wird der Endboss zur Wand)
+    e.hp = e.maxHp = def.hp * (1 + (HEAT[r.heat].hp - 1) * 0.6) * mult;
+    e.r = def.r; e.speed = def.speed * HEAT[r.heat].speed;
+    e.dmg = def.dmg * HEAT[r.heat].dmg * r.stage.mult.dmg * (mult > 1 ? 1 + mult * 0.15 : 1);
     e.xp = def.xp; e.kb = 0.05;
     e.skillT = 3; e.skillIdx = 0; e.mode = 'chase'; e.modeT = 0;
     r.bosses.push(e);
@@ -416,7 +423,7 @@ const Game = {
           e.mode = 'windup'; e.modeT = 0.75; e.dashA = Math.atan2(dy, dx);
           r.tele.push({ kind: 'line', x: e.x, y: e.y, a: e.dashA, len: 520, w: e.r * 1.6, t: 0, life: 0.75, follow: e });
         } else if (sk === 'summon') {
-          const type = e.type === 'skel' || e.type === 'night' ? 'skel' : weightedPick(Object.entries(this.wave().pool));
+          const type = e.boss.summon || (e.type === 'skel' || e.type === 'night' ? 'skel' : weightedPick(Object.entries(this.wave().pool)));
           const n = e.boss.final ? 12 : 9;
           for (let i = 0; i < n; i++) {
             const a = i / n * TAU;

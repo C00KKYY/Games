@@ -632,8 +632,18 @@ const Sprites = (() => {
   // ---------- Boden & Deko ----------
   // Bodenkachel; pal (optional) färbt sie für ein Gebiet um
   const GROUND = { base: '#1d2a2b', specA: 'rgba(60,90,70,0.18)', specB: 'rgba(10,20,25,0.25)', blobA: 'rgba(50,80,60,0.18)', blobB: 'rgba(30,40,60,0.18)', grass: 'rgba(90,140,90,0.35)' };
+  function hexA(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16 & 255) + ',' + (n >> 8 & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  // Kurzform eines Land-Bodens: { base, speckle: [hell, dunkel, (Funkeln)], grass }
+  function groundPal(p) {
+    if (!p || !p.speckle) return p;
+    const [a, b, glint] = p.speckle;
+    return { base: p.base, specA: hexA(a, 0.18), specB: hexA(b, 0.25), blobA: hexA(a, 0.18), blobB: hexA(b, 0.2), grass: hexA(p.grass, 0.35), glint: glint ? hexA(glint, 0.55) : null };
+  }
   function groundTile(pal) {
-    pal = Object.assign({}, GROUND, pal || {});
+    pal = Object.assign({}, GROUND, groundPal(pal) || {});
     const S = 256;
     const c = document.createElement('canvas');
     c.width = c.height = S;
@@ -643,7 +653,8 @@ const Sprites = (() => {
     const rnd = mulberry(1234);
     for (let i = 0; i < 900; i++) {
       const x = rnd() * S, y = rnd() * S;
-      g.fillStyle = rnd() < 0.5 ? pal.specA : pal.specB;
+      const k = rnd();
+      g.fillStyle = pal.glint && k < 0.05 ? pal.glint : k < 0.5 ? pal.specA : pal.specB;
       g.fillRect(x, y, 2 + rnd() * 3, 2 + rnd() * 3);
     }
     for (let i = 0; i < 12; i++) {
@@ -665,10 +676,17 @@ const Sprites = (() => {
   }
 
   const DECOS = ['grave', 'rock', 'mush', 'bones', 'flower', 'stump', 'cross'];
-  function deco(kind) {
-    const key = 'd' + kind;
+  // tint: Farbtönung je Land (verkohlt, bereift …) oder leer
+  function deco(kind, tint) {
+    const key = 'd' + kind + (tint || '');
     let c = cache.get(key);
     if (c) return c;
+    if (tint) {
+      const base = deco(kind);
+      c = tintVariant(base, tint, 0.38); c.size = base.size;
+      cache.set(key, c);
+      return c;
+    }
     const size = 48;
     const cv = canvas(size, size), g = cv.g;
     g.translate(size / 2, size / 2 + 6);

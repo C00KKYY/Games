@@ -66,7 +66,7 @@ const UI = {
     const tip = tr(st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.');
     return '<div class="menu">' + this.langSwitch() +
       '<div class="logo"><span>Ember</span><span>Night</span></div>' + // Name in allen Sprachen gleich (wie im Portal)
-      '<div class="tag">' + tr('Überlebe die Nacht. 15 Minuten. Tausende Monster.') + '</div>' +
+      '<div class="tag">' + tr('Fünf Länder. Eine Glut. Tausende Monster.') + '</div>' +
       '<button class="btn big primary pulse" data-act="play">' + tr('SPIELEN') + '</button>' +
       '<div class="row">' +
       '<button class="btn" data-act="shop">' + this.icon('armor') + tr('Schmiede') + '</button>' +
@@ -104,7 +104,7 @@ const UI = {
       '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + tr(w.name) + '</b><br><small>' + tr(w.desc) + '</small></div></div>' +
       '<div class="cdbonus">' + tr(c.text) + '</div></div></div>';
     const st = this.selStage(), heat = this.selHeat();
-    h += '<div class="stageline">' + tr('Gebiet {0}: {1}', STAGES.indexOf(st) + 1, '<b>' + tr(st.name) + '</b>') +
+    h += '<div class="stageline">' + tr('Land {0}: {1}', STAGES.indexOf(st) + 1, '<b>' + tr(st.name) + '</b>') +
       (heat ? ' · ' + tr('Nachtstufe') + ' ' + heat : '') + '</div>';
     h += '<div class="actions"><button class="btn" data-act="map">' + tr('Zurück') + '</button><button class="btn big primary" data-act="start">' + tr('LOS!') + '</button></div></div>';
     return h;
@@ -144,18 +144,18 @@ const UI = {
     for (let i = 0; i <= maxH; i++) {
       h += '<button class="chip' + (i === heat ? ' sel' : '') + '" data-act="heat" data-i="' + i + '">' + (i ? i : tr('Normal')) + '<small>' + tr('Gold ×{0}', fmtDec(HEAT[i].gold)) + '</small></button>';
     }
-    if (maxH < HEAT.length - 1) h += '<span class="heatnote">' + (maxH ? tr('Schaffe Nachtstufe {0}, um Nachtstufe {1} freizuschalten.', maxH, maxH + 1) : tr('Schaffe das Gebiet, um Nachtstufe 1 freizuschalten.')) + '</span>';
+    if (maxH < HEAT.length - 1) h += '<span class="heatnote">' + (maxH ? tr('Schaffe Nachtstufe {0}, um Nachtstufe {1} freizuschalten.', maxH, maxH + 1) : tr('Befreie das Land, um Nachtstufe 1 freizuschalten.')) + '</span>';
     h += '</div></div>';
     // Gesperrtes nächstes Gebiet: sagen, was zu tun ist
     const ni = STAGES.findIndex((st, i) => !stageUnlocked(s, i));
-    if (ni > 0) h += '<div class="heatnote">' + this.icon('lock', 'tiny') + tr('Schaffe „{0}“, um „{1}“ freizuschalten.', tr(STAGES[ni - 1].name), '???') + '</div>';
+    if (ni > 0) h += '<div class="heatnote">' + this.icon('lock', 'tiny') + tr('Befreie „{0}“, um „{1}“ freizuschalten.', tr(STAGES[ni - 1].name), '???') + '</div>';
     h += '<div class="actions"><button class="btn" data-act="menu">' + tr('Zurück') + '</button><button class="btn big primary" data-act="chars">' + tr('Weiter') + '</button></div></div>';
     return h;
   },
 
   tpl_story(data) {
     const st = data.stage, i = STAGES.indexOf(st);
-    return '<div class="modal story"><div class="schap">' + tr('Gebiet {0}', i + 1) + '</div><div class="vtitle">' + tr(st.name) + '</div>' +
+    return '<div class="modal story"><div class="schap">' + tr('Land {0}', i + 1) + '</div><div class="vtitle">' + tr(st.name) + '</div>' +
       (data.premise ? '<p class="premise">' + tr(STORY.premise) + '</p>' : '') +
       '<p>' + tr(st.intro) + '</p>' +
       '<div class="actions"><button class="btn big primary" data-act="storyok">' + tr('Los geht’s!') + '</button></div></div>';
@@ -299,10 +299,10 @@ const UI = {
 
   tpl_victory() {
     const r = Game.run, c = r.clear || {};
-    let h = '<div class="modal victory"><div class="vtitle">' + tr(c.last ? 'Die Nacht ist besiegt!' : 'Gebiet geschafft!') + '</div>' +
+    let h = '<div class="modal victory"><div class="vtitle">' + tr(c.last ? 'Die Nacht ist besiegt!' : 'Land befreit!') + '</div>' +
       '<p class="outro">' + tr(r.stage.outro) + '</p>' + this.stars(c.stars || 0, 'big') +
       (c.stars > c.starsBefore ? '<div class="unl">' + tr('Neuer Stern!') + '</div>' : '') +
-      (c.newStage ? '<div class="unl">' + tr('Neues Gebiet freigeschaltet: {0}', '<b>' + tr(c.newStage.name) + '</b>') + '</div>' : '') +
+      (c.newStage ? '<div class="unl">' + tr('Neues Land freigeschaltet: {0}', '<b>' + tr(c.newStage.name) + '</b>') + '</div>' : '') +
       (c.newHeat ? '<div class="unl">' + tr('Nachtstufe {0} freigeschaltet', c.newHeat) + '</div>' : '') +
       (c.last ? '<p>' + tr(STORY.ending) + '</p>' : '');
     return h + '<p class="small">' + tr('Im Endlosmodus wird es immer härter – Gold gibt es weiter.') + '</p>' +
@@ -314,7 +314,7 @@ const UI = {
     const won = sum.won;
     const record = r.t > this.prevBest && this.prevBest > 0;
     let h = '<div class="panel wide over' + (won ? ' won' : '') + '"><div class="otitle">' + tr(won ? 'Sieg!' : 'Gefallen') + '</div>' +
-      '<div class="stageline">' + tr('Gebiet {0}: {1}', STAGES.indexOf(r.stage) + 1, '<b>' + tr(r.stage.name) + '</b>') +
+      '<div class="stageline">' + tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, '<b>' + tr(r.stage.name) + '</b>') +
       (r.heat ? ' · ' + tr('Nachtstufe') + ' ' + r.heat : '') + ' ' + this.stars(stageStars(save, r.stage.id)) + '</div>' +
       (record ? '<div class="record">' + tr('Neue Bestzeit!') + '</div>' : '') +
       '<div class="ostats"><div>' + this.icon('clock', 'tiny') + '<b>' + fmtTime(r.t) + '</b><small>' + tr('Zeit') + '</small></div>' +
@@ -347,7 +347,7 @@ const UI = {
     if (canBuy) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Du kannst dir {0} in der Schmiede leisten!', '<b>' + tr(cheap.it.name) + '</b>') + '</div>';
     else if (cheap) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Noch {0} Gold bis {1} ({2})', '<b>' + fmtNum(cheap.p - save.gold) + '</b>', '<b>' + tr(cheap.it.name) + '</b>', tr(cheap.it.text)) + '</div>';
     if (next) h += '<div>' + this.icon('trophy', 'tiny') + tr('Nächstes Ziel: {0}', '<b>' + tr(next.text) + '</b>' + (next.unlock ? ' → ' + tr(next.unlock) : '')) + '</div>';
-    h += '</div><div class="actions"><button class="btn" data-act="menu">' + tr('Menü') + '</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + tr('Schmiede') + '</button>' + (this.nextStage() ? '<button class="btn" data-act="again">' + tr('Nochmal!') + '</button><button class="btn big primary" data-act="next">' + tr('Nächstes Gebiet') + '</button>' : '<button class="btn big primary" data-act="again">' + tr('Nochmal!') + '</button>') + '</div></div>';
+    h += '</div><div class="actions"><button class="btn" data-act="menu">' + tr('Menü') + '</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + tr('Schmiede') + '</button>' + (this.nextStage() ? '<button class="btn" data-act="again">' + tr('Nochmal!') + '</button><button class="btn big primary" data-act="next">' + tr('Nächstes Land') + '</button>' : '<button class="btn big primary" data-act="again">' + tr('Nochmal!') + '</button>') + '</div></div>';
     return h;
   },
 
@@ -476,7 +476,7 @@ const UI = {
 
   chapterBanner() {
     const r = Game.run;
-    if (r) this.banner(tr('Gebiet {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event');
+    if (r) this.banner(tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event');
   },
 
   toMenu() {

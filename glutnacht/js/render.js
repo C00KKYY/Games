@@ -28,12 +28,13 @@ const Render = {
   },
 
   // Leuchtpunkt: heller Kern (c0), farbiger Hof (c1), transparent am Rand
-  // Boden und Deko eines Gebiets
+  // Boden und Deko eines Landes
   setStage(stage) {
     if (this.stageId === stage.id) return;
     this.stageId = stage.id;
     this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground), 'repeat');
     this.decor = stage.decor || Sprites.DECOS;
+    this.decorTint = stage.decorTint || null;
   },
 
   glowSprite(size, c0, c1) {
@@ -161,7 +162,7 @@ const Render = {
       for (let cy = Math.floor(y0 / C); cy <= Math.floor(y1 / C); cy++) {
         if (hash2(cx, cy, 3) > 0.2) continue;
         const kind = this.decor[Math.floor(hash2(cx, cy, 4) * this.decor.length)];
-        const s = Sprites.deco(kind);
+        const s = Sprites.deco(kind, this.decorTint);
         const x = (cx + 0.1 + hash2(cx, cy, 5) * 0.8) * C, y = (cy + 0.1 + hash2(cx, cy, 6) * 0.8) * C;
         ctx.drawImage(s, x - s.size / 2, y - s.size / 2, s.size, s.size);
       }
@@ -429,7 +430,7 @@ const Render = {
     ctx.setTransform(flip ? -k : k, 0, 0, k, B.x + k * e.x, B.y + k * (e.y + bob));
     ctx.drawImage(spr, -size / 2, -size / 2, size, size);
     ctx.setTransform(k, 0, 0, k, B.x, B.y);
-    if (e.boss && e.type === 'slime') {
+    if (e.boss && e.boss.id === 'slimeking') {
       ctx.save(); ctx.translate(e.x, e.y - e.r * 0.95 + bob);
       ctx.fillStyle = '#ffd34f';
       const w = e.r * 0.8;

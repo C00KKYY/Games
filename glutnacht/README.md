@@ -1,6 +1,6 @@
 # Glutnacht (englisch: Ember Night)
 
-Ein Survivor-Roguelite für den Browser: Du läufst, deine Waffen greifen automatisch an, und die Nacht schickt immer mehr Monster. Überlebe 15 Minuten und besiege **Die Nacht**.
+Ein Survivor-Roguelite für den Browser: Du läufst, deine Waffen greifen automatisch an, und die Nacht schickt immer mehr Monster. Trag die letzte Glut durch **fünf Länder** und besiege am Ende **Die Nacht**.
 
 Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Festplatte). Läuft mit Tastatur oder per Touch auf Handy und Tablet.
 
@@ -11,17 +11,32 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 - **Laufen** ist alles, was du tust – angreifen passiert automatisch.
 - Besiegte Monster lassen **Edelsteine** fallen. Jede neue Stufe bietet **3 Karten** zur Wahl: neue Waffe, Waffenstufe oder Passiv. Bis zu 6 Waffen und 6 Passive.
 - **Entwicklungen:** Waffe auf Stufe 8 + der passende Passiv-Gegenstand → die nächste **Truhe** verwandelt sie in eine deutlich stärkere Form (z. B. Klinge + Herz → Blutklinge).
-- **Truhen** lassen Elitegegner (goldener Schein, etwa jede Minute) und Bosse (3, 6, 9, 12 Minuten) fallen. Nach 15 Minuten kommt der Endboss.
-- **Ereignisse:** Fledermausschwärme, „Umzingelt!“-Ringe, Geisterzüge.
+- **Truhen** lassen Elitegegner (goldener Schein, etwa jede Minute) und Bosse fallen. Am Ende jedes Landes wartet ein Endboss.
+- **Ereignisse:** Fledermausschwärme, „Umzingelt!“-Ringe, Geisterzüge, Kreuzfeuer – je nach Land andere.
 - **Kohlebecken** auf der Karte zerschlagen: Gold, Herzen, Magnete (ziehen alle Edelsteine und Münzen an), Bomben.
+
+## Länder, Sterne, Nachtstufen
+
+Die Weltkarte zeigt fünf Länder, jedes mit eigenen Gegnern, Bossen, Ereignissen, Boden und kurzer Geschichte:
+
+| Land | Dauer | Eigenart | Endboss |
+|---|---|---|---|
+| Alter Friedhof | 10 min | Einstieg | Blutgraf |
+| Aschenwald | 15 min | schnelle Schwärme | Kohlenherz |
+| Eissee | 15 min | langsam, aber zäh | Der Ertrunkene König |
+| Burgruine | 15 min | Spucker, Kreuzfeuer | Steinkoloss |
+| Herz der Nacht | 15 min | alles zusammen | Die Nacht |
+
+- Ein befreites Land schaltet das nächste frei und dort die nächste **Nachtstufe** (bis 5): mehr Lebenspunkte, Tempo und Schaden der Gegner, mehr Gold.
+- **Sterne:** ★ befreit, ★★ auf Nachtstufe 1+, ★★★ auf Nachtstufe 3+ – insgesamt 15.
+- Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`).
 
 ## Zwischen den Läufen
 
 - **Gold** bleibt erhalten. In der **Schmiede** gibt es 17 dauerhafte Verbesserungen (Schaden, Rüstung, Leben, Neu würfeln, Überspringen, Verbannen, Wiedergeburt …). Der erste Lauf bringt immer genug Gold für eine erste Verbesserung.
 - **9 Helden** mit eigener Startwaffe und Bonus – sieben davon werden durch Erfolge freigeschaltet.
-- **27 Erfolge** mit Gold-Belohnung, eine Übersicht der entdeckten Entwicklungen.
-- Ein Sieg schaltet die nächste **Nachtstufe** frei (bis 5): stärkere Monster, mehr Gold.
-- Nach dem Sieg geht es auf Wunsch **endlos** weiter.
+- **31 Erfolge** mit Gold-Belohnung, eine Übersicht der entdeckten Entwicklungen.
+- Nach einem Sieg geht es auf Wunsch **endlos** weiter.
 
 ## Waffen
 
@@ -57,7 +72,8 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 - Spielstand in `localStorage` (`glutnacht.v1`).
 
 ```
-node tools/simtest.js aron 0 3      # 3 Läufe headless mit Ausweich-Bot (Held, Nachtstufe, Anzahl)
+node tools/simtest.js aron 0 3 ashwood   # 3 Läufe headless mit einfachem Bot (Held, Nachtstufe, Anzahl, Land)
+node tools/balance-batch.js 12 ashwood:none:0 ashwood:light:0   # starker Bot: Siegquote je Land/Schmiede/Nachtstufe
 node tools/build-single.js out.html # alles in eine HTML-Datei bündeln
 node tools/build-single.js --crazygames  # dist/crazygames/index.html zum Hochladen bei CrazyGames
 ```
