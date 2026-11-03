@@ -3,6 +3,8 @@
 
 (function () {
   Store.load();
+  // Sprache: gespeicherte Wahl, sonst Browsersprache, sonst Englisch
+  setLang(Store.data.settings.lang || detectLang());
   const canvas = document.getElementById('game');
   Render.init(canvas);
   Input.init(canvas);
@@ -16,6 +18,7 @@
   Hooks.gameOver = s => UI.gameOver(s);
   Hooks.banner = (t, k) => UI.banner(t, k);
   Hooks.achievement = a => UI.achievement(a);
+  Hooks.happy = () => Platform.happy();
 
   window.addEventListener('resize', () => Render.resize());
   document.addEventListener('visibilitychange', () => {
@@ -53,6 +56,7 @@
     }
     Render.draw(dt);
     UI.updateHud();
+    Platform.setPlaying(Game.state === 'play');
     const r = Game.run;
     Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : r.bosses.some(b => !b.dead) || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
     requestAnimationFrame(frame);
@@ -60,7 +64,8 @@
 
   UI.show('menu');
   requestAnimationFrame(frame);
+  Platform.init();
 
   // Für Tests im Browser erreichbar
-  window.Glutnacht = { Game, Store, UI };
+  window.Glutnacht = { Game, Store, UI, I18N_MISSES, setLang };
 })();

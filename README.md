@@ -1,8 +1,8 @@
 # Games
 
-## [Glutnacht](glutnacht/)
+## [Glutnacht / Ember Night](glutnacht/)
 
-Survivor-Roguelite: Laufen, die Waffen greifen automatisch an, Horden von Monstern werden immer dichter. Stufenaufstiege mit Kartenwahl, 9 Waffen mit Entwicklungen, Elitegegner und Bosse mit Truhen, Endboss nach 15 Minuten. Zwischen den Läufen: Gold, Schmiede mit dauerhaften Verbesserungen, 9 freischaltbare Helden, 27 Erfolge, Nachtstufen.
+Survivor-Roguelite (Englisch und Deutsch): Laufen, die Waffen greifen automatisch an, Horden von Monstern werden immer dichter. Stufenaufstiege mit Kartenwahl, 9 Waffen mit Entwicklungen, Elitegegner und Bosse mit Truhen, Endboss nach 15 Minuten. Zwischen den Läufen: Gold, Schmiede mit dauerhaften Verbesserungen, 9 freischaltbare Helden, 27 Erfolge, Nachtstufen.
 
 Starten: `glutnacht/index.html` im Browser öffnen.
 

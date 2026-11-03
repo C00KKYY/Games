@@ -63,121 +63,132 @@ const UI = {
   tpl_menu() {
     const s = Store.data, st = s.stats;
     const achN = Object.keys(s.achievements).length;
-    const tip = st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.';
-    return '<div class="menu">' +
-      '<div class="logo"><span>Glut</span><span>nacht</span></div>' +
-      '<div class="tag">Überlebe die Nacht. 15 Minuten. Tausende Monster.</div>' +
-      '<button class="btn big primary pulse" data-act="play">SPIELEN</button>' +
+    const tip = tr(st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.');
+    return '<div class="menu">' + this.langSwitch() +
+      '<div class="logo"><span>' + tr('Glut') + '</span><span>' + tr('nacht') + '</span></div>' +
+      '<div class="tag">' + tr('Überlebe die Nacht. 15 Minuten. Tausende Monster.') + '</div>' +
+      '<button class="btn big primary pulse" data-act="play">' + tr('SPIELEN') + '</button>' +
       '<div class="row">' +
-      '<button class="btn" data-act="shop">' + this.icon('armor') + 'Schmiede</button>' +
-      '<button class="btn" data-act="ach">' + this.icon('trophy') + 'Erfolge <span class="pill">' + achN + '/' + ACHIEVEMENTS.length + '</span></button>' +
-      '<button class="btn" data-act="opts">' + this.icon('clock') + 'Einstellungen</button>' +
+      '<button class="btn" data-act="shop">' + this.icon('armor') + tr('Schmiede') + '</button>' +
+      '<button class="btn" data-act="ach">' + this.icon('trophy') + tr('Erfolge') + ' <span class="pill">' + achN + '/' + ACHIEVEMENTS.length + '</span></button>' +
+      '<button class="btn" data-act="opts">' + this.icon('clock') + tr('Einstellungen') + '</button>' +
       '</div>' +
       this.goldBox() +
-      (st.runs ? '<div class="statsline">Bestzeit <b>' + fmtTime(st.bestTime) + '</b> · Höchste Stufe <b>' + st.bestLevel + '</b> · <b>' + fmtNum(st.kills) + '</b> Monster besiegt · <b>' + st.wins + '</b> Siege</div>' : '') +
-      '<div class="tip"><b>Tipp:</b> ' + tip + '</div>' +
+      (st.runs ? '<div class="statsline">' + tr('Bestzeit {0} · Höchste Stufe {1} · {2} Monster besiegt · {3} Siege', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
+      '<div class="tip"><b>' + tr('Tipp:') + '</b> ' + tip + '</div>' +
       '</div>';
+  },
+
+  langSwitch() {
+    let h = '<div class="langsw" role="group" aria-label="' + tr('Sprache') + '">';
+    for (const l in LANGS) h += '<button class="chip' + (l === LANG ? ' sel' : '') + '" data-act="lang" data-l="' + l + '" lang="' + l + '">' + LANGS[l] + '</button>';
+    return h + '</div>';
   },
 
   tpl_chars() {
     const s = Store.data;
     if (s.chars.indexOf(this.selChar) < 0) this.selChar = 'aron';
-    let h = '<div class="panel wide"><div class="phead"><h2>Wähle deinen Helden</h2>' + this.goldBox() + '</div><div class="chars">';
+    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Wähle deinen Helden') + '</h2>' + this.goldBox() + '</div><div class="chars">';
     for (const id in CHARS) {
       const c = CHARS[id], locked = s.chars.indexOf(id) < 0;
       h += '<button class="char' + (locked ? ' locked' : '') + (id === this.selChar ? ' sel' : '') + '" data-act="char" data-id="' + id + '">' +
         '<img class="portrait" src="' + Sprites.playerURL(locked ? '#2a2638' : c.color, 64) + '" alt="">' +
         (locked ? this.icon('lock', 'lockic') : '<img class="wpn" src="' + Sprites.iconURL(c.weapon, 32) + '" alt="">') +
-        (locked ? '<small class="cu">' + ((ACHIEVEMENTS.find(x => x.id === c.unlock) || {}).text || '') + '</small>' : '<div class="cn">' + c.name + '</div>') + '</button>';
+        (locked ? '<small class="cu">' + tr((ACHIEVEMENTS.find(x => x.id === c.unlock) || {}).text || '') + '</small>' : '<div class="cn">' + c.name + '</div>') + '</button>';
     }
     h += '</div>';
     const c = CHARS[this.selChar];
     const w = WEAPONS[c.weapon];
     h += '<div class="chardetail"><img class="bigportrait" src="' + Sprites.playerURL(c.color, 96) + '" alt="">' +
-      '<div><div class="cdname">' + c.name + ' <span>' + c.title + '</span></div>' +
-      '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + w.name + '</b><br><small>' + w.desc + '</small></div></div>' +
-      '<div class="cdbonus">' + c.text + '</div></div></div>';
+      '<div><div class="cdname">' + c.name + ' <span>' + tr(c.title) + '</span></div>' +
+      '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + tr(w.name) + '</b><br><small>' + tr(w.desc) + '</small></div></div>' +
+      '<div class="cdbonus">' + tr(c.text) + '</div></div></div>';
     if (s.heatUnlocked > 0) {
-      h += '<div class="heat"><div class="hl">Nachtstufe</div>';
+      h += '<div class="heat"><div class="hl">' + tr('Nachtstufe') + '</div>';
       for (let i = 0; i <= s.heatUnlocked; i++) {
-        h += '<button class="chip' + (i === s.heat ? ' sel' : '') + '" data-act="heat" data-i="' + i + '">' + (i ? i : 'Normal') + '<small>Gold ×' + String(HEAT[i].gold).replace('.', ',') + '</small></button>';
+        h += '<button class="chip' + (i === s.heat ? ' sel' : '') + '" data-act="heat" data-i="' + i + '">' + (i ? i : tr('Normal')) + '<small>' + tr('Gold ×{0}', fmtDec(HEAT[i].gold)) + '</small></button>';
       }
       h += '</div>';
     }
-    h += '<div class="actions"><button class="btn" data-act="menu">Zurück</button><button class="btn big primary" data-act="start">LOS!</button></div></div>';
+    h += '<div class="actions"><button class="btn" data-act="menu">' + tr('Zurück') + '</button><button class="btn big primary" data-act="start">' + tr('LOS!') + '</button></div></div>';
     return h;
   },
 
   tpl_shop() {
     const s = Store.data;
-    let h = '<div class="panel wide"><div class="phead"><h2>Schmiede</h2>' + this.goldBox() + '</div>' +
-      '<p class="sub">Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht alle weiteren Käufe etwas teurer.</p><div class="shopgrid">';
+    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Schmiede') + '</h2>' + this.goldBox() + '</div>' +
+      '<p class="sub">' + tr('Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht alle weiteren Käufe etwas teurer.') + '</p><div class="shopgrid">';
     for (const it of SHOP) {
       const lvl = s.shop[it.id] || 0, max = lvl >= it.max, price = shopPrice(it, s);
       const can = !max && s.gold >= price;
       let pips = '';
       for (let i = 0; i < it.max; i++) pips += '<i class="' + (i < lvl ? 'on' : '') + '"></i>';
       h += '<button class="shopitem' + (max ? ' maxed' : '') + (can ? ' can' : '') + '" data-act="buy" data-id="' + it.id + '">' +
-        this.icon(it.icon) + '<div class="sn">' + it.name + '</div><div class="pips">' + pips + '</div>' +
-        '<div class="st">' + it.text + '</div>' +
-        '<div class="price">' + (max ? 'MAX' : this.icon('coin', 'tiny') + fmtNum(price)) + '</div></button>';
+        this.icon(it.icon) + '<div class="sn">' + tr(it.name) + '</div><div class="pips">' + pips + '</div>' +
+        '<div class="st">' + tr(it.text) + '</div>' +
+        '<div class="price">' + (max ? tr('MAX') : this.icon('coin', 'tiny') + fmtNum(price)) + '</div></button>';
     }
-    h += '</div><div class="actions">' + (Object.values(s.shop).some(v => v > 0) ? '<button class="btn small ghost" data-act="refund">' + (this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' : '') +
-      '<button class="btn primary" data-act="menu">Zurück</button></div></div>';
+    h += '</div><div class="actions">' + (Object.values(s.shop).some(v => v > 0) ? '<button class="btn small ghost" data-act="refund">' + tr(this.confirm === 'refund' ? 'Wirklich alles zurückerstatten?' : 'Alles zurückerstatten') + '</button>' : '') +
+      '<button class="btn primary" data-act="menu">' + tr('Zurück') + '</button></div></div>';
     return h;
   },
 
   tpl_ach() {
     const s = Store.data;
-    let h = '<div class="panel wide"><div class="phead"><h2>Erfolge</h2><div class="pill big">' + Object.keys(s.achievements).length + ' / ' + ACHIEVEMENTS.length + '</div></div><div class="achlist">';
+    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Erfolge') + '</h2><div class="pill big">' + Object.keys(s.achievements).length + ' / ' + ACHIEVEMENTS.length + '</div></div><div class="achlist">';
     for (const a of ACHIEVEMENTS) {
       const done = !!s.achievements[a.id];
       h += '<div class="ach' + (done ? ' done' : '') + '">' + this.icon('trophy') +
-        '<div class="an"><b>' + a.name + '</b><small>' + a.text + '</small></div>' +
-        '<div class="ar">' + this.icon('coin', 'tiny') + a.gold + (a.unlock ? '<small>+ ' + a.unlock + '</small>' : '') + '</div></div>';
+        '<div class="an"><b>' + tr(a.name) + '</b><small>' + tr(a.text) + '</small></div>' +
+        '<div class="ar">' + this.icon('coin', 'tiny') + a.gold + (a.unlock ? '<small>+ ' + tr(a.unlock) + '</small>' : '') + '</div></div>';
     }
-    h += '</div><div class="evos"><h3>Entdeckte Entwicklungen</h3><div class="evogrid">';
+    h += '</div><div class="evos"><h3>' + tr('Entdeckte Entwicklungen') + '</h3><div class="evogrid">';
     for (const id in WEAPONS) {
       const w = WEAPONS[id], known = s.evolved[id];
-      h += '<div class="evo' + (known ? ' known' : '') + '">' + this.icon(id, 'tiny') + '+' + this.icon(w.evo.with, 'tiny') + '<span>' + (known ? w.evo.name : '???') + '</span></div>';
+      h += '<div class="evo' + (known ? ' known' : '') + '">' + this.icon(id, 'tiny') + '+' + this.icon(w.evo.with, 'tiny') + '<span>' + (known ? tr(w.evo.name) : '???') + '</span></div>';
     }
-    h += '</div></div><div class="actions"><button class="btn primary" data-act="menu">Zurück</button></div></div>';
+    h += '</div></div><div class="actions"><button class="btn primary" data-act="menu">' + tr('Zurück') + '</button></div></div>';
     return h;
   },
 
   tpl_opts() {
     const st = Store.data.settings;
-    const tg = (k, label) => '<button class="toggle' + (st[k] ? ' on' : '') + '" data-act="toggle" data-k="' + k + '"><span>' + label + '</span><i></i></button>';
-    return '<div class="panel"><h2>Einstellungen</h2>' +
+    const tg = (k, label) => '<button class="toggle' + (st[k] ? ' on' : '') + '" data-act="toggle" data-k="' + k + '"><span>' + tr(label) + '</span><i></i></button>';
+    return '<div class="panel"><h2>' + tr('Einstellungen') + '</h2>' +
+      '<div class="langrow"><span>' + tr('Sprache') + '</span>' + this.langSwitch() + '</div>' +
       tg('sfx', 'Klangeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
-      '<div class="controls"><b>Steuerung</b><br>Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.<br>Angreifen passiert automatisch.<br>Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R</div>' +
-      '<div class="actions"><button class="btn small danger" data-act="reset">' + (this.confirm === 'reset' ? 'Wirklich ALLES löschen?' : 'Spielstand löschen') + '</button>' +
-      '<button class="btn primary" data-act="optsback">Zurück</button></div></div>';
+      '<div class="controls"><b>' + tr('Steuerung') + '</b><br>' + tr('Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.') + '<br>' +
+      tr('Angreifen passiert automatisch.') + '<br>' + tr('Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R') + '</div>' +
+      '<div class="actions"><button class="btn small danger" data-act="reset">' + tr(this.confirm === 'reset' ? 'Wirklich ALLES löschen?' : 'Spielstand löschen') + '</button>' +
+      '<button class="btn primary" data-act="optsback">' + tr('Zurück') + '</button></div></div>';
   },
 
   optionText(o) {
-    if (o.kind === 'gold') return { icon: 'coin', name: o.amount + ' Gold', desc: 'Alles ist ausgebaut – nimm Gold mit.', tag: '' };
-    if (o.kind === 'heal') return { icon: 'heart', name: 'Heiltrank', desc: 'Stellt ' + o.amount + ' Leben wieder her.', tag: '' };
+    if (o.kind === 'gold') return { icon: 'coin', name: tr('{0} Gold', o.amount), desc: tr('Alles ist ausgebaut – nimm Gold mit.'), tag: '' };
+    if (o.kind === 'heal') return { icon: 'heart', name: tr('Heiltrank'), desc: tr('Stellt {0} Leben wieder her.', o.amount), tag: '' };
     const r = Game.run;
     if (o.kind === 'weapon') {
       const d = WEAPONS[o.id];
       let hint = '';
       const has = Game.hasPassive(d.evo.with);
-      hint = (has ? '✓ ' : '') + 'Entwicklung mit ' + PASSIVES[d.evo.with].name;
-      return { icon: o.id, name: d.name, desc: o.isNew ? d.desc : d.levels[o.level - 2].t, tag: o.isNew ? 'NEU!' : 'Stufe ' + o.level, hint, ready: has && o.level === WEAPON_MAX };
+      hint = (has ? '✓ ' : '') + tr('Entwicklung mit {0}', tr(PASSIVES[d.evo.with].name));
+      return { icon: o.id, name: tr(d.name), desc: tr(o.isNew ? d.desc : d.levels[o.level - 2].t), tag: o.isNew ? tr('NEU!') : tr('Stufe {0}', o.level), hint, ready: has && o.level === WEAPON_MAX };
     }
     const d = PASSIVES[o.id];
-    let hint = '';
+    let hint = '', ready = false;
     for (const w of r.weapons) {
-      if (WEAPONS[w.id].evo.with === o.id && !w.evo) hint = 'Entwickelt ' + WEAPONS[w.id].name + (w.level >= WEAPON_MAX ? ' (bereit!)' : ' (ab Waffenstufe 8)');
+      if (WEAPONS[w.id].evo.with === o.id && !w.evo) {
+        ready = w.level >= WEAPON_MAX;
+        hint = tr('Entwickelt {0}', tr(WEAPONS[w.id].name)) + tr(ready ? ' (bereit!)' : ' (ab Waffenstufe 8)');
+      }
     }
-    return { icon: o.id, name: d.name, desc: d.desc, tag: o.isNew ? 'NEU!' : 'Stufe ' + o.level, hint, ready: hint.indexOf('bereit') >= 0 };
+    return { icon: o.id, name: tr(d.name), desc: tr(d.desc), tag: o.isNew ? tr('NEU!') : tr('Stufe {0}', o.level), hint, ready };
   },
 
   tpl_levelup(opts) {
     const r = Game.run;
-    let h = '<div class="modal levelup' + (this.banMode ? ' banning' : '') + '"><div class="lvtitle">Stufe <b>' + (r.level - r.pendingLevels + 1) + '</b>!</div>' +
-      '<div class="lvsub">' + (this.banMode ? 'Welche NEUE Option verbannen?' : 'Wähle eine Verbesserung') + '</div><div class="cards">';
+    let h = '<div class="modal levelup' + (this.banMode ? ' banning' : '') + '"><div class="lvtitle">' + tr('Stufe {0}!', '<b>' + (r.level - r.pendingLevels + 1) + '</b>') + '</div>' +
+      '<div class="lvsub">' + tr(this.banMode ? 'Welche NEUE Option verbannen?' : 'Wähle eine Verbesserung') + '</div><div class="cards">';
     opts.forEach((o, i) => {
       const t = this.optionText(o);
       h += '<button class="card' + (o.isNew ? ' new' : '') + (t.ready ? ' ready' : '') + (this.banMode && !o.isNew ? ' noban' : '') + '" data-act="pick" data-i="' + i + '" style="--d:' + (i * 70) + 'ms">' +
@@ -186,10 +197,10 @@ const UI = {
         (t.hint ? '<div class="chint">' + t.hint + '</div>' : '') + '<kbd>' + (i + 1) + '</kbd></button>';
     });
     // Nur Knöpfe zeigen, die man auch benutzen kann
-    const mb = (act, ic, label, n, cls) => n > 0 ? '<button class="btn small' + (cls || '') + '" data-act="' + act + '">' + this.icon(ic, 'tiny') + label + ' (' + n + ')</button>' : '';
+    const mb = (act, ic, label, n, cls) => n > 0 ? '<button class="btn small' + (cls || '') + '" data-act="' + act + '">' + this.icon(ic, 'tiny') + tr(label) + ' (' + n + ')</button>' : '';
     h += '</div><div class="lvactions">' + mb('reroll', 'dice', 'Neu würfeln', r.rerolls) + mb('skip', 'skip', 'Überspringen', r.skips) +
       mb('banmode', 'banish', 'Verbannen', r.banishes, this.banMode ? ' active' : '') +
-      '</div>' + (r.rerolls + r.skips + r.banishes === 0 && Store.data.stats.runs <= 3 ? '<div class="lvnote">Neu würfeln, Überspringen und Verbannen gibt es in der Schmiede.</div>' : '') + '</div>';
+      '</div>' + (r.rerolls + r.skips + r.banishes === 0 && Store.data.stats.runs <= 3 ? '<div class="lvnote">' + tr('Neu würfeln, Überspringen und Verbannen gibt es in der Schmiede.') + '</div>' : '') + '</div>';
     return h;
   },
 
@@ -197,65 +208,67 @@ const UI = {
     let h = '<div class="modal chestm' + (res.evolved ? ' evolved' : '') + '"><div class="chestimg">' + this.icon('chest', 'chestic') + '</div>';
     if (res.evolved) {
       const w = WEAPONS[res.evolved];
-      h += '<div class="evotitle">ENTWICKLUNG!</div><div class="evocard">' + this.icon(res.evolved, 'cicon') +
-        '<div><div class="cname">' + w.name + ' → <b>' + w.evo.name + '</b></div><div class="cdesc">' + w.evo.desc + '</div></div></div>';
+      h += '<div class="evotitle">' + tr('ENTWICKLUNG!') + '</div><div class="evocard">' + this.icon(res.evolved, 'cicon') +
+        '<div><div class="cname">' + tr(w.name) + ' → <b>' + tr(w.evo.name) + '</b></div><div class="cdesc">' + tr(w.evo.desc) + '</div></div></div>';
     } else {
-      h += '<div class="evotitle">Truhe!</div>';
+      h += '<div class="evotitle">' + tr('Truhe!') + '</div>';
     }
     h += '<div class="loot">';
     res.items.forEach((o, i) => {
       const t = this.optionText(o);
       h += '<div class="lootitem" style="--d:' + (500 + i * 220) + 'ms">' + this.icon(t.icon) + '<b>' + t.name + '</b><span>' + t.tag + '</span></div>';
     });
-    h += '</div><div class="lootgold" style="--d:' + (600 + res.items.length * 220) + 'ms">' + this.icon('coin', 'tiny') + '+' + res.gold + ' Gold</div>' +
-      '<button class="btn primary" data-act="chestok">Weiter</button></div>';
+    h += '</div><div class="lootgold" style="--d:' + (600 + res.items.length * 220) + 'ms">' + this.icon('coin', 'tiny') + tr('+{0} Gold', res.gold) + '</div>' +
+      '<button class="btn primary" data-act="chestok">' + tr('Weiter') + '</button></div>';
     return h;
   },
 
   tpl_pause() {
     const r = Game.run, s = r.stats;
-    let h = '<div class="modal pause"><h2>Pause</h2><div class="build"><div class="bcol"><h3>Waffen</h3>';
+    let h = '<div class="modal pause"><h2>' + tr('Pause') + '</h2><div class="build"><div class="bcol"><h3>' + tr('Waffen') + '</h3>';
     for (const w of r.weapons) {
       const d = WEAPONS[w.id];
-      h += '<div class="brow">' + this.icon(w.id) + '<div><b>' + (w.evo ? d.evo.name : d.name) + '</b> <span class="lv' + (w.evo ? ' evo' : '') + '">' + (w.evo ? 'ENTWICKELT' : 'Stufe ' + w.level + '/8') + '</span>' +
-        (w.evo ? '' : '<small>Entwicklung: Stufe 8 + ' + PASSIVES[d.evo.with].name + (Game.hasPassive(d.evo.with) ? ' ✓' : '') + ', dann Truhe</small>') + '</div></div>';
+      h += '<div class="brow">' + this.icon(w.id) + '<div><b>' + tr(w.evo ? d.evo.name : d.name) + '</b> <span class="lv' + (w.evo ? ' evo' : '') + '">' + (w.evo ? tr('ENTWICKELT') : tr('Stufe {0}/{1}', w.level, WEAPON_MAX)) + '</span>' +
+        (w.evo ? '' : '<small>' + tr('Entwicklung: Stufe 8 + {0}{1}, dann Truhe', tr(PASSIVES[d.evo.with].name), Game.hasPassive(d.evo.with) ? ' ✓' : '') + '</small>') + '</div></div>';
     }
-    h += '</div><div class="bcol"><h3>Passive</h3>';
+    h += '</div><div class="bcol"><h3>' + tr('Passive') + '</h3>';
     for (const p of r.passives) {
       const d = PASSIVES[p.id];
-      h += '<div class="brow">' + this.icon(p.id) + '<div><b>' + d.name + '</b> <span class="lv">Stufe ' + p.level + '/' + d.max + '</span><small>' + d.desc + '</small></div></div>';
+      h += '<div class="brow">' + this.icon(p.id) + '<div><b>' + tr(d.name) + '</b> <span class="lv">' + tr('Stufe {0}/{1}', p.level, d.max) + '</span><small>' + tr(d.desc) + '</small></div></div>';
     }
-    if (!r.passives.length) h += '<div class="empty">Noch keine</div>';
-    const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + ' %';
+    if (!r.passives.length) h += '<div class="empty">' + tr('Noch keine') + '</div>';
+    const ps = LANG === 'de' ? ' %' : '%';
+    const pct = v => (v >= 0 ? '+' : '') + Math.round(v * 100) + ps;
+    const row = (label, val) => '<div>' + tr(label) + '<b>' + val + '</b></div>';
     h += '</div></div><div class="statgrid">' +
-      '<div>Leben<b>' + Math.ceil(r.p.hp) + '/' + s.maxHp + '</b></div><div>Rüstung<b>' + s.armor + '</b></div><div>Erholung<b>' + s.regen.toFixed(1).replace('.', ',') + '/s</b></div>' +
-      '<div>Schaden<b>' + pct(s.might - 1) + '</b></div><div>Fläche<b>' + pct(s.area - 1) + '</b></div><div>Abklingzeit<b>' + pct(s.cooldown - 1) + '</b></div>' +
-      '<div>Geschosse<b>+' + s.amount + '</b></div><div>Lauftempo<b>' + pct(s.speedMul - 1) + '</b></div><div>Glück<b>' + pct(s.luck - 1) + '</b></div>' +
-      '<div>Krit<b>' + Math.round(s.crit * 100) + ' %</b></div><div>Wachstum<b>' + pct(s.growth - 1) + '</b></div><div>Gier<b>' + pct(s.greed - 1) + '</b></div>' +
-      '</div><div class="actions"><button class="btn danger small" data-act="quit">' + (this.confirm === 'quit' ? 'Wirklich aufgeben?' : 'Aufgeben') + '</button>' +
-      '<button class="btn small" data-act="opts">Einstellungen</button><button class="btn primary" data-act="resume">Weiter</button></div></div>';
+      row('Leben', Math.ceil(r.p.hp) + '/' + s.maxHp) + row('Rüstung', s.armor) + row('Erholung', fmtDec(s.regen.toFixed(1)) + '/s') +
+      row('Schaden', pct(s.might - 1)) + row('Fläche', pct(s.area - 1)) + row('Abklingzeit', pct(s.cooldown - 1)) +
+      row('Geschosse', '+' + s.amount) + row('Lauftempo', pct(s.speedMul - 1)) + row('Glück', pct(s.luck - 1)) +
+      row('Krit', Math.round(s.crit * 100) + ps) + row('Wachstum', pct(s.growth - 1)) + row('Gier', pct(s.greed - 1)) +
+      '</div><div class="actions"><button class="btn danger small" data-act="quit">' + tr(this.confirm === 'quit' ? 'Wirklich aufgeben?' : 'Aufgeben') + '</button>' +
+      '<button class="btn small" data-act="opts">' + tr('Einstellungen') + '</button><button class="btn primary" data-act="resume">' + tr('Weiter') + '</button></div></div>';
     return h;
   },
 
   tpl_victory() {
-    return '<div class="modal victory"><div class="vtitle">Die Nacht ist besiegt!</div>' +
-      '<p>Du hast 15 Minuten überlebt. Die Belohnung ist dir sicher.<br>Wie lange hältst du noch durch? Im Endlosmodus wird es immer härter – Gold gibt es weiter.</p>' +
-      '<div class="actions"><button class="btn" data-act="finish">Belohnung einsammeln</button><button class="btn primary" data-act="endless">Endlos weiter</button></div></div>';
+    return '<div class="modal victory"><div class="vtitle">' + tr('Die Nacht ist besiegt!') + '</div>' +
+      '<p>' + tr('Du hast 15 Minuten überlebt. Die Belohnung ist dir sicher.<br>Wie lange hältst du noch durch? Im Endlosmodus wird es immer härter – Gold gibt es weiter.') + '</p>' +
+      '<div class="actions"><button class="btn" data-act="finish">' + tr('Belohnung einsammeln') + '</button><button class="btn primary" data-act="endless">' + tr('Endlos weiter') + '</button></div></div>';
   },
 
   tpl_over(sum) {
     const r = Game.run, save = Store.data;
     const won = sum.won;
     const record = r.t > this.prevBest && this.prevBest > 0;
-    let h = '<div class="panel wide over' + (won ? ' won' : '') + '"><div class="otitle">' + (won ? 'Sieg!' : 'Gefallen') + '</div>' +
-      (record ? '<div class="record">Neue Bestzeit!</div>' : '') +
-      '<div class="ostats"><div>' + this.icon('clock', 'tiny') + '<b>' + fmtTime(r.t) + '</b><small>Zeit</small></div>' +
-      '<div><b>' + r.level + '</b><small>Stufe</small></div>' +
-      '<div>' + this.icon('skull', 'tiny') + '<b>' + fmtNum(r.kills) + '</b><small>Besiegt</small></div>' +
-      '<div><b>' + r.bossKills + '</b><small>Bosse</small></div></div>' +
-      '<div class="goldcalc"><span>Gesammelt <b>' + sum.collected + '</b></span><span>Zeitbonus <b>' + sum.timeBonus + '</b></span><span>Bossbonus <b>' + sum.bossBonus + '</b></span>' +
-      (sum.gift ? '<span>Startgeschenk <b>' + sum.gift + '</b></span>' : '') +
-      (sum.heatMul > 1 ? '<span>(inkl. Nachtstufe ×' + String(sum.heatMul).replace('.', ',') + ')</span>' : '') +
+    let h = '<div class="panel wide over' + (won ? ' won' : '') + '"><div class="otitle">' + tr(won ? 'Sieg!' : 'Gefallen') + '</div>' +
+      (record ? '<div class="record">' + tr('Neue Bestzeit!') + '</div>' : '') +
+      '<div class="ostats"><div>' + this.icon('clock', 'tiny') + '<b>' + fmtTime(r.t) + '</b><small>' + tr('Zeit') + '</small></div>' +
+      '<div><b>' + r.level + '</b><small>' + tr('Stufe') + '</small></div>' +
+      '<div>' + this.icon('skull', 'tiny') + '<b>' + fmtNum(r.kills) + '</b><small>' + tr('Besiegt') + '</small></div>' +
+      '<div><b>' + r.bossKills + '</b><small>' + tr('Bosse') + '</small></div></div>' +
+      '<div class="goldcalc"><span>' + tr('Gesammelt') + ' <b>' + sum.collected + '</b></span><span>' + tr('Zeitbonus') + ' <b>' + sum.timeBonus + '</b></span><span>' + tr('Bossbonus') + ' <b>' + sum.bossBonus + '</b></span>' +
+      (sum.gift ? '<span>' + tr('Startgeschenk') + ' <b>' + sum.gift + '</b></span>' : '') +
+      (sum.heatMul > 1 ? '<span>' + tr('(inkl. Nachtstufe ×{0})', fmtDec(sum.heatMul)) + '</span>' : '') +
       '<span class="gtotal">' + this.icon('coin', 'tiny') + '+' + fmtNum(sum.total) + '</span></div>';
     const dmg = Object.entries(r.dmgBy).filter(([k]) => WEAPONS[k]).sort((a, b) => b[1] - a[1]);
     if (dmg.length) {
@@ -263,23 +276,23 @@ const UI = {
       h += '<div class="dmgtable">';
       for (const [k, v] of dmg) {
         const w = r.weapons.find(x => x.id === k);
-        h += '<div class="drow">' + this.icon(k, 'tiny') + '<span class="dn">' + (w && w.evo ? WEAPONS[k].evo.name : WEAPONS[k].name) + '</span>' +
+        h += '<div class="drow">' + this.icon(k, 'tiny') + '<span class="dn">' + tr(w && w.evo ? WEAPONS[k].evo.name : WEAPONS[k].name) + '</span>' +
           '<div class="dbar"><i style="width:' + (v / max * 100).toFixed(1) + '%"></i></div><span class="dv">' + fmtNum(v) + '</span></div>';
       }
       h += '</div>';
     }
     if (r.newAch.length) {
-      h += '<div class="newach"><h3>Neue Erfolge</h3>' + r.newAch.map(a => '<div>' + this.icon('trophy', 'tiny') + '<b>' + a.name + '</b> +' + a.gold + ' Gold' + (a.unlock ? ' · <em>Freigeschaltet: ' + a.unlock + '</em>' : '') + '</div>').join('') + '</div>';
+      h += '<div class="newach"><h3>' + tr('Neue Erfolge') + '</h3>' + r.newAch.map(a => '<div>' + this.icon('trophy', 'tiny') + '<b>' + tr(a.name) + '</b> ' + tr('+{0} Gold', a.gold) + (a.unlock ? ' · <em>' + tr('Freigeschaltet: {0}', tr(a.unlock)) + '</em>' : '') + '</div>').join('') + '</div>';
     }
     // Nächstes Ziel als Anreiz
     const next = ACHIEVEMENTS.find(a => !save.achievements[a.id]);
     const cheap = SHOP.filter(it => (save.shop[it.id] || 0) < it.max).map(it => ({ it, p: shopPrice(it, save) })).sort((a, b) => a.p - b.p)[0];
     h += '<div class="nextgoal">';
     const canBuy = cheap && save.gold >= cheap.p;
-    if (canBuy) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + 'Du kannst dir <b>' + cheap.it.name + '</b> in der Schmiede leisten!</div>';
-    else if (cheap) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + 'Noch <b>' + fmtNum(cheap.p - save.gold) + ' Gold</b> bis ' + cheap.it.name + ' (' + cheap.it.text + ')</div>';
-    if (next) h += '<div>' + this.icon('trophy', 'tiny') + 'Nächstes Ziel: <b>' + next.text + '</b>' + (next.unlock ? ' → ' + next.unlock : '') + '</div>';
-    h += '</div><div class="actions"><button class="btn" data-act="menu">Menü</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + 'Schmiede</button><button class="btn big primary" data-act="again">Nochmal!</button></div></div>';
+    if (canBuy) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Du kannst dir {0} in der Schmiede leisten!', '<b>' + tr(cheap.it.name) + '</b>') + '</div>';
+    else if (cheap) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Noch {0} Gold bis {1} ({2})', '<b>' + fmtNum(cheap.p - save.gold) + '</b>', '<b>' + tr(cheap.it.name) + '</b>', tr(cheap.it.text)) + '</div>';
+    if (next) h += '<div>' + this.icon('trophy', 'tiny') + tr('Nächstes Ziel: {0}', '<b>' + tr(next.text) + '</b>' + (next.unlock ? ' → ' + tr(next.unlock) : '')) + '</div>';
+    h += '</div><div class="actions"><button class="btn" data-act="menu">' + tr('Menü') + '</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + tr('Schmiede') + '</button><button class="btn big primary" data-act="again">' + tr('Nochmal!') + '</button></div></div>';
     return h;
   },
 
@@ -299,6 +312,10 @@ const UI = {
         if (s.chars.indexOf(id) < 0) { Sfx.play('deny'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
         this.selChar = id; Sfx.play('click'); this.show('chars'); break;
       }
+      case 'lang':
+        s.settings.lang = b.dataset.l; setLang(s.settings.lang); Store.save(); Sfx.play('click');
+        this.hudSig = ''; this.lastHud = {};
+        this.show(this.cur); break;
       case 'heat': s.heat = +b.dataset.i; Store.save(); Sfx.play('click'); this.show('chars'); break;
       case 'start': this.startRun(this.selChar); break;
       case 'again': this.startRun(Game.run ? Game.run.char : this.selChar); break;
@@ -470,8 +487,10 @@ const UI = {
     Sfx.play('achievement');
     const d = document.createElement('div');
     d.className = 'toast';
-    d.innerHTML = this.icon('trophy', 'tiny') + '<div><b>' + a.name + '</b><small>' + a.text + ' · +' + a.gold + ' Gold' + (a.unlock ? ' · Freigeschaltet: ' + a.unlock : '') + '</small></div>';
+    d.innerHTML = this.icon('trophy', 'tiny') + '<div><b>' + tr(a.name) + '</b><small>' + tr(a.text) + ' · ' + tr('+{0} Gold', a.gold) + (a.unlock ? ' · ' + tr('Freigeschaltet: {0}', tr(a.unlock)) : '') + '</small></div>';
     this.el.toasts.appendChild(d);
+    // höchstens drei Meldungen gleichzeitig, damit das Spielfeld frei bleibt
+    while (this.el.toasts.children.length > 3) this.el.toasts.firstChild.remove();
     setTimeout(() => d.classList.add('out'), 3800);
     setTimeout(() => d.remove(), 4400);
   },
@@ -484,7 +503,7 @@ const UI = {
     const xpk = Math.min(1, r.xp / r.xpNext);
     const xpw = (xpk * 100).toFixed(1);
     if (L.xp !== xpw) { el.xpfill.style.width = xpw + '%'; L.xp = xpw; }
-    if (L.level !== r.level) { el.xplvl.textContent = 'Stufe ' + r.level; L.level = r.level; }
+    if (L.level !== r.level) { el.xplvl.textContent = tr('Stufe {0}', r.level); L.level = r.level; }
     const tt = Math.floor(r.t);
     if (L.t !== tt) {
       el.timer.textContent = fmtTime(r.t);
@@ -506,7 +525,7 @@ const UI = {
     for (const b of r.bosses) if (!b.dead && (!boss || b.maxHp > boss.maxHp)) boss = b;
     if (boss) {
       if (el.bossbar.hidden) el.bossbar.hidden = false;
-      if (L.bossName !== boss.boss.name) { el.bossname.textContent = boss.boss.name; L.bossName = boss.boss.name; }
+      if (L.bossName !== boss.boss.name) { el.bossname.textContent = tr(boss.boss.name); L.bossName = boss.boss.name; }
       el.bossfill.style.width = (Math.max(0, boss.hp / boss.maxHp) * 100).toFixed(1) + '%';
     } else if (!el.bossbar.hidden) el.bossbar.hidden = true;
   },

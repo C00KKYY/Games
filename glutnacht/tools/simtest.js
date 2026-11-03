@@ -7,7 +7,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..', 'js');
-const FILES = ['util.js', 'data.js', 'game.js', 'weapons.js'];
+const FILES = ['util.js', 'lang.js', 'data.js', 'game.js', 'weapons.js'];
 
 function load() {
   const mem = {};

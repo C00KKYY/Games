@@ -41,9 +41,11 @@ function fmtTime(s) {
 
 function fmtNum(n) {
   n = Math.floor(n);
-  if (n >= 1e6) return (n / 1e6).toFixed(1).replace('.', ',') + ' Mio.';
-  if (n >= 1e4) return (n / 1e3).toFixed(1).replace('.', ',') + 'k';
-  return n.toLocaleString('de-DE');
+  const de = typeof LANG === 'undefined' || LANG === 'de';
+  const dec = x => (de ? x.replace('.', ',') : x);
+  if (n >= 1e6) return dec((n / 1e6).toFixed(1)) + (de ? ' Mio.' : 'M');
+  if (n >= 1e4) return dec((n / 1e3).toFixed(1)) + 'k';
+  return n.toLocaleString(de ? 'de-DE' : 'en-US');
 }
 
 // Deterministischer Hash für Chunk-Dekoration.
@@ -118,7 +120,7 @@ function defaultSave() {
     heatUnlocked: 0,
     heat: 0,
     lastChar: 'aron',
-    settings: { sfx: true, music: true, dmgNums: true, shake: true },
+    settings: { sfx: true, music: true, dmgNums: true, shake: true, lang: null },
   };
 }
 

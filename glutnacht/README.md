@@ -1,8 +1,10 @@
-# Glutnacht
+# Glutnacht (englisch: Ember Night)
 
 Ein Survivor-Roguelite für den Browser: Du läufst, deine Waffen greifen automatisch an, und die Nacht schickt immer mehr Monster. Überlebe 15 Minuten und besiege **Die Nacht**.
 
 Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Festplatte). Läuft mit Tastatur oder per Touch auf Handy und Tablet.
+
+Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das Spiel nach der Browsersprache (Deutsch bei deutschem Browser, sonst Englisch); umschaltbar im Hauptmenü und in den Einstellungen.
 
 ## Spielprinzip
 
@@ -47,7 +49,9 @@ Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Fes
 
 ## Technik
 
-- Reines JavaScript ohne Build-Schritt und ohne Abhängigkeiten, Canvas 2D. Alle Grafiken werden beim Start prozedural gezeichnet, alle Klänge und die Musik live per WebAudio erzeugt.
+- Reines JavaScript ohne Build-Schritt und ohne Abhängigkeiten, Canvas 2D. Alle Grafiken werden beim Start prozedural gezeichnet, alle Klänge und die Musik live per WebAudio erzeugt. Keine Anfragen an fremde Server; die Schriften (Lilita One, Nunito, SIL Open Font License) liegen in `fonts/`.
+- Texte: Deutsch ist die Quellsprache im Code, `tr()` in `js/lang.js` liefert die englische Übersetzung.
+- `js/platform.js` bindet das CrazyGames-SDK v3 an (Spielstart/-pause, Stummschaltung durch die Plattform, Glücksmomente). Ohne SDK tut es nichts.
 - Die Spiellogik (`js/game.js`, `js/weapons.js`) kennt kein DOM; Darstellung, Klang und Oberfläche hängen sich über `Hooks` an.
 - Kollisionen über ein räumliches Hash-Raster, flüssig mit mehreren hundert Gegnern.
 - Spielstand in `localStorage` (`glutnacht.v1`).
@@ -55,4 +59,5 @@ Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Fes
 ```
 node tools/simtest.js aron 0 3      # 3 Läufe headless mit Ausweich-Bot (Held, Nachtstufe, Anzahl)
 node tools/build-single.js out.html # alles in eine HTML-Datei bündeln
+node tools/build-single.js --crazygames  # dist/ember-night-crazygames.zip zum Hochladen bei CrazyGames
 ```

@@ -502,8 +502,8 @@ const Render = {
     // Einstiegshilfe in den ersten Läufen
     if (Store.data.stats.runs <= 2 && r.t < 40) {
       let txt = null;
-      if (!r.moved) txt = Input.touch ? 'Gedrückt halten und ziehen zum Laufen' : 'WASD / Pfeiltasten zum Laufen';
-      else if (r.level === 1 && r.t > 6) txt = 'Sammle die blauen Edelsteine!';
+      if (!r.moved) txt = tr(Input.touch ? 'Gedrückt halten und ziehen zum Laufen' : 'WASD / Pfeiltasten zum Laufen');
+      else if (r.level === 1 && r.t > 6) txt = tr('Sammle die blauen Edelsteine!');
       if (txt) {
         const s = this.toScreen(p.x, p.y);
         ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.25;

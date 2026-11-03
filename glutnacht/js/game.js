@@ -3,7 +3,7 @@
 
 const Hooks = {
   levelUp() {}, chest() {}, gameOver() {}, victory() {}, banner() {}, achievement() {},
-  sfx() {}, shake() {},
+  sfx() {}, shake() {}, happy() {},
 };
 
 const ENEMY_COLORS = {
@@ -215,7 +215,7 @@ const Game = {
       e.elite = true;
       e.hp = e.maxHp = Math.max(160, e.maxHp * 14);
       e.r *= 1.55; e.xp *= 8; e.kb *= 0.3; e.dmg *= 1.4; e.speed *= 0.95;
-      Hooks.banner('Ein Elitegegner taucht auf – er trägt eine Truhe!', 'elite');
+      Hooks.banner(tr('Ein Elitegegner taucht auf – er trägt eine Truhe!'), 'elite');
     }
 
     // Bosse
@@ -281,7 +281,7 @@ const Game = {
     e.xp = def.xp; e.kb = 0.05;
     e.skillT = 3; e.skillIdx = 0; e.mode = 'chase'; e.modeT = 0;
     r.bosses.push(e);
-    Hooks.banner(def.name + ' erscheint!', 'boss');
+    Hooks.banner(tr('{0} erscheint!', tr(def.name)), 'boss');
     Hooks.sfx('boss');
     Hooks.shake(10);
     return e;
@@ -289,7 +289,7 @@ const Game = {
 
   runEvent(ev) {
     const r = this.run, p = r.p;
-    Hooks.banner(ev.text, 'event');
+    Hooks.banner(tr(ev.text), 'event');
     Hooks.sfx('alarm');
     const vr = this.viewRadius();
     if (ev.kind === 'swarm') {
@@ -467,7 +467,7 @@ const Game = {
       p.iframe = 3;
       this.blast(p.x, p.y, 320, 99999, 'revive');
       this.burst(p.x, p.y, '#ffe27a', 80, 380);
-      Hooks.banner('Wiedergeboren!', 'event');
+      Hooks.banner(tr('Wiedergeboren!'), 'event');
       Hooks.sfx('revive');
       return;
     }
@@ -530,7 +530,8 @@ const Game = {
       this.drop(e.x, e.y, 'chest');
       Hooks.shake(14);
       Hooks.sfx('bossdown');
-      Hooks.banner(e.boss.name + ' besiegt!', 'win');
+      Hooks.happy();
+      Hooks.banner(tr('{0} besiegt!', tr(e.boss.name)), 'win');
       if (e.boss.final && !r.won && !r.over) {
         r.won = true;
         // Sieg sofort sichern, falls der Endlosmodus nie regulär endet
@@ -741,7 +742,7 @@ const Game = {
     if (it.kind === 'coin' || it.kind === 'bag') {
       const v = Math.round((it.kind === 'bag' ? it.v || 15 : it.v || 1) * r.stats.greed * HEAT[r.heat].gold);
       r.gold += v;
-      this.text(p.x, p.y - 26, '+' + v + ' Gold', '#ffd23f', 1);
+      this.text(p.x, p.y - 26, tr('+{0} Gold', v), '#ffd23f', 1);
       Hooks.sfx('coin');
     } else if (it.kind === 'heart') {
       const h = Math.min(30, r.stats.maxHp - p.hp);

@@ -23,9 +23,17 @@ const Sfx = (() => {
     applySettings();
   }
 
+  let platformMuted = false; // z. B. CrazyGames-Einstellung "muteAudio" – hat Vorrang
+
+  function setPlatformMute(m) {
+    platformMuted = !!m;
+    applySettings();
+  }
+
   function applySettings() {
     if (!ctx) return;
     const s = Store.data.settings;
+    master.gain.value = platformMuted ? 0 : 0.8;
     sfxBus.gain.value = s.sfx ? 1 : 0;
     musicBus.gain.value = s.music ? 0.32 : 0;
   }
@@ -125,7 +133,7 @@ const Sfx = (() => {
   };
 
   function play(name, arg) {
-    if (!ctx || ctx.state !== 'running' || !Store.data.settings.sfx) return;
+    if (!ctx || ctx.state !== 'running' || !Store.data.settings.sfx || platformMuted) return;
     const fn = SOUNDS[name];
     if (fn) fn.call(SOUNDS, arg);
   }
@@ -172,5 +180,5 @@ const Sfx = (() => {
 
   function setIntensity(v) { intensity = v; }
 
-  return { init, play, applySettings, startMusic, stopMusic, setIntensity };
+  return { init, play, applySettings, setPlatformMute, startMusic, stopMusic, setIntensity };
 })();
