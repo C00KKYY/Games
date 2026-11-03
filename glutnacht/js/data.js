@@ -1,7 +1,6 @@
 'use strict';
 // Spieldaten: Waffen, Passive, Gegner, Wellen, Bosse, Charaktere, Schmiede, Erfolge.
 
-const RUN_LENGTH = 900; // 15 Minuten bis zum Endboss
 
 // Waffen: base = Stufe 1, levels[i] gilt beim Erreichen von Stufe i+2.
 const WEAPONS = {
@@ -225,12 +224,77 @@ const HEAT = [
   { name: 'Nachtstufe 5', hp: 3.2, speed: 1.25, rate: 1.8, gold: 3.2 },
 ];
 
+// ---------- Gebiete (Kapitel) ----------
+// Jedes Gebiet: Dauer, Wellen je Minute, Ereignisse, Bosse (final = Gebiet geschafft), Boden, Deko,
+// Farbtönung einzelner Gegner und Faktoren für Lebenspunkte, Schaden und Spawnrate.
+// VORLÄUFIG: Gebiete 2–5 sind Platzhalter auf Basis der bisherigen Daten.
+const STAGES = [
+  {
+    id: 'graveyard', name: 'Friedhof', minutes: 10,
+    intro: 'Die Nacht verschluckt die Welt. Nur deine Glut brennt noch.', outro: 'Der Friedhof glüht wieder.',
+    ground: null, decor: null, tints: {}, mult: { hp: 1, dmg: 1, rate: 1 },
+    waves: WAVES.slice(0, 10),
+    events: EVENTS.filter(e => e.t < 600),
+    bosses: [
+      Object.assign({}, BOSSES[0]),
+      Object.assign({}, BOSSES[1]),
+      { id: 'gravewarden', name: 'Grabwächter', t: 600, sprite: 'skel', tint: '#7fd8ff', hp: 9000, speed: 66, dmg: 26, r: 50, xp: 300, skills: ['summon', 'slam', 'dash'], final: true },
+    ],
+  },
+  {
+    id: 'frost', name: 'Gefrorener See', minutes: 15,
+    intro: 'Unter dem Eis schlafen die Geister.', outro: 'Das Eis bricht, die Glut kehrt zurück.',
+    ground: { base: '#1b2433', specA: 'rgba(120,160,200,0.16)', specB: 'rgba(10,15,30,0.25)', blobA: 'rgba(90,130,180,0.16)', blobB: 'rgba(40,50,90,0.18)', grass: 'rgba(160,200,230,0.28)' },
+    decor: ['rock', 'grave', 'cross', 'bones'], tints: { ghost: '#9fe0ff', wraith: '#7fb8ff' }, mult: { hp: 1.15, dmg: 1.1, rate: 1.05 },
+    waves: WAVES, events: EVENTS, bosses: BOSSES.map(b => Object.assign({}, b, { final: b.id === 'colossus', t: b.id === 'colossus' ? 900 : b.t })).filter(b => b.id !== 'night'),
+  },
+  {
+    id: 'forest', name: 'Brennender Wald', minutes: 15,
+    intro: 'Der Wald brennt, doch es ist nicht deine Glut.', outro: 'Die falschen Flammen sind erloschen.',
+    ground: { base: '#2a1a16', specA: 'rgba(200,90,40,0.14)', specB: 'rgba(20,8,5,0.3)', blobA: 'rgba(160,60,30,0.16)', blobB: 'rgba(60,20,20,0.2)', grass: 'rgba(200,120,60,0.3)' },
+    decor: ['stump', 'mush', 'rock', 'bones'], tints: { bat: '#ff8a3c', slime: '#ff7a3c' }, mult: { hp: 1.3, dmg: 1.2, rate: 1.1 },
+    waves: WAVES, events: EVENTS, bosses: BOSSES.map(b => Object.assign({}, b, { final: b.id === 'bloodcount', t: b.id === 'bloodcount' ? 900 : b.t })).filter(b => b.id !== 'night'),
+  },
+  {
+    id: 'ruins', name: 'Ruinen', minutes: 15,
+    intro: 'Hier stand einst die Stadt der Hüter.', outro: 'Die Ruinen erinnern sich an das Licht.',
+    ground: { base: '#26222c', specA: 'rgba(170,150,120,0.14)', specB: 'rgba(10,8,15,0.28)', blobA: 'rgba(130,110,90,0.15)', blobB: 'rgba(60,50,80,0.18)', grass: 'rgba(150,140,110,0.25)' },
+    decor: ['rock', 'grave', 'cross', 'stump'], tints: {}, mult: { hp: 1.5, dmg: 1.3, rate: 1.15 },
+    waves: WAVES, events: EVENTS, bosses: BOSSES.map(b => Object.assign({}, b, { final: b.id === 'bonelord', t: b.id === 'bonelord' ? 900 : b.t })).filter(b => b.id !== 'night'),
+  },
+  {
+    id: 'throne', name: 'Thron der Nacht', minutes: 15,
+    intro: 'Am Ende der Welt wartet die Nacht selbst.', outro: 'Der Morgen bricht an. Die Welt glüht wieder.',
+    ground: { base: '#17112a', specA: 'rgba(130,90,220,0.15)', specB: 'rgba(5,3,15,0.3)', blobA: 'rgba(110,60,200,0.16)', blobB: 'rgba(40,20,80,0.2)', grass: 'rgba(150,110,230,0.28)' },
+    decor: ['grave', 'bones', 'cross', 'rock'], tints: {}, mult: { hp: 1.7, dmg: 1.4, rate: 1.2 },
+    waves: WAVES, events: EVENTS, bosses: BOSSES,
+  },
+];
+
+// Rahmengeschichte (VORLÄUFIG, wird mit dem Gebietsentwurf ersetzt)
+const STORY = {
+  premise: 'Die Nacht verschlingt die Welt, Gebiet für Gebiet. Du bist der letzte Hüter der Glut.',
+  ending: 'Die Nacht ist vorbei. Überall glüht die Glut wieder.',
+};
+
+function stageById(id) { return STAGES.find(s => s.id === id) || STAGES[0]; }
+// Höchste Nachtstufe, auf der das Gebiet geschafft wurde (-1 = noch nie)
+function stageBest(save, id) { const v = save.stages && save.stages[id]; return typeof v === 'number' ? v : -1; }
+// Sterne: geschafft, auf Nachtstufe 1+, auf Nachtstufe 3+
+function stageStars(save, id) { const b = stageBest(save, id); return b < 0 ? 0 : b >= 3 ? 3 : b >= 1 ? 2 : 1; }
+function stageUnlocked(save, i) { return i === 0 || stageBest(save, STAGES[i - 1].id) >= 0; }
+// Höchste wählbare Nachtstufe: eine über der besten geschafften
+function stageMaxHeat(save, id) { return Math.min(HEAT.length - 1, stageBest(save, id) + 1); }
+function totalStars(save) { return STAGES.reduce((a, s) => a + stageStars(save, s.id), 0); }
+
 // Erfolge: check(run, save) wird am Laufende und zwischendurch geprüft.
 const ACHIEVEMENTS = [
   { id: 't1', name: 'Erste Nacht', text: 'Überlebe 1 Minute', gold: 20, check: r => r.t >= 60 },
   { id: 't5', name: 'Zähe Seele', text: 'Überlebe 5 Minuten', gold: 60, check: r => r.t >= 300 },
   { id: 't10', name: 'Nachtwache', text: 'Überlebe 10 Minuten', gold: 120, unlock: 'Sela', check: r => r.t >= 600 },
-  { id: 'win', name: 'Morgengrauen', text: 'Besiege Die Nacht (15 Minuten)', gold: 300, unlock: 'Ignis + Nachtstufe 1', check: r => r.won },
+  { id: 'win', name: 'Morgengrauen', text: 'Schaffe das erste Gebiet', gold: 300, unlock: 'Ignis', check: r => r.won },
+  { id: 'night', name: 'Ende der Nacht', text: 'Besiege Die Nacht', gold: 800, check: (r, s) => stageBest(s, 'throne') >= 0 },
+  { id: 'stars15', name: 'Sternenhimmel', text: 'Sammle alle 15 Sterne', gold: 2000, check: (r, s) => totalStars(s) >= 15 },
   { id: 'lvl10', name: 'Lehrling', text: 'Erreiche Stufe 10', gold: 30, check: r => r.level >= 10 },
   { id: 'lvl20', name: 'Geselle', text: 'Erreiche Stufe 20', gold: 60, unlock: 'Kael', check: r => r.level >= 20 },
   { id: 'lvl40', name: 'Meister', text: 'Erreiche Stufe 40', gold: 150, check: r => r.level >= 40 },

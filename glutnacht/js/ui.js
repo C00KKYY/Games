@@ -74,7 +74,7 @@ const UI = {
       '<button class="btn" data-act="opts">' + this.icon('clock') + tr('Einstellungen') + '</button>' +
       '</div>' +
       this.goldBox() +
-      (st.runs ? '<div class="statsline">' + tr('Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
+      (st.runs ? '<div class="statsline">★ <b>' + totalStars(s) + '/' + STAGES.length * 3 + '</b> · ' + tr('Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
       '<div class="tip"><b>' + tr('Tipp:') + '</b> ' + tip + '</div>' +
       '</div>';
   },
@@ -103,15 +103,62 @@ const UI = {
       '<div><div class="cdname">' + c.name + ' <span>' + tr(c.title) + '</span></div>' +
       '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + tr(w.name) + '</b><br><small>' + tr(w.desc) + '</small></div></div>' +
       '<div class="cdbonus">' + tr(c.text) + '</div></div></div>';
-    if (s.heatUnlocked > 0) {
-      h += '<div class="heat"><div class="hl">' + tr('Nachtstufe') + '</div>';
-      for (let i = 0; i <= s.heatUnlocked; i++) {
-        h += '<button class="chip' + (i === s.heat ? ' sel' : '') + '" data-act="heat" data-i="' + i + '">' + (i ? i : tr('Normal')) + '<small>' + tr('Gold ×{0}', fmtDec(HEAT[i].gold)) + '</small></button>';
-      }
-      h += '</div>';
-    }
-    h += '<div class="actions"><button class="btn" data-act="menu">' + tr('Zurück') + '</button><button class="btn big primary" data-act="start">' + tr('LOS!') + '</button></div></div>';
+    const st = this.selStage(), heat = this.selHeat();
+    h += '<div class="stageline">' + tr('Gebiet {0}: {1}', STAGES.indexOf(st) + 1, '<b>' + tr(st.name) + '</b>') +
+      (heat ? ' · ' + tr('Nachtstufe') + ' ' + heat : '') + '</div>';
+    h += '<div class="actions"><button class="btn" data-act="map">' + tr('Zurück') + '</button><button class="btn big primary" data-act="start">' + tr('LOS!') + '</button></div></div>';
     return h;
+  },
+
+  // Gewähltes Gebiet (nur freigeschaltete) und Nachtstufe (nur freigeschaltete)
+  selStage() {
+    const s = Store.data, i = STAGES.findIndex(x => x.id === s.stageSel);
+    return i >= 0 && stageUnlocked(s, i) ? STAGES[i] : STAGES[0];
+  },
+
+  selHeat() {
+    const s = Store.data, st = this.selStage();
+    return Math.max(0, Math.min(s.stageHeat[st.id] || 0, stageMaxHeat(s, st.id)));
+  },
+
+  stars(n, cls) {
+    let h = '<span class="stars' + (cls ? ' ' + cls : '') + '">';
+    for (let i = 0; i < 3; i++) h += '<i class="' + (i < n ? 'on' : '') + '">★</i>';
+    return h + '</span>';
+  },
+
+  tpl_map() {
+    const s = Store.data, sel = this.selStage();
+    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Weltkarte') + '</h2><div class="pill big">★ ' + totalStars(s) + ' / ' + STAGES.length * 3 + '</div></div><div class="stages">';
+    STAGES.forEach((st, i) => {
+      const open = stageUnlocked(s, i);
+      const bg = (st.ground && st.ground.base) || '#1d2a2b';
+      h += '<button class="stage' + (open ? '' : ' locked') + (st === sel ? ' sel' : '') + '" data-act="stage" data-id="' + st.id + '" style="--g:' + bg + '">' +
+        '<span class="snum">' + (i + 1) + '</span><span class="sname">' + (open ? tr(st.name) : '???') + '</span>' +
+        (open ? this.stars(stageStars(s, st.id)) : this.icon('lock', 'tiny')) + '</button>';
+    });
+    h += '</div><div class="stagedetail"><div class="sdhead"><b>' + tr(sel.name) + '</b><span>' + tr('{0} Minuten', sel.minutes) + '</span>' + this.stars(stageStars(s, sel.id)) + '</div>' +
+      '<p>' + tr(sel.intro) + '</p>';
+    const maxH = stageMaxHeat(s, sel.id), heat = this.selHeat();
+    h += '<div class="heat"><div class="hl">' + tr('Nachtstufe') + '</div>';
+    for (let i = 0; i <= maxH; i++) {
+      h += '<button class="chip' + (i === heat ? ' sel' : '') + '" data-act="heat" data-i="' + i + '">' + (i ? i : tr('Normal')) + '<small>' + tr('Gold ×{0}', fmtDec(HEAT[i].gold)) + '</small></button>';
+    }
+    if (maxH < HEAT.length - 1) h += '<span class="heatnote">' + (maxH ? tr('Schaffe Nachtstufe {0}, um Nachtstufe {1} freizuschalten.', maxH, maxH + 1) : tr('Schaffe das Gebiet, um Nachtstufe 1 freizuschalten.')) + '</span>';
+    h += '</div></div>';
+    // Gesperrtes nächstes Gebiet: sagen, was zu tun ist
+    const ni = STAGES.findIndex((st, i) => !stageUnlocked(s, i));
+    if (ni > 0) h += '<div class="heatnote">' + this.icon('lock', 'tiny') + tr('Schaffe „{0}“, um „{1}“ freizuschalten.', tr(STAGES[ni - 1].name), '???') + '</div>';
+    h += '<div class="actions"><button class="btn" data-act="menu">' + tr('Zurück') + '</button><button class="btn big primary" data-act="chars">' + tr('Weiter') + '</button></div></div>';
+    return h;
+  },
+
+  tpl_story(data) {
+    const st = data.stage, i = STAGES.indexOf(st);
+    return '<div class="modal story"><div class="schap">' + tr('Gebiet {0}', i + 1) + '</div><div class="vtitle">' + tr(st.name) + '</div>' +
+      (data.premise ? '<p class="premise">' + tr(STORY.premise) + '</p>' : '') +
+      '<p>' + tr(st.intro) + '</p>' +
+      '<div class="actions"><button class="btn big primary" data-act="storyok">' + tr('Los geht’s!') + '</button></div></div>';
   },
 
   tpl_shop() {
@@ -251,8 +298,14 @@ const UI = {
   },
 
   tpl_victory() {
-    return '<div class="modal victory"><div class="vtitle">' + tr('Die Nacht ist besiegt!') + '</div>' +
-      '<p>' + tr('Du hast 15 Minuten überlebt. Die Belohnung ist dir sicher.<br>Wie lange hältst du noch durch? Im Endlosmodus wird es immer härter – Gold gibt es weiter.') + '</p>' +
+    const r = Game.run, c = r.clear || {};
+    let h = '<div class="modal victory"><div class="vtitle">' + tr(c.last ? 'Die Nacht ist besiegt!' : 'Gebiet geschafft!') + '</div>' +
+      '<p class="outro">' + tr(r.stage.outro) + '</p>' + this.stars(c.stars || 0, 'big') +
+      (c.stars > c.starsBefore ? '<div class="unl">' + tr('Neuer Stern!') + '</div>' : '') +
+      (c.newStage ? '<div class="unl">' + tr('Neues Gebiet freigeschaltet: {0}', '<b>' + tr(c.newStage.name) + '</b>') + '</div>' : '') +
+      (c.newHeat ? '<div class="unl">' + tr('Nachtstufe {0} freigeschaltet', c.newHeat) + '</div>' : '') +
+      (c.last ? '<p>' + tr(STORY.ending) + '</p>' : '');
+    return h + '<p class="small">' + tr('Im Endlosmodus wird es immer härter – Gold gibt es weiter.') + '</p>' +
       '<div class="actions"><button class="btn" data-act="finish">' + tr('Belohnung einsammeln') + '</button><button class="btn primary" data-act="endless">' + tr('Endlos weiter') + '</button></div></div>';
   },
 
@@ -261,6 +314,8 @@ const UI = {
     const won = sum.won;
     const record = r.t > this.prevBest && this.prevBest > 0;
     let h = '<div class="panel wide over' + (won ? ' won' : '') + '"><div class="otitle">' + tr(won ? 'Sieg!' : 'Gefallen') + '</div>' +
+      '<div class="stageline">' + tr('Gebiet {0}: {1}', STAGES.indexOf(r.stage) + 1, '<b>' + tr(r.stage.name) + '</b>') +
+      (r.heat ? ' · ' + tr('Nachtstufe') + ' ' + r.heat : '') + ' ' + this.stars(stageStars(save, r.stage.id)) + '</div>' +
       (record ? '<div class="record">' + tr('Neue Bestzeit!') + '</div>' : '') +
       '<div class="ostats"><div>' + this.icon('clock', 'tiny') + '<b>' + fmtTime(r.t) + '</b><small>' + tr('Zeit') + '</small></div>' +
       '<div><b>' + r.level + '</b><small>' + tr('Stufe') + '</small></div>' +
@@ -292,8 +347,16 @@ const UI = {
     if (canBuy) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Du kannst dir {0} in der Schmiede leisten!', '<b>' + tr(cheap.it.name) + '</b>') + '</div>';
     else if (cheap) h += '<div>' + this.icon(cheap.it.icon, 'tiny') + tr('Noch {0} Gold bis {1} ({2})', '<b>' + fmtNum(cheap.p - save.gold) + '</b>', '<b>' + tr(cheap.it.name) + '</b>', tr(cheap.it.text)) + '</div>';
     if (next) h += '<div>' + this.icon('trophy', 'tiny') + tr('Nächstes Ziel: {0}', '<b>' + tr(next.text) + '</b>' + (next.unlock ? ' → ' + tr(next.unlock) : '')) + '</div>';
-    h += '</div><div class="actions"><button class="btn" data-act="menu">' + tr('Menü') + '</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + tr('Schmiede') + '</button><button class="btn big primary" data-act="again">' + tr('Nochmal!') + '</button></div></div>';
+    h += '</div><div class="actions"><button class="btn" data-act="menu">' + tr('Menü') + '</button><button class="btn' + (canBuy ? ' pulse' : '') + '" data-act="shop">' + this.icon('armor', 'tiny') + tr('Schmiede') + '</button>' + (this.nextStage() ? '<button class="btn" data-act="again">' + tr('Nochmal!') + '</button><button class="btn big primary" data-act="next">' + tr('Nächstes Gebiet') + '</button>' : '<button class="btn big primary" data-act="again">' + tr('Nochmal!') + '</button>') + '</div></div>';
     return h;
+  },
+
+  // Nach einem Sieg: das nächste Gebiet, falls es freigeschaltet ist und noch nicht geschafft wurde
+  nextStage() {
+    const r = Game.run, s = Store.data;
+    if (!r || !r.won) return null;
+    const i = STAGES.indexOf(r.stage) + 1;
+    return i < STAGES.length && stageUnlocked(s, i) && stageBest(s, STAGES[i].id) < 0 ? STAGES[i] : null;
   },
 
   // ---------- Aktionen ----------
@@ -301,7 +364,18 @@ const UI = {
     const s = Store.data;
     if (a !== 'refund' && a !== 'reset' && a !== 'quit') this.confirm = null;
     switch (a) {
-      case 'play': Sfx.play('click'); if (!s.stats.runs) this.startRun(this.selChar || 'aron'); else this.show('chars'); break;
+      case 'play': Sfx.play('click'); if (!s.stats.runs) this.startRun(this.selChar || 'aron'); else { this.show('map'); Render.setStage(this.selStage()); } break;
+      case 'map': Sfx.play('click'); this.show('map'); break;
+      case 'chars': Sfx.play('click'); this.show('chars'); break;
+      case 'stage': {
+        const i = STAGES.findIndex(x => x.id === b.dataset.id);
+        if (!stageUnlocked(s, i)) { Sfx.play('deny'); b.classList.add('shake'); setTimeout(() => b.classList.remove('shake'), 400); return; }
+        s.stageSel = b.dataset.id; Store.save(); Sfx.play('click'); Render.setStage(STAGES[i]); this.show('map'); break;
+      }
+      case 'storyok':
+        s.storySeen[Game.run.stage.id] = true; s.storySeen.premise = true; Store.save();
+        this.hide(); Game.state = 'play'; this.chapterBanner(); break;
+      case 'next': { const n = this.nextStage(); if (n) { s.stageSel = n.id; s.stageHeat[n.id] = 0; this.startRun(Game.run.char); } break; }
       case 'menu': Sfx.play('click'); this.toMenu(); break;
       case 'shop': Sfx.play('click'); if (Game.state === 'over') this.toMenu(); this.show('shop'); break;
       case 'ach': Sfx.play('click'); this.show('ach'); break;
@@ -316,7 +390,7 @@ const UI = {
         s.settings.lang = b.dataset.l; setLang(s.settings.lang); Store.save(); Sfx.play('click');
         this.hudSig = ''; this.lastHud = {};
         this.show(this.cur); break;
-      case 'heat': s.heat = +b.dataset.i; Store.save(); Sfx.play('click'); this.show('chars'); break;
+      case 'heat': s.stageHeat[this.selStage().id] = +b.dataset.i; Store.save(); Sfx.play('click'); this.show('map'); break;
       case 'start': this.startRun(this.selChar); break;
       case 'again': this.startRun(Game.run ? Game.run.char : this.selChar); break;
       case 'buy': {
@@ -377,7 +451,8 @@ const UI = {
   startRun(charId) {
     const s = Store.data;
     s.lastChar = charId; this.selChar = charId;
-    if (s.heat > s.heatUnlocked) s.heat = 0;
+    const stage = this.selStage(), heat = this.selHeat();
+    s.stageSel = stage.id;
     this.prevBest = s.stats.bestTime;
     Store.save();
     Sfx.init();
@@ -385,12 +460,23 @@ const UI = {
     this.hide();
     this.banMode = false;
     this.hudSig = '';
-    Game.newRun(charId, s.heat);
+    Game.newRun(charId, heat, stage.id);
+    Render.setStage(stage);
     this.el.hud.hidden = false;
     this.el.toasts.innerHTML = '';
     clearTimeout(this.bannerT);
     this.el.banner.className = '';
     if (s.settings.music) Sfx.startMusic();
+    // Beim ersten Besuch eines Gebiets erst die Geschichte zeigen
+    if (!s.storySeen[stage.id]) {
+      Game.state = 'story';
+      this.show('story', { stage, premise: !s.storySeen.premise });
+    } else this.chapterBanner();
+  },
+
+  chapterBanner() {
+    const r = Game.run;
+    if (r) this.banner(tr('Gebiet {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event');
   },
 
   toMenu() {
@@ -440,8 +526,8 @@ const UI = {
     const ae = document.activeElement;
     if ((k === 'enter' || k === ' ') && this.kbNav && ae && ae.tagName === 'BUTTON' && this.el.screen.contains(ae)) return;
     if ((k === 'enter' || k === ' ') && performance.now() >= this.modalReady) {
-      const b = this.el.screen.querySelector('[data-act="chestok"],[data-act="again"],[data-act="start"]');
-      if (b && (this.cur === 'chest' || this.cur === 'over' || this.cur === 'chars')) { e.preventDefault(); this.act(b.dataset.act, b); }
+      const b = this.el.screen.querySelector('[data-act="chestok"],[data-act="storyok"],[data-act="next"],[data-act="again"],[data-act="start"]');
+      if (b && ['chest', 'story', 'over', 'chars'].includes(this.cur)) { e.preventDefault(); this.act(b.dataset.act, b); }
     }
   },
 

@@ -75,11 +75,11 @@ const Promo = {
     opts = opts || {};
     UI.hide();
     this.allow = false;
-    Game.newRun(char, 0);
+    Game.newRun(char, 0, opts.stage || 'throne');
     const r = Game.run;
     r.t = t;
-    r.bossIdx = opts.bossIdx !== undefined ? opts.bossIdx : BOSSES.filter(b => b.t <= t).length;
-    r.eventIdx = EVENTS.filter(e => e.t <= t).length;
+    r.bossIdx = opts.bossIdx !== undefined ? opts.bossIdx : r.bossList.filter(b => b.t <= t).length;
+    r.eventIdx = r.stage.events.filter(e => e.t <= t).length;
     r.eliteT = 999;
     r.weapons = [];
     for (const [id, lvl, evo] of weapons) { const w = Game.addWeapon(id); w.level = lvl; w.evo = !!evo; Game.refreshWeapon(w); }

@@ -105,7 +105,7 @@ const SAVE_KEY = 'glutnacht.v1';
 function defaultSave() {
   return {
     gold: 0,
-    saveVersion: 2,
+    saveVersion: 3,
     shop: {},
     shopSpent: 0,
     giftGiven: false,
@@ -117,8 +117,10 @@ function defaultSave() {
       evolutions: 0, bossKills: 0, chests: 0, goldEarned: 0, playTime: 0,
     },
     bosses: {},
-    heatUnlocked: 0,
-    heat: 0,
+    stages: {}, // Gebiet -> höchste geschaffte Nachtstufe
+    stageSel: 'graveyard',
+    stageHeat: {}, // Gebiet -> gewählte Nachtstufe
+    storySeen: {},
     lastChar: 'aron',
     settings: { sfx: true, music: true, dmgNums: true, shake: true, lang: null },
   };
@@ -147,6 +149,12 @@ const Store = {
       d.shopSpent = Math.max(Number.isFinite(d.shopSpent) ? d.shopSpent : 0, shopRefundValue(d.shop));
       d.giftGiven = d.stats.runs > 0;
       d.saveVersion = 2;
+    }
+    if (d.saveVersion < 3) {
+      // Früher gab es nur ein Gebiet: ein Sieg zählt als geschafftes erstes Gebiet
+      if (d.stats.wins > 0) d.stages.graveyard = Math.max(0, (d.heatUnlocked || 1) - 1);
+      delete d.heatUnlocked; delete d.heat;
+      d.saveVersion = 3;
     }
     for (const k in def.stats) if (d.stats[k] === undefined) d.stats[k] = def.stats[k];
     for (const k in def.settings) if (d.settings[k] === undefined) d.settings[k] = def.settings[k];

@@ -225,14 +225,18 @@ const Sprites = (() => {
     return c;
   }
 
-  // variant: 0 normal, 1 Blitz (weiß), 2 vereist (blau)
-  function enemy(type, frame, variant) {
-    const key = 'e' + type + frame + variant;
+  // variant: 0 normal, 1 Blitz (weiß), 2 vereist (blau); tint: Farbtönung je Gebiet (oder null)
+  function enemy(type, frame, variant, tint) {
+    const key = 'e' + type + frame + variant + (tint || '');
     let c = cache.get(key);
     if (c) return c;
     if (variant) {
-      const base = enemy(type, frame, 0);
+      const base = enemy(type, frame, 0, tint);
       c = variant === 1 ? tintVariant(base, '#ffffff', 0.6) : tintVariant(base, '#7fd8ff', 0.5);
+      c.size = base.size;
+    } else if (tint) {
+      const base = enemy(type, frame, 0, null);
+      c = tintVariant(base, tint, 0.38);
       c.size = base.size;
     } else {
       const R = BASE_R[type] || ENEMIES[type].r;
@@ -626,28 +630,31 @@ const Sprites = (() => {
   }
 
   // ---------- Boden & Deko ----------
-  function groundTile() {
+  // Bodenkachel; pal (optional) färbt sie für ein Gebiet um
+  const GROUND = { base: '#1d2a2b', specA: 'rgba(60,90,70,0.18)', specB: 'rgba(10,20,25,0.25)', blobA: 'rgba(50,80,60,0.18)', blobB: 'rgba(30,40,60,0.18)', grass: 'rgba(90,140,90,0.35)' };
+  function groundTile(pal) {
+    pal = Object.assign({}, GROUND, pal || {});
     const S = 256;
     const c = document.createElement('canvas');
     c.width = c.height = S;
     const g = c.getContext('2d');
-    g.fillStyle = '#1d2a2b';
+    g.fillStyle = pal.base;
     g.fillRect(0, 0, S, S);
     const rnd = mulberry(1234);
     for (let i = 0; i < 900; i++) {
       const x = rnd() * S, y = rnd() * S;
-      g.fillStyle = rnd() < 0.5 ? 'rgba(60,90,70,0.18)' : 'rgba(10,20,25,0.25)';
+      g.fillStyle = rnd() < 0.5 ? pal.specA : pal.specB;
       g.fillRect(x, y, 2 + rnd() * 3, 2 + rnd() * 3);
     }
     for (let i = 0; i < 12; i++) {
       const x = rnd() * S, y = rnd() * S, r = 20 + rnd() * 40;
       const gr = g.createRadialGradient(x, y, 0, x, y, r);
-      gr.addColorStop(0, rnd() < 0.5 ? 'rgba(50,80,60,0.18)' : 'rgba(30,40,60,0.18)');
+      gr.addColorStop(0, rnd() < 0.5 ? pal.blobA : pal.blobB);
       gr.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = gr;
       for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) { g.save(); g.translate(ox, oy); g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); g.restore(); }
     }
-    g.strokeStyle = 'rgba(90,140,90,0.35)'; g.lineWidth = 1.2;
+    g.strokeStyle = pal.grass; g.lineWidth = 1.2;
     for (let i = 0; i < 70; i++) {
       const x = rnd() * S, y = rnd() * S;
       g.beginPath();

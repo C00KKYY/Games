@@ -1,5 +1,5 @@
 // Headless-Test der Spiellogik mit einem einfachen Ausweich-Bot.
-//   node tools/simtest.js [charakter] [nachtstufe] [läufe]
+//   node tools/simtest.js [charakter] [nachtstufe] [läufe] [gebiet]
 // Gibt pro Lauf Überlebenszeit, Stufe, Kills, Waffen und Schaden je Waffe aus.
 'use strict';
 const fs = require('fs');
@@ -17,7 +17,7 @@ function load() {
   };
   vm.createContext(ctx);
   let src = FILES.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
-  src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, BOSSES, CHARS, HEAT, fmtTime };';
+  src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, STAGES, CHARS, HEAT, fmtTime };';
   vm.runInContext(src, ctx, { filename: 'bundle.js' });
   return ctx.__api;
 }
@@ -72,7 +72,7 @@ function choose(api, opts) {
   return opts.slice().sort((a, b) => score(b) - score(a))[0];
 }
 
-function runOnce(api, charId, heat, log) {
+function runOnce(api, charId, heat, log, stage) {
   const { Game, Hooks, Store } = api;
   Store.load();
   let pending = null, chest = false, victory = false, over = null;
@@ -80,7 +80,7 @@ function runOnce(api, charId, heat, log) {
   Hooks.chest = () => { chest = true; };
   Hooks.victory = () => { victory = true; };
   Hooks.gameOver = s => { over = s; };
-  const r = Game.newRun(charId, heat);
+  const r = Game.newRun(charId, heat, stage);
   const dt = 1 / 60;
   let maxEnemies = 0, marks = [];
   let lastMin = -1;
@@ -113,4 +113,5 @@ const api = load();
 const charId = process.argv[2] || 'aron';
 const heat = +(process.argv[3] || 0);
 const n = +(process.argv[4] || 1);
-for (let i = 0; i < n; i++) runOnce(api, charId, heat, true);
+const stage = process.argv[5] || 'graveyard';
+for (let i = 0; i < n; i++) runOnce(api, charId, heat, true, stage);

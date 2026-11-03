@@ -29,10 +29,13 @@ const Game = {
   qd: 0,
   lastLevelOptions: null,
 
-  newRun(charId, heat) {
+  newRun(charId, heat, stageId) {
     const save = Store.data;
+    const stage = stageById(stageId);
     const r = {
-      char: charId, heat: heat || 0, t: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNext: xpFor(1),
+      char: charId, heat: heat || 0, stage, length: stage.minutes * 60,
+      // Bosse nach Zeit sortiert, damit sie der Reihe nach erscheinen
+      bossList: stage.bosses.slice().sort((a, b) => a.t - b.t), clear: null, t: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNext: xpFor(1),
       p: { x: 0, y: 0, r: 12, hp: 100, dirX: 1, dirY: 0, face: 1, moving: false, iframe: 0, flash: 0, walk: 0 },
       stats: null,
       weapons: [], passives: [],
@@ -177,20 +180,20 @@ const Game = {
   // ---------- Spawns ----------
   hpMul(t) {
     const m = t / 60;
-    return HEAT[this.run.heat].hp * (1 + 0.12 * m + 0.012 * m * m);
+    return HEAT[this.run.heat].hp * this.run.stage.mult.hp * (1 + 0.12 * m + 0.012 * m * m);
   },
 
   wave() {
-    const m = Math.floor(this.run.t / 60);
-    return WAVES[Math.min(m, WAVES.length - 1)];
+    const m = Math.floor(this.run.t / 60), w = this.run.stage.waves;
+    return w[Math.min(m, w.length - 1)];
   },
 
   director(dt) {
     const r = this.run;
     const heat = HEAT[r.heat];
     const wv = this.wave();
-    const extra = r.t > RUN_LENGTH ? 1 + (r.t - RUN_LENGTH) / 120 : 1;
-    let rate = wv.rate * heat.rate * extra;
+    const extra = r.t > r.length ? 1 + (r.t - r.length) / 120 : 1;
+    let rate = wv.rate * heat.rate * r.stage.mult.rate * extra;
     const cap = Math.round(wv.cap * Math.min(1.6, heat.rate) * Math.min(extra, 1.5));
     let alive = 0;
     for (const e of r.enemies) if (!e.swarm && !e.boss) alive++;
@@ -219,22 +222,25 @@ const Game = {
     }
 
     // Bosse
-    if (r.bossIdx < BOSSES.length && r.t >= BOSSES[r.bossIdx].t) {
-      this.spawnBoss(BOSSES[r.bossIdx], 1);
+    const bl = r.bossList;
+    if (r.bossIdx < bl.length && r.t >= bl[r.bossIdx].t) {
+      this.spawnBoss(bl[r.bossIdx], 1);
       r.bossIdx++;
     }
     if (r.endless) {
       r.endlessBossT -= dt;
       if (r.endlessBossT <= 0) {
         r.endlessBossT = 120;
-        const k = 1 + (r.t - RUN_LENGTH) / 120;
-        this.spawnBoss(pick(BOSSES.slice(0, 4)), 1.5 + k);
+        const k = 1 + (r.t - r.length) / 120;
+        const pool = bl.filter(b => !b.final);
+        this.spawnBoss(Object.assign({}, pick(pool.length ? pool : bl), { final: false }), 1.5 + k);
       }
     }
 
     // Ereignisse
-    while (r.eventIdx < EVENTS.length && r.t >= EVENTS[r.eventIdx].t) {
-      this.runEvent(EVENTS[r.eventIdx]);
+    const ev = r.stage.events;
+    while (r.eventIdx < ev.length && r.t >= ev[r.eventIdx].t) {
+      this.runEvent(ev[r.eventIdx]);
       r.eventIdx++;
     }
   },
@@ -261,7 +267,8 @@ const Game = {
     const hp = d.hp * this.hpMul(r.t);
     const e = {
       id: r.nextId++, type, x, y, r: d.r, hp, maxHp: hp,
-      speed: d.speed * heat.speed * rand(0.92, 1.08), dmg: d.dmg * (1 + r.t / 60 * 0.04),
+      speed: d.speed * heat.speed * rand(0.92, 1.08), dmg: d.dmg * r.stage.mult.dmg * (1 + r.t / 60 * 0.04),
+      tint: (r.stage.tints && r.stage.tints[type]) || null,
       xp: d.xp, kb: d.kb, kx: 0, ky: 0, flash: 0, slowT: 0, slowF: 1, freezeT: 0,
       elite: false, boss: null, swarm: false, dead: false, hitT: {}, anim: Math.random() * 10,
       shootT: rand(1.5, 3), ranged: !!d.ranged,
@@ -273,9 +280,10 @@ const Game = {
   spawnBoss(def, mult) {
     const r = this.run;
     const pos = this.spawnPos();
-    const e = this.spawnEnemy(def.sprite === 'night' ? 'golem' : def.sprite, pos.x, pos.y);
+    const e = this.spawnEnemy(ENEMIES[def.sprite] ? def.sprite : 'golem', pos.x, pos.y);
     e.boss = def;
     e.type = def.sprite;
+    e.tint = def.tint || null;
     e.hp = e.maxHp = def.hp * HEAT[r.heat].hp * mult;
     e.r = def.r; e.speed = def.speed * HEAT[r.heat].speed; e.dmg = def.dmg * (mult > 1 ? 1 + mult * 0.15 : 1);
     e.xp = def.xp; e.kb = 0.05;
@@ -535,8 +543,7 @@ const Game = {
       if (e.boss.final && !r.won && !r.over) {
         r.won = true;
         // Sieg sofort sichern, falls der Endlosmodus nie regulär endet
-        if (r.heat >= save.heatUnlocked && r.heat < HEAT.length - 1) save.heatUnlocked = r.heat + 1;
-        save.stats.wins++;
+        this.recordClear();
         this.checkAchievements();
         Store.save();
         this.state = 'victory';
@@ -1035,11 +1042,26 @@ const Game = {
       for (const cid in CHARS) {
         if (CHARS[cid].unlock === a.id && save.chars.indexOf(cid) < 0) save.chars.push(cid);
       }
-      if (a.id === 'win') save.heatUnlocked = Math.max(save.heatUnlocked, 1);
       Hooks.achievement(a);
       any = true;
     }
     if (any) Store.save();
+  },
+
+  // Gebiet geschafft: Bestwert, Sterne und Freischaltungen festhalten (für den Siegbildschirm)
+  recordClear() {
+    const r = this.run, save = Store.data, id = r.stage.id, idx = STAGES.indexOf(r.stage);
+    const next = STAGES[idx + 1];
+    const starsBefore = stageStars(save, id), heatBefore = stageMaxHeat(save, id);
+    const nextBefore = next ? stageUnlocked(save, idx + 1) : true;
+    save.stages[id] = Math.max(stageBest(save, id), r.heat);
+    save.stats.wins++;
+    r.clear = {
+      starsBefore, stars: stageStars(save, id),
+      newStage: next && !nextBefore ? next : null,
+      newHeat: stageMaxHeat(save, id) > heatBefore ? stageMaxHeat(save, id) : 0,
+      last: !next,
+    };
   },
 
   continueEndless() {

@@ -9,8 +9,7 @@ const Render = {
   init(canvas) {
     this.cv = canvas;
     this.ctx = canvas.getContext('2d');
-    const tile = Sprites.groundTile();
-    this.pattern = this.ctx.createPattern(tile, 'repeat');
+    this.setStage(STAGES[0]);
     this.spr.bolt = this.glowSprite(26, '#ffffff', '#b48cff');
     this.spr.boltEvo = this.glowSprite(30, '#ffffff', '#ff7cf5');
     this.spr.orb = this.glowSprite(40, '#ffffff', '#3fc8ff');
@@ -29,6 +28,14 @@ const Render = {
   },
 
   // Leuchtpunkt: heller Kern (c0), farbiger Hof (c1), transparent am Rand
+  // Boden und Deko eines Gebiets
+  setStage(stage) {
+    if (this.stageId === stage.id) return;
+    this.stageId = stage.id;
+    this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground), 'repeat');
+    this.decor = stage.decor || Sprites.DECOS;
+  },
+
   glowSprite(size, c0, c1) {
     const c = document.createElement('canvas');
     c.width = c.height = size;
@@ -115,6 +122,7 @@ const Render = {
     const ctx = this.ctx, r = Game.run;
     this.time += dt;
     const inRun = r && Game.state !== 'menu';
+    if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
     if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; }
     else { this.cam.x += 18 * dt; this.cam.y += 7 * dt; }
     let sx = 0, sy = 0;
@@ -152,7 +160,7 @@ const Render = {
     for (let cx = Math.floor(x0 / C); cx <= Math.floor(x1 / C); cx++) {
       for (let cy = Math.floor(y0 / C); cy <= Math.floor(y1 / C); cy++) {
         if (hash2(cx, cy, 3) > 0.2) continue;
-        const kind = Sprites.DECOS[Math.floor(hash2(cx, cy, 4) * Sprites.DECOS.length)];
+        const kind = this.decor[Math.floor(hash2(cx, cy, 4) * this.decor.length)];
         const s = Sprites.deco(kind);
         const x = (cx + 0.1 + hash2(cx, cy, 5) * 0.8) * C, y = (cy + 0.1 + hash2(cx, cy, 6) * 0.8) * C;
         ctx.drawImage(s, x - s.size / 2, y - s.size / 2, s.size, s.size);
@@ -405,7 +413,7 @@ const Render = {
     const ctx = this.ctx;
     const frame = Math.floor(e.anim * 5 + e.id) % 2;
     const variant = e.flash > 0 ? 1 : (e.slowT > 0 || e.freezeT > 0) ? 2 : 0;
-    const spr = Sprites.enemy(e.type, frame, variant);
+    const spr = Sprites.enemy(e.type, frame, variant, e.tint);
     const sc = e.r / Sprites.baseR(e.type);
     const size = spr.size * sc;
     const flip = e.swarm ? e.sdx < 0 : p.x < e.x;
