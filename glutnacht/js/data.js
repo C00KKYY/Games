@@ -358,7 +358,7 @@ const STAGES = [
     ground: { base: '#160f24', speckle: ['#2e1f4a', '#08050f', '#6b4cff'], grass: '#4a3a7a' },
     decor: ['cross', 'grave', 'bones', 'bones', 'rock', 'rock', 'flower'], decorTint: '#3a2a6a',
     tints: { bat: '#6b4cff', slime: '#6b4cff', skel: '#8a7cff', ghost: '#9a8cff', ghoul: '#5a3cc0', wraith: '#7a4cff', brute: '#5a3cc0', golem: '#4a3a9a' }, mods: { all: { hp: 1.15, speed: 1.05 } },
-    mult: { hp: 1.1, dmg: 1.05, rate: 1.05 },
+    mult: { hp: 1.1, dmg: 1, rate: 1.05 },
     waves: [
       { pool: { bat: 3, ghost: 2, skel: 1 }, rate: 2, cap: 45 },
       { pool: { ghost: 3, skel: 2, bat: 2 }, rate: 2.8, cap: 65 },

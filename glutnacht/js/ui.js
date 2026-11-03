@@ -526,8 +526,13 @@ const UI = {
     const ae = document.activeElement;
     if ((k === 'enter' || k === ' ') && this.kbNav && ae && ae.tagName === 'BUTTON' && this.el.screen.contains(ae)) return;
     if ((k === 'enter' || k === ' ') && performance.now() >= this.modalReady) {
-      const b = this.el.screen.querySelector('[data-act="chestok"],[data-act="storyok"],[data-act="next"],[data-act="again"],[data-act="start"]');
-      if (b && ['chest', 'story', 'over', 'chars'].includes(this.cur)) { e.preventDefault(); this.act(b.dataset.act, b); }
+      // Vorrang nach Aktion, nicht nach Reihenfolge im DOM („Nächstes Land“ vor „Nochmal!“); auf der Weltkarte: Weiter
+      if (['chest', 'story', 'over', 'chars', 'map'].includes(this.cur)) {
+        for (const a of ['chestok', 'storyok', 'next', 'again', 'start', 'chars']) {
+          const b = this.el.screen.querySelector('[data-act="' + a + '"]');
+          if (b) { e.preventDefault(); this.act(a, b); break; }
+        }
+      }
     }
   },
 

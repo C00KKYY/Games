@@ -379,7 +379,7 @@ const Promo = {
     { // Boss
       dur: 3.6,
       setup(P) {
-        P.fresh('brom', 719.0, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3], ['armor', 3]], { bossIdx: 3 });
+        P.fresh('brom', 689.0, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3], ['armor', 3]]);
         P.spawnRing(['brute', 'wraith', 'ghoul', 'golem'], 120, 200, 620);
         P.prewarm(0.2);
       },
@@ -388,14 +388,14 @@ const Promo = {
           const b = Game.run.bosses[0];
           if (b) { b.x = Game.run.p.x + 170; b.y = Game.run.p.y - 230; b.skillIdx = 0; b.skillT = 0.35; }
         }],
-        [1.15, P => P.say('A *BOSS* every | 3 minutes', 1.15, 3.5, 14, 54)],
+        [1.15, P => P.say('A *BOSS* in | every land', 1.15, 3.5, 14, 54)],
       ],
     },
     { // Höhepunkt: Die Nacht
       dur: 3.6,
       setup(P) {
         P.fresh('ignis', 899.3, [['fire', 8, 1], ['wand', 8, 1], ['lightning', 8, 1], ['orbit', 8, 1], ['nova', 8, 1], ['knives', 8, 1]],
-          [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]], { bossIdx: 4 });
+          [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]]);
         P.spawnRing(['wraith', 'brute', 'golem', 'bat', 'ghoul', 'ghost'], 300, 170, 650);
         P.prewarm(0.4);
         P.say('Survive *15* minutes.', 0.15, 3.5, 16, 56);
@@ -504,7 +504,7 @@ const Promo = {
       [1.7, P => { UI.hide(); Game.state = 'play'; }],
     ] },
     { dur: 4.0, setup(P) {
-      P.fresh('brom', 719.0, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3], ['armor', 3]], { bossIdx: 3 });
+      P.fresh('brom', 689.0, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3], ['armor', 3]]);
       P.spawnRing(['brute', 'wraith', 'ghoul', 'golem'], 130, 200, 650);
       P.prewarm(0.2);
     }, events: [
@@ -515,7 +515,7 @@ const Promo = {
     ] },
     { dur: 4.0, setup(P) {
       P.fresh('ignis', 899.3, [['fire', 8, 1], ['wand', 8, 1], ['lightning', 8, 1], ['orbit', 8, 1], ['nova', 8, 1], ['knives', 8, 1]],
-        [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]], { bossIdx: 4 });
+        [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]]);
       P.spawnRing(['wraith', 'brute', 'golem', 'bat', 'ghoul', 'ghost'], 320, 170, 700);
       P.prewarm(0.4);
     }, events: [

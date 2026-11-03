@@ -35,7 +35,7 @@
   window.addEventListener('storage', e => {
     if (e.key !== SAVE_KEY || (Game.run && !Game.run.ended)) return;
     Store.load();
-    if (UI.cur && ['menu', 'shop', 'ach', 'chars', 'opts'].includes(UI.cur)) UI.show(UI.cur);
+    if (UI.cur && ['menu', 'map', 'shop', 'ach', 'chars', 'opts'].includes(UI.cur)) UI.show(UI.cur);
   });
   window.addEventListener('blur', () => UI.pause());
 
