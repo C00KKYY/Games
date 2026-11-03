@@ -8,6 +8,8 @@ const Promo = {
   init(opts) {
     this.endVariant = opts.endVariant || 'bio';
     this.link = opts.link || '';
+    this.vlang = opts.lang === 'de' ? 'de' : 'en';
+    if (opts.script === 'story') this.SCENES = this.STORY;
     setLang('en');
     Store.data.settings.dmgNums = true;
     Store.data.stats.runs = 10; // keine Einsteiger-Hinweise im Video
@@ -42,6 +44,18 @@ const Promo = {
         background: linear-gradient(180deg, #ffb057, #ff6a2b); border: 3px solid #ffd39a; box-shadow: 0 6px 0 #9c3a0a, 0 0 40px rgba(255, 120, 40, 0.7); }
       #promo .small { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 22px; color: #e3d8ff; text-shadow: 0 2px 0 #14051f; }
       #game { transform-origin: 50% 50%; }
+      #promo .dim { position: absolute; inset: 0; background: rgba(8, 3, 22, 0.62); }
+      #promo .hero { position: absolute; left: 50%; top: 47%; width: 230px; height: 230px; margin-left: -115px; image-rendering: auto;
+        filter: drop-shadow(0 0 40px rgba(255, 150, 60, 0.55)); }
+      #promo .card { position: absolute; left: 40px; right: 40px; top: 19%; background: rgba(24, 15, 52, 0.96); border: 2px solid rgba(255,255,255,0.12);
+        border-radius: 26px; padding: 26px 28px 20px; box-shadow: 0 24px 60px rgba(0,0,0,0.6); }
+      #promo .card h3 { margin: 0 0 16px; font-family: 'Lilita One', Impact, sans-serif; font-weight: 400; font-size: 34px; color: #fff; text-align: center; }
+      #promo .row { display: flex; align-items: center; gap: 16px; padding: 11px 0; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 27px; color: #fff; }
+      #promo .box { width: 42px; height: 42px; flex: none; border-radius: 10px; border: 4px solid #8f7cc8; display: grid; place-items: center; position: relative; }
+      #promo .box .ck { position: absolute; inset: -6px; display: grid; place-items: center; font-family: 'Lilita One', sans-serif; font-size: 44px; color: #5dff8f; text-shadow: 0 0 12px rgba(93,255,143,0.7); }
+      #promo .row.open { color: #ffd34f; }
+      #promo .row.open .box { border-color: #ff5a6e; }
+      #promo .note { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 24px; color: #ffd34f; text-shadow: 0 2px 0 #14051f; }
     `;
     document.head.appendChild(st);
     this.ov = document.createElement('div');
@@ -139,8 +153,7 @@ const Promo = {
   clearTexts() {
     for (const x of this.texts) x.el.remove();
     this.texts = [];
-    const end = this.ov.querySelector('.end');
-    if (end) end.remove();
+    this.ov.querySelectorAll('.end').forEach(e => e.remove());
   },
 
   cut() { this.sceneT = 0; this.flashT = 0; this.punchT = 0; this.clearTexts(); },
@@ -155,6 +168,39 @@ const Promo = {
     this.tapT0 = t;
   },
 
+  menuBg() {
+    UI.hide();
+    UI.el.hud.hidden = true;
+    UI.el.bossbar.hidden = true;
+    Game.state = 'menu';
+    Game.run = null;
+    Render.resize();
+  },
+
+  addHtml(html) {
+    const d = document.createElement('div');
+    d.className = 'end';
+    d.style.display = 'block';
+    d.innerHTML = html;
+    this.ov.appendChild(d);
+    return d;
+  },
+
+  heroImg(t) {
+    return '<img class="hero pe" data-t="' + t + '" data-bob="1" src="' + Sprites.playerURL(CHARS.aron.color, 128) + '" alt="">';
+  },
+
+  // Checkliste: Einträge [Text, erledigt?], erscheinen nacheinander ab t0
+  checklist(title, rows, t0, gap) {
+    let h = '<div class="dim"></div><div class="card pe" data-t="' + t0 + '"><h3>' + title + '</h3>';
+    rows.forEach(([txt, done], i) => {
+      const t = t0 + 0.45 + i * gap;
+      h += '<div class="row pe' + (done ? '' : ' open') + '" data-t="' + t + '"' + (done ? '' : ' data-blink="' + (t + 0.4) + '"') + '>' +
+        '<div class="box">' + (done ? '<div class="ck pe" data-t="' + (t + 0.25) + '">✓</div>' : '') + '</div><span>' + txt + '</span></div>';
+    });
+    return this.addHtml(h + '</div>');
+  },
+
   endCard() {
     UI.hide();
     UI.el.hud.hidden = true;
@@ -164,10 +210,12 @@ const Promo = {
     Render.resize();
     const d = document.createElement('div');
     d.className = 'end';
+    const de = this.vlang === 'de';
     d.innerHTML = '<div class="logo pe" data-t="0.05"><span>Ember</span><span>Night</span></div>' +
-      '<div class="sub pe" data-t="0.55">Play free in your browser</div>' +
+      '<div class="sub pe" data-t="0.55">' + (de ? 'Kostenlos im Browser spielen' : 'Play free in your browser') + '</div>' +
       '<div class="pill pe" data-t="0.95">' + (this.endVariant === 'bio' ? 'LINK IN BIO' : this.link) + '</div>' +
-      '<div class="small pe" data-t="1.35">No download · Phone &amp; PC</div>';
+      '<div class="small pe" data-t="1.35">' + (de ? 'Kein Download · Handy &amp; PC' : 'No download · Phone &amp; PC') + '</div>' +
+      (this.endNote ? '<div class="note pe" data-t="1.8">' + this.endNote + '</div>' : '');
     this.ov.appendChild(d);
   },
 
@@ -266,6 +314,74 @@ const Promo = {
     },
   ],
 
+  // Persönliches Video: allein gebaut, eingereicht, Testspieler gesucht. Texte je Sprache.
+  STORY_TEXT: {
+    en: {
+      pov: '_POV:_', built: 'you built a game | *all* *by* *yourself*',
+      what1: '1 hero. | *10,000* monsters.', what2: 'Bosses. Upgrades. | *Evolutions.*',
+      listTitle: 'CrazyGames checklist', rows: [['Loads fast', 1], ['Works on mobile', 1], ['In English', 1], ['Tested by someone else', 0]],
+      missing: 'One box is *still* *empty…*',
+      you: 'That\'s where | *YOU* come in.',
+      cta1: 'Play *one* run.', cta2: 'Comment your | *best* *time.*',
+      note: 'Every comment helps',
+    },
+    de: {
+      pov: '_POV:_', built: 'du hast ein Spiel | *ganz* *allein* gebaut',
+      what1: '1 Held. | *10.000* Monster.', what2: 'Bosse. Upgrades. | *Entwicklungen.*',
+      listTitle: 'CrazyGames-Checkliste', rows: [['Lädt schnell', 1], ['Läuft auf dem Handy', 1], ['Auf Englisch', 1], ['Von jemand anderem getestet', 0]],
+      missing: 'Ein Kästchen ist | *noch* *leer…*',
+      you: 'Genau da kommst | *DU* ins Spiel.',
+      cta1: 'Spiel *eine* Runde.', cta2: 'Schreib deine | *Bestzeit* in die Kommentare.',
+      note: 'Jeder Kommentar hilft',
+    },
+  },
+
+  STORY: [
+    { dur: 3.2, setup(P) {
+      const T = P.STORY_TEXT[P.vlang];
+      P.menuBg();
+      P.addHtml(P.heroImg(0.1));
+      P.say(T.pov, 0.15, 3.1, 13, 58);
+      P.say(T.built, 0.55, 3.1, 21, 52);
+    } },
+    { dur: 3.6, setup(P) {
+      const T = P.STORY_TEXT[P.vlang];
+      P.fresh('nyx', 760, [['lightning', 8, 1], ['orbit', 8, 1], ['wand', 8, 1], ['fire', 8, 1], ['nova', 8, 1], ['whip', 8, 1]],
+        [['might', 5], ['lens', 5], ['candle', 5], ['hourglass', 5], ['heart', 5], ['armor', 5]], { hud: false });
+      P.spawnRing(['brute', 'wraith', 'golem', 'ghoul', 'skel', 'wraith'], 300, 180, 640);
+      P.prewarm(1.2);
+      P.say(T.what1, 0.12, 1.75, 16, 60);
+      P.say(T.what2, 1.85, 3.5, 16, 56);
+    } },
+    { dur: 5.4, setup(P) {
+      const T = P.STORY_TEXT[P.vlang];
+      P.fresh('aron', 300, [['whip', 6], ['lightning', 5], ['nova', 4]], [['might', 2]], { hud: false });
+      P.spawnRing(['skel', 'ghost', 'ghoul', 'bat'], 120, 160, 600);
+      P.prewarm(1.0);
+      P.checklist(T.listTitle, T.rows, 0.1, 0.55);
+      P.say(T.missing, 3.2, 5.3, 60, 50);
+    } },
+    { dur: 3.0, setup(P) {
+      const T = P.STORY_TEXT[P.vlang];
+      P.fresh('mira', 40, [['wand', 3], ['orbit', 2]], [], {});
+      P.spawnRing(['bat', 'slime', 'skel'], 40, 160, 500);
+      P.prewarm(1.0);
+      P.say(T.you, 0.12, 2.9, 18, 64);
+    } },
+    { dur: 3.8, setup(P) {
+      const T = P.STORY_TEXT[P.vlang];
+      P.fresh('brom', 540.5, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3]], {});
+      P.spawnRing(['wraith', 'brute', 'ghoul', 'ghost'], 160, 180, 620);
+      P.prewarm(0.6);
+      P.say(T.cta1, 0.12, 1.7, 16, 60);
+      P.say(T.cta2, 1.6, 3.7, 16, 54);
+    } },
+    { dur: 4.2, setup(P) {
+      P.endNote = P.STORY_TEXT[P.vlang].note;
+      P.endCard();
+    } },
+  ],
+
   sceneIdx: -1,
   events: [],
 
@@ -325,6 +441,8 @@ const Promo = {
       el.style.opacity = k <= 0 ? 0 : Math.min(1, k * 2);
       el.style.transform = 'scale(' + (0.5 + s * 0.5) + ')';
       if (el.classList.contains('pill') && k > 1) el.style.transform = 'scale(' + (1 + Math.sin((st - +el.dataset.t) * 6) * 0.035) + ')';
+      if (el.dataset.bob && k > 1) el.style.transform = 'translateY(' + (Math.sin(st * 3.2) * 10) + 'px)';
+      if (el.dataset.blink && st > +el.dataset.blink) el.style.opacity = 0.45 + 0.55 * (0.5 + 0.5 * Math.cos((st - +el.dataset.blink) * 7));
     });
     // Schnitt: kurzer Blitz und Zoom-Stoß
     if (!this.flashEl) { this.flashEl = document.createElement('div'); this.flashEl.className = 'flash'; this.ov.appendChild(this.flashEl); }

@@ -3,6 +3,8 @@
 //   node tools/promo/record.js --link "crazygames.com/game/ember-night"
 //                                                   -> zusätzlich ember-night-promo-link.mp4 mit diesem Link
 //   node tools/promo/record.js --blank              -> zusätzlich eine Fassung mit leerem Link-Feld
+//   node tools/promo/record.js --story [--lang de]  -> persönliches Video (Testspieler gesucht),
+//                                                      dist/promo/ember-night-story-en.mp4 bzw. -de.mp4
 // Ohne Ton (Musik kommt in der App dazu); Laufzeit etwa 2 Minuten pro Fassung.
 'use strict';
 const fs = require('fs');
@@ -15,6 +17,9 @@ const OUT = path.join(ROOT, 'dist', 'promo');
 const FPS = 30;
 const args = process.argv.slice(2);
 const linkArg = args.indexOf('--link') >= 0 ? args[args.indexOf('--link') + 1] : null;
+const story = args.includes('--story');
+const vlang = args.indexOf('--lang') >= 0 ? args[args.indexOf('--lang') + 1] : 'en';
+const base = story ? 'ember-night-story-' + vlang : 'ember-night-promo';
 
 async function render(variant, link, file) {
   const frames = path.join(OUT, 'frames-' + variant);
@@ -29,7 +34,7 @@ async function render(variant, link, file) {
   await page.goto('file://' + path.join(ROOT, 'index.html'));
   await page.waitForFunction(() => window.Glutnacht && document.fonts.status === 'loaded');
   await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, 'director.js'), 'utf8') + '\nwindow.Promo = Promo;' });
-  await page.evaluate(o => Promo.init(o), { endVariant: variant, link: link || '' });
+  await page.evaluate(o => Promo.init(o), { endVariant: variant, link: link || '', script: story ? 'story' : 'trailer', lang: vlang });
   const total = await page.evaluate(f => Promo.totalFrames(f), FPS);
   for (let i = 0; ; i++) {
     const more = await page.evaluate(dt => Promo.tick(dt), 1 / FPS);
@@ -49,7 +54,7 @@ async function render(variant, link, file) {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  await render('bio', '', path.join(OUT, 'ember-night-promo.mp4'));
-  if (linkArg) await render('link', linkArg, path.join(OUT, 'ember-night-promo-link.mp4'));
-  if (args.includes('--blank')) await render('link', '', path.join(OUT, 'ember-night-promo-blank.mp4'));
+  await render('bio', '', path.join(OUT, base + '.mp4'));
+  if (linkArg) await render('link', linkArg, path.join(OUT, base + '-link.mp4'));
+  if (args.includes('--blank')) await render('link', '', path.join(OUT, base + '-blank.mp4'));
 })();
