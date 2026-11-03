@@ -59,5 +59,5 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 ```
 node tools/simtest.js aron 0 3      # 3 Läufe headless mit Ausweich-Bot (Held, Nachtstufe, Anzahl)
 node tools/build-single.js out.html # alles in eine HTML-Datei bündeln
-node tools/build-single.js --crazygames  # dist/ember-night-crazygames.zip zum Hochladen bei CrazyGames
+node tools/build-single.js --crazygames  # dist/crazygames/index.html zum Hochladen bei CrazyGames
 ```

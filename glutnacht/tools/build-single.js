@@ -2,12 +2,12 @@
 //   node tools/build-single.js [ausgabe.html]             -> vollständige HTML-Datei
 //   node tools/build-single.js <ausgabe.html> --fragment  -> ohne <html>/<head>/<body> (für Einbettungen;
 //     die Gastseite muss UTF-8 und viewport-fit=cover deklarieren)
-//   node tools/build-single.js --crazygames               -> dist/ember-night-crazygames.zip
-//     (index.html mit CrazyGames-SDK v3 plus Schriftlizenzen, zum Hochladen)
+//   node tools/build-single.js --crazygames               -> dist/crazygames/index.html
+//     (eine einzige Datei mit CrazyGames-SDK v3 und eingebetteten Schriftlizenzen; CrazyGames nimmt
+//     keine Archive, die Datei wird direkt in die Upload-Zone gezogen)
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { execFileSync } = require('child_process');
 
 const ROOT = path.join(__dirname, '..');
 const args = process.argv.slice(2);
@@ -28,6 +28,10 @@ function build() {
     '<script>\n' + fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/<\/script/gi, '<\\/script') + '</script>');
   // Das SDK muss vor dem Spielcode geladen werden
   if (crazy) html = html.replace('<script>', SDK_TAG + '\n<script>');
+  // Die Schriften stecken in der Datei, also gehören ihre Lizenzen (SIL OFL) auch hinein
+  const lic = fs.readdirSync(path.join(ROOT, 'fonts')).filter(f => f.endsWith('.txt'))
+    .map(f => '=== ' + f + ' ===\n' + fs.readFileSync(path.join(ROOT, 'fonts', f), 'utf8')).join('\n');
+  html = html.replace('</body>', '<script type="text/plain" id="font-licenses">\n' + lic.replace(/<\//g, '<\\/') + '</script>\n</body>');
   if (fragment) {
     html = html
       .replace(/<!doctype html>\s*/i, '')
@@ -45,15 +49,9 @@ const html = build();
 if (crazy) {
   const dir = path.join(ROOT, 'dist', 'crazygames');
   fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(path.join(dir, 'fonts'), { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'index.html'), html);
-  for (const f of fs.readdirSync(path.join(ROOT, 'fonts'))) {
-    if (f.endsWith('.txt')) fs.copyFileSync(path.join(ROOT, 'fonts', f), path.join(dir, 'fonts', f));
-  }
-  const zip = path.join(ROOT, 'dist', 'ember-night-crazygames.zip');
-  fs.rmSync(zip, { force: true });
-  execFileSync('zip', ['-r', '-X', '-q', zip, '.'], { cwd: dir });
-  console.log(zip + ': ' + Math.round(fs.statSync(zip).size / 1024) + ' KB (index.html ' + Math.round(html.length / 1024) + ' KB)');
+  console.log(path.join(dir, 'index.html') + ': ' + Math.round(html.length / 1024) + ' KB');
 } else {
   const out = args.find(a => !a.startsWith('--')) || path.join(ROOT, 'dist', 'glutnacht.html');
   fs.mkdirSync(path.dirname(out), { recursive: true });
