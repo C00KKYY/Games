@@ -3,7 +3,7 @@
 
 const Render = {
   cv: null, ctx: null, dpr: 1, W: 0, H: 0, zoom: 1,
-  cam: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
+  cam: { x: 0, y: 0 }, camOffset: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
   pattern: null, vignette: null, hurtVig: null, spr: {}, list: [], embers: [],
 
   init(canvas) {
@@ -115,7 +115,7 @@ const Render = {
     const ctx = this.ctx, r = Game.run;
     this.time += dt;
     const inRun = r && Game.state !== 'menu';
-    if (inRun) { this.cam.x = r.p.x; this.cam.y = r.p.y; }
+    if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; }
     else { this.cam.x += 18 * dt; this.cam.y += 7 * dt; }
     let sx = 0, sy = 0;
     if (this.shake > 0) {

@@ -3,7 +3,7 @@
 
 const Sprites = (() => {
   // Auflösungsfaktor: passend zur Pixeldichte, damit beim Zeichnen kaum skaliert werden muss
-  const SC = Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 1.2));
+  let SC = Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 1.2));
   const cache = new Map();
 
   function canvas(w, h) {
@@ -717,5 +717,8 @@ const Sprites = (() => {
     return c;
   }
 
-  return { enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
+  // Höhere Auflösung für Standbilder (z. B. Titelbilder); leert den Zwischenspeicher
+  function setScale(s) { SC = s; cache.clear(); }
+
+  return { setScale, enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
 })();

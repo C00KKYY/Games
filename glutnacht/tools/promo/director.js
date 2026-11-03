@@ -10,6 +10,7 @@ const Promo = {
     this.link = opts.link || '';
     this.vlang = opts.lang === 'de' ? 'de' : 'en';
     if (opts.script === 'story') this.SCENES = this.STORY;
+    if (opts.script === 'preview') this.SCENES = this.PREVIEW;
     setLang('en');
     Store.data.settings.dmgNums = true;
     Store.data.stats.runs = 10; // keine Einsteiger-Hinweise im Video
@@ -102,9 +103,108 @@ const Promo = {
     }
   },
 
-  prewarm(sec) {
+  prewarm(sec, still) {
     const n = Math.round(sec * 60);
-    for (let i = 0; i < n; i++) { this.bot(); Game.update(1 / 60); }
+    for (let i = 0; i < n; i++) {
+      if (still) { Game.input.x = 0; Game.input.y = 0; } else this.bot();
+      Game.update(1 / 60);
+    }
+  },
+
+  // Titelbild als eigene Illustration (keine vergrößerte Spielszene, damit nichts unscharf wird):
+  // großer Held mit Aura und Schutzkugeln vor einer Horde in drei Tiefenebenen, Titel daneben.
+  // layout: landscape | portrait | square. Die Ecke oben links bleibt ruhig (Portal-Label).
+  cover(layout) {
+    UI.hide(); UI.el.hud.hidden = true; Game.state = 'menu'; Game.run = null;
+    Sprites.setScale(10);
+    const W = Render.W, H = Render.H, dpr = Render.dpr;
+    const cv = document.createElement('canvas');
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    cv.style.cssText = 'position:absolute; inset:0; width:100%; height:100%;';
+    const g = cv.getContext('2d');
+    const CW = cv.width, CH = cv.height, U = Math.min(CW, CH); // Bezugsgröße
+    const rnd = mulberry(7);
+    const L = {
+      landscape: { hx: 0.3, hy: 0.6, hs: 0.42, tx: 0.72, ty: 0.48, ts: 0.25 },
+      portrait: { hx: 0.5, hy: 0.4, hs: 0.36, tx: 0.5, ty: 0.79, ts: 0.25 },
+      square: { hx: 0.5, hy: 0.38, hs: 0.36, tx: 0.5, ty: 0.79, ts: 0.21 },
+    }[layout];
+    const hx = L.hx * CW, hy = L.hy * CH, hs = L.hs * U; // Held: Mittelpunkt und Höhe
+
+    // Boden, abgedunkelt, mit Glut- und Violett-Schein
+    g.save(); g.scale(dpr * 1.6, dpr * 1.6); g.fillStyle = Render.pattern; g.fillRect(0, 0, CW, CH); g.restore();
+    g.fillStyle = 'rgba(10,4,26,0.55)'; g.fillRect(0, 0, CW, CH);
+    const glow = (x, y, r, c) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, CW, CH); };
+    g.globalCompositeOperation = 'lighter';
+    glow(hx, hy, U * 0.75, 'rgba(255,120,40,0.35)');
+    glow(L.tx * CW, L.ty * CH, U * 0.7, 'rgba(120,60,255,0.28)');
+    g.globalCompositeOperation = 'source-over';
+
+    // Horde: Positionen mit Abstand zum Helden und zum Titel
+    const types = ['brute', 'wraith', 'ghoul', 'skel', 'bat', 'golem', 'ghost', 'spitter', 'slime', 'wraith', 'skel', 'bat'];
+    const mobs = [];
+    for (let i = 0; i < 260 && mobs.length < 120; i++) {
+      const x = rnd() * CW * 1.1 - CW * 0.05, y = rnd() * CH * 1.1 - CH * 0.05;
+      const dh = Math.hypot((x - hx) / (U * 0.42), (y - hy) / (U * 0.38));
+      const dt = Math.hypot((x - L.tx * CW) / (L.ts * U * 2.2), (y - L.ty * CH) / (L.ts * U * 1.1));
+      if (dh < 1 || dt < 1) continue;
+      if (x < CW * 0.24 && y < CH * 0.2) continue; // Label-Ecke frei lassen
+      const depth = Math.min(1, dh / 2.6); // weiter weg = kleiner und dunkler
+      mobs.push({ x, y, type: types[i % types.length], depth, frame: i % 2, flip: x > hx });
+    }
+    mobs.sort((a, b) => a.y - b.y);
+    for (const m of mobs) {
+      const spr = Sprites.enemy(m.type, m.frame, 0);
+      const base = Sprites.baseR(m.type);
+      const h = U * (0.06 + base / 30 * 0.11) * (1.25 - m.depth * 0.55);
+      g.globalAlpha = 1 - m.depth * 0.45;
+      g.save(); g.translate(m.x, m.y); if (m.flip) g.scale(-1, 1);
+      g.drawImage(spr, -h / 2, -h / 2, h, h);
+      g.restore();
+    }
+    g.globalAlpha = 1;
+
+    // Aura-Ring und Schutzkugeln um den Helden
+    g.globalCompositeOperation = 'lighter';
+    g.strokeStyle = 'rgba(255,190,90,0.55)'; g.lineWidth = U * 0.012;
+    g.beginPath(); g.ellipse(hx, hy + hs * 0.08, hs * 0.95, hs * 0.95, 0, 0, TAU); g.stroke();
+    glow(hx, hy, hs * 0.95, 'rgba(255,140,40,0.25)');
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * TAU + 0.4, ox = hx + Math.cos(a) * hs * 0.95, oy = hy + hs * 0.08 + Math.sin(a) * hs * 0.95;
+      g.drawImage(Render.spr.orb, ox - hs * 0.2, oy - hs * 0.2, hs * 0.4, hs * 0.4);
+    }
+    // Klingenhieb vor dem Helden
+    g.lineCap = 'round';
+    g.strokeStyle = 'rgba(232,246,255,0.9)'; g.lineWidth = U * 0.022;
+    g.beginPath(); g.arc(hx + hs * 0.15, hy, hs * 0.75, -0.75, 0.75); g.stroke();
+    g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = U * 0.007;
+    g.beginPath(); g.arc(hx + hs * 0.15, hy, hs * 0.86, -0.6, 0.6); g.stroke();
+    // Blitz in die Horde
+    const bx = hx + (layout === 'landscape' ? -hs * 0.95 : hs * 1.05), by = hy - hs * 0.55;
+    g.strokeStyle = '#d8f6ff'; g.lineWidth = U * 0.008;
+    g.beginPath(); let x = bx + U * 0.02, y = 0; g.moveTo(x, y);
+    while (y < by) { y = Math.min(by, y + U * 0.05); x = bx + (rnd() - 0.5) * U * 0.05; g.lineTo(y >= by ? bx : x, y); }
+    g.stroke();
+    g.drawImage(Render.spr.orb, bx - U * 0.08, by - U * 0.08, U * 0.16, U * 0.16);
+    g.globalCompositeOperation = 'source-over';
+
+    // Held
+    const hero = Sprites.player(CHARS.aron.color, 0, false);
+    g.drawImage(hero, hx - hs / 2, hy - hs / 2, hs, hs);
+
+    // Rand abdunkeln
+    const vg = g.createRadialGradient(hx, hy, U * 0.3, hx, hy, Math.hypot(CW, CH) * 0.7);
+    vg.addColorStop(0, 'rgba(8,3,22,0)'); vg.addColorStop(1, 'rgba(8,3,22,0.7)');
+    g.fillStyle = vg; g.fillRect(0, 0, CW, CH);
+
+    this.ov.innerHTML = '';
+    this.ov.appendChild(cv);
+    const fs = Math.round(L.ts * Math.min(W, H) * 0.95);
+    const t = document.createElement('div');
+    t.className = 'logo';
+    t.style.cssText = 'position:absolute; left:' + (L.tx * 100 - 50) + '%; width:100%; top:' + (L.ty * 100) + '%; transform:translateY(-50%); text-align:center; font-size:' + fs + 'px; line-height:0.86;';
+    t.innerHTML = '<span>Ember</span><span>Night</span>';
+    this.ov.appendChild(t);
   },
 
   // Ausweich-Bot wie im Simulator, mit etwas Kreisbewegung
@@ -380,6 +480,50 @@ const Promo = {
       P.endNote = P.STORY_TEXT[P.vlang].note;
       P.endCard();
     } },
+  ],
+
+  // Vorschauvideo für das Portal (Hover-Video): nur Spiel, keine Texte, max. 20 s
+  PREVIEW: [
+    { dur: 3.5, setup(P) {
+      P.fresh('nyx', 760, [['lightning', 8, 1], ['orbit', 8, 1], ['wand', 8, 1], ['fire', 8, 1], ['nova', 8, 1], ['whip', 8, 1]],
+        [['might', 5], ['lens', 5], ['candle', 5], ['hourglass', 5], ['heart', 5], ['armor', 5]], {});
+      P.spawnRing(['brute', 'wraith', 'golem', 'ghoul', 'skel', 'wraith'], 330, 180, 700);
+      P.prewarm(1.2);
+    } },
+    { dur: 3.2, setup(P) {
+      P.fresh('mira', 300, [['wand', 6], ['orbit', 5], ['lightning', 5], ['knives', 5], ['sickle', 4]], [['might', 2], ['lens', 2], ['hourglass', 2]], {});
+      P.spawnRing(['skel', 'ghost', 'ghoul', 'bat', 'spitter'], 170, 150, 650);
+      P.prewarm(1.4);
+    } },
+    { dur: 3.3, setup(P) {
+      P.fresh('aron', 420, [['whip', 8], ['lightning', 6], ['nova', 5]], [['heart', 3], ['might', 2]], {});
+      P.spawnRing(['ghoul', 'wraith', 'skel', 'brute'], 150, 150, 650);
+      P.prewarm(1.0);
+    }, events: [
+      [0.2, P => { P.allow = true; Game.run.pendingChests = 1; Game.openChest(); P.allow = false; }],
+      [1.7, P => { UI.hide(); Game.state = 'play'; }],
+    ] },
+    { dur: 4.0, setup(P) {
+      P.fresh('brom', 719.0, [['sickle', 8, 1], ['fire', 6], ['lightning', 6], ['whip', 6]], [['wing', 5], ['might', 3], ['armor', 3]], { bossIdx: 3 });
+      P.spawnRing(['brute', 'wraith', 'ghoul', 'golem'], 130, 200, 650);
+      P.prewarm(0.2);
+    }, events: [
+      [0.9, P => {
+        const b = Game.run.bosses[0];
+        if (b) { b.x = Game.run.p.x + 170; b.y = Game.run.p.y - 200; b.skillIdx = 0; b.skillT = 0.35; }
+      }],
+    ] },
+    { dur: 4.0, setup(P) {
+      P.fresh('ignis', 899.3, [['fire', 8, 1], ['wand', 8, 1], ['lightning', 8, 1], ['orbit', 8, 1], ['nova', 8, 1], ['knives', 8, 1]],
+        [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]], { bossIdx: 4 });
+      P.spawnRing(['wraith', 'brute', 'golem', 'bat', 'ghoul', 'ghost'], 320, 170, 700);
+      P.prewarm(0.4);
+    }, events: [
+      [0.75, P => {
+        const b = Game.run.bosses.find(x => x.boss.final);
+        if (b) { b.x = Game.run.p.x - 140; b.y = Game.run.p.y - 230; }
+      }],
+    ] },
   ],
 
   sceneIdx: -1,
