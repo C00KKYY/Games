@@ -1,7 +1,11 @@
 'use strict';
 // Einstieg: verbindet Spiel, Darstellung, Eingabe und Oberfläche und startet die Schleife.
 
-(function () {
+(async function () {
+  // Erst die Plattform (falls vorhanden), denn sie bestimmt, wo der Spielstand liegt.
+  // Höchstens 4 s warten, damit das Spiel nie an einem langsamen SDK hängt.
+  await Promise.race([Platform.init(), new Promise(r => setTimeout(r, 4000))]);
+  Platform.booted = true;
   Store.load();
   // Sprache: gespeicherte Wahl, sonst Browsersprache, sonst Englisch
   setLang(Store.data.settings.lang || detectLang());
@@ -64,7 +68,6 @@
 
   UI.show('menu');
   requestAnimationFrame(frame);
-  Platform.init();
 
   // Für Tests im Browser erreichbar
   window.Glutnacht = { Game, Store, UI, I18N_MISSES, setLang };

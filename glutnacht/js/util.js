@@ -126,10 +126,14 @@ function defaultSave() {
 
 const Store = {
   data: null,
+  backend: null, // Speicherort: z. B. CrazyGames Data Module; ohne Plattform localStorage
+  read() {
+    try { return this.backend ? this.backend.getItem(SAVE_KEY) : localStorage.getItem(SAVE_KEY); } catch (e) { return null; }
+  },
   load() {
     let d = null;
     try {
-      const raw = localStorage.getItem(SAVE_KEY);
+      const raw = this.read();
       if (raw) d = JSON.parse(raw);
     } catch (e) { d = null; }
     const def = defaultSave();
@@ -150,7 +154,10 @@ const Store = {
     return d;
   },
   save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.data)); } catch (e) { /* privat/gesperrt */ }
+    const s = JSON.stringify(this.data);
+    try {
+      if (this.backend) this.backend.setItem(SAVE_KEY, s); else localStorage.setItem(SAVE_KEY, s);
+    } catch (e) { /* privat/gesperrt */ }
   },
   reset() {
     this.data = defaultSave();

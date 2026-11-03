@@ -5,6 +5,7 @@
 const Platform = {
   sdk: null,
   playing: false,
+  booted: false, // Spiel läuft schon (SDK war zu langsam) – Speicherort dann nicht mehr wechseln
 
   async init() {
     const sdk = window.CrazyGames && window.CrazyGames.SDK;
@@ -14,6 +15,14 @@ const Platform = {
       // Außerhalb von CrazyGames (und localhost) ist das SDK deaktiviert und jeder Aufruf wirft
       if (sdk.environment === 'disabled') return;
       this.sdk = sdk;
+      // Spielstand über das Data Module (bei eingeloggten Spielern geräteübergreifend).
+      // Ein bisheriger Browser-Spielstand wird einmalig übernommen.
+      if (sdk.data && !this.booted) {
+        let local = null;
+        try { local = localStorage.getItem(SAVE_KEY); } catch (e) { local = null; }
+        if (local && !sdk.data.getItem(SAVE_KEY)) sdk.data.setItem(SAVE_KEY, local);
+        Store.backend = sdk.data;
+      }
       const applyMute = () => this.call(s => Sfx.setPlatformMute(s.game.settings.muteAudio));
       applyMute();
       sdk.game.addSettingsChangeListener(applyMute);
