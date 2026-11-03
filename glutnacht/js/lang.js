@@ -15,7 +15,7 @@ function setLang(l) {
   LANG = LANGS[l] ? l : 'en';
   if (typeof document !== 'undefined') {
     document.documentElement.lang = LANG;
-    document.title = tr('Glutnacht');
+    document.title = 'Ember Night';
     const app = document.getElementById('app');
     if (app) app.lang = LANG;
     const cv = document.getElementById('game');
@@ -41,9 +41,6 @@ function fmtDec(v) {
 
 const LANG_EN = {
   // ---------- Name & Menü ----------
-  'Glutnacht': 'Ember Night',
-  'Glut': 'Ember',
-  'nacht': 'Night',
   'Überlebe die Nacht. 15 Minuten. Tausende Monster.': 'Survive the night. 15 minutes. Thousands of monsters.',
   'SPIELEN': 'PLAY',
   'Schmiede': 'Forge',

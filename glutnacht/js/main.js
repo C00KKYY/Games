@@ -68,6 +68,7 @@
 
   UI.show('menu');
   requestAnimationFrame(frame);
+  Platform.loaded();
 
   // Für Tests im Browser erreichbar
   window.Glutnacht = { Game, Store, UI, I18N_MISSES, setLang };

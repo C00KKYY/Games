@@ -65,7 +65,7 @@ const UI = {
     const achN = Object.keys(s.achievements).length;
     const tip = tr(st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.');
     return '<div class="menu">' + this.langSwitch() +
-      '<div class="logo"><span>' + tr('Glut') + '</span><span>' + tr('nacht') + '</span></div>' +
+      '<div class="logo"><span>Ember</span><span>Night</span></div>' + // Name in allen Sprachen gleich (wie im Portal)
       '<div class="tag">' + tr('Überlebe die Nacht. 15 Minuten. Tausende Monster.') + '</div>' +
       '<button class="btn big primary pulse" data-act="play">' + tr('SPIELEN') + '</button>' +
       '<div class="row">' +

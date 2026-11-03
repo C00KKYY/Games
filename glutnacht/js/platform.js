@@ -15,6 +15,7 @@ const Platform = {
       // Außerhalb von CrazyGames (und localhost) ist das SDK deaktiviert und jeder Aufruf wirft
       if (sdk.environment === 'disabled') return;
       this.sdk = sdk;
+      this.call(s => s.game.loadingStart());
       // Spielstand über das Data Module (bei eingeloggten Spielern geräteübergreifend).
       // Ein bisheriger Browser-Spielstand wird einmalig übernommen.
       if (sdk.data && !this.booted) {
@@ -37,6 +38,9 @@ const Platform = {
     if (!this.sdk) return;
     try { fn(this.sdk); } catch (e) { /* SDK-Fehler dürfen das Spiel nie stören */ }
   },
+
+  // Spiel ist geladen und zeigt das Menü
+  loaded() { this.call(s => s.game.loadingStop()); },
 
   // Wird jedes Bild mit dem aktuellen Zustand aufgerufen; meldet nur Wechsel
   setPlaying(on) {
