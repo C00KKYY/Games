@@ -274,8 +274,8 @@ const STAGES = [
     outro: 'Um deine Glut schmilzt das Eis, und der See atmet wieder.',
     ground: { base: '#1b2838', speckle: ['#3a5a78', '#0c1522'], grass: '#8fb8d8' },
     decor: ['rock', 'rock', 'rock', 'cross', 'grave', 'bones'], decorTint: '#cfe8ff',
-    tints: { slime: '#dff3ff', ghost: '#ffffff', skel: '#dff3ff', ghoul: '#cfe3f0', wraith: '#d6e4ff', brute: '#cfe3f0', golem: '#dff3ff', bat: '#dff3ff' }, mods: { all: { hp: 1.4, speed: 0.85, xp: 1.2 } },
-    mult: { hp: 1.1, dmg: 1.05, rate: 1.05 },
+    tints: { slime: '#dff3ff', ghost: '#ffffff', skel: '#dff3ff', ghoul: '#cfe3f0', wraith: '#d6e4ff', brute: '#cfe3f0', golem: '#dff3ff', bat: '#dff3ff' }, mods: { all: { hp: 1.4, speed: 0.85, xp: 1.3 } },
+    mult: { hp: 0.8, dmg: 1, rate: 1.1 },
     waves: [
       { pool: { slime: 3, ghost: 2 }, rate: 1.4, cap: 35 },
       { pool: { slime: 3, ghost: 2, skel: 1 }, rate: 2, cap: 50 },
@@ -306,7 +306,7 @@ const STAGES = [
     bosses: [
       { id: 'hoarfrost', name: 'Raureif', t: 270, sprite: 'slime', tint: '#cfeaff', hp: 3600, speed: 44, dmg: 20, r: 54, xp: 150, skills: ['slam', 'dash', 'slam'] },
       { id: 'whitelady', name: 'Die Weiße Frau', t: 570, sprite: 'wraith', tint: '#ffffff', hp: 13000, speed: 64, dmg: 26, r: 42, xp: 320, skills: ['nova', 'summon', 'nova', 'dash'], summon: 'ghost' },
-      { id: 'drownedking', name: 'Der Ertrunkene König', t: 900, sprite: 'skel', tint: '#5f9ea0', hp: 100000, speed: 56, dmg: 42, r: 60, xp: 1000, skills: ['summon', 'slam', 'nova', 'dash'], summon: 'skel', final: true },
+      { id: 'drownedking', name: 'Der Ertrunkene König', t: 900, sprite: 'skel', tint: '#5f9ea0', hp: 80000, speed: 56, dmg: 42, r: 60, xp: 1000, skills: ['summon', 'slam', 'nova', 'dash'], summon: 'skel', final: true },
     ],
   },
   {
@@ -358,7 +358,7 @@ const STAGES = [
     ground: { base: '#160f24', speckle: ['#2e1f4a', '#08050f', '#6b4cff'], grass: '#4a3a7a' },
     decor: ['cross', 'grave', 'bones', 'bones', 'rock', 'rock', 'flower'], decorTint: '#3a2a6a',
     tints: { bat: '#6b4cff', slime: '#6b4cff', skel: '#8a7cff', ghost: '#9a8cff', ghoul: '#5a3cc0', wraith: '#7a4cff', brute: '#5a3cc0', golem: '#4a3a9a' }, mods: { all: { hp: 1.15, speed: 1.05 } },
-    mult: { hp: 1.35, dmg: 1.15, rate: 1.15 },
+    mult: { hp: 1.1, dmg: 1.05, rate: 1.05 },
     waves: [
       { pool: { bat: 3, ghost: 2, skel: 1 }, rate: 2, cap: 45 },
       { pool: { ghost: 3, skel: 2, bat: 2 }, rate: 2.8, cap: 65 },
@@ -393,7 +393,7 @@ const STAGES = [
       { id: 'nightmare', name: 'Der Nachtmahr', t: 210, sprite: 'wraith', tint: '#4a2cff', hp: 3200, speed: 84, dmg: 22, r: 42, xp: 150, skills: ['dash', 'dash', 'nova'] },
       { id: 'mooneater', name: 'Mondfresser', t: 450, sprite: 'golem', tint: '#2e2366', hp: 14000, speed: 52, dmg: 32, r: 58, xp: 350, skills: ['slam', 'summon', 'slam'], summon: 'ghost' },
       { id: 'starless', name: 'Der Sternlose', t: 690, sprite: 'skel', tint: '#9a8cff', hp: 24000, speed: 66, dmg: 34, r: 48, xp: 450, skills: ['summon', 'nova', 'dash'], summon: 'skel' },
-      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 120000, speed: 72, dmg: 45, r: 64, xp: 1000, skills: ['dash', 'nova', 'slam', 'summon'], summon: 'skel', final: true },
+      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 100000, speed: 72, dmg: 45, r: 64, xp: 1000, skills: ['dash', 'nova', 'slam', 'summon'], summon: 'skel', final: true },
     ],
   },
 ];
