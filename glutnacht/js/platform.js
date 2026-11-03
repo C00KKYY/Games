@@ -17,7 +17,8 @@ const Platform = {
       const applyMute = () => this.call(s => Sfx.setPlatformMute(s.game.settings.muteAudio));
       applyMute();
       sdk.game.addSettingsChangeListener(applyMute);
-      if (Game.state === 'play') this.setPlaying(true);
+      this.playing = false;
+      this.setPlaying(Game.state === 'play');
     } catch (e) {
       this.sdk = null;
     }

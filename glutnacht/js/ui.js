@@ -74,7 +74,7 @@ const UI = {
       '<button class="btn" data-act="opts">' + this.icon('clock') + tr('Einstellungen') + '</button>' +
       '</div>' +
       this.goldBox() +
-      (st.runs ? '<div class="statsline">' + tr('Bestzeit {0} · Höchste Stufe {1} · {2} Monster besiegt · {3} Siege', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
+      (st.runs ? '<div class="statsline">' + tr('Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
       '<div class="tip"><b>' + tr('Tipp:') + '</b> ' + tip + '</div>' +
       '</div>';
   },

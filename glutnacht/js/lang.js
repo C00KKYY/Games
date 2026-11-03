@@ -16,6 +16,10 @@ function setLang(l) {
   if (typeof document !== 'undefined') {
     document.documentElement.lang = LANG;
     document.title = tr('Glutnacht');
+    const app = document.getElementById('app');
+    if (app) app.lang = LANG;
+    const cv = document.getElementById('game');
+    if (cv) cv.setAttribute('aria-label', tr('Spielwelt'));
   }
 }
 
@@ -45,7 +49,7 @@ const LANG_EN = {
   'Schmiede': 'Forge',
   'Erfolge': 'Achievements',
   'Einstellungen': 'Settings',
-  'Bestzeit {0} · Höchste Stufe {1} · {2} Monster besiegt · {3} Siege': 'Best time {0} · Highest level {1} · {2} monsters defeated · {3} wins',
+  'Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}': 'Best time {0} · Best level {1} · Kills {2} · Wins {3}',
   'Tipp:': 'Tip:',
   'Sprache': 'Language',
   'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.': 'You attack automatically. Move, dodge and collect blue gems. Every level brings a new weapon or upgrade.',
@@ -108,7 +112,7 @@ const LANG_EN = {
   'Überspringen': 'Skip', '+1 Überspringen pro Lauf': '+1 skip per run',
   'Verbannen': 'Banish', '+1 Verbannen pro Lauf': '+1 banish per run',
   'Mehrfachschuss': 'Multishot',
-  'Wiedergeburt': 'Revival', 'Einmal pro Lauf mit halbem Leben wiederauferstehen': 'Come back once per run with half health',
+  'Wiedergeburt': 'Revival', 'Einmal pro Lauf mit halbem Leben wiederauferstehen': 'Revive once per run with half health',
 
   // ---------- Erfolge ----------
   'Entdeckte Entwicklungen': 'Discovered evolutions',
@@ -155,7 +159,7 @@ const LANG_EN = {
   // ---------- Karten ----------
   '{0} Gold': '{0} gold',
   'Alles ist ausgebaut – nimm Gold mit.': 'Everything is maxed out. Take some gold.',
-  'Heiltrank': 'Healing potion',
+  'Heiltrank': 'Healing Potion',
   'Stellt {0} Leben wieder her.': 'Restores {0} health.',
   'Entwicklung mit {0}': 'Evolves with {0}',
   'NEU!': 'NEW!',
@@ -242,7 +246,7 @@ const LANG_EN = {
   'Magiegeschoss': 'Magic Bolt', 'Schießt auf den nächsten Gegner.': 'Shoots at the nearest enemy.',
   'Arkansturm': 'Arcane Storm', 'Dauerfeuer, das mehr Gegner durchdringt.': 'Constant fire that pierces more enemies.',
   'Klinge': 'Blade', 'Schlägt nach dem nächsten Gegner.': 'Slashes at the nearest enemy.',
-  'Blutklinge': 'Blood Blade', 'Riesige Schläge, jeder Treffer heilt.': 'Huge slashes, every hit heals you.',
+  'Blutklinge': 'Blood Blade', 'Riesige Schläge, jeder Treffer heilt.': 'Huge slashes; every hit heals you.',
   'Schutzkugeln': 'Guardian Orbs', 'Kugeln kreisen um dich.': 'Orbs circle around you.',
   'Sternenkranz': 'Star Halo', 'Die Kugeln verschwinden nie mehr.': 'The orbs never disappear.',
   'Glutaura': 'Ember Aura', 'Verbrennt alles in deiner Nähe.': 'Burns everything near you.',

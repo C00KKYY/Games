@@ -11,7 +11,13 @@ const Input = {
       const k = e.key.toLowerCase();
       // Mit gedrückter Cmd-Taste kommt auf macOS kein keyup – nichts merken
       if (e.metaKey) this.keys.clear(); else this.keys.add(e.code);
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(k) && Game.state === 'play') e.preventDefault();
+      // Scrolltasten nie an die umgebende Seite durchreichen (Spiel läuft oft in einem iframe)
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'Home', 'End'].includes(e.code)) {
+        const ae = document.activeElement;
+        if (!(e.code === 'Space' && ae && ae.tagName === 'BUTTON')) e.preventDefault();
+        // lange Bildschirme (Schmiede, Erfolge) bleiben mit den Pfeiltasten scrollbar
+        if (UI.cur && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) UI.el.screen.scrollBy(0, e.code === 'ArrowUp' ? -60 : 60);
+      }
       UI.onKey(k, e);
     });
     window.addEventListener('keyup', e => { if (e.key === 'Meta') this.keys.clear(); else this.keys.delete(e.code); });
@@ -34,7 +40,7 @@ const Input = {
     const end = e => { if (this.joy && e.pointerId === this.joy.id) this.joy = null; };
     canvas.addEventListener('pointerup', end);
     canvas.addEventListener('pointercancel', end);
-    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('contextmenu', e => e.preventDefault());
   },
 
   update() {
