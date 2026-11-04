@@ -1,0 +1,142 @@
+/* Top bar (src/ui/topbar.ts). Keeps the approved G1 sketch look from hud.css, fixes sizes for B1/B4 (≥ 12 px text,
+   ≥ 32 px buttons, ≥ 44 px on touch) and adds the collapse levels .lv1–.lv6 set by the fit logic. */
+
+.tb { height: 2.6rem; top: calc(4px + env(safe-area-inset-top)); gap: .4rem; }
+.tb.touch { height: 3.45rem; }
+.tb .pill { flex: 0 0 auto; }
+.tb .pill img { width: 1.4rem; height: 1.4rem; flex: 0 0 auto; }
+.tb .pill .num { font-size: 1.1rem; line-height: 1; }
+.tb button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+.tb button:focus-visible, .tb-list button:focus-visible { outline: 3px solid var(--teal500); outline-offset: 1px; }
+
+/* coins */
+.tb .coins .num { min-width: 2.7em; }
+
+/* reputation */
+.tb .stars { gap: .08rem; position: relative; }
+.tb .stars img.star { width: 1.05rem; height: 1.05rem; }
+.tb .stars img.star:not(.got) { opacity: .8; }
+.tb .stars .bar { display: block; width: 3.4rem; height: .5rem; margin-left: .3rem; }
+.tb .stars .bar i { width: 100%; transform-origin: 0 50%; transform: scaleX(0); transition: transform .4s ease-out; }
+.tb.lv3 .stars { padding-bottom: .2rem; }
+.tb.lv3 .stars .bar { position: absolute; left: .7rem; right: .7rem; bottom: .2rem; width: auto; height: .22rem; margin: 0; }
+
+/* clock */
+.tb .clock { gap: .3rem; }
+.tb .clock .day { display: inline; font-size: .9rem; }
+.tb .clock .num { min-width: 2.55em; }
+.tb .clock.night { background: var(--ink700); border-color: var(--ink900); color: var(--cream300); }
+.tb .clock.night .day { color: var(--cream700); }
+.tb.lv4 .clock .day { display: none; }
+
+/* speed */
+.tb .speed { padding: 0 .15rem; gap: .05rem; }
+.tb .speed .spd { position: relative; width: 2.3rem; height: 2.3rem; padding: 0; }
+.tb.touch .speed .spd { width: 3.15rem; height: 3.15rem; }
+.tb .speed .spd img.ic { width: 1.2rem; height: 1.2rem; }
+.tb .speed .spd .x { position: absolute; left: calc(50% + .3rem); top: calc(50% - .05rem); font-size: .86rem; line-height: 1; color: var(--ink700); }
+.tb .speed .spd.on .x { color: var(--cream300); }
+.tb .speed .spd img.lock { position: absolute; left: calc(50% + .15rem); top: calc(50% - 1.05rem); width: 1rem; height: 1rem; display: none; }
+.tb .speed .spd.locked img.lock { display: block; }
+.tb .speed .spd.locked img.ic, .tb .speed .spd.locked .x { opacity: .42; }
+.tb .speed .spd.locked { cursor: not-allowed; }
+
+/* flow bar */
+.tb .flow { flex: 1 1 auto; min-width: 0; gap: .15rem; padding: 0 .3rem; overflow: hidden; }
+.tb .flow .stages { flex: 0 0 auto; display: flex; align-items: center; gap: .05rem; }
+.tb .flow .st { flex: 0 0 auto; position: relative; height: 2.3rem; min-width: 2.3rem; padding: 0 .3rem; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; gap: .2rem; border-radius: 8px; cursor: pointer; animation: none; }
+.tb.touch .flow .st { height: 3.15rem; min-width: 3.15rem; }
+.tb .flow .st img.ic { width: 1.25rem; height: 1.25rem; }
+.tb .flow .st .num { display: inline; font-size: .9rem; color: var(--ink700); }
+.tb .flow .st:hover { transform: translateY(-1px); }
+.tb .flow .st:active { transform: scale(.95); }
+.tb .flow .st.tight .num { color: var(--gold700); }
+.tb .flow .st.bad { background: rgba(223,100,80,.16); box-shadow: inset 0 0 0 2px var(--coral500); }
+.tb .flow .st.bad .num { color: var(--coral700); }
+.tb .flow .st.bad::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgba(223,100,80,.3); opacity: 0; pointer-events: none; animation: tb-pulse 1.1s ease-in-out infinite alternate; }
+.tb .flow .arrow { display: block; flex: 0 0 auto; width: .45rem; height: .45rem; margin: 0 .08rem 0 0; }
+.tb.lv2 .flow .st .num, .tb.lv2 .flow .arrow { display: none; }
+.tb.lv2 .flow .st { padding: 0; }
+
+/* flow collapsed into one button (lv6) */
+.tb .flow .sum { flex: 0 0 auto; display: none; height: 2.3rem; min-width: 2.3rem; padding: 0 .3rem; border: 0; border-radius: 8px; background: transparent; align-items: center; gap: .12rem; cursor: pointer; }
+.tb.touch .flow .sum { height: 3.15rem; }
+.tb.touch .flow .sum img.ic { width: 1.35rem; height: 1.35rem; }
+.tb .flow .sum img.ic { width: 1.15rem; height: 1.15rem; border-radius: 50%; }
+.tb .flow .sum img.ic.bad { background: rgba(223,100,80,.28); box-shadow: 0 0 0 2px var(--coral500); animation: tb-throb .9s ease-in-out infinite alternate; }
+.tb.lv6 .flow .stages { display: none; }
+.tb.lv6 .flow .sum { display: flex; }
+
+/* bottleneck button */
+.tb .flow .bn { flex: 0 0 auto; height: 2.3rem; min-width: 2.3rem; margin-left: .15rem; padding: 0 .55rem 0 .4rem; border: 0; border-radius: 99px; background: var(--cream500); box-shadow: inset 0 -2px 0 var(--cream700); display: flex; align-items: center; justify-content: center; gap: .3rem; cursor: pointer; font-family: Inter, sans-serif; font-weight: 600; font-size: .9rem; color: var(--teal900); }
+.tb.touch .flow .bn { height: 3.15rem; min-width: 3.15rem; }
+.tb .flow .bn img.ic { width: 1.3rem; height: 1.3rem; }
+.tb .flow .bn.alert img.ic { animation: tb-throb .9s ease-in-out infinite alternate; }
+.tb .flow .bn:hover { transform: scale(1.05); }
+.tb .flow .bn:active { transform: scale(.95); }
+.tb.lv1 .flow .bn { padding: 0; }
+.tb.lv1 .flow .bn .lbl { display: none; }
+
+/* mood */
+.tb .mood { gap: .3rem; }
+.tb .mood .lbl { font-family: Fredoka, Inter, sans-serif; font-weight: 600; font-size: .9rem; color: var(--ink500); }
+.tb .mood.good .num { color: var(--mint700); }
+.tb .mood.ok .num { color: var(--gold700); }
+.tb .mood.low { background: #fbe1da; border-color: var(--coral500); }
+.tb .mood.low .num { color: var(--coral700); }
+.tb.lv3 .mood .lbl { display: none; }
+
+/* settings / help */
+.tb .iconbtn { height: 100%; width: auto; aspect-ratio: 1; padding: 0; }
+.tb .iconbtn:hover { transform: scale(1.05); }
+.tb .iconbtn:active { transform: scale(.95); }
+
+/* lv5: squeeze paddings and gaps so the stage buttons can stay visible (still ≥ 32 px buttons, ≥ 12 px text) */
+.tb.lv5 { gap: .15rem; }
+.tb.lv5 .pill { padding: 0 .3rem 0 .2rem; }
+.tb.lv5 .coins .num, .tb.lv5 .clock .num { min-width: 0; }
+.tb.lv5 .stars { padding: 0 .3rem; gap: 0; }
+.tb.lv5 .stars img.star { width: .86rem; height: .86rem; }
+.tb.lv5 .speed { padding: 0; gap: 0; }
+.tb.lv5 .flow { padding: 0; gap: 0; }
+.tb.lv5 .flow .bn { margin-left: 0; }
+.tb.lv5 .iconbtn { height: 2.3rem; align-self: center; }
+.tb.touch.lv5 .iconbtn { height: 3.15rem; }
+
+@keyframes tb-pulse { to { opacity: 1; } }
+@keyframes tb-throb { to { transform: scale(1.14); } }
+
+/* expanded stage list (overlay) */
+.tb-list { position: absolute; width: 17rem; max-width: calc(100vw - 16px); max-height: calc(100vh - 4.6rem); display: flex; flex-direction: column; pointer-events: auto; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: var(--shadow), inset 0 0 0 2px var(--cream700); padding: .3rem; }
+.tb-list[hidden] { display: none; }
+.tb-list .head { display: flex; align-items: center; justify-content: space-between; padding-left: .45rem; font-family: Fredoka, Inter, sans-serif; font-weight: 700; font-size: 1rem; color: var(--wood700); }
+.tb-list button { font: inherit; color: inherit; cursor: pointer; border: 0; background: transparent; }
+.tb-list .x { width: 2.3rem; height: 2.3rem; border-radius: 99px; display: grid; place-items: center; }
+.tb-list .x img { width: 1.1rem; height: 1.1rem; }
+.tb-list .rows { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: .15rem; }
+.tb-list .row { display: flex; align-items: center; gap: .5rem; min-height: 2.3rem; padding: .2rem .5rem; border-radius: 8px; text-align: left; font-family: Inter, sans-serif; font-weight: 600; font-size: 1rem; color: var(--ink900); }
+.tb-list .row:hover { background: var(--cream500); }
+.tb-list .row img.ic { width: 1.4rem; height: 1.4rem; flex: 0 0 auto; }
+.tb-list .row .name { flex: 1 1 auto; }
+.tb-list .row .num { font-size: 1rem; color: var(--ink700); white-space: nowrap; }
+.tb-list .row.tight .num { color: var(--gold700); }
+.tb-list .row.bad { background: rgba(223,100,80,.16); box-shadow: inset 0 0 0 2px var(--coral500); }
+.tb-list .row.bad .num { color: var(--coral700); }
+.tb-list .row.bad .name::after { content: ' !'; color: var(--coral700); }
+.tb.touch ~ .tb-list .x, .tb.touch ~ .tb-list .row { min-height: 3.15rem; min-width: 3.15rem; }
+.tb.touch ~ .tb-list .x { height: 3.15rem; width: 3.15rem; }
+
+/* compact (≤ 900 px wide, --ui 14 px): tighter, still ≥ 12 px text and ≥ 32 px buttons */
+@media (max-width: 900px) {
+  .tb { height: 2.58rem; top: calc(2px + env(safe-area-inset-top)); left: 4px; right: 4px; gap: .25rem; }
+  .tb.touch { height: 3.45rem; }
+  .tb .pill { padding: 0 .4rem 0 .25rem; }
+  .tb .pill img { width: 1.25rem; height: 1.25rem; }
+  .tb .pill .num { font-size: 1rem; }
+  .tb .stars img.star { width: .95rem; height: .95rem; }
+  .tb .stars { padding: 0 .4rem; }
+  .tb .speed, .tb .flow { padding: 0 .1rem; }
+  .tb .flow .stages { gap: 0; }
+  .tb .flow .st, .tb .flow .bn { min-width: 2.3rem; }
+  .tb .clock .day, .tb .mood .lbl, .tb .flow .bn { font-size: .86rem; }
+}
