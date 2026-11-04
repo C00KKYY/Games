@@ -4,8 +4,10 @@ import { Ground } from '../content/site1';
 import { type World, type Room, type Side, type PlaceReason, type CommandResult, UNREACHABLE } from './types';
 import { idx, components, distanceField } from './pathfield';
 import { bestDoor, packRoom, sizeOk } from './layout';
-import { rebuild, makeRoom, roomById, isWalled, emit, spend, earn, addRuf, field } from './world';
+import { rebuild, makeRoom, roomById, isWalled, emit, spend, addRuf, field } from './world';
+import { defaultRoomFor } from './staff';
 import { releaseSlot, setState, teleportNear } from './agents';
+import { waitAtDock } from './ferry';
 import { PATH_Y, GATE_X } from '../content/site1';
 
 const SIDES: Side[] = ['S', 'N', 'E', 'W'];
@@ -99,8 +101,8 @@ export function build(w: World, type: RoomType, x: number, y: number, ww: number
   const r = makeRoom(w, type, x, y, ww, hh, v.door!, false);
   r.buildEndMs = w.rtMs + buildMs(ww, hh);
   w.rooms.push(r);
-  pushAgentsOut(w, r);
   rebuild(w);
+  pushAgentsOut(w, r);
   w.director.data.lastBuildId = r.id; w.director.data.lastBuildCost = cost; w.director.data.lastBuildMs = w.rtMs;
   emit(w, 'build', { roomId: r.id, rtype: type, cost });
   return { ok: true, cost, roomId: r.id };
@@ -108,11 +110,18 @@ export function build(w: World, type: RoomType, x: number, y: number, ww: number
 
 /** agents standing on a new construction site are moved to the nearest free reachable tile (Brief §6.4) */
 function pushAgentsOut(w: World, r: Room) {
+  const inside = (a: { x: number; y: number }) => a.x >= r.x && a.x < r.x + r.w && a.y >= r.y && a.y < r.y + r.h;
+  if (!w.agents.some(inside)) return;
+  const g = w.grid, comp = components(g), dock = comp[idx(2, PATH_Y)];
   for (const a of w.agents) {
-    if (a.x >= r.x && a.x < r.x + r.w && a.y >= r.y && a.y < r.y + r.h) {
-      const nx = r.x + r.w / 2 > a.x ? r.x - 0.5 : r.x + r.w + 0.5;
-      a.x = Math.max(0.5, Math.min(w.grid.w - 0.5, nx));
+    if (!inside(a)) continue;
+    let best = -1, bd = Infinity;
+    for (let i = 0; i < g.w * g.h; i++) {
+      if (comp[i] !== dock || g.roomAt[i] || g.blocked[i]) continue;
+      const tx = i % g.w, ty = (i / g.w) | 0, d = (tx + 0.5 - a.x) ** 2 + (ty + 0.5 - a.y) ** 2;
+      if (d < bd) { bd = d; best = i; }
     }
+    if (best >= 0) { a.x = (best % g.w) + 0.5; a.y = Math.floor(best / g.w) + 0.5; a.stuckMs = 0; a.lastDist = UNREACHABLE; }
   }
 }
 
@@ -128,16 +137,18 @@ export function finishConstruction(w: World) {
 /** edge drag: new rect, pay only the difference (Brief §6.4) */
 export function resize(w: World, roomId: number, x: number, y: number, ww: number, hh: number): CommandResult {
   const r = roomById(w, roomId); if (!r || !isWalled(r)) return { ok: false, reason: 'noRoom' };
+  if (r.x === x && r.y === y && r.w === ww && r.h === hh) return { ok: false, reason: 'unchanged' };
   const v = validatePlacement(w, r.type, x, y, ww, hh, r.id);
   if (v.reason !== 'ok') return { ok: false, reason: v.reason };
   const diff = Math.max(0, ROOMS[r.type].perTile * (ww * hh - r.w * r.h));
   if (!spend(w, 'build', diff)) return { ok: false, reason: 'coins', cost: diff };
-  evictAll(w, r);
   Object.assign(r, { x, y, w: ww, h: hh, door: v.door! });
   repack(r);
+  evictAll(w, r);           // after the repack, so beds are re-assigned against the new slots (review finding)
   r.built = false; r.buildEndMs = w.rtMs + buildMs(ww, hh) * 0.6;
-  pushAgentsOut(w, r);
+  if (w.director.data.lastBuildId === r.id) w.director.data.lastBuildId = 0; // a resize closes the undo window
   rebuild(w);
+  pushAgentsOut(w, r);
   emit(w, 'resize', { roomId: r.id, cost: diff });
   return { ok: true, cost: diff };
 }
@@ -147,9 +158,11 @@ export function moveDoor(w: World, roomId: number, side: Side, offset: number): 
   const len = side === 'N' || side === 'S' ? r.w : r.h;
   const o = Math.max(0, Math.min(len - 1, offset));
   const door = { x: side === 'E' ? r.x + r.w - 1 : side === 'W' ? r.x : r.x + o, y: side === 'S' ? r.y + r.h - 1 : side === 'N' ? r.y : r.y + o, side };
-  const old = r.door; r.door = door; repack(r); rebuild(w);
-  if (!connectivityOk(w)) { r.door = old; repack(r); rebuild(w); return { ok: false, reason: 'blocksPath' }; }
+  const old = r.door; r.door = door; rebuild(w);
+  if (!connectivityOk(w)) { r.door = old; rebuild(w); return { ok: false, reason: 'blocksPath' }; }
+  repack(r);
   evictAll(w, r);
+  if (w.director.data.lastBuildId === r.id) w.director.data.lastBuildId = 0;
   return { ok: true };
 }
 
@@ -167,6 +180,8 @@ function evictAll(w: World, r: Room) {
   reassignBeds(w);
 }
 export function reassignBeds(w: World) {
+  // drop beds whose room vanished or whose slot index no longer exists
+  for (const a of w.agents) if (a.bed) { const r = roomById(w, a.bed); if (!r || r.type !== 'bunk' || a.bedSlot < 0 || a.bedSlot >= r.slots.length) { a.bed = 0; a.bedSlot = -1; } }
   const taken = new Set<string>();
   for (const a of w.agents) if (a.bed) taken.add(a.bed + ':' + a.bedSlot);
   const free: { id: number; s: number }[] = [];
@@ -174,17 +189,20 @@ export function reassignBeds(w: World) {
   for (const a of w.agents) if ((a.kind === 'rascal' || a.kind === 'vip') && !a.bed && a.state !== 'waitingDock' && a.state !== 'leaving') {
     const f = free.shift();
     if (f) { a.bed = f.id; a.bedSlot = f.s; }
-    else { a.state = 'waitingDock'; } // no bed anymore → back to the dock queue
+    else { releaseSlot(w, a); a.act = null; waitAtDock(w, a); } // no bed anymore → back to the dock queue
   }
 }
 
 /** buy n levels (bulk, geometric sum); milestones double output, change the look, +5 Ruf */
 export function upgrade(w: World, roomId: number, n: number): CommandResult {
   const r = roomById(w, roomId); if (!r) return { ok: false, reason: 'noRoom' };
+  if (!Number.isInteger(n) || n < 1) return { ok: false, reason: 'invalid' };
+  if (!r.built || ROOMS[r.type].baseUp <= 0) return { ok: false, reason: 'invalid' };
   n = Math.min(n, UPGRADE.maxLevel - r.level);
   if (n <= 0) return { ok: false, reason: 'max' };
   const cost = bulkCost(r.type, r.level, n);
   if (!spend(w, 'upgrade', cost)) return { ok: false, reason: 'coins', cost };
+  if (w.director.data.lastBuildId === r.id) w.director.data.lastBuildId = 0;
   const before = r.level;
   r.level += n;
   emit(w, 'upgrade', { roomId, from: before, to: r.level, cost });
@@ -204,14 +222,15 @@ export function demolish(w: World, roomId: number): CommandResult {
   const lastBuild = w.director.data.lastBuildId === r.id && (!r.built || w.rtMs - r.buildEndMs <= 10000);
   const base = roomCost(r.type, r.w, r.h);
   const refund = lastBuild ? (w.director.data.lastBuildCost ?? base) : base * 0.5;
-  evictAll(w, r);
-  for (const a of w.agents) if (a.kind === 'staff' && a.roomId === r.id) a.roomId = 0;
-  w.rooms.splice(w.rooms.indexOf(r), 1);
+  for (const a of w.agents) if (a.act?.roomId === r.id) { releaseSlot(w, a); a.act = null; if (a.state !== 'leaving' && a.state !== 'atGate' && a.state !== 'toGate' && a.state !== 'waitingDock') setState(w, a, 'idle'); }
+  w.rooms.splice(w.rooms.indexOf(r), 1);   // remove first, then re-assign beds (review finding)
   rebuild(w);
   reassignBeds(w);
+  for (const a of w.agents) if (a.kind === 'staff' && a.roomId === r.id) a.roomId = defaultRoomFor(w, a.role!) || 0;
   // anyone now standing inside walls/unreachable gets moved
   for (const a of w.agents) { const f = field(w, 'dockSell'); if (f[idx(Math.floor(a.x), Math.floor(a.y))] === UNREACHABLE) teleportNear(w, a); }
-  earn(w, 'refund', refund);
+  // refunds are not income: no lifetime coins, no loan repayment (review finding)
+  w.coins += refund; w.stats.spend.build = (w.stats.spend.build ?? 0) - refund;
   emit(w, 'demolish', { roomId, refund });
   return { ok: true, cost: -refund };
 }

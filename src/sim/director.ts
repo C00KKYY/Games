@@ -1,8 +1,9 @@
 /** Shenanigans director (Brief §3.12): spoon tunnel, food fight, VIP, ruckus. Never game over. */
 import { DIRECTOR, ECON, RUF, GUARD_RADIUS } from '../content/balance';
 import { AF, type World, type Agent } from './types';
-import { rascals, goTo, setState, releaseSlot, isResident, moveAgent } from './agents';
-import { roomsOf, emit, earn, addRuf, roomById } from './world';
+import { rascals, goTo, setState, releaseSlot, isResident, moveAgent, promoteQueue } from './agents';
+import { roomsOf, emit, earn, addRuf, roomById, field } from './world';
+import { idx } from './pathfield';
 import { inMeal, hourOf, tickMs } from './time';
 import { rngNext, rngInt } from './rng';
 import { staffOf } from './staff';
@@ -18,8 +19,9 @@ export function directorTick(w: World) {
   if (d.active) { updateActive(w); return; }
   if (!d.nextMs) d.nextMs = w.rtMs + gap(w);
   // scripted beats replace the director slot
-  if (!d.data.tunnelDone && w.rtMs >= D.scriptedTunnelSec * 1000) { if (startTunnel(w, true)) return; }
-  if (!d.data.foodDone && w.rtMs >= D.scriptedFoodFightSec * 1000 && inMeal(hourOf(w.t))) { if (startFoodFight(w)) return; }
+  // scripted beats replace (consume) the director slot (Brief §3.12)
+  if (!d.data.tunnelDone && w.rtMs >= D.scriptedTunnelSec * 1000) { if (startTunnel(w, true)) { d.nextMs = w.rtMs + gap(w); return; } }
+  if (!d.data.foodDone && w.rtMs >= D.scriptedFoodFightSec * 1000 && inMeal(hourOf(w.t))) { if (startFoodFight(w)) { d.nextMs = w.rtMs + gap(w); return; } }
   if (w.rtMs < d.nextMs) { ruckusCheck(w); return; }
   d.nextMs = w.rtMs + gap(w);
   const lockFF = w.rtMs < tutorialEndMs(w) + D.lockAfterTutorialSec * 1000;
@@ -64,9 +66,14 @@ function startTunnel(w: World, scripted: boolean): boolean {
   releaseSlot(w, pick); pick.act = null;
   // pop out of a mound on the nearest outdoor tile, sprint 8 s towards the fence
   const mx = Math.floor(pick.x) + 0.5, my = Math.floor(pick.y) + 0.5;
-  const fence = w.poi.fenceEscape;
+  // nearest reachable fence tile by walking distance (fence recomputed in rebuild, rooms excluded)
+  const ff = field(w, 'fence');
   let fx = mx, fy = my, bd = Infinity;
-  for (const p of fence) { const dd = Math.hypot(p.x - mx, p.y - my); if (dd < bd && dd > 4) { bd = dd; fx = p.x; fy = p.y; } }
+  const own = ff[idx(Math.floor(mx), Math.floor(my))];
+  for (const p of w.poi.fenceEscape) {
+    const dd = Math.hypot(p.x - mx, p.y - my);
+    if (dd < bd && dd > 4 && own !== 0xffff) { bd = dd; fx = p.x; fy = p.y; }
+  }
   goTo(pick, `t:${Math.floor(fx)},${Math.floor(fy)}`, fx, fy);
   setState(w, pick, 'escaping');
   w.director.active = 'tunnel'; w.director.activeSinceMs = w.rtMs;
@@ -143,13 +150,22 @@ export function catchEscapee(w: World, a: Agent, by: 'tap' | 'guard') {
   emit(w, 'caught', { id: a.id, by });
 }
 export function calm(w: World, a: Agent, by: 'tap' | 'guard') {
+  freeSeat(w, a);
   setState(w, a, 'dazed');
   emit(w, 'calmed', { id: a.id, by });
 }
 
 /** dazed rascals sit 3 s, then continue */
+/** a brawler/escapee loses its activity: free the slot it still holds and let the queue move up (review finding) */
+function freeSeat(w: World, a: Agent) {
+  const rid = a.act?.roomId;
+  releaseSlot(w, a);
+  a.act = null;
+  const r = rid ? roomById(w, rid) : undefined;
+  if (r) promoteQueue(w, r);
+}
 export function dazedTick(w: World, a: Agent) {
-  if (w.rtMs - a.stateMs >= 3000) { a.act = null; setState(w, a, 'idle'); }
+  if (w.rtMs - a.stateMs >= 3000) { freeSeat(w, a); setState(w, a, 'idle'); }
 }
 
 // ------------------------------------------------------------------ ruckus: mood < 20 for 30 s → 30 s work stop

@@ -3,7 +3,7 @@ import { ECON, TIME, TAP_COOLDOWN_SEC, CLEAN, wageFor, boardPerBedHour, moodFact
 import { TICKS_PER_HOUR, TICKS_PER_DAY, AF, type World, type CommandResult, type Agent } from './types';
 import { createWorld, emit, earn, roomsOf, roomById, rebuild, applyParcels, spend } from './world';
 import { rascalTick, computeMood, rascals, setState, isResident, promoteQueue } from './agents';
-import { staffTick, cartTick, crewTick, addStaff, defaultRoomFor, staffOf, spawnCrew } from './staff';
+import { staffTick, cartTick, crewTick, addStaff, defaultRoomFor, staffOf, spawnCrew, hireFee } from './staff';
 import { ferryTick, gateTick, scheduleNextFerry } from './ferry';
 import { directorTick, dazedTick, catchEscapee, calm } from './director';
 import { objectivesTick, onEvent, skipTutorial } from './objectives';
@@ -54,17 +54,22 @@ export function tick(w: World) {
   // ---- remove agents that left the island
   if (w.agents.some(a => a.flags & AF.gone)) w.agents = w.agents.filter(a => !(a.flags & AF.gone));
   // ---- route new events to the tutorial/objective hooks
-  const cur = w.cache.evCursor;
-  if (w.eventSeq !== cur) {
-    const n = Math.min(w.events.length, w.eventSeq - cur);
-    const fresh = w.events.slice(w.events.length - n);
-    w.cache.evCursor = w.eventSeq;
-    for (const e of fresh) onEvent(w, e.type, e);
-  }
+  flushEvents(w);
   if (w.rtMs >= 60000 * (w.stats.minute.length + 1)) snapshot(w);
   if (w.debug) checkInvariants(w);
 }
 const aura = () => 0;
+
+/** route not-yet-seen events to the objective/tutorial hooks; called after each tick and each command, and before saving */
+export function flushEvents(w: World) {
+  const cur = w.cache.evCursor;
+  if (w.eventSeq === cur) return;
+  const n = Math.min(w.events.length, w.eventSeq - cur);
+  const fresh = w.events.slice(w.events.length - n);
+  w.cache.evCursor = w.eventSeq;
+  for (const e of fresh) onEvent(w, e.type, e);
+  objectivesTick(w);
+}
 
 function onHour(w: World, hour: number) {
   // board for assigned beds, per bunk room level (GDD E17)
@@ -80,8 +85,10 @@ function onMidnight(w: World) {
   let wages = 0;
   for (const s of staffOf(w)) {
     const role = s.role as StaffRole;
+    const own = s.roomId ? roomById(w, s.roomId) : undefined;
     const type: RoomType = STAFF_ROOM[role];
-    const lvl = Math.max(1, ...roomsOf(w, type).map(r => r.level));
+    // pay grade = level of the room the staff member works in; roaming roles use the best room of their type
+    const lvl = own && own.type === type ? own.level : Math.max(1, ...roomsOf(w, type).map(r => r.level));
     wages += wageFor(role, lvl);
   }
   if (w.coins >= wages) { spend(w, 'wages', wages); }
@@ -100,9 +107,9 @@ function skipNight(w: World) {
     a.needs.hygiene = Math.max(0, a.needs.hygiene - hours * 1);
     a.needs.fun = Math.max(0, a.needs.fun - hours * 1.5);
   }
-  // wages and board of the skipped hours are settled as if the night happened
-  for (let h = 23; h < 24 + 6; h++) onHour(w, h % 24);
+  // wages and board of the skipped hours are settled as if the night happened (23:00 … 06:00, clock already moved)
   w.t = target;
+  for (let h = 23; h <= 24 + 6; h++) onHour(w, h % 24);
   w.rtMs += 2000; // 2 s fade "Next morning…"
   if (!staffOf(w, 'janitor').length) for (const r of w.rooms) r.clean = Math.max(r.clean, CLEAN.nightReset);
   if (w.ferry.state === 'away') scheduleNextFerry(w);
@@ -122,11 +129,15 @@ export class Stepper {
   /** integer microseconds of 1x-real time not yet simulated */
   accUs = 0;
   ticks = 0;
+  /** sub-µs remainder of frame times, so rounding never drifts with the refresh rate (review finding) */
+  private fracUs = 0;
   constructor(public w: World) {}
   /** advance by a frame of `frameUs` real microseconds; returns ticks run */
   frame(frameUs: number): number {
-    const clamped = Math.min(Math.max(0, Math.round(frameUs)), 250000);
-    this.accUs += clamped * this.w.speed;
+    const exact = Math.min(Math.max(0, frameUs), 250000) + this.fracUs;
+    const whole = Math.floor(exact);
+    this.fracUs = exact - whole;
+    this.accUs += whole * this.w.speed;
     let n = 0;
     while (n < TIME.maxTicksPerFrame) {
       const cost = tickMs(this.w.t) * 1000;
@@ -157,11 +168,12 @@ export const cmd = {
   demolish: (w: World, id: number) => logged(w, 'demolish', [id], () => demolish(w, id)),
   undo: (w: World) => logged(w, 'undo', [], () => undoLastBuild(w)),
   hire: (w: World, role: StaffRole, roomId?: number) => logged(w, 'hire', [role, roomId], () => {
+    if (roomId !== undefined) { const r = roomById(w, roomId); const want = role === 'clerk' ? 'gate' : role === 'carter' ? 'dock' : STAFF_ROOM[role]; if (!r || !r.built || r.type !== want) return { ok: false, reason: 'noRoom' }; }
     const rid = roomId ?? defaultRoomFor(w, role);
     if (!rid && role !== 'janitor' && role !== 'guard') return { ok: false, reason: 'noRoom' };
     if (role === 'guard' && !roomsOf(w, 'guard').some(r => r.built)) return { ok: false, reason: 'noRoom' };
     const a = addStaff(w, role, rid);
-    return a ? { ok: true, cost: 0 } : { ok: false, reason: 'coins' };
+    return a ? { ok: true, cost: hireFee(role) } : { ok: false, reason: 'coins', cost: hireFee(role) };
   }),
   buyParcel: (w: World, k: number) => logged(w, 'buyParcel', [k], (): CommandResult => {
     if (k <= 0 || k >= PARCELS.length || w.parcels[k]) return { ok: false, reason: 'invalid' };
@@ -212,6 +224,7 @@ export const cmd = {
 };
 function logged(w: World, name: string, args: unknown[], fn: () => CommandResult): CommandResult {
   const r = fn();
+  flushEvents(w);
   w.log.push({ t: w.t, cmd: name, args });
   if (w.log.length > 4000) w.log.splice(0, 1000);
   emit(w, 'cmd', { name, ok: r.ok, reason: r.reason });

@@ -2,10 +2,11 @@ import { describe, it, expect } from 'vitest';
 import en from '../../src/i18n/en.json';
 import de from '../../src/i18n/de.json';
 import { OFFENCES } from '../../src/content/gags';
-import { langFromLocale, fmtNum, setLang } from '../../src/i18n/i18n';
+import { langFromLocale, fmtNum, setLang, allKeys, tableOf } from '../../src/i18n/i18n';
 
 describe('D7 i18n', () => {
-  it('EN and DE have identical keys', () => { expect(Object.keys(de).sort()).toEqual(Object.keys(en).sort()); });
+  it('EN and DE have identical keys (base + component parts)', () => { expect(Object.keys(de).sort()).toEqual(Object.keys(en).sort()); expect(allKeys('de').sort()).toEqual(allKeys('en').sort()); });
+  it('D1 (parts): tutorial keys ≤ 8 words', () => { for (const l of ['en', 'de'] as const) for (const [k, v] of Object.entries(tableOf(l))) if (k.startsWith('tut.')) expect(v.split(/\s+/).length, k).toBeLessThanOrEqual(8); });
   it('D1: tutorial steps have at most 8 words in both languages', () => {
     for (const k of Object.keys(en).filter(k => k.startsWith('tut.'))) for (const tbl of [en, de] as Record<string, string>[]) expect(tbl[k].split(/\s+/).length, k).toBeLessThanOrEqual(8);
   });

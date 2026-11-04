@@ -2,8 +2,17 @@
 import en from './en.json';
 import de from './de.json';
 export type Lang = 'en' | 'de';
-export type Key = keyof typeof en;
-const TABLES: Record<Lang, Record<string, string>> = { en, de };
+/** base keys are typed; component parts (src/i18n/parts/<name>.<lang>.json) add more */
+export type Key = keyof typeof en | (string & {});
+const TABLES: Record<Lang, Record<string, string>> = { en: { ...en }, de: { ...de } };
+// merge component string tables (each UI component owns src/i18n/parts/<component>.en.json + .de.json)
+const parts = import.meta.glob('./parts/*.json', { eager: true, import: 'default' }) as Record<string, Record<string, string>>;
+for (const [path, table] of Object.entries(parts)) {
+  const m = path.match(/\.(en|de)\.json$/); if (!m) continue;
+  Object.assign(TABLES[m[1] as Lang], table);
+}
+export const allKeys = (l: Lang) => Object.keys(TABLES[l]);
+export const tableOf = (l: Lang) => TABLES[l];
 let lang: Lang = 'en';
 export const setLang = (l: Lang) => { lang = l; };
 export const getLang = () => lang;

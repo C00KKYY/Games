@@ -3,7 +3,8 @@
     "argv": [
       "/opt/node22/bin/node",
       "/home/user/Games/rascal-rock-lockup/node_modules/.bin/playwright",
-      "test"
+      "test",
+      "tests/e2e"
     ],
     "configFile": "/home/user/Games/rascal-rock-lockup/playwright.config.ts",
     "rootDir": "/home/user/Games/rascal-rock-lockup/tests/e2e",
@@ -91,12 +92,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 122,
+                  "duration": 120,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-04T06:37:21.188Z",
+                  "startTime": "2026-11-04T12:05:37.999Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -125,12 +126,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1820,
+                  "duration": 2571,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-04T06:37:21.455Z",
+                  "startTime": "2026-11-04T12:05:38.249Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -159,12 +160,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1895,
+                  "duration": 11186,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-04T06:37:23.296Z",
+                  "startTime": "2026-11-04T12:05:40.850Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -193,12 +194,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1522,
+                  "duration": 1961,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-04T06:37:25.204Z",
+                  "startTime": "2026-11-04T12:05:52.078Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -227,12 +228,12 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 1671,
+                  "duration": 6890,
                   "errors": [],
                   "stdout": [],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-11-04T06:37:26.741Z",
+                  "startTime": "2026-11-04T12:05:54.062Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -250,8 +251,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-04T06:37:18.820Z",
-    "duration": 9697.533,
+    "startTime": "2026-11-04T12:05:37.216Z",
+    "duration": 25426.269,
     "expected": 5,
     "skipped": 0,
     "unexpected": 0,

@@ -21,4 +21,6 @@
 | C | C1a (p95 0,46 ms @ 206 Agenten), C2 (60/144/165 Hz, Hash) | grün |
 | F | Palette, Platzhalter, kein Text in SVG, Nacht-Luminanz 0,476 | grün |
 | D | D7 (Keys EN=DE), D1 (≤ 8 Wörter) | grün |
-| H | H0 (Economy-Sheet), H1 erste 10 min (27 Seeds), H4 (Save/Load-Hash) | grün, Ausnahmen siehe BALANCE.md §0 |
+| H | H0 (Economy-Sheet), H1 erste 10 min (27 Seeds, 12 Zeilen), H4 (Save/Load-Hash) | grün |
+| H | §4.3 Taktung (≤ 120 s ohne Neues) | **offen**: 6/27 Seeds, Lücke 129–153 s in der Spar-Phase vor dem Klassenzimmer (BALANCE.md §0) |
+| – | Review-Regressionen (8 Tests) | grün |

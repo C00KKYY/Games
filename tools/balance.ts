@@ -61,7 +61,7 @@ export function evaluate(minutes: number, seeds: number[]) {
   return { rows, tempo, casual, optimal };
 }
 
-const fmt = (s: number | null) => (s === null ? '—' : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`);
+const fmt = (s: number | null) => { if (s === null) return '—'; const r = Math.round(s); return `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`; };
 
 function mix(r: BotReport) {
   const i = r.income; const tot = (i.release ?? 0) + (i.crates ?? 0) + (i.board ?? 0);

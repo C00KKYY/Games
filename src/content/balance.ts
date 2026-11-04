@@ -50,10 +50,10 @@ export interface RoomDef {
 
 export const ROOMS: Record<RoomType, RoomDef> = {
   bunk:      { minW: 3, minH: 3, baseCost: 80,  perTile: 15, tilesPerSlot: 3, baseUp: 60 },
-  canteen:   { minW: 4, minH: 3, baseCost: 120, perTile: 20, tilesPerSlot: 3, staff: 'cook', perStaff: 8, baseUp: 130 },
+  canteen:   { minW: 4, minH: 3, baseCost: 120, perTile: 20, tilesPerSlot: 3, staff: 'cook', perStaff: 8, baseUp: 140 },
   wash:      { minW: 3, minH: 3, baseCost: 100, perTile: 15, tilesPerSlot: 3, staff: 'janitor', perStaff: 99, baseUp: 60 },
   workshop:  { minW: 4, minH: 4, baseCost: 250, perTile: 22, tilesPerSlot: 4, staff: 'foreman', perStaff: 4, baseUp: 120 },
-  classroom: { minW: 4, minH: 4, baseCost: 300, perTile: 25, tilesPerSlot: 3, staff: 'teacher', perStaff: 10, baseUp: 150 },
+  classroom: { minW: 4, minH: 4, baseCost: 220, perTile: 25, tilesPerSlot: 3, staff: 'teacher', perStaff: 10, baseUp: 150 },
   guard:     { minW: 2, minH: 2, baseCost: 180, perTile: 0,  tilesPerSlot: 0, staff: 'guard', perStaff: 1, baseUp: 90 },
   yard:      { minW: 4, minH: 4, baseCost: 60,  perTile: 8,  tilesPerSlot: 3, baseUp: 50 }, // Brief: 5x5 – start parcel too tight (BALANCE.md)
   gate:      { minW: 2, minH: 2, baseCost: 0,   perTile: 0,  tilesPerSlot: 0, staff: 'clerk', perStaff: 1, baseUp: 100 },
@@ -163,7 +163,7 @@ export const moodFactor = (mood: number) => 0.5 + mood / 100;
 
 export const SENTENCE = {
   earlyCount: 12,
-  early: [60, 90] as const,
+  early: [70, 100] as const,
   normal: [120, 220] as const,
   earl: 20,
   vip: 150,

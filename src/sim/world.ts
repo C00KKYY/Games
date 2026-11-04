@@ -81,7 +81,7 @@ function computeFence(w: World) {
   const g = w.grid, out: Tile[] = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = idx(x, y);
-    if (!g.owned[i] || g.ground[i] === Ground.Water || g.fixed[i] || g.blocked[i]) continue;
+    if (!g.owned[i] || g.ground[i] === Ground.Water || g.fixed[i] || g.blocked[i] || g.roomAt[i]) continue;
     const edge = (x === W - 1 || y === 0 || y === H - 1) || [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const nx = x + dx, ny = y + dy; return nx >= 0 && ny >= 0 && nx < W && ny < H && !g.owned[idx(nx, ny)] && g.ground[idx(nx, ny)] !== Ground.Water; });
     if (edge && (x + y) % 3 === 0) out.push({ x: x + 0.5, y: y + 0.5 });
   }
@@ -140,6 +140,7 @@ export function rebuild(w: World) {
     const v = r.built ? 0 : 1;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) g.blocked[idx(x, y)] = v;
   }
+  computeFence(w);           // escape targets never inside rooms (review finding)
   w.cache.fields.clear();
   w.cache.version++;
   const comp = components(g);
@@ -212,6 +213,7 @@ export function earn(w: World, kind: string, amount: number, at?: { x: number; y
   emit(w, 'coins', { kind, amount, x: at?.x, y: at?.y });
 }
 export function spend(w: World, kind: string, amount: number): boolean {
+  if (!Number.isFinite(amount) || amount < 0) return false;
   if (amount > w.coins + 1e-9) return false;
   w.coins = Math.max(0, w.coins - amount);
   w.stats.spend[kind] = (w.stats.spend[kind] ?? 0) + amount;

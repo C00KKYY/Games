@@ -205,7 +205,8 @@ const KIND_ROOM: Partial<Record<Kind, RoomType>> = { eat: 'canteen', shower: 'wa
 /** try to start activity `kind`; returns true if started (walking/queued) */
 function start(w: World, a: Agent, kind: Kind): boolean {
   if (kind === 'sleep') {
-    const r = roomById(w, a.bed); if (!r || a.bedSlot < 0) return false;
+    const r = roomById(w, a.bed);
+    if (!r || a.bedSlot < 0 || a.bedSlot >= r.slots.length) { a.bed = 0; a.bedSlot = -1; return false; }
     a.act = { kind, roomId: r.id, slot: a.bedSlot, untilT: 0 };
     const s = r.slots[a.bedSlot]; goTo(a, '#' + r.id, r.x + s.x, r.y + s.y);
     setState(w, a, 'walking'); return true;
@@ -272,9 +273,12 @@ export function toGate(w: World, a: Agent) {
 // ------------------------------------------------------------------ per-tick rascal update
 export function rascalTick(w: World, a: Agent, ctx: { mf: (a: Agent) => number; noiseBunks: Set<number> }) {
   decayNeeds(w, a);
+  if (a.bed && a.mood >= RATE.reformPassiveMood && a.state !== 'leaving') a.reform += RATE.reformPassive * ctx.mf(a) * (a.traits.includes('clever') ? 1.4 : 1) * PER_TICK;
   switch (a.state) {
-    case 'arriving': case 'idle': case 'waitingDock':
-      if (a.state !== 'waitingDock') chooseActivity(w, a);
+    case 'waitingDock': moveAgent(w, a, SPEED.rascal); break;
+    case 'arriving': case 'idle':
+      chooseActivity(w, a);
+      // passive reform is applied below for every resident
       break;
     case 'walking': {
       if (moveAgent(w, a, SPEED.rascal)) arrive(w, a);
@@ -307,8 +311,15 @@ function arrive(w: World, a: Agent) {
     : act.kind === 'class' || act.kind === 'work' ? hoursToTicks(2)
     : act.kind === 'yard' ? hoursToTicks(1.5)
     : act.kind === 'sleep' ? sleepTicks(w.t) : hoursToTicks(0.5);
-  act.untilT = w.t + Math.max(1, dur);
+  // blocks end when the room closes: workshop/class 20:00, yard 22:00 (review finding)
+  const close = act.kind === 'work' || act.kind === 'class' ? 20 : act.kind === 'yard' ? 22 : -1;
+  let until = w.t + Math.max(1, dur);
+  if (close > 0) until = Math.min(until, nextHourTick(w.t, close));
+  act.untilT = until;
   r.usesToday++; r.moodSumToday += a.mood;
+  // Ø walk for the room panel (tenths of real seconds at 1x)
+  r.walkTicksSum += Math.round((w.rtMs - a.stateMs) / 100); r.walkSamples++;
+  if (r.walkSamples > 400) { r.walkTicksSum = Math.round(r.walkTicksSum / 2); r.walkSamples = 200; }
   r.clean = Math.max(0, r.clean - (w.unlocked.janitorClean ? CLEAN.perUseAfterJanitorUnlock : CLEAN.perUse) * (w.tutorial.done ? 1 : 0));
   setState(w, a, 'using');
 }

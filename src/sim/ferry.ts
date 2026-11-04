@@ -30,7 +30,7 @@ export function ferryTick(w: World) {
     case 'away':
       if (w.t >= f.nextT) {
         f.state = 'arriving'; f.sinceMs = w.rtMs; f.tapped = false;
-        f.aboard = w.tutorial.active && w.stats.arrived === 0 ? 4 : ferrySizeNow(w);
+        f.aboard = w.stats.arrived === 0 ? 4 : ferrySizeNow(w);
         emit(w, 'ferryHorn');
       }
       break;
@@ -54,7 +54,7 @@ export function ferryTick(w: World) {
         if (beds > 0 || waiting < FERRY.dockQueueMax) {
           const first = w.stats.arrived === 0;
           const vip = !!w.director.data.vipNext && f.aboard === 1;
-          const a = spawnRascal(w, w.poi.ferryBerth.x, w.poi.ferryBerth.y, { earl: first && w.tutorial.active, vip });
+          const a = spawnRascal(w, w.poi.ferryBerth.x, w.poi.ferryBerth.y, { earl: first, vip });
           if (vip) w.director.data.vipNext = 0;
           f.aboard--; w.director.data.disembarked = (w.director.data.disembarked ?? 0) + 1;
           if (beds > 0) admit(w, a); else waitAtDock(w, a);
@@ -72,7 +72,9 @@ export function ferryTick(w: World) {
       break;
   }
   // waiting rascals take beds as they free up (in arrival order)
-  for (const a of rascals(w)) if (a.state === 'waitingDock') { if (freeBeds(w).length) admit(w, a); else break; }
+  let admitted = false;
+  for (const a of rascals(w)) if (a.state === 'waitingDock') { if (freeBeds(w).length) { admit(w, a); admitted = true; } else break; }
+  if (admitted) compactDockQueue(w);
 }
 
 function admit(w: World, a: Agent) {
@@ -82,11 +84,14 @@ function admit(w: World, a: Agent) {
   setState(w, a, 'arriving');
   emit(w, 'admit', { id: a.id });
 }
-function waitAtDock(w: World, a: Agent) {
-  const k = rascals(w).filter(o => o.state === 'waitingDock').length;
-  const q = w.poi.dockQueue[k % w.poi.dockQueue.length];
-  goTo(a, `t:${Math.floor(q.x)},${Math.floor(q.y)}`, q.x, q.y);
+export function waitAtDock(w: World, a: Agent) {
   setState(w, a, 'waitingDock');
+  compactDockQueue(w);
+}
+/** waiting rascals stand on distinct queue tiles in arrival order */
+export function compactDockQueue(w: World) {
+  const ws = rascals(w).filter(o => o.state === 'waitingDock').sort((x, y) => x.stateMs - y.stateMs || x.id - y.id);
+  ws.forEach((o, k) => { const q = w.poi.dockQueue[k % w.poi.dockQueue.length]; if (Math.hypot(o.tx - q.x, o.ty - q.y) > 0.01) goTo(o, `t:${Math.floor(q.x)},${Math.floor(q.y)}`, q.x, q.y); });
 }
 
 // ------------------------------------------------------------------ Parole Gate

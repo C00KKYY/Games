@@ -5,6 +5,7 @@
 import LZString from 'lz-string';
 import type { World } from '../sim/types';
 import { rebuild } from '../sim/world';
+import { flushEvents } from '../sim/sim';
 import { makeGrid } from '../sim/pathfield';
 
 export const SAVE_VERSION = 1;
@@ -33,6 +34,7 @@ export function crc32(s: string): number { let c = 0xffffffff; for (let i = 0; i
 // ---------------------------------------------------------------- world ⇄ plain object
 const DERIVED_GRID = ['roomAt', 'wallE', 'wallS'] as const;
 export function worldToPlain(w: World): Record<string, unknown> {
+  flushEvents(w); // nothing pending may be lost by a save (review finding)
   const { cache: _c, events: _e, eventSeq: _s, grid, ...rest } = w;
   void _c; void _e; void _s;
   const g: Record<string, unknown> = { w: grid.w, h: grid.h };

@@ -5,9 +5,11 @@ import { roomsOf, emit, earn, addRuf, starsOf } from './world';
 import { totalBeds } from './ferry';
 import { rascals } from './agents';
 
-export interface ObjectiveDef { id: string; mandatory: boolean; target: number; progress: (w: World) => number; unlocks?: string[] }
+export interface ObjectiveDef { id: string; mandatory: boolean; target: number; progress: (w: World) => number; unlocks?: string[]; onlyIfSkipped?: boolean }
 
 export const OBJECTIVES: ObjectiveDef[] = [
+  // only after a skipped tutorial without a Wash Hut (Brief §6.2); otherwise counted as done without reward
+  { id: 'wash', mandatory: false, target: 1, progress: w => roomsOf(w, 'wash').filter(r => r.built).length, onlyIfSkipped: true },
   { id: 'workshop', mandatory: true, target: 1, progress: w => roomsOf(w, 'workshop').filter(r => r.built).length, unlocks: ['classroom'] },
   { id: 'classroom', mandatory: true, target: 1, progress: w => roomsOf(w, 'classroom').filter(r => r.built).length },
   { id: 'guard', mandatory: true, target: 1, progress: w => roomsOf(w, 'guard').filter(r => r.built).length },
@@ -29,15 +31,22 @@ export const objectiveReward = (n: number) => 100 + 40 * n;
 export const TUTORIAL_STEPS = ['horn', 'wash', 'stamp', 'upgrade'] as const;
 
 export function onEvent(w: World, type: string, data: Record<string, unknown>) {
-  const tu = w.tutorial;
-  if (tu.active) {
-    if (tu.step === 0 && type === 'ferryDock') tu.step = 1;
-    else if (tu.step === 1 && type === 'built' && data.rtype === 'wash') tu.step = 2;
-    else if (tu.step === 2 && type === 'release') tu.step = 3;
-    else if (tu.step === 3 && type === 'upgrade' && roomsOf(w, 'canteen').some(r => r.id === data.roomId)) endTutorial(w);
-    if (tu.active) emit(w, 'tutorialStep', { step: tu.step });
-  }
   if (type === 'release' && data.first) emit(w, 'happytime', { reason: 'firstRelease' });
+}
+
+/** tutorial steps are checked against the world state (not single events) so any order of player actions works (review finding) */
+export function tutorialTick(w: World) {
+  const tu = w.tutorial;
+  if (!tu.active) return;
+  const before = tu.step;
+  for (let guard = 0; guard < 4 && tu.active; guard++) {
+    if (tu.step === 0 && (w.ferry.state === 'docked' || w.stats.arrived > 0)) tu.step = 1;
+    else if (tu.step === 1 && roomsOf(w, 'wash').some(r => r.built)) tu.step = 2;
+    else if (tu.step === 2 && w.stats.released >= 1) tu.step = 3;
+    else if (tu.step === 3 && roomsOf(w, 'canteen').some(r => r.level >= 2)) endTutorial(w);
+    else break;
+  }
+  if (tu.active && tu.step !== before) emit(w, 'tutorialStep', { step: tu.step });
 }
 
 export function endTutorial(w: World, skipped = false) {
@@ -54,20 +63,23 @@ export function skipTutorial(w: World) {
   if (!w.tutorial.active) return;
   const earl = rascals(w).find(a => a.flags & AF.earl);
   if (earl) earl.reform = Math.max(earl.reform, earl.sentence * 0.95);
-  w.ferry.tapped = true;
+  if (w.ferry.state === 'arriving') w.ferry.tapped = true;
+  if (!roomsOf(w, 'wash').length) w.director.data.skippedNoWash = 1;
   endTutorial(w, true);
 }
 
 export function objectivesTick(w: World) {
-  // skip path: Earl's last 5 % by 1:30
-  if (w.tutorial.skipped && w.rtMs >= 90000) {
+  tutorialTick(w);
+  // skip path: Earl gets 95 % as soon as he exists, the last 5 % by 1:30 (released by 2:00)
+  if (w.tutorial.skipped) {
     const earl = rascals(w).find(a => a.flags & AF.earl && a.state !== 'leaving');
-    if (earl && earl.reform < earl.sentence) earl.reform = earl.sentence;
+    if (earl) { earl.reform = Math.max(earl.reform, earl.sentence * 0.95); if (w.rtMs >= 90000 && earl.reform < earl.sentence) earl.reform = earl.sentence; }
   }
   if (!w.tutorial.done) return;
   const st = objState(w);
   OBJECTIVES.forEach((o, k) => {
     if (st.done[o.id]) return;
+    if (o.onlyIfSkipped && !w.director.data.skippedNoWash) { st.done[o.id] = true; return; }
     if (o.progress(w) >= o.target) {
       st.done[o.id] = true;
       addRuf(w, 'objective', RUF.objective);

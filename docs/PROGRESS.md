@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Aktueller Meilenstein:** M2 headless Simulation – Abnahme fast komplett (Review-Workflow läuft)
+**Aktueller Meilenstein:** M2 abgeschlossen (inkl. Review) → M3 UI & Bauen
 **Gates:** G1 **freigegeben** (2026-11-04) · G2 offen · G3 offen
 
 ## Erledigt
@@ -33,11 +33,23 @@
   - C2: Tick-Zahl bei 60/144/165 Hz gleich, Hash gleich.
   - H4: Hash nach Speichern/Laden gleich, auch 3000 Ticks später.
   - H0 grün.
-  - **H1 (erste 10 min) grün auf 27 Seeds**, Ausnahmen siehe BALANCE.md §0.
+  - **H1 (erste 10 min): alle 12 Pacing-Zeilen grün auf 27 Seeds**. Taktungsregel offen (6/27), siehe BALANCE.md §0.
+- **Review-Workflow** über `src/sim` (adversarial verifiziert). Behoben u. a.:
+  - Essensschlacht gibt Sitzplätze frei.
+  - Tutorial bleibt nicht hängen, wenn das Waschhaus vor dem Horn steht (zustandsbasiert).
+  - Verkleinerte Zellen crashen nicht mehr.
+  - Speichern verliert keine ungerouteten Ereignisse (`flushEvents`).
+  - Skript-Ereignisse verbrauchen den Director-Slot.
+  - Blöcke enden zur Schließzeit.
+  - passive Resozialisierung.
+  - Stepper-Rest-µs, Hash mit NaN-Token.
+  - Upgrade-/Abriss-Validierung, Erstattung zählt nicht als Einnahme.
+  - Regressionstests in `tests/unit/regressions.test.ts`.
+- App-Modus ist Standard (`?spike` für die G1-Szene). Die Insel rendert wieder: Statische Szenen-Imports, weil Pixi seine Graphics-/Masken-Pipes als Modul-Seiteneffekt registriert.
 
 ## Offen
-- Review-Workflow über `src/sim` läuft, Befunde einarbeiten.
-- Taktungsregel 10–15 min hängt an der Projekttafel (M5).
+- Taktungsregel §4.3 in 6/27 Seeds verletzt (Spar-Phase vor dem Klassenzimmer, siehe BALANCE.md §0). Der Bereich 10–15 min hängt an der Projekttafel (M5).
+- Casual-Tempo bei 6–7 min eher an der unteren Toleranzgrenze.
 
 ## Abweichungen vom Brief
 1. Eltern-Repo enthält `verkehrsmeister/`, nicht `glutnacht/`. Ohne Auswirkung.
@@ -52,9 +64,9 @@
 - Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Topbar-Fluss-Leiste zu klein und zu leer (Blindvergleich). Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
 
 ## Letzte Testergebnisse
-- `npm test`: 94/94 grün (H0, Pfadfindung, Layout, Kapazität, Sim-Smoke, C1a, C2, H4, i18n, Art) · ESLint/tsc sauber · `npm run balance -- --minutes 10`: alle Zeilen ✅
+- `npm test`: 103/103 grün (H0, Pfadfindung, Layout, Kapazität, Sim-Smoke, C1a, C2, H4, i18n, Art, Review-Regressionen) · tsc sauber · `npm run balance -- --minutes 10` auf Basis 11/500/1000: alle Zeilen ✅, Taktung 6/27 offen
 
 ## Nächste 3 Schritte
-1. Review-Befunde (Workflow) verifizieren und beheben.
-2. M3: Bau-Werkzeuge (Rechteck ziehen, Geist mit Grund-Icon, Kanten-Drag), echtes HUD mit Fluss-Leiste aus `flow.ts`, Panels, Tooltips, Kompakt-HUD, Tastatur/Touch → B1–B7, D5, D7.
-3. Spike-Szene ausmustern, Sim-Ansicht wird Standard.
+1. M3: Bau-Werkzeuge (Rechteck ziehen, Geist mit Grund-Icon, Kanten-Drag), echtes HUD mit Fluss-Leiste aus `flow.ts`, Panels, Tooltips, Kompakt-HUD, Tastatur/Touch → B1–B7, D5, D7.
+2. Integration + Abnahmetests M3, Browser-Check 800×450 und 1280×720.
+3. M4 Feel/Juice + Audio, dann G2.

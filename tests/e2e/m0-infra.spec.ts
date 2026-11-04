@@ -10,7 +10,7 @@ test('Test 0: WebGL2 available under SwiftShader', async ({ page }) => {
 test('A7: only localhost requests (SDK routed to mock)', async ({ page }) => {
   const g = await setup(page);
   await page.goto('/');
-  await page.waitForFunction(() => (window as any).__sdkCalls?.some((c: any) => c.n === 'gameplayStart'), null, { timeout: 15000 });
+  await page.waitForFunction(() => (window as unknown as { __sdkCalls?: { n: string }[] }).__sdkCalls?.some(c => c.n === 'gameplayStart'), null, { timeout: 15000 });
   await page.waitForTimeout(1500);
   expect(g.foreign).toEqual([]);
 });

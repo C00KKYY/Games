@@ -6,7 +6,8 @@ export function stateHash(w: World): string {
   const mix = (s: string) => { for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } };
   const walk = (v: unknown, depth: number): void => {
     if (v === null || v === undefined) { mix('n'); return; }
-    if (typeof v === 'number') { mix(Number.isFinite(v) ? v.toPrecision(12) : 'NaN'); return; }
+    // exact: String() round-trips doubles; distinct tokens for NaN/±Infinity (review finding)
+    if (typeof v === 'number') { mix(Number.isNaN(v) ? 'NaN' : String(v)); return; }
     if (typeof v === 'string' || typeof v === 'boolean') { mix(String(v)); return; }
     if (ArrayBuffer.isView(v)) { const a = v as unknown as ArrayLike<number>; for (let i = 0; i < a.length; i++) mix(String(a[i])); return; }
     if (Array.isArray(v)) { mix('['); for (const x of v) walk(x, depth + 1); mix(']'); return; }
