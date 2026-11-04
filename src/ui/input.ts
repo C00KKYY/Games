@@ -1,15 +1,17 @@
 /** Camera input: drag-pan (1 finger / right / middle / space+left), wheel zoom to cursor, pinch, WASD/arrows via event.code. */
 import type { Camera } from '../render/camera';
 
-export function attachInput(canvas: HTMLCanvasElement, cam: Camera) {
+export interface InputGate { ownsPointer: boolean; onPanStart?(): void }
+
+export function attachInput(canvas: HTMLCanvasElement, cam: Camera, gate: InputGate = { ownsPointer: false }) {
   const pts = new Map<number, { x: number; y: number }>();
   let last = { x: 0, y: 0, t: 0 }; let vel = { x: 0, y: 0 };
-  let space = false; let pinch0 = 0;
+  let space = false; let pinch0 = 0; let moved = 0; let panStarted = false;
   canvas.addEventListener('contextmenu', e => e.preventDefault());
   canvas.addEventListener('pointerdown', e => {
     canvas.setPointerCapture(e.pointerId);
     pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    last = { x: e.clientX, y: e.clientY, t: performance.now() }; vel = { x: 0, y: 0 }; cam.vx = cam.vy = 0;
+    last = { x: e.clientX, y: e.clientY, t: performance.now() }; vel = { x: 0, y: 0 }; cam.vx = cam.vy = 0; moved = 0; panStarted = false;
     if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); }
   });
   canvas.addEventListener('pointermove', e => {
@@ -20,10 +22,15 @@ export function attachInput(canvas: HTMLCanvasElement, cam: Camera) {
       if (pinch0 > 0) { cam.zoomAt(d / pinch0, (a.x + b.x) / 2, (a.y + b.y) / 2); pinch0 = d; }
       return;
     }
-    const panning = e.pointerType !== 'mouse' || (e.buttons & 6) !== 0 || ((e.buttons & 1) && space) || (e.buttons & 1);
+    // Brief §6 / UI_DESIGN §4: right/middle/space+left always pan; plain left / one finger only while no tool owns the pointer
+    const always = (e.buttons & 6) !== 0 || ((e.buttons & 1) !== 0 && space);
+    const plain = e.pointerType !== 'mouse' || (e.buttons & 1) !== 0;
+    const panning = always || (plain && !gate.ownsPointer);
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
     if (!panning) return;
+    moved += Math.abs(dx) + Math.abs(dy);
+    if (!panStarted && moved >= 6) { panStarted = true; gate.onPanStart?.(); }
     cam.panBy(dx, dy);
     const now = performance.now(); const dtm = Math.max(1, now - last.t);
     vel = { x: (-dx / cam.zoom) / (dtm / 1000) * 0.5 + vel.x * 0.5, y: (-dy / cam.zoom) / (dtm / 1000) * 0.5 + vel.y * 0.5 };

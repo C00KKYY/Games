@@ -2,12 +2,13 @@
  * UI contract (docs/UI_DESIGN.md). Every DOM component and the canvas tool receive one UICtx.
  * Components never touch the sim except through ctx.w (read) and ctx.cmd (write).
  */
-import type { World, CommandResult } from '../sim/types';
+import type { World, CommandResult, SimEvent } from '../sim/types';
 import type { cmd as Cmd } from '../sim/sim';
 import type { Camera } from '../render/camera';
 import type { Key, Lang } from '../i18n/i18n';
 import type { RoomType, StaffRole } from '../content/balance';
 import type { Container } from 'pixi.js';
+import type { Settings } from '../save/serialize';
 
 export type Selection = { kind: 'room'; id: number } | { kind: 'agent'; id: number } | null;
 export type Tool =
@@ -69,6 +70,23 @@ export interface UICtx {
   closeModal(): void;
   /** result feedback for a command (toast with the localised reason on failure) */
   feedback(r: CommandResult): void;
+  /** subscribe to new sim events; the app dispatches each event exactly once, in order, once per frame. Returns unsubscribe */
+  onEvent(fn: (e: SimEvent) => void): () => void;
+  /**
+   * pointer arbitration with the camera (src/ui/input.ts): while `ownsPointer` is true, a single left button / single
+   * finger does NOT pan – tools.ts sets it while a build/demolish tool is active or while it drags a room edge.
+   * Right/middle button, Space+left and two fingers always pan.
+   */
+  input: { ownsPointer: boolean };
+  /** increments each time a camera pan drag starts (≥ 6 px) – panels close on it */
+  panned: Store<number>;
+  /** player settings (volumes, language, screenshake) – persisted by the save system (M4) */
+  settings: Store<Settings>;
+  /**
+   * switch the UI language at runtime (settings modal). Every component re-renders ALL its texts when ctx.lang()
+   * differs from the language it last rendered (check in update()).
+   */
+  setLang(l: Lang): void;
 }
 
 export interface Component { update(dt: number): void; destroy?(): void }

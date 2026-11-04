@@ -8,9 +8,10 @@ import type { Platform } from './platform/platform';
 import type { Camera } from './render/camera';
 import { SimView } from './render/simView';
 import { newGame, Stepper, cmd, tick } from './sim/sim';
-import type { World, CommandResult } from './sim/types';
+import type { World, CommandResult, SimEvent } from './sim/types';
 import { t, fmtNum, setLang, getLang, langFromLocale, type Lang } from './i18n/i18n';
 import { Store, type UICtx, type Component, type Selection, type Tool } from './ui/ctx';
+import { DEFAULT_SETTINGS, type Settings } from './save/serialize';
 import { mountTooltips } from './ui/tooltips';
 import { mountToasts } from './ui/toasts';
 import { mountTopbar } from './ui/topbar';
@@ -22,7 +23,7 @@ import { mountPanels } from './ui/panels';
 import { mountModals } from './ui/modals';
 import { mountTools } from './ui/tools';
 
-export interface App { w: World; ctx: UICtx; frame(dt: number): void; container: Container; groundCull: Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number } }
+export interface App { w: World; ctx: UICtx; input: { ownsPointer: boolean; onPanStart(): void }; frame(dt: number): void; container: Container; groundCull: Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number } }
 
 export async function createApp(app: Application, cam: Camera, platform: Platform, params: URLSearchParams): Promise<App> {
   const w = newGame(Number(params.get('seed') ?? 1), { debug: params.has('debug') });
@@ -50,6 +51,10 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   let paused = false, speedBeforePause = 1;
   const late: { tip?: ReturnType<typeof mountTooltips>; toasts?: ReturnType<typeof mountToasts>; modals?: ReturnType<typeof mountModals> } = {};
   const fly = { on: false, x: 0, y: 0, z: 1 };
+  const subs: ((e: SimEvent) => void)[] = [];
+  let evSeen = w.eventSeq;
+  const panned = new Store(0);
+  const input = { ownsPointer: false, onPanStart: () => panned.set(panned.get() + 1) };
 
   const ctx: UICtx = {
     w, cmd, t, lang: getLang, fmt: fmtNum, cam, root,
@@ -80,6 +85,18 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       const msg = t(key);
       ctx.toast(msg === key ? t('place.overlap') : msg, { kind: 'bad', ms: 1800 });
     },
+    onEvent(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i >= 0) subs.splice(i, 1); }; },
+    input,
+    panned,
+    settings: new Store<Settings>({ ...DEFAULT_SETTINGS, lang: getLang() }),
+    setLang(l: Lang) { setLang(l); document.documentElement.lang = l; ctx.settings.set({ ...ctx.settings.get(), lang: l }); },
+  };
+  // dispatch every new sim event exactly once (events are a ring of EVENT_CAP; eventSeq counts all ever emitted)
+  const dispatch = () => {
+    const n = Math.min(w.events.length, w.eventSeq - evSeen);
+    evSeen = w.eventSeq;
+    if (n <= 0) return;
+    for (const e of w.events.slice(w.events.length - n)) for (const f of subs.slice()) f(e);
   };
 
   late.tip = mountTooltips(ctx);
@@ -97,7 +114,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   };
 
   return {
-    w, ctx, container: view.container, groundCull: view.world.ground, insets,
+    w, ctx, input, container: view.container, groundCull: view.world.ground, insets,
     frameStart: () => cam.fit(-3.2 * 32, 10.0 * 32, 18.4 * 32, 23.6 * 32, 4),
     frame(dt: number) {
       if (fly.on) {
@@ -109,6 +126,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       stepper.frame(dt * 1e6);
       if (bot) for (let i = before; i < stepper.ticks; i++) bot.step();
       view.update(dt);
+      dispatch();
       for (const c of comps) c.update(dt);
     },
   };

@@ -55,3 +55,18 @@ Grundlage: Brief §6 (UX), §7.5 (UI-Kit), §6.6 (Kompakt-HUD), §10 (Sprache), 
   - Klick vs. Drag: Bewegung < 6 px und < 250 ms gilt als Klick.
 - **Hotkeys**: `event.key` (lowercase) für B (Baumenü), O (Overlays: Wachradius), H (Hilfe), R (drehen – noch ohne Funktion → nicht anzeigen), Entf (Abriss-Werkzeug), P (Pause), 1/2/3 (Tempo), Strg/Cmd+Z (`cmd.undo`). WASD/Pfeile laufen über `event.code` (schon in `src/ui/input.ts`).
 - **Welt-Overlays** in Pixi (`render/ghost.ts`): Geist-Rechteck, Auswahlrahmen, Kanten-Griffe, Wachradius, Nachbarschaftslinien (gestrichelt). Keine Allokation pro Frame: Graphics einmal anlegen, bei Änderung neu zeichnen.
+
+## 5. Ergänzungen vor dem Bau (verbindlich)
+- **Neue ctx-Felder** (`src/ui/ctx.ts`):
+  - `ctx.onEvent(fn)`: Sim-Ereignisse, jedes genau einmal pro Frame, in Reihenfolge. Komponenten lesen **nie** selbst `w.events`.
+  - `ctx.input.ownsPointer`: Zeiger-Arbitrierung mit der Kamera (`src/ui/input.ts`).
+  - `ctx.panned`: zählt Kamera-Drags; Panels schließen sich darauf.
+  - `ctx.settings`: Store mit `Settings` aus `src/save/serialize.ts`.
+  - `ctx.setLang(l)`: Sprachwechsel zur Laufzeit. **Jede Komponente rendert alle Texte neu, wenn `ctx.lang()` sich ändert.**
+- **Sim-Ereignisnamen** (aus `emit(w, '…')`): unlock, vipAnnounced, upgrade, unpaid, tutorialStep, tutorialDone, tunnel, star, ruf, ruckus, resize, release, parcel, objective, nightSkip, milestone, loanRepaid, loan, hornTap, hire, happytime, foodSolved, foodLost, foodFight, ferryLeftWithRest, ferryLeave, ferryHorn, ferryDock, escaped, demolish, dayEnd, crateSold, coins, caught, cartDepart, calmed, built, build, arrive, admit. Die Nutzdaten stehen in den jeweiligen `emit`-Aufrufen unter `src/sim/`.
+- **Inset-Markierung:** Elemente, die die Kamera-Fläche oben bzw. unten begrenzen, tragen `data-hud="top"` (Topbar) bzw. `data-hud="bottom"` (Bauleiste). Das Klemmbrett und die Panels tragen keine.
+- **Schriftgrößen:** `hud.css` stammt aus der Skizze und hat Größen unter 12 px (z. B. `.62rem`, `.66rem`, `.72rem` bei `--ui` 14 px). Jede Komponente überschreibt das in ihrer eigenen CSS, sodass jeder Text **≥ 12 px** berechnet wird (Fließtext ≥ 14 px), auch im Kompaktmodus. Eingriffe in `hud.css` macht nur der Integrator.
+- **Prüfgrößen** (B1): 907×510, 1216×684, 1077×606, 821×462, 1366×768, 1920×1080, 1536×864, 1280×720, 800×450, 1080×607, dazu Touch-Emulation (`hasTouch`, `pointer: coarse`) bei 844×390.
+- **i18n:** Neue Keys nur in `src/i18n/parts/<komponente>.en.json` und `.de.json`, mit dem Präfix `<komponente>.` (z. B. `topbar.lockSpeed3`). Beide Dateien haben exakt dieselben Keys (D7). Bestehende Keys in `en.json`/`de.json` dürfen benutzt, aber nicht geändert werden. Deutsch folgt dem Glossar in BRIEF §10 (Schlingel, Ruf, Klemmbrett, Strickstube …).
+- **Tutorial in M3:** Das Klemmbrett zeigt im Tutorial den Schritt „1/4“ mit Text (`tut.*`) und den Skip-Knopf (`cmd.skipTutorial`). Zeiger, Blase und Hand kommen in M4.
+- **Welt-Handgriffe** (`tools.ts`, ohne Werkzeug): Fährhorn antippen → `cmd.tapHorn`. Tor antippen, wenn ein Schlingel wartet (`state === 'atGate'`) → `cmd.stamp`. Kistenstapel einer Werkstatt → `cmd.tapCrates(roomId)`. Ausbrecher → `cmd.tapEscapee(id)`. Rangelnder bei der Essensschlacht → `cmd.tapRangler(id)`. Handgriffe haben Vorrang vor der Auswahl.

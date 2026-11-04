@@ -2,7 +2,7 @@ import { Application, Culler } from 'pixi.js';
 import type { Platform } from './platform/platform';
 import { loadAtlas } from './render/atlas';
 import { Camera } from './render/camera';
-import { attachInput } from './ui/input';
+import { attachInput, type InputGate } from './ui/input';
 import { rclock } from './render/rclock';
 // static imports: Pixi registers its Graphics/mask pipes as module side effects – a lazily loaded scene
 // chunk would register them after app.init() and polygons/masks would silently not render
@@ -10,7 +10,7 @@ import { createApp } from './app';
 import { createSpike } from './spike';
 import { mountHudSketch } from './ui/hudSketch';
 
-interface Scene { container: import('pixi.js').Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number }; frame(dt: number): void; groundCull?: import('pixi.js').Container }
+interface Scene { container: import('pixi.js').Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number }; frame(dt: number): void; groundCull?: import('pixi.js').Container; input?: InputGate }
 
 export async function startGame(platform: Platform, setBoot: (p: number) => void) {
   const params = new URLSearchParams(location.search);
@@ -42,7 +42,7 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
     scene = { container: spike.container, frameStart: spike.frameStart, insets: () => hud.insets(), frame: (dt) => { spike.update(dt); hud.update(spike.hour); }, groundCull: spike.world.ground };
   } else {
     const a = await createApp(app, cam, platform, params);
-    scene = { container: a.container, frameStart: a.frameStart, insets: a.insets, frame: a.frame, groundCull: a.groundCull };
+    scene = { container: a.container, frameStart: a.frameStart, insets: a.insets, frame: a.frame, groundCull: a.groundCull, input: a.input };
     (window as unknown as Record<string, unknown>).__game = { app, cam, a };
   }
 
@@ -54,7 +54,7 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
   };
   frame0();
   window.addEventListener('resize', () => { applyView(); frame0(); });
-  attachInput(canvas, cam);
+  attachInput(canvas, cam, scene.input);
   let insetT = 0;
   const frame = (dt: number) => {
     rclock.t += dt;
