@@ -1,0 +1,828 @@
+{
+ "profile": "d907",
+ "cpu": 1,
+ "target": "node tools/build-single.js (Stand dbddb47, vor M1)",
+ "bootWallMs": 3056,
+ "menu": {
+  "marks": {
+   "fontsReady": 22.300000000046566,
+   "menuInDom": 92.80000000004657,
+   "domContentLoaded": 110.20000000018626,
+   "load": 111,
+   "canvasNonBlack": 114.4000000001397,
+   "first-paint": 132.10000000009313,
+   "first-contentful-paint": 132.20000000018626
+  },
+  "lang": "en",
+  "menuText": "English\nDeutsch\nEMBER\nNIGHT\nFive lands. One ember. Thousands of monsters.\nPLAY\nForge\nAchievements\n0/31\nSettings\n0\nTip: You attack automatically. Move, dodge and collect blue gems. Every level brings a new weapon or upgrade.",
+  "menuWords": 35,
+  "playBtn": {
+   "x": 378.38330078125,
+   "y": 217.91603088378906,
+   "w": 150.2333984375,
+   "h": 62.54295349121094
+  },
+  "logoBox": {
+   "y": 62.8125,
+   "h": 121.375
+  },
+  "menuScroll": {
+   "scrollH": 510,
+   "clientH": 510
+  },
+  "zoom": 0.7727272727272727,
+  "dpr": 1
+ },
+ "clicksBeforeGameplay": [
+  "PLAY",
+  "STORY OK"
+ ],
+ "storyWords": 52,
+ "storyText": "Land 1\nOld Graveyard\n\nThe Night is swallowing the world, land by land. Only a handful of heroes still keep the ember alive. Carry it through five dark lands and bring back the dawn.\n\nThe dead no longer rest here. Hold out until the lord of the crypt shows himself.\n\nLet's go!",
+ "msFromFirstClickToGameplay": 765,
+ "hud": {
+  "timer": {
+   "font": "34px",
+   "color": "rgb(244, 236, 255)",
+   "x": 414,
+   "y": 26,
+   "w": 79,
+   "h": 34
+  },
+  "xp": {
+   "font": "16px",
+   "color": "rgb(244, 236, 255)",
+   "x": 0,
+   "y": 0,
+   "w": 907,
+   "h": 18
+  },
+  "xplvl": {
+   "font": "14px",
+   "color": "rgb(244, 236, 255)",
+   "x": 854,
+   "y": 0,
+   "w": 43,
+   "h": 18
+  },
+  "counters": {
+   "font": "17px",
+   "color": "rgb(244, 236, 255)",
+   "x": 817,
+   "y": 24,
+   "w": 36,
+   "h": 42
+  },
+  "slot": {
+   "font": "16px",
+   "color": "rgb(244, 236, 255)",
+   "x": 10,
+   "y": 24,
+   "w": 30,
+   "h": 30
+  },
+  "pslot": {
+   "font": "13px",
+   "color": "rgb(169, 156, 200)",
+   "x": 10,
+   "y": 57,
+   "w": 24,
+   "h": 24
+  },
+  "slotNum": {
+   "font": "11px",
+   "color": "rgb(244, 236, 255)",
+   "x": 37,
+   "y": 44,
+   "w": 4,
+   "h": 12
+  },
+  "pause": {
+   "font": "16px",
+   "color": "rgb(244, 236, 255)",
+   "x": 861,
+   "y": 26,
+   "w": 38,
+   "h": 38
+  },
+  "banner": {
+   "font": "52px",
+   "color": "rgb(255, 255, 255)",
+   "x": -29,
+   "y": 171,
+   "w": 966,
+   "h": 63
+  },
+  "zoom": 0.7727272727272727,
+  "viewWorld": {
+   "w": 1173.764705882353,
+   "h": 660
+  },
+  "playerOnScreenPx": 35.54545454545455,
+  "dmgFontPx": 10.045454545454545
+ },
+ "samples": [
+  {
+   "el": 0,
+   "shot": "play-00s.png",
+   "state": "play",
+   "cur": null,
+   "t": 0.2,
+   "level": 1,
+   "kills": 0,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 0,
+   "onScreen": 0,
+   "gemsOnScreen": 0,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 3.1,
+   "shot": "play-03s.png",
+   "state": "play",
+   "cur": null,
+   "t": 3.3,
+   "level": 1,
+   "kills": 0,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 8,
+   "onScreen": 5,
+   "gemsOnScreen": 0,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 6.1,
+   "shot": "play-06s.png",
+   "state": "play",
+   "cur": null,
+   "t": 6.3,
+   "level": 1,
+   "kills": 1,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 13,
+   "onScreen": 8,
+   "gemsOnScreen": 0,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 9.1,
+   "shot": "play-09s.png",
+   "state": "play",
+   "cur": null,
+   "t": 9.3,
+   "level": 1,
+   "kills": 3,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 15,
+   "onScreen": 6,
+   "gemsOnScreen": 1,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 1,
+   "texts": 0
+  },
+  {
+   "el": 12,
+   "shot": "play-12s.png",
+   "state": "play",
+   "cur": null,
+   "t": 12.2,
+   "level": 1,
+   "kills": 4,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 17,
+   "onScreen": 13,
+   "gemsOnScreen": 1,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 15,
+   "shot": "play-15s.png",
+   "state": "play",
+   "cur": null,
+   "t": 15.2,
+   "level": 1,
+   "kills": 5,
+   "hp": 120,
+   "maxHp": 120,
+   "enemies": 20,
+   "onScreen": 15,
+   "gemsOnScreen": 0,
+   "weapons": "whip1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 18.5,
+   "shot": "play-18s.png",
+   "state": "play",
+   "cur": null,
+   "t": 18,
+   "level": 2,
+   "kills": 7,
+   "hp": 117,
+   "maxHp": 120,
+   "enemies": 21,
+   "onScreen": 14,
+   "gemsOnScreen": 0,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 1,
+   "texts": 2
+  },
+  {
+   "el": 21.1,
+   "shot": "play-21s.png",
+   "state": "play",
+   "cur": null,
+   "t": 20.7,
+   "level": 2,
+   "kills": 9,
+   "hp": 117,
+   "maxHp": 120,
+   "enemies": 22,
+   "onScreen": 18,
+   "gemsOnScreen": 2,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 1,
+   "texts": 1
+  },
+  {
+   "el": 24.1,
+   "shot": "play-24s.png",
+   "state": "play",
+   "cur": null,
+   "t": 23.7,
+   "level": 2,
+   "kills": 13,
+   "hp": 117,
+   "maxHp": 120,
+   "enemies": 22,
+   "onScreen": 16,
+   "gemsOnScreen": 4,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 27,
+   "shot": "play-27s.png",
+   "state": "play",
+   "cur": null,
+   "t": 26.6,
+   "level": 2,
+   "kills": 15,
+   "hp": 114,
+   "maxHp": 120,
+   "enemies": 24,
+   "onScreen": 14,
+   "gemsOnScreen": 1,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 30,
+   "shot": "play-30s.png",
+   "state": "play",
+   "cur": null,
+   "t": 29.6,
+   "level": 2,
+   "kills": 17,
+   "hp": 114,
+   "maxHp": 120,
+   "enemies": 25,
+   "onScreen": 21,
+   "gemsOnScreen": 1,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 1,
+   "texts": 1
+  },
+  {
+   "el": 33,
+   "shot": "play-33s.png",
+   "state": "play",
+   "cur": null,
+   "t": 32.6,
+   "level": 2,
+   "kills": 20,
+   "hp": 114,
+   "maxHp": 120,
+   "enemies": 26,
+   "onScreen": 23,
+   "gemsOnScreen": 5,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 36.1,
+   "shot": "play-36s.png",
+   "state": "play",
+   "cur": null,
+   "t": 35.7,
+   "level": 2,
+   "kills": 22,
+   "hp": 114,
+   "maxHp": 120,
+   "enemies": 27,
+   "onScreen": 21,
+   "gemsOnScreen": 5,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 39.1,
+   "shot": "play-39s.png",
+   "state": "play",
+   "cur": null,
+   "t": 38.7,
+   "level": 2,
+   "kills": 25,
+   "hp": 114,
+   "maxHp": 120,
+   "enemies": 28,
+   "onScreen": 22,
+   "gemsOnScreen": 7,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 42.1,
+   "shot": "play-42s.png",
+   "state": "play",
+   "cur": null,
+   "t": 41.7,
+   "level": 2,
+   "kills": 27,
+   "hp": 111,
+   "maxHp": 120,
+   "enemies": 29,
+   "onScreen": 23,
+   "gemsOnScreen": 7,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 45,
+   "shot": "play-45s.png",
+   "state": "play",
+   "cur": null,
+   "t": 44.6,
+   "level": 2,
+   "kills": 27,
+   "hp": 111,
+   "maxHp": 120,
+   "enemies": 33,
+   "onScreen": 21,
+   "gemsOnScreen": 3,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 1,
+   "texts": 0
+  },
+  {
+   "el": 48.1,
+   "shot": "play-48s.png",
+   "state": "play",
+   "cur": null,
+   "t": 47.7,
+   "level": 2,
+   "kills": 29,
+   "hp": 111,
+   "maxHp": 120,
+   "enemies": 35,
+   "onScreen": 29,
+   "gemsOnScreen": 3,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 51,
+   "shot": "play-51s.png",
+   "state": "play",
+   "cur": null,
+   "t": 50.6,
+   "level": 2,
+   "kills": 31,
+   "hp": 111,
+   "maxHp": 120,
+   "enemies": 35,
+   "onScreen": 27,
+   "gemsOnScreen": 8,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  },
+  {
+   "el": 54,
+   "shot": "play-54s.png",
+   "state": "play",
+   "cur": null,
+   "t": 53.6,
+   "level": 2,
+   "kills": 33,
+   "hp": 111,
+   "maxHp": 120,
+   "enemies": 35,
+   "onScreen": 20,
+   "gemsOnScreen": 10,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 1,
+   "texts": 1
+  },
+  {
+   "el": 57,
+   "shot": "play-57s.png",
+   "state": "play",
+   "cur": null,
+   "t": 56.6,
+   "level": 2,
+   "kills": 35,
+   "hp": 107,
+   "maxHp": 120,
+   "enemies": 35,
+   "onScreen": 25,
+   "gemsOnScreen": 8,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 1
+  },
+  {
+   "el": 60,
+   "shot": "play-60s.png",
+   "state": "play",
+   "cur": null,
+   "t": 59.6,
+   "level": 2,
+   "kills": 35,
+   "hp": 102,
+   "maxHp": 120,
+   "enemies": 35,
+   "onScreen": 32,
+   "gemsOnScreen": 6,
+   "weapons": "whip1,sickle1",
+   "passives": "",
+   "fx": 0,
+   "texts": 0
+  }
+ ],
+ "events": [
+  {
+   "k": "shake",
+   "wall": 22336,
+   "gt": 17.8,
+   "a": 3.92197902
+  },
+  {
+   "k": "levelUp",
+   "wall": 22620,
+   "gt": 18,
+   "a": [
+    "sickle",
+    "lens",
+    "magnet"
+   ]
+  },
+  {
+   "k": "shake",
+   "wall": 30353,
+   "gt": 25.2,
+   "a": 3.9325719799999996
+  },
+  {
+   "k": "shake",
+   "wall": 45852,
+   "gt": 40.7,
+   "a": 3.95373452
+  },
+  {
+   "k": "shake",
+   "wall": 59585,
+   "gt": 54.4,
+   "a": 3.9725872000000013
+  },
+  {
+   "k": "banner",
+   "wall": 60201,
+   "gt": 55,
+   "a": [
+    "An elite enemy appears. It carries a chest!",
+    "elite"
+   ]
+  },
+  {
+   "k": "shake",
+   "wall": 63068,
+   "gt": 57.9,
+   "a": 4.487828224000002
+  },
+  {
+   "k": "levelUp",
+   "wall": 65301,
+   "gt": 60.1,
+   "a": [
+    "might",
+    "elixir",
+    "wand"
+   ]
+  },
+  {
+   "k": "achievement",
+   "wall": 66551,
+   "gt": 60.9,
+   "a": "Erste Nacht"
+  }
+ ],
+ "sfx": {
+  "slash": 49,
+  "hit": 42,
+  "kill": 37,
+  "coin": 2,
+  "gem": 22,
+  "hurt": 5,
+  "levelup": 2,
+  "throw": 23
+ },
+ "canvasLum": [
+  [
+   93,
+   0
+  ],
+  [
+   114,
+   29.6
+  ],
+  [
+   122,
+   29.6
+  ],
+  [
+   137,
+   29.7
+  ],
+  [
+   153,
+   29.7
+  ],
+  [
+   170,
+   29.7
+  ],
+  [
+   187,
+   29.7
+  ],
+  [
+   203,
+   29.8
+  ],
+  [
+   220,
+   29.9
+  ],
+  [
+   237,
+   29.8
+  ],
+  [
+   254,
+   29.8
+  ],
+  [
+   270,
+   29.8
+  ],
+  [
+   287,
+   30
+  ],
+  [
+   304,
+   30
+  ],
+  [
+   320,
+   30.1
+  ],
+  [
+   337,
+   30
+  ],
+  [
+   353,
+   30
+  ],
+  [
+   370,
+   30.2
+  ],
+  [
+   387,
+   30.2
+  ],
+  [
+   403,
+   30.1
+  ],
+  [
+   420,
+   29.9
+  ],
+  [
+   437,
+   29.9
+  ],
+  [
+   453,
+   30
+  ],
+  [
+   470,
+   30.2
+  ],
+  [
+   487,
+   30.2
+  ],
+  [
+   504,
+   30.1
+  ],
+  [
+   521,
+   30.1
+  ],
+  [
+   537,
+   30.1
+  ],
+  [
+   554,
+   30.1
+  ],
+  [
+   570,
+   30.2
+  ],
+  [
+   587,
+   30.1
+  ],
+  [
+   604,
+   30.1
+  ],
+  [
+   620,
+   30
+  ],
+  [
+   637,
+   30
+  ],
+  [
+   654,
+   30
+  ],
+  [
+   670,
+   29.8
+  ],
+  [
+   687,
+   29.8
+  ],
+  [
+   704,
+   29.8
+  ],
+  [
+   720,
+   29.9
+  ],
+  [
+   737,
+   29.9
+  ],
+  [
+   753,
+   29.9
+  ],
+  [
+   770,
+   29.7
+  ],
+  [
+   787,
+   29.7
+  ],
+  [
+   803,
+   29.7
+  ],
+  [
+   820,
+   29.8
+  ],
+  [
+   837,
+   29.8
+  ],
+  [
+   853,
+   29.7
+  ],
+  [
+   870,
+   29.7
+  ],
+  [
+   887,
+   29.7
+  ],
+  [
+   903,
+   29.8
+  ],
+  [
+   920,
+   29.8
+  ],
+  [
+   937,
+   29.8
+  ],
+  [
+   953,
+   29.8
+  ],
+  [
+   970,
+   29.9
+  ],
+  [
+   987,
+   29.8
+  ],
+  [
+   1003,
+   29.8
+  ],
+  [
+   1020,
+   29.8
+  ],
+  [
+   1037,
+   29.8
+  ],
+  [
+   1053,
+   29.7
+  ],
+  [
+   1071,
+   29.7
+  ]
+ ],
+ "logs": [],
+ "levelPicks": [
+  "levelup-pick@18",
+  "levelup-pick@60.1"
+ ]
+}

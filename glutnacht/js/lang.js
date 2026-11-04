@@ -6,8 +6,9 @@ const LANGS = { en: 'English', de: 'Deutsch' };
 let LANG = 'en';
 const I18N_MISSES = new Set(); // fehlende Übersetzungen (für Tests)
 
-function detectLang() {
-  const nav = typeof navigator !== 'undefined' ? (navigator.languages && navigator.languages[0]) || navigator.language || '' : '';
+// pref: Sprache der Plattform (z. B. CrazyGames „de-DE“); ohne sie die Browsersprache
+function detectLang(pref) {
+  const nav = pref || (typeof navigator !== 'undefined' ? (navigator.languages && navigator.languages[0]) || navigator.language || '' : '');
   return /^de\b/i.test(nav) ? 'de' : 'en';
 }
 

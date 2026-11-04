@@ -4,7 +4,7 @@ Ein Survivor-Roguelite für den Browser: Du läufst, deine Waffen greifen automa
 
 Keine Installation: **`index.html` im Browser öffnen** (auch direkt von der Festplatte). Läuft mit Tastatur oder per Touch auf Handy und Tablet.
 
-Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das Spiel nach der Browsersprache (Deutsch bei deutschem Browser, sonst Englisch); umschaltbar im Hauptmenü und in den Einstellungen.
+Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das Spiel nach der Sprache der Plattform (CrazyGames-SDK, `user.systemInfo.locale`), sonst nach der Browsersprache (Deutsch bei deutschem Browser, sonst Englisch); umschaltbar im Hauptmenü und in den Einstellungen.
 
 ## Spielprinzip
 
@@ -66,7 +66,9 @@ Die Weltkarte zeigt fünf Länder, jedes mit eigenen Gegnern, Bossen, Ereignisse
 
 - Reines JavaScript ohne Build-Schritt und ohne Abhängigkeiten, Canvas 2D. Alle Grafiken werden beim Start prozedural gezeichnet, alle Klänge und die Musik live per WebAudio erzeugt. Keine Anfragen an fremde Server; die Schriften (Lilita One, Nunito, SIL Open Font License) liegen in `fonts/`.
 - Texte: Deutsch ist die Quellsprache im Code, `tr()` in `js/lang.js` liefert die englische Übersetzung.
-- `js/platform.js` bindet das CrazyGames-SDK v3 an (Spielstart/-pause, Stummschaltung durch die Plattform, Glücksmomente). Ohne SDK tut es nichts.
+- `js/platform.js` bindet das CrazyGames-SDK v3 an (Ladephase, Spielstart/-pause, Stummschaltung durch die Plattform, Glücksmomente, Sprache, Spielstand im Data Module). Ohne SDK tut es nichts.
+- Start: Der Ladebildschirm steht im HTML und erscheint ohne JavaScript; dahinter läuft sofort die Kulisse. Das SDK lädt asynchron, gewartet wird höchstens 2,5 s, dann kommt das Menü. Kommt das SDK später, wird der Spielstand erst danach (im Menü, nie mitten im Lauf) in die Cloud übernommen; es gewinnt der Stand mit mehr Spielzeit. `window.Glutnacht.ready` meldet Werkzeugen, dass das Menü steht.
+- `assets/`: CC0-Aufnahmen für Effekte und Musik (Herkunft in `assets/CREDITS-audio.txt`), noch nicht eingebunden. `tools/qa/`: Playwright-Prüfungen mit Ausgangswerten in `tools/qa/baseline/`.
 - Die Spiellogik (`js/game.js`, `js/weapons.js`) kennt kein DOM; Darstellung, Klang und Oberfläche hängen sich über `Hooks` an.
 - Kollisionen über ein räumliches Hash-Raster, flüssig mit mehreren hundert Gegnern.
 - Spielstand in `localStorage` (`glutnacht.v1`).
@@ -76,6 +78,7 @@ node tools/simtest.js aron 0 3 ashwood   # 3 Läufe headless mit einfachem Bot (
 node tools/balance-batch.js 12 ashwood:none:0 ashwood:light:0   # starker Bot: Siegquote je Land/Schmiede/Nachtstufe
 node tools/build-single.js out.html # alles in eine HTML-Datei bündeln
 node tools/build-single.js --crazygames  # dist/crazygames/index.html zum Hochladen bei CrazyGames
+node tools/qa/sdkdelay.js                 # Start mit langsamem/hängendem SDK, Sprache, Cloud-Spielstand prüfen
 node tools/build-single.js dist/itch/index.html   # ohne CrazyGames-SDK, z. B. für itch.io (als ZIP hochladen)
 node tools/promo/covers.js            # Titelbilder inkl. itch.io (630×500) nach dist/promo/
 ```

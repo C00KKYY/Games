@@ -1,0 +1,1074 @@
+{
+ "T": {
+  "desc": "SDK schnell (Skript 100 ms, init 300 ms)",
+  "strip": [
+   {
+    "t": 100,
+    "at": 101,
+    "file": "T-0100ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 200,
+    "at": 293,
+    "file": "T-0200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 300,
+    "at": 378,
+    "file": "T-0300ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 500,
+    "at": 501,
+    "file": "T-0500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 800,
+    "at": 801,
+    "file": "T-0800ms.png",
+    "mean": 40,
+    "std": 34.2,
+    "menu": true
+   },
+   {
+    "t": 1200,
+    "at": 1201,
+    "file": "T-1200ms.png",
+    "mean": 40.3,
+    "std": 34.3,
+    "menu": true
+   },
+   {
+    "t": 1600,
+    "at": 1600,
+    "file": "T-1600ms.png",
+    "mean": 40.4,
+    "std": 34.6,
+    "menu": true
+   },
+   {
+    "t": 2000,
+    "at": 2001,
+    "file": "T-2000ms.png",
+    "mean": 40.1,
+    "std": 34.3,
+    "menu": true
+   },
+   {
+    "t": 2500,
+    "at": 2501,
+    "file": "T-2500ms.png",
+    "mean": 40,
+    "std": 34.2,
+    "menu": true
+   },
+   {
+    "t": 3000,
+    "at": 3001,
+    "file": "T-3000ms.png",
+    "mean": 40.4,
+    "std": 34.5,
+    "menu": true
+   },
+   {
+    "t": 4000,
+    "at": 4001,
+    "file": "T-4000ms.png",
+    "mean": 40,
+    "std": 34.1,
+    "menu": true
+   },
+   {
+    "t": 5000,
+    "at": 5002,
+    "file": "T-5000ms.png",
+    "mean": 40.3,
+    "std": 34.3,
+    "menu": true
+   }
+  ],
+  "errors": [],
+  "marks": {
+   "first-paint": 198,
+   "domContentLoaded": 239,
+   "menuInDom": 788,
+   "glutnachtReady": 788,
+   "first-contentful-paint": 868
+  },
+  "sdk": [
+   [
+    228,
+    "sdk script executed"
+   ],
+   [
+    238,
+    "init called"
+   ],
+   [
+    538,
+    "init resolved"
+   ],
+   [
+    538,
+    "loadingStart"
+   ],
+   [
+    731,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstScreenshot": {
+   "t": 100,
+   "std": 0
+  },
+  "firstNonFlatMs": 800,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": true,
+   "loadingPaired": true,
+   "splashBy300": false,
+   "loadingOnce": true,
+   "backendAtBoot": true
+  },
+  "ok": false
+ },
+ "A": {
+  "desc": "init 3 s",
+  "strip": [
+   {
+    "t": 100,
+    "at": 100,
+    "file": "A-0100ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 200,
+    "at": 201,
+    "file": "A-0200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 300,
+    "at": 301,
+    "file": "A-0300ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 500,
+    "at": 502,
+    "file": "A-0500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 800,
+    "at": 801,
+    "file": "A-0800ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1200,
+    "at": 1201,
+    "file": "A-1200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1600,
+    "at": 1602,
+    "file": "A-1600ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2000,
+    "at": 2001,
+    "file": "A-2000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2500,
+    "at": 2502,
+    "file": "A-2500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 3000,
+    "at": 3002,
+    "file": "A-3000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 4000,
+    "at": 4001,
+    "file": "A-4000ms.png",
+    "mean": 40.4,
+    "std": 34.6,
+    "menu": true
+   },
+   {
+    "t": 5000,
+    "at": 5002,
+    "file": "A-5000ms.png",
+    "mean": 40.1,
+    "std": 34.2,
+    "menu": true
+   }
+  ],
+  "errors": [],
+  "marks": {
+   "first-paint": 43,
+   "domContentLoaded": 89,
+   "menuInDom": 3152,
+   "glutnachtReady": 3152,
+   "first-contentful-paint": 3190
+  },
+  "sdk": [
+   [
+    81,
+    "sdk script executed"
+   ],
+   [
+    88,
+    "init called"
+   ],
+   [
+    3095,
+    "init resolved"
+   ],
+   [
+    3095,
+    "loadingStart"
+   ],
+   [
+    3136,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstScreenshot": {
+   "t": 100,
+   "std": 0
+  },
+  "firstNonFlatMs": 4000,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "splashBy300": false
+  },
+  "ok": false
+ },
+ "B": {
+  "desc": "Skript 1,5 s + init 3 s",
+  "strip": [
+   {
+    "t": 100,
+    "at": 101,
+    "file": "B-0100ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 200,
+    "at": 201,
+    "file": "B-0200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 300,
+    "at": 301,
+    "file": "B-0300ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 500,
+    "at": 501,
+    "file": "B-0500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 800,
+    "at": 802,
+    "file": "B-0800ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1200,
+    "at": 1200,
+    "file": "B-1200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1600,
+    "at": 1601,
+    "file": "B-1600ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2000,
+    "at": 2001,
+    "file": "B-2000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2500,
+    "at": 2502,
+    "file": "B-2500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 3000,
+    "at": 3002,
+    "file": "B-3000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 4000,
+    "at": 4002,
+    "file": "B-4000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 5000,
+    "at": 5002,
+    "file": "B-5000ms.png",
+    "mean": 40.2,
+    "std": 34.3,
+    "menu": true
+   }
+  ],
+  "errors": [],
+  "marks": {
+   "first-paint": 30,
+   "domContentLoaded": 1539,
+   "menuInDom": 4596,
+   "glutnachtReady": 4596,
+   "first-contentful-paint": 4624
+  },
+  "sdk": [
+   [
+    1525,
+    "sdk script executed"
+   ],
+   [
+    1539,
+    "init called"
+   ],
+   [
+    4539,
+    "init resolved"
+   ],
+   [
+    4539,
+    "loadingStart"
+   ],
+   [
+    4578,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstScreenshot": {
+   "t": 100,
+   "std": 0
+  },
+  "firstNonFlatMs": 5000,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "splashBy300": false,
+   "fcpBeforeSdk": false
+  },
+  "ok": false
+ },
+ "C": {
+  "desc": "init kommt nie zurück",
+  "strip": [
+   {
+    "t": 100,
+    "at": 100,
+    "file": "C-0100ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 200,
+    "at": 201,
+    "file": "C-0200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 300,
+    "at": 300,
+    "file": "C-0300ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 500,
+    "at": 501,
+    "file": "C-0500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 800,
+    "at": 802,
+    "file": "C-0800ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1200,
+    "at": 1201,
+    "file": "C-1200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1600,
+    "at": 1600,
+    "file": "C-1600ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2000,
+    "at": 2002,
+    "file": "C-2000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2500,
+    "at": 2502,
+    "file": "C-2500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 3000,
+    "at": 3002,
+    "file": "C-3000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 4000,
+    "at": 4001,
+    "file": "C-4000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 5000,
+    "at": 5001,
+    "file": "C-5000ms.png",
+    "mean": 40.4,
+    "std": 34.6,
+    "menu": true
+   }
+  ],
+  "errors": [],
+  "marks": {
+   "first-paint": 35,
+   "domContentLoaded": 82,
+   "menuInDom": 4145,
+   "glutnachtReady": 4145,
+   "first-contentful-paint": 4173
+  },
+  "sdk": [
+   [
+    74,
+    "sdk script executed"
+   ],
+   [
+    81,
+    "init called"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": false,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 0,
+   "stop": 0
+  },
+  "firstScreenshot": {
+   "t": 100,
+   "std": 0
+  },
+  "firstNonFlatMs": 5000,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "splashBy300": false
+  },
+  "ok": false
+ },
+ "N": {
+  "desc": "SDK-Skript kommt nie an",
+  "strip": [
+   {
+    "t": 100,
+    "at": 101,
+    "file": "N-0100ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 200,
+    "at": 201,
+    "file": "N-0200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 300,
+    "at": 301,
+    "file": "N-0300ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 500,
+    "at": 501,
+    "file": "N-0500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 800,
+    "at": 801,
+    "file": "N-0800ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1200,
+    "at": 1201,
+    "file": "N-1200ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 1600,
+    "at": 1601,
+    "file": "N-1600ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2000,
+    "at": 2000,
+    "file": "N-2000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 2500,
+    "at": 2502,
+    "file": "N-2500ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 3000,
+    "at": 3002,
+    "file": "N-3000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 4000,
+    "at": 4001,
+    "file": "N-4000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   },
+   {
+    "t": 5000,
+    "at": 5013,
+    "file": "N-5000ms.png",
+    "mean": 17.7,
+    "std": 0,
+    "menu": false
+   }
+  ],
+  "errors": [],
+  "marks": {
+   "first-paint": 46
+  },
+  "sdk": [],
+  "lang": null,
+  "ready": false,
+  "backend": false,
+  "goldShown": null,
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 0,
+   "stop": 0
+  },
+  "firstScreenshot": {
+   "t": 100,
+   "std": 0
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "splashBy300": false
+  },
+  "ok": false
+ },
+ "LDE": {
+  "desc": "Browser en-US, SDK de-DE",
+  "strip": [],
+  "errors": [],
+  "marks": {
+   "first-paint": 48,
+   "domContentLoaded": 91,
+   "menuInDom": 372,
+   "glutnachtReady": 372,
+   "first-contentful-paint": 395
+  },
+  "sdk": [
+   [
+    84,
+    "sdk script executed"
+   ],
+   [
+    91,
+    "init called"
+   ],
+   [
+    299,
+    "init resolved"
+   ],
+   [
+    299,
+    "loadingStart"
+   ],
+   [
+    343,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": true,
+   "loadingPaired": true,
+   "lang": false
+  },
+  "ok": false
+ },
+ "LEN": {
+  "desc": "Browser de-DE, SDK en-US",
+  "strip": [],
+  "errors": [],
+  "marks": {
+   "first-paint": 37,
+   "domContentLoaded": 87,
+   "menuInDom": 348,
+   "glutnachtReady": 348,
+   "first-contentful-paint": 375
+  },
+  "sdk": [
+   [
+    79,
+    "sdk script executed"
+   ],
+   [
+    87,
+    "init called"
+   ],
+   [
+    294,
+    "init resolved"
+   ],
+   [
+    294,
+    "loadingStart"
+   ],
+   [
+    332,
+    "loadingStop"
+   ]
+  ],
+  "lang": "de",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 0,
+  "goldShown": "0",
+  "remoteGold": null,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": true,
+   "loadingPaired": true,
+   "lang": false
+  },
+  "ok": false
+ },
+ "LSAVE": {
+  "desc": "SDK de-DE, gespeichert en",
+  "strip": [],
+  "errors": [],
+  "marks": {
+   "first-paint": 46,
+   "domContentLoaded": 85,
+   "menuInDom": 345,
+   "glutnachtReady": 345,
+   "first-contentful-paint": 368
+  },
+  "sdk": [
+   [
+    77,
+    "sdk script executed"
+   ],
+   [
+    84,
+    "init called"
+   ],
+   [
+    291,
+    "init resolved"
+   ],
+   [
+    291,
+    "loadingStart"
+   ],
+   [
+    329,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 10,
+  "goldShown": "10",
+  "remoteGold": 10,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": true,
+   "loadingPaired": true,
+   "lang": true
+  },
+  "ok": true
+ },
+ "LATEMENU": {
+  "desc": "SDK spät (4 s) im Menü: Cloud-Stand übernehmen",
+  "strip": [],
+  "errors": [],
+  "marks": {
+   "first-paint": 43,
+   "domContentLoaded": 86,
+   "menuInDom": 4143,
+   "glutnachtReady": 4143,
+   "first-contentful-paint": 4165
+  },
+  "sdk": [
+   [
+    78,
+    "sdk script executed"
+   ],
+   [
+    85,
+    "init called"
+   ],
+   [
+    4088,
+    "init resolved"
+   ],
+   [
+    4089,
+    "loadingStart"
+   ],
+   [
+    4125,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 777,
+  "goldShown": "777",
+  "remoteGold": 777,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "adoptedCloud": true
+  },
+  "ok": false
+ },
+ "LATERUN": {
+  "desc": "SDK spät (4 s) im Lauf: erst im Menü übernehmen",
+  "strip": [],
+  "errors": [],
+  "atRunStart": {
+   "state": "menu",
+   "backend": true
+  },
+  "duringRun": {
+   "state": "menu",
+   "backend": true,
+   "gold": 777
+  },
+  "marks": {
+   "first-paint": 34,
+   "domContentLoaded": 97,
+   "menuInDom": 4161,
+   "glutnachtReady": 4161,
+   "first-contentful-paint": 4190
+  },
+  "sdk": [
+   [
+    84,
+    "sdk script executed"
+   ],
+   [
+    96,
+    "init called"
+   ],
+   [
+    4103,
+    "init resolved"
+   ],
+   [
+    4103,
+    "loadingStart"
+   ],
+   [
+    4144,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 777,
+  "goldShown": "777",
+  "remoteGold": 777,
+  "localGold": null,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "deferredThenAdopted": false
+  },
+  "ok": false
+ },
+ "LATELOCAL": {
+  "desc": "SDK spät, lokaler Stand reicher: lokal gewinnt",
+  "strip": [],
+  "errors": [],
+  "marks": {
+   "first-paint": 45,
+   "domContentLoaded": 86,
+   "menuInDom": 4163,
+   "glutnachtReady": 4163,
+   "first-contentful-paint": 4190
+  },
+  "sdk": [
+   [
+    77,
+    "sdk script executed"
+   ],
+   [
+    85,
+    "init called"
+   ],
+   [
+    4091,
+    "init resolved"
+   ],
+   [
+    4092,
+    "loadingStart"
+   ],
+   [
+    4146,
+    "loadingStop"
+   ]
+  ],
+  "lang": "en",
+  "ready": false,
+  "ui": "menu",
+  "backend": true,
+  "gold": 777,
+  "goldShown": "777",
+  "remoteGold": 777,
+  "localGold": 555,
+  "loading": {
+   "start": 1,
+   "stop": 1
+  },
+  "firstNonFlatMs": null,
+  "checks": {
+   "noErrors": true,
+   "menuBy2800": false,
+   "loadingPaired": true,
+   "localWins": false
+  },
+  "ok": false
+ }
+}

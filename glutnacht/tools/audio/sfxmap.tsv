@@ -1,0 +1,34 @@
+hit	x/100-CC0-SFX_0/hit_01.ogg	0	0.18
+kill	x/100-CC0-SFX_0/plop_02.ogg	0	0.30
+gem	x/80-CC0-RPG-SFX_0/item_gem_01.ogg	0	0.25
+coin	x/coins_-_starninjas/coin.2.ogg	0	0.35
+levelup	dl/magical_3.ogg	0	1.80
+chestpick	x/RPGsounds_Kenney/OGG/metalLatch.ogg	0	0.26
+chest	x/80-CC0-RPG-SFX_0/item_coins_04.ogg	0	1.40
+chest_open	x/100-CC0-SFX_0/wooded_box_open.ogg	0	0.37
+evolve	dl/magical_1_0.ogg	0	1.60
+item	x/kenney_interfaceSounds/Audio/confirmation_001.ogg	0	0.29
+hurt	x/sfx_breaking_and_falling/bfh1_hit_07.ogg	0	0.40
+death	x/80-CC0-RPG-SFX_0/creature_die_01.ogg	0	1.06
+boss	x/80-CC0-RPG-SFX_0/creature_roar_03.ogg	0	1.16
+alarm	x/100-CC0-SFX_0/gong_01.ogg	0	1.42
+shoot	x/80-CC0-RPG-SFX_0/spell_01.ogg	0	0.30
+knife	x/swishes/swishes/swish-13.wav	0	0.07
+slash	x/rpg_sound_pack/RPG Sound Pack/battle/swing.wav	0	0.23
+zap	x/25-CC0-bang-sfx/bang_01.ogg	0	0.60
+throw	x/swishes/swishes/swish-9.wav	0	0.20
+flask	x/sfx_breaking_and_falling/bfh1_glass_breaking_02.ogg	0	0.39
+nova	x/icespells/ice.wav	0	1.16
+orbit	dl/magical_2.ogg	0	0.70
+heal	dl/magical_5.ogg	0	1.20
+magnet	x/Digital_SFX_Set/phaserUp3.mp3	0	0.50
+bomb	dl/Chunky Explosion.mp3	0	1.80
+break	x/sfx_breaking_and_falling/bfh1_wood_breaking_03.ogg	0	0.49
+summon	x/rpg_sound_pack/RPG Sound Pack/NPC/shade/shade1.wav	0	0.53
+dash	x/rpg_sound_pack/RPG Sound Pack/battle/swing2.wav	0	0.15
+slam	x/100-CC0-SFX_0/slam_02.ogg	0	0.64
+revive	dl/magical_4.ogg	0	2.00
+click	x/kenney_interfaceSounds/Audio/click_001.ogg	0	0.10
+buy	x/RPGsounds_Kenney/OGG/handleCoins.ogg	0	0.85
+deny	x/kenney_interfaceSounds/Audio/error_004.ogg	0	0.10
+achievement	x/100-CC0-SFX_0/bell_03.ogg	0	1.78

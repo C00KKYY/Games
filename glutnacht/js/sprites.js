@@ -745,5 +745,9 @@ const Sprites = (() => {
   // Höhere Auflösung für Standbilder (z. B. Titelbilder); leert den Zwischenspeicher
   function setScale(s) { SC = s; cache.clear(); }
 
-  return { setScale, enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
+  // Start: Grafiken bereitstellen (der Start wartet darauf, höchstens 2,5 s). Derzeit ist alles prozedural
+  // und wird bei Bedarf gezeichnet – hier hängt sich später ein Bild-Atlas an.
+  function load() { return Promise.resolve(); }
+
+  return { load, setScale, enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
 })();

@@ -39,7 +39,7 @@ async function render(variant, link, file) {
   // Normale Spielschleife abschalten: die Regie rechnet jedes Bild selbst
   await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
   await page.goto('file://' + path.join(ROOT, 'index.html'));
-  await page.waitForFunction(() => window.Glutnacht && document.fonts.status === 'loaded');
+  await page.waitForFunction(() => window.Glutnacht && window.Glutnacht.ready && document.fonts.status === 'loaded');
   await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, 'director.js'), 'utf8') + '\nwindow.Promo = Promo;' });
   await page.evaluate(o => Promo.init(o), { endVariant: variant, link: link || '', script, lang: vlang });
   const total = await page.evaluate(f => Promo.totalFrames(f), FPS);

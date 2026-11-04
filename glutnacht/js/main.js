@@ -1,18 +1,56 @@
 'use strict';
 // Einstieg: verbindet Spiel, Darstellung, Eingabe und Oberfläche und startet die Schleife.
+//
+// Ablauf: Der Ladebildschirm steht schon im HTML (ohne JS). Sofort danach läuft die Kulisse im Canvas.
+// Dann wird höchstens 2,5 s auf Plattform-SDK, Grafiken und Klänge gewartet, erst danach der Spielstand
+// geladen (die Plattform bestimmt, wo er liegt), die Sprache gesetzt und das Menü gezeigt.
 
 (async function () {
-  // Erst die Plattform (falls vorhanden), denn sie bestimmt, wo der Spielstand liegt.
-  // Höchstens 4 s warten, damit das Spiel nie an einem langsamen SDK hängt.
-  await Promise.race([Platform.init(), new Promise(r => setTimeout(r, 4000))]);
-  Platform.booted = true;
-  Store.load();
-  // Sprache: gespeicherte Wahl, sonst Browsersprache, sonst Englisch
-  setLang(Store.data.settings.lang || detectLang());
   const canvas = document.getElementById('game');
+  let booted = false;
+
+  // 1. Sofort zeichnen: Boden, Deko und Glut als Kulisse hinter dem Ladebildschirm
+  Game.state = 'menu';
   Render.init(canvas);
-  Input.init(canvas);
+  window.addEventListener('resize', () => Render.resize());
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    last = now;
+    if (booted) Input.update();
+    if (Game.state === 'play') {
+      const steps = dt > 1 / 45 ? 2 : 1;
+      for (let i = 0; i < steps; i++) Game.update(dt / steps);
+    }
+    Render.draw(dt);
+    if (booted) UI.updateHud();
+    Platform.setPlaying(Game.state === 'play');
+    const r = Game.run;
+    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : r.bosses.some(b => !b.dead) || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // 2. Plattform (bestimmt den Speicherort), Grafiken und Klänge – nie länger als 2,5 s warten.
+  //    Kommt das SDK später, stellt Platform.lateAttach() den Speicherort sicher um.
+  await Promise.race([
+    Promise.all([Platform.init(), Sprites.load(), Sfx.preload()]).catch(() => {}),
+    new Promise(r => setTimeout(r, 2500)),
+  ]);
+  Platform.booted = true;
+
+  // 3. Spielstand erst jetzt laden, denn erst jetzt steht fest, wo er liegt
+  Store.load();
+  // Sprache: gespeicherte Wahl, sonst Sprache der Plattform, sonst Browsersprache, sonst Englisch
+  setLang(Store.data.settings.lang || detectLang(Platform.locale()));
+  // Plattform kennt das Gerät: Handy/Tablet -> Touch-Hinweise (nie umgekehrt)
+  const dev = Platform.deviceType();
+  if (dev === 'mobile' || dev === 'tablet') Input.touch = true;
+
+  // UI vor Input: Tastendrücke landen in UI.onKey und brauchen UI.el
   UI.init();
+  Input.init(canvas);
 
   Hooks.sfx = (n, a) => Sfx.play(n, a);
   Hooks.shake = a => Render.addShake(a);
@@ -24,16 +62,15 @@
   Hooks.achievement = a => UI.achievement(a);
   Hooks.happy = () => Platform.happy();
 
-  window.addEventListener('resize', () => Render.resize());
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) return;
     UI.pause();
     // nur laufenden Fortschritt sichern – ein untätiger Tab soll nichts überschreiben
     if (Game.run && !Game.run.ended) Store.save();
   });
-  // Ein anderer Tab hat gespeichert: im Menü dessen Stand übernehmen
+  // Ein anderer Tab hat gespeichert: im Menü dessen Stand übernehmen (nur beim Speicherort localStorage)
   window.addEventListener('storage', e => {
-    if (e.key !== SAVE_KEY || (Game.run && !Game.run.ended)) return;
+    if (Store.backend || e.key !== SAVE_KEY || (Game.run && !Game.run.ended)) return;
     Store.load();
     if (UI.cur && ['menu', 'map', 'shop', 'ach', 'chars', 'opts'].includes(UI.cur)) UI.show(UI.cur);
   });
@@ -49,27 +86,11 @@
   window.addEventListener('pointerdown', unlock);
   window.addEventListener('keydown', unlock);
 
-  let last = performance.now();
-  function frame(now) {
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-    last = now;
-    Input.update();
-    if (Game.state === 'play') {
-      const steps = dt > 1 / 45 ? 2 : 1;
-      for (let i = 0; i < steps; i++) Game.update(dt / steps);
-    }
-    Render.draw(dt);
-    UI.updateHud();
-    Platform.setPlaying(Game.state === 'play');
-    const r = Game.run;
-    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : r.bosses.some(b => !b.dead) || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
-    requestAnimationFrame(frame);
-  }
-
+  // 4. Menü zeigen (blendet den Ladebildschirm aus), Ladephase bei der Plattform beenden
+  booted = true;
   UI.show('menu');
-  requestAnimationFrame(frame);
   Platform.loaded();
 
-  // Für Tests im Browser erreichbar
-  window.Glutnacht = { Game, Store, UI, I18N_MISSES, setLang };
+  // Für Tests und Werkzeuge im Browser erreichbar; ready = Menü steht, Spielstand geladen
+  window.Glutnacht = { Game, Store, UI, Platform, I18N_MISSES, setLang, ready: true };
 })();

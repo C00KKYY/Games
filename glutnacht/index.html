@@ -7,6 +7,31 @@
 <title>Ember Night</title>
 <meta name="description" content="Ember Night: carry the last ember through five dark lands full of monster hordes. Collect experience, pick upgrades, evolve your weapons, beat the bosses and bring back the dawn.">
 <link rel="stylesheet" href="css/style.css">
+<style>
+/* Ladebildschirm: wird ohne JavaScript gezeichnet (Glut, Logo, Ladebalken); main.js ersetzt ihn durch das Menü */
+#screen.s-loading { background: radial-gradient(circle at 50% 52%, rgba(255, 128, 48, 0.30) 0, rgba(150, 50, 130, 0.14) 26%, rgba(13, 8, 32, 0.6) 58%, rgba(8, 4, 20, 0.92) 100%); }
+.boot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+.boot::before { content: ''; position: absolute; left: 50%; top: 45%; width: 120vmin; height: 120vmin; margin: -60vmin 0 0 -60vmin; z-index: -1; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 150, 60, 0.32) 0, rgba(255, 90, 30, 0.12) 22%, rgba(255, 60, 20, 0) 45%); animation: bootGlow 2.2s ease-in-out infinite alternate; }
+.boot::after { content: ''; position: absolute; left: 50%; top: 100%; width: 240px; height: 160px; margin-left: -120px; pointer-events: none;
+  background: radial-gradient(circle at 30% 40%, #ffd27a 0 1.5px, transparent 2.5px) 13px 0 / 53px 97px,
+    radial-gradient(circle at 70% 20%, #ff8a3c 0 1px, transparent 2px) 31px 20px / 71px 83px,
+    radial-gradient(circle at 50% 80%, #ffb13b 0 1px, transparent 2px) 0 50px / 37px 113px;
+  opacity: 0.75; animation: bootEmbers 3.4s linear infinite; -webkit-mask-image: linear-gradient(transparent, #000 40%, transparent); mask-image: linear-gradient(transparent, #000 40%, transparent); }
+.bootbar { width: min(280px, 62vw); height: 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6); overflow: hidden; }
+.bootbar i { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0.04); border-radius: 6px;
+  background: linear-gradient(90deg, #ff4b1f, #ffb13b 70%, #fff3b0); box-shadow: 0 0 14px #ff8a3c; animation: bootFill 2.4s cubic-bezier(0.2, 0.7, 0.3, 1) forwards; }
+.boot.done .bootbar i { animation: none; transform: scaleX(1); }
+#bootfade { position: absolute; inset: 0; z-index: 25; pointer-events: none; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 52%, rgba(255, 128, 48, 0.30) 0, rgba(150, 50, 130, 0.14) 26%, rgba(13, 8, 32, 0.6) 58%, rgba(8, 4, 20, 0.92) 100%);
+  animation: bootOut 0.35s ease-in forwards; }
+#bootfade .boot { animation: bootOut 0.12s ease-in forwards; }
+@keyframes bootGlow { from { opacity: 0.65; transform: scale(0.92); } to { opacity: 1; transform: scale(1.06); } }
+@keyframes bootEmbers { to { background-position: 13px -97px, 31px -63px, 0 -63px; } }
+@keyframes bootFill { to { transform: scaleX(0.94); } }
+@keyframes bootOut { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .boot::before, .boot::after { animation: none; } }
+</style>
 </head>
 <body>
 <div id="app">
@@ -26,7 +51,7 @@
     <div id="banner"></div>
   </div>
   <div id="toasts"></div>
-  <div id="screen"></div>
+  <div id="screen" class="show s-loading"><div class="boot" role="progressbar" aria-label="Ember Night"><div class="logo"><span>Ember</span><span>Night</span></div><div class="bootbar"><i></i></div></div></div>
 </div>
 <script src="js/util.js"></script>
 <script src="js/lang.js"></script>

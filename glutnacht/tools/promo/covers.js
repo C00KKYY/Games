@@ -20,7 +20,7 @@ const SIZES = { landscape: [960, 540], portrait: [400, 600], square: [400, 400],
     page.on('pageerror', e => errors.push(e.message));
     await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
     await page.goto('file://' + path.join(ROOT, 'index.html'));
-    await page.waitForFunction(() => window.Glutnacht && document.fonts.status === 'loaded');
+    await page.waitForFunction(() => window.Glutnacht && window.Glutnacht.ready && document.fonts.status === 'loaded');
     await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, 'director.js'), 'utf8') + '\nwindow.Promo = Promo;' });
     await page.evaluate(l => { Promo.init({}); Promo.cover(l); }, layout);
     const file = path.join(OUT, 'cover-' + name + '.png');

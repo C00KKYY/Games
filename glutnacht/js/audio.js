@@ -180,5 +180,9 @@ const Sfx = (() => {
 
   function setIntensity(v) { intensity = v; }
 
-  return { init, play, applySettings, setPlatformMute, startMusic, stopMusic, setIntensity };
+  // Start: Klänge vorbereiten (der Start wartet darauf, höchstens 2,5 s). Derzeit wird alles live
+  // erzeugt – hier hängen sich später dekodierte Aufnahmen an.
+  function preload() { return Promise.resolve(); }
+
+  return { init, preload, play, applySettings, setPlatformMute, startMusic, stopMusic, setIntensity };
 })();

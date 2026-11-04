@@ -42,6 +42,7 @@ const UI = {
   icon(id, cls) { return '<img class="' + (cls || 'ic') + '" src="' + Sprites.iconURL(id) + '" alt="">'; },
 
   show(name, data) {
+    this.releaseBoot();
     this.cur = name;
     this.el.screen.className = 'show s-' + name;
     this.el.screen.innerHTML = this['tpl_' + name](data);
@@ -49,7 +50,22 @@ const UI = {
     this.modalReady = performance.now() + (['levelup', 'chest', 'victory'].includes(name) ? 380 : 0);
   },
 
+  // Ladebildschirm aus index.html (steckt bis zum ersten show() in #screen) sanft ausblenden
+  releaseBoot() {
+    const b = this.el.screen.querySelector('.boot');
+    if (!b) return;
+    b.classList.add('done');
+    const f = document.createElement('div');
+    f.id = 'bootfade';
+    f.appendChild(b);
+    this.el.screen.parentNode.appendChild(f);
+    setTimeout(() => f.remove(), 600);
+  },
+
   hide() {
+    this.releaseBoot();
+    const f = document.getElementById('bootfade');
+    if (f) f.remove();
     this.cur = null;
     this.el.screen.className = '';
     this.el.screen.innerHTML = '';
@@ -417,7 +433,7 @@ const UI = {
       }
       case 'reset':
         if (this.confirm !== 'reset') { this.confirm = 'reset'; this.show('opts'); return; }
-        this.confirm = null; Game.run = null; Game.state = 'menu'; Store.reset(); this.selChar = 'aron'; Sfx.applySettings(); this.toMenu(); break;
+        this.confirm = null; Game.run = null; Game.state = 'menu'; Platform.attachPending(); Store.reset(); this.selChar = 'aron'; Sfx.applySettings(); this.toMenu(); break;
       case 'pick': {
         const o = Game.lastLevelOptions[+b.dataset.i];
         if (!o) return;
@@ -485,6 +501,7 @@ const UI = {
     Game.run = null;
     this.el.hud.hidden = true;
     this.el.bossbar.hidden = true;
+    Platform.attachPending(); // SDK kam während des Laufs: Speicherort jetzt umstellen
     this.show('menu');
     if (Store.data.settings.music) Sfx.startMusic();
   },
