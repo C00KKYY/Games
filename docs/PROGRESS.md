@@ -1,7 +1,7 @@
 # PROGRESS
 
 **Aktueller Meilenstein:** M2 headless Simulation – Abnahme fast komplett (Review-Workflow läuft)
-**Gates:** G1 freigegeben? – Antwort "brides jq" als "beides ja" gelesen, **schriftliche Bestätigung ausstehend** · G2 offen · G3 offen
+**Gates:** G1 **freigegeben** (2026-11-04) · G2 offen · G3 offen
 
 ## Erledigt
 - **M0** (siehe Commit): Brief, Rules-Check, Pixi-Notizen, Namensprüfung („Rascal Rock Lockup" frei, EUIPO/TMview nicht prüfbar), Wettbewerb inklusive Gameplay-Screenshots, GDD, Style Guide, Economy-Sheet (H0 grün), Setup, Plattform-Wrapper, Mock-SDK. Tests 0, A1, A1b, A7.
@@ -36,7 +36,6 @@
   - **H1 (erste 10 min) grün auf 27 Seeds**, Ausnahmen siehe BALANCE.md §0.
 
 ## Offen
-- Schriftliche Bestätigung G1 und Push-Erlaubnis (Push zweimal vom Auto-Mode blockiert).
 - Review-Workflow über `src/sim` läuft, Befunde einarbeiten.
 - Taktungsregel 10–15 min hängt an der Projekttafel (M5).
 
@@ -45,7 +44,7 @@
 2. Balance-Startwerte angepasst (`BALANCE.md` §2), Pflichtziele geändert.
 3. SDK wird asynchron geladen (RULES_CHECK §5).
 4. `reportGameCompletedPercentage`: +50 % pro Standort in v1 (RULES_CHECK §6).
-5. **Persistenz-Risiko:** `rascal-rock-lockup/` ist laut Brief ein eigenes Git-Repo ohne Remote. Der Container ist flüchtig. Ohne Push gehen die Commits verloren, wenn die Session endet.
+5. Persistenz: Das eigene Repo wird über das Eltern-Repo auf den Branch `claude/rascal-rock-lockup` in C00KKYY/Games gepusht (vom Auftraggeber erlaubt): `cd /home/user/Games && git fetch ./rascal-rock-lockup main:claude/rascal-rock-lockup && git push -u origin claude/rascal-rock-lockup`.
 6. Freiheitstor: Der Weg knickt am rechten Ende nach Süden ab, das Tor steht frontal. In der Seitenansicht war ein Tor im 3/4-Blick nicht lesbar. Die Leserichtung bleibt „Steg links → Tor rechts".
 7. Ein Teil der Küste und die Insel-Silhouette sind ein einmalig erzeugtes Pixi-`Graphics`-Polygon (statische Geometrie, kein Canvas-2D pro Frame).
 
