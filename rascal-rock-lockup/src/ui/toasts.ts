@@ -5,10 +5,11 @@
  */
 import './overlays.css';
 import type { UICtx, Component } from './ctx';
-import { ROOM_ICON } from './ctx';
+import { ROOM_ICON, ROLE_ICON } from './ctx';
 import type { SimEvent } from '../sim/types';
 import type { Key } from '../i18n/i18n';
-import { ECON, RUF, UPGRADE, type RoomType } from '../content/balance';
+import { ECON, RUF, UPGRADE, type RoomType, type StaffRole } from '../content/balance';
+import { hireFee } from '../sim/staff';
 import { objectiveReward, OBJECTIVES } from '../sim/objectives';
 import { roomById } from '../sim/world';
 
@@ -66,15 +67,20 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
   /** translated text or null when the key does not exist */
   const tx = (key: Key, vars?: Record<string, string | number>) => { const s = t(key, vars); return s === key ? null : s; };
 
-  const push = (key: string, build: (count: number) => string, opts: ToastOpts = {}, badge = true) => {
+  /** returns the new entry, or null when it merged into a visible one */
+  const push = (key: string, build: (count: number) => string, opts: ToastOpts = {}, badge = true): Entry | null => {
     const now = performance.now();
     const kind = opts.kind ?? 'info';
     const ms = opts.ms ?? DEFAULT_MS;
     // same type within 1.5 s of its last trigger → merge into the visible toast instead of stacking
     const prev = entries.find(e => e.key === key && e.outAt === undefined && now - e.last < MERGE_MS);
-    if (prev) { prev.count++; prev.last = now; prev.until = now + ms; prev.build = build; return; }
-    entries.push({ key, build, count: 1, kind, icon: opts.icon ?? KIND_ICON[kind], ms, badge, last: now, until: now + ms });
+    if (prev) { prev.count++; prev.last = now; prev.until = now + ms; prev.build = build; return null; }
+    const e: Entry = { key, build, count: 1, kind, icon: opts.icon ?? KIND_ICON[kind], ms, badge, last: now, until: now + ms };
+    entries.push(e);
+    return e;
   };
+  /** room unlocks toasted during the current frame's event dispatch (objectives.ts emits 'unlock' right before its 'objective') */
+  const frameUnlocks = new Map<string, Entry>();
 
   // ------------------------------------------------------------------ sim events → toasts
   const agentName = (id: unknown) => w.agents.find(a => a.id === id)?.name || t('overlays.toast.someone');
@@ -102,13 +108,26 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
         const id = String(e.id), k = Number(e.k) || 0;
         const reward = objectiveReward(k);
         const goal = () => tx(`obj.${id}`) ?? tx(`clipboard.obj.${id}`) ?? (OBJECTIVES[k]?.id === 'wash' ? t('overlays.toast.objBuild', { room: roomName('wash') }) : id);
-        push(`objective:${id}`, () => t('overlays.toast.objective', { goal: goal(), coins: ctx.fmt(reward), ruf: RUF.objective }), { kind: 'good', icon: 'clipboard', ms: 3500 });
+        // a room this objective unlocked in the same frame joins this toast instead of stacking a second one
+        const merged: string[] = [];
+        for (const u of OBJECTIVES[k]?.unlocks ?? []) {
+          const ue = frameUnlocks.get(u);
+          if (!ue || ue.el) continue;
+          entries = entries.filter(x => x !== ue); frameUnlocks.delete(u); merged.push(u);
+        }
+        const text = () => (merged.length
+          ? t('overlays.toast.objectiveUnlock', { goal: goal(), coins: ctx.fmt(reward), ruf: RUF.objective, room: merged.map(roomName).join(', ') })
+          : t('overlays.toast.objective', { goal: goal(), coins: ctx.fmt(reward), ruf: RUF.objective }));
+        push(`objective:${id}`, text, { kind: 'good', icon: 'clipboard', ms: merged.length ? 4500 : 3500 });
         break;
       }
       case 'unlock': {
         const what = String(e.what);
         if (what === 'speed3') push('unlock:speed3', () => t('overlays.toast.unlockSpeed3'), { kind: 'good', icon: 'fast', ms: 3500 });
-        else if (tx(`room.${what}`)) push(`unlock:${what}`, () => t('overlays.toast.unlockRoom', { room: roomName(what) }), { kind: 'good', icon: ROOM_ICON[what as RoomType] ?? 'rooms', ms: 3500 });
+        else if (tx(`room.${what}`)) {
+          const ue = push(`unlock:${what}`, () => t('overlays.toast.unlockRoom', { room: roomName(what) }), { kind: 'good', icon: ROOM_ICON[what as RoomType] ?? 'rooms', ms: 3500 });
+          if (ue) frameUnlocks.set(what, ue);
+        }
         // projects, supervisor slots and inspection belong to systems that arrive in M5 → no toast yet (no "coming soon")
         break;
       }
@@ -148,6 +167,13 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
         push(`milestone:${e.roomId}:${level}`, () => t('overlays.toast.milestone', { room: type ? roomName(type) : '', n: level, x: UPGRADE.milestoneMult, ruf: RUF.milestone }), { kind: 'good', icon: (type && ROOM_ICON[type as RoomType]) || 'star', ms: 3500 });
         break;
       }
+      case 'hire': {
+        // one confirmation for every entry point (staff menu, room panel "Hire +1")
+        const role = String(e.role) as StaffRole;
+        if (!(role in ROLE_ICON)) break;
+        push(`hire:${role}`, () => t('buildbar.hireOk', { role: t(`staff.${role}`), fee: ctx.fmt(hireFee(role)) }), { kind: 'good', icon: ROLE_ICON[role], ms: 1800 });
+        break;
+      }
       case 'parcel':
         push(`parcel:${e.k}`, () => t('overlays.toast.parcel'), { kind: 'good', icon: 'rooms', ms: 3000 });
         break;
@@ -178,6 +204,7 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
   return {
     toast(text, opts) { push(`txt:${text}`, () => text, opts); },
     update(dt) {
+      frameUnlocks.clear(); // events are dispatched before update() each frame
       acc += dt;
       if (acc < STEP_S) return;
       acc = 0;

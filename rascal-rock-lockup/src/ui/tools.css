@@ -1,6 +1,7 @@
 /* Canvas tools (src/ui/tools.ts): cursor label, touch ✓ / ✕, demolish bubble, tool chip. All overlays (data-overlay).
    Sizes in rem (base --ui); every text ≥ 12 px also in compact mode (--ui 14 px → .86rem minimum). */
-.tl { position: absolute; inset: 0; pointer-events: none; }
+/* z-index 4: above the context panels (3) and build menus (2), below toasts (60), modals (80) and tooltips (100) */
+.tl { position: absolute; inset: 0; z-index: 4; pointer-events: none; }
 .tl [hidden] { display: none !important; }
 .tl-label, .tl-confirm, .tl-bubble { position: absolute; left: 0; top: 0; will-change: transform; }
 

@@ -39,6 +39,10 @@
 
 /* ---- body */
 .pn-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: .45rem .7rem .6rem; scrollbar-width: thin; scrollbar-color: var(--wood300) transparent; }
+/* scroll cue: the body fades out at an edge while more content is hidden there (classes set by panels.ts) */
+.pn-body.pn-fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
+.pn-body.pn-fade-t { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(to top, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
+.pn-body.pn-fade-t.pn-fade-b { -webkit-mask-image: linear-gradient(rgba(0,0,0,.12), #000 2rem, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(rgba(0,0,0,.12), #000 2rem, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
 .pn-view { display: flex; flex-direction: column; gap: .45rem; }
 .pn-col { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
 .pn-ic { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }

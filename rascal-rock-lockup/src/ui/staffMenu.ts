@@ -8,7 +8,7 @@ import { ROLE_ICON } from './ctx';
 import { ROOMS, RATE, GUARD_RADIUS, STAFF_ROOM, levelMult, type StaffRole, type RoomType } from '../content/balance';
 import { staffOf, hireFee, defaultRoomFor, cartCapacity } from '../sim/staff';
 import { roomsOf, roomById } from '../sim/world';
-import { domKit, menuShell, nextWage, wagesPerDay, LOCK_ICON } from './buildbar';
+import { domKit, menuShell, nextWage, wagesPerDay } from './buildbar';
 
 const ROLES: StaffRole[] = ['cook', 'janitor', 'teacher', 'foreman', 'guard', 'clerk', 'carter'];
 /** janitor cleaning per game hour at staff level 1 (staff.ts staffTick: 30 · levelMult · PER_TICK · 4) */
@@ -66,15 +66,13 @@ export function mountStaffMenu(ctx: UICtx): Component {
     const btn = d.button('bb-hire', el, () => {
       const why = blocked(role);
       if (why) { ctx.toast(why, { kind: 'info', icon: ROLE_ICON[role], ms: 2200 }); return; }
-      const fee = hireFee(role);
-      const r = ctx.cmd.hire(ctx.w, role);
-      if (!r.ok) { ctx.feedback(r); return; }
-      ctx.toast(t('buildbar.hireOk', { role: t(`staff.${role}`), fee: ctx.fmt(fee) }), { kind: 'good', icon: ROLE_ICON[role], ms: 1800 });
+      // success is confirmed by toasts.ts on the sim 'hire' event (same toast as the room panel's Hire +1)
+      ctx.feedback(ctx.cmd.hire(ctx.w, role));
     });
     d.img(ctx.icon('coin'), btn, 'bb-li');
     const btnTxt = d.h('span', '', btn);
     const why = d.h('span', 'bb-why', el);
-    d.img(LOCK_ICON, why, 'bb-lock-ic');
+    d.img(ctx.icon('lock'), why, 'bb-lock-ic');
     const whyTxt = d.h('span', '', why);
     d.tip(count, () => ({ title: t(`staff.${role}`), body: t('buildbar.hiredLbl', { n: staffOf(ctx.w, role).length }) }));
     d.tip(btn, () => {
@@ -119,6 +117,6 @@ export function mountStaffMenu(ctx: UICtx): Component {
 
   return {
     update(dt) { if (shell.tick(dt)) render(); },
-    destroy() { shell.card.remove(); },
+    destroy() { shell.destroy(); },
   };
 }

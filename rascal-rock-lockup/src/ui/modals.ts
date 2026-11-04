@@ -157,7 +157,7 @@ export function mountModals(ctx: UICtx): Component & { open(name: Name): void; c
     renderReset();
 
     const cr = section(body, 'settings.credits');
-    for (const k of ['overlays.credits.made', 'overlays.credits.fonts', 'overlays.credits.libs', 'overlays.credits.sound', 'overlays.credits.thanks'] as Key[]) h('p', 'ov-p', cr, t(k));
+    for (const k of ['overlays.credits.made', 'overlays.credits.fonts', 'overlays.credits.libs', 'overlays.credits.thanks'] as Key[]) h('p', 'ov-p', cr, t(k));
     h('p', 'ov-version', body, t('overlays.version', { v: version, build: typeof __BUILD__ === 'string' ? __BUILD__ : 'BASIC' }));
   };
 

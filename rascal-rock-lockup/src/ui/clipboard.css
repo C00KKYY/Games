@@ -43,7 +43,7 @@
 
 .cb--compact .cb-chip { display: flex; }
 .cb--compact .cb-card { display: none; top: calc(2.8rem + 6px); }
-.cb--compact.cb--open .cb-card { display: block; }
+.cb--compact.cb--open .cb-card { display: block; overflow-y: auto; overscroll-behavior: contain; }   /* max-height from clipboard.ts: ends above the build bar */
 .cb--compact .cb-card::before { display: none; }
 .cb--compact .cb-card-x { display: grid; }
 .cb--compact .cb-goal { padding-right: 2.2rem; }

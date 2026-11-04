@@ -30,11 +30,11 @@
 .ov-tip-title { flex: 1 1 auto; min-width: 0; font: 600 1.05rem/1.2 Fredoka, Inter, sans-serif; color: var(--ink900); }
 .ov-tip-keys { flex: 0 0 auto; display: flex; align-items: center; gap: .15rem; }
 .ov-tip-keys .ov-key { height: 1.55rem; min-width: 1.55rem; }
-.ov-tip-body { margin-top: .2rem; font: 400 1rem/1.3 Inter, system-ui, sans-serif; color: var(--ink700); }
+.ov-tip-body { margin-top: .2rem; font: 400 1rem/1.3 Inter, system-ui, sans-serif; color: var(--ink700); white-space: pre-line; }
 
 /* ------------------------------------------------------------------ toasts */
 .ov-toasts {
-  position: fixed; left: 50%; top: 0; z-index: 60; pointer-events: none;
+  position: fixed; left: 50%; top: 0; z-index: 90; pointer-events: none; /* above the modal backdrop (80), below the tooltip (100) */
   display: flex; flex-direction: column; align-items: center; gap: .35rem;
   width: max-content; max-width: calc(100vw - 16px);
   transform: translate3d(-50%, 48px, 0);

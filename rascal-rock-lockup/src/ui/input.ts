@@ -43,8 +43,24 @@ export function attachInput(canvas: HTMLCanvasElement, cam: Camera, gate: InputG
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
   canvas.addEventListener('wheel', e => { e.preventDefault(); cam.zoomAt(Math.exp(-e.deltaY * 0.0015), e.clientX, e.clientY); }, { passive: false });
   const keys = new Set<string>();
+  /**
+   * a HUD control the keyboard is on: Space must activate it (and arrows move a slider), so neither is swallowed.
+   * Buttons count only while :focus-visible (keyboard focus) – after a mouse click the button keeps focus, and Space+drag must still pan.
+   */
+  const hudControl = () => {
+    const el = document.activeElement;
+    if (!(el instanceof HTMLElement) || !el.closest('.hud')) return null;
+    if (el.matches('input, select, textarea, [contenteditable="true"]')) return 'field';
+    if (el.matches('button, [role="button"], [role="slider"], [tabindex]') && el.matches(':focus-visible')) return 'button';
+    return null;
+  };
   window.addEventListener('keydown', e => {
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+    const isArrow = e.code.startsWith('Arrow');
+    if (isArrow || e.code === 'Space') {
+      const ctl = hudControl();
+      if (ctl === 'field' || (ctl === 'button' && e.code === 'Space')) return; // default action belongs to the focused control
+      e.preventDefault();
+    }
     if (e.code === 'Space') space = true;
     keys.add(e.code);
   });

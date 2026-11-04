@@ -7,7 +7,7 @@ import type { UICtx, Component } from './ctx';
 import { ROOM_ICON, ROLE_ICON } from './ctx';
 import { ROOMS, roomCost, roomSlots, RATE, NEEDS, ECON, GUARD_RADIUS, type RoomType } from '../content/balance';
 import { OBJECTIVES } from '../sim/objectives';
-import { domKit, menuShell, BUILDABLE, LOCK_ICON } from './buildbar';
+import { domKit, menuShell, BUILDABLE } from './buildbar';
 
 interface Card {
   type: RoomType; b: HTMLButtonElement; name: HTMLElement; cost: HTMLElement; costNum: HTMLElement; from: HTMLElement;
@@ -79,7 +79,7 @@ export function mountBuildMenu(ctx: UICtx): Component {
     const staffIc = d.img(ctx.icon(ROOMS[type].staff ? ROLE_ICON[ROOMS[type].staff!] : 'staff'), staff, 'bb-li');
     const staffTxt = d.h('span', '', staff);
     const lock = d.h('span', 'bb-lock', b);
-    d.img(LOCK_ICON, lock, 'bb-lock-ic');
+    d.img(ctx.icon('lock'), lock, 'bb-lock-ic');
     const lockTxt = d.h('span', 'bb-lock-txt', lock);
     d.tip(b, () => {
       const lines = [effect(type), smallest(type), `${costRule(type)} · ${capRule(type)}`];
@@ -127,6 +127,6 @@ export function mountBuildMenu(ctx: UICtx): Component {
 
   return {
     update(dt) { if (shell.tick(dt)) render(); },
-    destroy() { shell.card.remove(); },
+    destroy() { shell.destroy(); },
   };
 }
