@@ -4,7 +4,7 @@
 const Sprites = (() => {
   // Auflösungsfaktor: passend zur Pixeldichte, damit beim Zeichnen kaum skaliert werden muss
   let SC = Math.min(2, Math.max(1, (window.devicePixelRatio || 1) * 1.2));
-  const cache = new Map();
+  let cache = new Map();
 
   function canvas(w, h) {
     const c = document.createElement('canvas');
@@ -743,11 +743,24 @@ const Sprites = (() => {
   }
 
   // Höhere Auflösung für Standbilder (z. B. Titelbilder); leert den Zwischenspeicher
-  function setScale(s) { SC = s; cache.clear(); }
+  function setScale(s) { SC = s; cache.clear(); hiCache.clear(); }
+
+  // Hochauflösende Fassung eines Sprites (z. B. für das Titelbild): fn läuft mit Faktor k über der normalen
+  // Auflösung und eigenem Zwischenspeicher, das Ergebnis wird unter key gemerkt. .size bleibt in Weltpixeln.
+  const hiCache = new Map();
+  function hires(key, k, fn) {
+    let c = hiCache.get(key + '@' + k);
+    if (c) return c;
+    const oc = cache, os = SC;
+    cache = new Map(); SC = os * k;
+    try { c = fn(); } finally { cache = oc; SC = os; }
+    hiCache.set(key + '@' + k, c);
+    return c;
+  }
 
   // Start: Grafiken bereitstellen (der Start wartet darauf, höchstens 2,5 s). Derzeit ist alles prozedural
   // und wird bei Bedarf gezeichnet – hier hängt sich später ein Bild-Atlas an.
   function load() { return Promise.resolve(); }
 
-  return { load, setScale, enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
+  return { load, setScale, hires, tintVariant, enemy, baseR, player, playerURL, gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade };
 })();

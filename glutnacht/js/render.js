@@ -1,7 +1,20 @@
 'use strict';
 // Zeichnet die Spielwelt auf das Canvas. Kamera folgt dem Spieler.
 
+// Abgerundetes Rechteck als Pfad (ohne ctx.roundRect, das ältere Safaris nicht kennen)
+function roundRect(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+}
+
+// Der Held wird größer gezeichnet, als sein Trefferkreis ist (nur Darstellung, r bleibt 12)
+const PLAYER_DRAW_SCALE = 1.25;
+// Kleinster Zoom: Held und Gegner bleiben auch auf Handys groß genug (vorher 0.55)
+const MIN_ZOOM = 0.8;
+
 const Render = {
+  keyArtOn: false, keyArtA: 0, hintA: 0,
   cv: null, ctx: null, dpr: 1, W: 0, H: 0, zoom: 1,
   cam: { x: 0, y: 0 }, camOffset: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
   pattern: null, vignette: null, hurtVig: null, spr: {}, list: [], embers: [],
@@ -90,7 +103,7 @@ const Render = {
     this.cv.width = Math.round(W * dpr); this.cv.height = Math.round(H * dpr);
     this.cv.style.width = W + 'px'; this.cv.style.height = H + 'px';
     // Hochformat-Handys: die Höhe als zweite Untergrenze, sonst wird alles winzig
-    this.zoom = clamp(Math.max(Math.min(W, H) / 660, H > W ? H / 1200 : 0), 0.55, 1.4);
+    this.zoom = clamp(Math.max(Math.min(W, H) / 660, H > W ? H / 1200 : 0), MIN_ZOOM, 1.4);
     Game.view.hw = W / 2 / this.zoom;
     Game.view.hh = H / 2 / this.zoom;
     this.vignette = this.makeVignette(W, H, 'rgba(6,2,20,0)', 'rgba(6,2,20,0.78)', 0.32);
@@ -125,7 +138,7 @@ const Render = {
     const inRun = r && Game.state !== 'menu';
     if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
     if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; }
-    else { this.cam.x += 18 * dt; this.cam.y += 7 * dt; }
+    else { const k = 1 - this.keyArtA * 0.85; this.cam.x += 18 * dt * k; this.cam.y += 7 * dt * k; } // vor dem Titelbild fast still
     let sx = 0, sy = 0;
     if (this.shake > 0) {
       sx = rand(-1, 1) * this.shake; sy = rand(-1, 1) * this.shake;
@@ -153,7 +166,7 @@ const Render = {
     ctx.globalAlpha = 1;
     ctx.drawImage(this.vignette, 0, 0, this.W, this.H);
     if (inRun) this.drawScreenFx(r, dt);
-    else this.drawEmbers(dt);
+    else { this.drawKeyArt(dt); this.drawEmbers(dt); }
   },
 
   drawDecor(x0, y0, x1, y1) {
@@ -284,8 +297,9 @@ const Render = {
       ctx.moveTo(e.x + e.r, e.y + e.r * 0.85);
       ctx.ellipse(e.x, e.y + e.r * 0.85, e.r, e.r * 0.32, 0, 0, TAU);
     }
-    ctx.moveTo(p.x + 11, p.y + 13);
-    ctx.ellipse(p.x, p.y + 13, 11, 4, 0, 0, TAU);
+    const PS = PLAYER_DRAW_SCALE;
+    ctx.moveTo(p.x + 11 * PS, p.y + 15 * PS);
+    ctx.ellipse(p.x, p.y + 15 * PS, 11 * PS, 4 * PS, 0, 0, TAU);
     ctx.fill();
 
     // Gegner und Spieler, nach y sortiert
@@ -395,13 +409,16 @@ const Render = {
     if (Store.data.settings.dmgNums) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      // Größe in Bildschirmpixeln (mind. 14 px), unabhängig vom Zoom
+      const z = this.zoom;
+      ctx.lineWidth = 3.5 / z;
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)';
       for (const tx of r.texts) {
         const k = tx.t / 0.7;
         const pop = tx.t < 0.08 ? 1 + (0.08 - tx.t) * 6 : 1;
         ctx.globalAlpha = 1 - k * k;
-        ctx.font = 'bold ' + Math.round(13 * tx.scale * pop) + 'px "Lilita One", Impact, sans-serif';
+        ctx.font = 'bold ' + Math.ceil(Math.max(14, 13 * tx.scale) * pop / z * 10) / 10 + 'px "Lilita One", Impact, sans-serif';
         ctx.strokeText(tx.txt, tx.x, tx.y);
         ctx.fillStyle = tx.color;
         ctx.fillText(tx.txt, tx.x, tx.y);
@@ -453,8 +470,9 @@ const Render = {
     const blink = p.iframe > 0 && Math.floor(this.time * 20) % 2 === 0;
     const spr = Sprites.player(ch.color, frame, p.flash > 0);
     ctx.save();
+    const PS = PLAYER_DRAW_SCALE;
     ctx.translate(p.x, p.y + (p.moving ? Math.abs(Math.sin(p.walk * Math.PI / 2)) * -2 : 0));
-    if (p.face < 0) ctx.scale(-1, 1);
+    ctx.scale(p.face < 0 ? -PS : PS, PS);
     if (blink) ctx.globalAlpha = 0.45;
     ctx.drawImage(spr, -spr.size / 2, -spr.size / 2, spr.size, spr.size);
     ctx.restore();
@@ -462,9 +480,9 @@ const Render = {
     // Lebensleiste
     const w = 40, k = Math.max(0, p.hp / r.stats.maxHp);
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(p.x - w / 2 - 1, p.y + 19, w + 2, 8);
+    ctx.fillRect(p.x - w / 2 - 1, p.y + 23, w + 2, 8);
     ctx.fillStyle = k > 0.5 ? '#5dff8f' : k > 0.25 ? '#ffd34f' : '#ff5a6e';
-    ctx.fillRect(p.x - w / 2, p.y + 20, w * k, 6);
+    ctx.fillRect(p.x - w / 2, p.y + 24, w * k, 6);
   },
 
   drawScreenFx(r, dt) {
@@ -508,24 +526,180 @@ const Render = {
       ctx.drawImage(sp, -11, -11, 22, 22);
       ctx.restore();
     }
-    // Einstiegshilfe in den ersten Läufen
+    // Einstiegshilfe in den ersten Läufen: Tasten- bzw. Wisch-Bild unter dem Helden, verblasst nach dem ersten Schritt
     if (Store.data.stats.runs <= 2 && r.t < 40) {
-      let txt = null;
-      if (!r.moved) txt = tr(Input.touch ? 'Gedrückt halten und ziehen zum Laufen' : 'WASD / Pfeiltasten zum Laufen');
-      else if (r.level === 1 && r.t > 6) txt = tr('Sammle die blauen Edelsteine!');
-      if (txt) {
-        const s = this.toScreen(p.x, p.y);
+      const s = this.toScreen(p.x, p.y), y = s.y + 31 * this.zoom + (Input.touch ? 54 : 40); // unter der Lebensleiste
+      this.hintA = clamp(this.hintA + (r.moved ? -3 : 3) * dt, 0, 1);
+      if (this.hintA > 0) this.drawMoveHint(s.x, y, this.hintA);
+      else if (r.moved && r.level === 1 && r.t > 6) {
+        const txt = tr('Sammle die blauen Edelsteine!');
         ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.25;
         ctx.font = '19px "Lilita One", Impact, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-        ctx.strokeText(txt, s.x, s.y + 70);
+        ctx.strokeText(txt, s.x, y);
         ctx.fillStyle = '#ffffff';
-        ctx.fillText(txt, s.x, s.y + 70);
+        ctx.fillText(txt, s.x, y);
         ctx.globalAlpha = 1;
       }
-    }
+    } else this.hintA = 0;
     Input.drawJoystick(ctx);
+  },
+
+  // Bewegungshinweis ohne Text: WASD- und Pfeiltasten (Tastatur) oder Daumen im Ring (Touch)
+  drawMoveHint(cx, cy, a) {
+    const ctx = this.ctx, t = this.time;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (Input.touch) {
+      const R = 30, ph = t * 2.2;
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+      ctx.fillStyle = 'rgba(10,6,25,0.55)';
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      for (let i = 0; i < 4; i++) { // Pfeilspitzen am Ring
+        const an = i * TAU / 4;
+        ctx.save(); ctx.translate(cx + Math.cos(an) * (R + 9), cy + Math.sin(an) * (R + 9)); ctx.rotate(an);
+        ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      const tx = cx + Math.cos(ph) * R * 0.55, ty = cy + Math.sin(ph) * R * 0.55;
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowColor = 'rgba(255,170,80,0.9)'; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(tx, ty, 12, 0, TAU); ctx.fill();
+    } else {
+      const k = 26, g = 4, step = Math.floor(t / 0.45) % 4;
+      const key = (x, y, label, down, arrow) => {
+        const yy = y + (down ? 2 : 0);
+        ctx.fillStyle = 'rgba(0,0,0,0.55)';
+        roundRect(ctx, x, y + 3, k, k, 6); ctx.fill();
+        ctx.fillStyle = down ? '#ffb057' : 'rgba(28,18,58,0.92)';
+        ctx.strokeStyle = down ? '#ffd39a' : 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2;
+        roundRect(ctx, x, yy, k, k, 6); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = down ? '#2a0e00' : '#ffffff';
+        if (arrow !== undefined) {
+          ctx.save(); ctx.translate(x + k / 2, yy + k / 2); ctx.rotate(arrow);
+          ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -6); ctx.lineTo(-4, 6); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        } else {
+          ctx.font = '16px "Lilita One", Impact, sans-serif';
+          ctx.fillText(label, x + k / 2, yy + k / 2 + 1);
+        }
+      };
+      const cw = 3 * k + 2 * g, gap = 22, x0 = cx - cw - gap / 2, x1 = cx + gap / 2, y0 = cy - k - g / 2, y1 = cy + g / 2;
+      // Reihenfolge des „Drückens“: oben, links, unten, rechts
+      key(x0 + k + g, y0, 'W', step === 0); key(x0, y1, 'A', step === 1); key(x0 + k + g, y1, 'S', step === 2); key(x0 + 2 * (k + g), y1, 'D', step === 3);
+      key(x1 + k + g, y0, '', step === 0, -Math.PI / 2); key(x1, y1, '', step === 1, Math.PI); key(x1 + k + g, y1, '', step === 2, Math.PI / 2); key(x1 + 2 * (k + g), y1, '', step === 3, 0);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '15px "Lilita One", Impact, sans-serif';
+      ctx.fillText('/', cx, y1 + k / 2);
+    }
+    ctx.restore();
+  },
+
+  // ---------- Titelbild im Menü: Held mit Glut, links; Monster-Schattenrisse mit Glutrand und leuchtenden Augen ----------
+  KEYART_EYES: { // Augen relativ zum Radius: [y, Abstand, Größe, Farbe] (wie in Sprites.ENEMY_DRAW)
+    bat: [-0.08, 0.24, 0.13, '#ff4060'], ghoul: [-0.2, 0.3, 0.14, '#9dff4f'], wraith: [-0.22, 0.2, 0.1, '#ffe14f'],
+    brute: [-0.1, 0.27, 0.09, '#ffde4f'], golem: [-0.25, 0.3, 0.12, '#5ff2ff'],
+  },
+
+  keyArtLayout(land) {
+    // [Typ, x (Anteil Breite), Fußlinie y (Anteil Höhe), Höhe relativ zum Helden, Blick nach links]
+    return land ? [
+      ['golem', 1.0, 0.74, 1.25, 1], ['brute', 0.9, 0.97, 1.0, 1], ['ghoul', 0.79, 1.02, 0.7, 1],
+      ['wraith', 0.88, 0.5, 0.55, 1], ['bat', 0.93, 0.2, 0.4, 1], ['bat', 0.78, 0.13, 0.32, 1], ['ghoul', 0.0, 1.0, 0.7, 0],
+    ] : [
+      // Hochformat: Menü füllt die Mitte, die Horde bleibt in den Ecken
+      ['brute', 0.9, 1.02, 1.0, 1], ['ghoul', 0.1, 1.02, 0.85, 0], ['wraith', 0.5, 0.11, 0.45, 1],
+      ['bat', 0.14, 0.12, 0.45, 0], ['bat', 0.86, 0.17, 0.4, 1],
+    ];
+  },
+
+  drawKeyArt(dt) {
+    this.keyArtA = clamp(this.keyArtA + (this.keyArtOn ? 2.5 : -2.5) * dt, 0, 1);
+    const A = this.keyArtA;
+    if (A <= 0) return;
+    const ctx = this.ctx, W = this.W, H = this.H, t = this.time, d = this.dpr;
+    const land = W >= H * 1.15;
+    const hh = land ? clamp(H * 0.26, 70, 220) : clamp(H * 0.14, 70, 150); // sichtbare Heldenhöhe in px
+    const hx = land ? Math.max(hh * 0.9, W * 0.13) : W * 0.5;
+    const gy = land ? H * 0.88 : H - Math.max(18, H * 0.04);
+    const fl = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 13.7) * 0.02;
+    const s = hh / 31; // Spieler-Sprite: rund 31 sichtbare Einheiten hoch, Füße bei +17,4
+
+    // Glut-Schein um den Helden und auf dem Boden
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = A;
+    const ex = hx + 9 * s, ey = gy - 21 * s;
+    let gr = ctx.createRadialGradient(ex, ey, 0, ex, ey, hh * 2.4 * fl);
+    gr.addColorStop(0, 'rgba(255,170,80,0.42)'); gr.addColorStop(0.3, 'rgba(255,110,40,0.16)'); gr.addColorStop(1, 'rgba(255,80,20,0)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    // violetter Nebel hinter der Horde
+    const mx = land ? W * 0.86 : W * 0.5, my = land ? H * 0.7 : H * 0.15;
+    gr = ctx.createRadialGradient(mx, my, 0, mx, my, Math.max(W, H) * 0.45);
+    gr.addColorStop(0, 'rgba(110,50,190,0.16)'); gr.addColorStop(1, 'rgba(110,50,190,0)');
+    ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Monster: Glutrand (zum Helden hin versetzt), darüber dunkler Schattenriss, dann Augen
+    const list = this.keyArtLayout(land);
+    list.forEach(([type, fx, fy, rel, faceL], i) => {
+      const R = Sprites.baseR(type), frame = type === 'bat' ? Math.floor(t * 5 + i) % 2 : 0;
+      const box = hh * rel * 1.55; // Spritekasten (Figur ist etwas kleiner)
+      const sc = box / (R * 3.4);
+      const bob = Math.sin(t * (type === 'bat' || type === 'wraith' ? 3 : 1.6) + i * 1.7) * hh * (type === 'bat' || type === 'wraith' ? 0.05 : 0.012);
+      const x = fx * W, y = fy * H - box * 0.36 + bob;
+      const k = clamp(Math.ceil(box * d / (R * 3.4) / 2), 1, 6);
+      const base = Sprites.hires('ka-' + type + frame, k, () => Sprites.enemy(type, frame, 0, null));
+      const rim = Sprites.hires('ka-rim-' + type + frame, k, () => Sprites.tintVariant(base, '#ff9a4a', 1));
+      const sil = Sprites.hires('ka-sil-' + type + frame, k, () => Sprites.tintVariant(base, '#08040f', 0.9));
+      const dirx = Math.sign(hx - x) || 1, off = Math.max(1.5, box * 0.025);
+      ctx.save();
+      ctx.translate(x, y);
+      if (faceL) ctx.scale(-1, 1);
+      const lx = dirx * (faceL ? -1 : 1);
+      ctx.globalAlpha = A * 0.75;
+      ctx.drawImage(rim, -box / 2 + lx * off, -box / 2 - off * 0.6, box, box);
+      ctx.globalAlpha = A;
+      ctx.drawImage(sil, -box / 2, -box / 2, box, box);
+      const e = this.KEYART_EYES[type];
+      if (e) {
+        ctx.globalCompositeOperation = 'lighter';
+        const blink = (Math.sin(t * 0.9 + i * 2.3) > 0.97) ? 0.15 : 1;
+        const ey2 = e[0] * R * sc, gx = e[1] * R * sc, er = Math.max(2, e[2] * R * sc);
+        const gl = this.eyeGlow(e[3]);
+        ctx.globalAlpha = A * blink;
+        for (const sx of [-1, 1]) ctx.drawImage(gl, sx * gx - er * 2, ey2 - er * 2, er * 4, er * 4);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      ctx.restore();
+    });
+
+    // Held (schaut nach rechts zur Horde) mit Glut in der Hand
+    const ch = CHARS[Store.data.lastChar] || CHARS.aron;
+    const p0 = Sprites.player(ch.color, 0, false);
+    const k = clamp(Math.ceil(46 * s * d / p0.width), 1, 8);
+    const hero = Sprites.hires('ka-hero' + ch.color, k, () => Sprites.player(ch.color, 0, false));
+    ctx.globalAlpha = A * 0.5;
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.ellipse(hx, gy, 12 * s, 3.5 * s, 0, 0, TAU); ctx.fill();
+    ctx.globalAlpha = A;
+    const by = Math.sin(t * 1.8) * s * 0.4;
+    ctx.drawImage(hero, hx - 23 * s, gy - 17.4 * s - 23 * s + by, 46 * s, 46 * s);
+    ctx.globalCompositeOperation = 'lighter';
+    const fs = 22 * s * fl;
+    ctx.drawImage(this.spr.flame, ex - fs / 2, ey - fs * 0.6 + by, fs, fs);
+    ctx.globalAlpha = A * 0.8;
+    ctx.drawImage(this.spr.flame, ex - fs / 4, ey - fs * 0.3 + by, fs / 2, fs / 2);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  },
+
+  eyeGlow(col) {
+    const k = 'eye' + col;
+    if (!this.spr[k]) this.spr[k] = this.glowSprite(32, '#ffffff', col);
+    return this.spr[k];
   },
 
   drawEmbers(dt) {

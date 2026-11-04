@@ -14,6 +14,9 @@ const TIPS = [
   'Siege schalten Nachtstufen frei: härter, aber deutlich mehr Gold.',
 ];
 
+// Kurzfassung der Rahmengeschichte für den Kapitel-Banner im allerersten Lauf (eine Zeile)
+const PREMISE_SHORT = 'Trag die letzte Glut durch die Nacht und hol den Morgen zurück.';
+
 const UI = {
   el: {}, cur: null, selChar: null, banMode: false, hudSig: '', lastHud: {}, optsBack: 'menu',
   prevBest: 0, confirm: null, modalReady: 0, bannerT: null, kbNav: false,
@@ -21,7 +24,7 @@ const UI = {
   init() {
     const $ = id => document.getElementById(id);
     this.el = {
-      hud: $('hud'), xpfill: $('xpfill'), xplvl: $('xplvl'), timer: $('timer'), kills: $('kills'), gold: $('goldc'),
+      hud: $('hud'), xpfill: $('xpfill'), xplvl: $('xplvl'), timer: $('timer'), kills: $('kills'), gold: $('goldc'), goldrow: $('goldrow'),
       wslots: $('wslots'), pslots: $('pslots'), bossbar: $('bossbar'), bossname: $('bossname'), bossfill: $('bossfill'),
       banner: $('banner'), toasts: $('toasts'), screen: $('screen'), pausebtn: $('pausebtn'),
     };
@@ -44,6 +47,7 @@ const UI = {
   show(name, data) {
     this.releaseBoot();
     this.cur = name;
+    Render.keyArtOn = name === 'menu';
     this.el.screen.className = 'show s-' + name;
     this.el.screen.innerHTML = this['tpl_' + name](data);
     this.el.screen.scrollTop = 0;
@@ -67,6 +71,7 @@ const UI = {
     const f = document.getElementById('bootfade');
     if (f) f.remove();
     this.cur = null;
+    Render.keyArtOn = false;
     this.el.screen.className = '';
     this.el.screen.innerHTML = '';
   },
@@ -76,22 +81,23 @@ const UI = {
   },
 
   // ---------- Bildschirme ----------
+  // Titelbildschirm. Beim ersten Besuch nur Logo, Leitspruch und SPIELEN (plus Schmiede/Erfolge/Einstellungen):
+  // kein Gold, kein Zähler, kein Tipp. Die Sprache steht in den Einstellungen. Das Bild dahinter malt Render.drawKeyArt.
   tpl_menu() {
-    const s = Store.data, st = s.stats;
+    const s = Store.data, st = s.stats, first = !st.runs;
     const achN = Object.keys(s.achievements).length;
-    const tip = tr(st.runs ? pick(TIPS) : 'Du greifst automatisch an. Lauf, weich aus und sammle blaue Edelsteine – jede Stufe bringt eine neue Waffe oder Verbesserung.');
-    return '<div class="menu">' + this.langSwitch() +
+    return '<div class="menu' + (first ? ' first' : '') + '">' +
       '<div class="logo"><span>Ember</span><span>Night</span></div>' + // Name in allen Sprachen gleich (wie im Portal)
       '<div class="tag">' + tr('Fünf Länder. Eine Glut. Tausende Monster.') + '</div>' +
       '<button class="btn big primary pulse" data-act="play">' + tr('SPIELEN') + '</button>' +
       '<div class="row">' +
       '<button class="btn" data-act="shop">' + this.icon('armor') + tr('Schmiede') + '</button>' +
-      '<button class="btn" data-act="ach">' + this.icon('trophy') + tr('Erfolge') + ' <span class="pill">' + achN + '/' + ACHIEVEMENTS.length + '</span></button>' +
+      '<button class="btn" data-act="ach">' + this.icon('trophy') + tr('Erfolge') + (first ? '' : ' <span class="pill">' + achN + '/' + ACHIEVEMENTS.length + '</span>') + '</button>' +
       '<button class="btn" data-act="opts">' + this.icon('clock') + tr('Einstellungen') + '</button>' +
       '</div>' +
-      this.goldBox() +
-      (st.runs ? '<div class="statsline">★ <b>' + totalStars(s) + '/' + STAGES.length * 3 + '</b> · ' + tr('Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' : '') +
-      '<div class="tip"><b>' + tr('Tipp:') + '</b> ' + tip + '</div>' +
+      (first ? '' : this.goldBox() +
+        '<div class="statsline">★ <b>' + totalStars(s) + '/' + STAGES.length * 3 + '</b> · ' + tr('Bestzeit {0} · Höchste Stufe {1} · Besiegt {2} · Siege {3}', '<b>' + fmtTime(st.bestTime) + '</b>', '<b>' + st.bestLevel + '</b>', '<b>' + fmtNum(st.kills) + '</b>', '<b>' + st.wins + '</b>') + '</div>' +
+        '<div class="tip"><b>' + tr('Tipp:') + '</b> ' + tr(pick(TIPS)) + '</div>') +
       '</div>';
   },
 
@@ -145,7 +151,9 @@ const UI = {
 
   tpl_map() {
     const s = Store.data, sel = this.selStage();
-    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Weltkarte') + '</h2><div class="pill big">★ ' + totalStars(s) + ' / ' + STAGES.length * 3 + '</div></div><div class="stages">';
+    let h = '<div class="panel wide"><div class="phead"><h2>' + tr('Weltkarte') + '</h2><div class="pill big">★ ' + totalStars(s) + ' / ' + STAGES.length * 3 + '</div></div>' +
+      // Rahmengeschichte (kein Dialog mehr vor dem ersten Lauf): hier, bis das erste Land befreit ist
+      (totalStars(s) ? '' : '<p class="mappremise">' + tr(STORY.premise) + '</p>') + '<div class="stages">';
     STAGES.forEach((st, i) => {
       const open = stageUnlocked(s, i);
       const bg = (st.ground && st.ground.base) || '#1d2a2b';
@@ -475,7 +483,7 @@ const UI = {
     Sfx.play('levelup');
     this.hide();
     this.banMode = false;
-    this.hudSig = '';
+    this.hudSig = ''; this.lastHud = {};
     Game.newRun(charId, heat, stage.id);
     Render.setStage(stage);
     this.el.hud.hidden = false;
@@ -483,16 +491,20 @@ const UI = {
     clearTimeout(this.bannerT);
     this.el.banner.className = '';
     if (s.settings.music) Sfx.startMusic();
-    // Beim ersten Besuch eines Gebiets erst die Geschichte zeigen
-    if (!s.storySeen[stage.id]) {
+    // Allererster Lauf: kein Dialog, sofort spielen – die Rahmengeschichte steht als eine Zeile im Kapitel-Banner
+    // (ganz auf der Weltkarte). Neue Länder danach: erst die Geschichte des Landes.
+    if (!s.storySeen.premise) {
+      s.storySeen.premise = true; s.storySeen[stage.id] = true; Store.save();
+      this.chapterBanner(true);
+    } else if (!s.storySeen[stage.id]) {
       Game.state = 'story';
-      this.show('story', { stage, premise: !s.storySeen.premise });
+      this.show('story', { stage, premise: false });
     } else this.chapterBanner();
   },
 
-  chapterBanner() {
+  chapterBanner(premise) {
     const r = Game.run;
-    if (r) this.banner(tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event');
+    if (r) this.banner(tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event', premise ? tr(PREMISE_SHORT) : '', premise ? 3.2 : 2.2);
   },
 
   toMenu() {
@@ -581,14 +593,18 @@ const UI = {
     }, sum.won ? 300 : 1100);
   },
 
-  banner(text, kind) {
+  // Kurzer Banner im oberen Fünftel (über dem Helden); sub = optionale zweite, kleinere Zeile; dur in Sekunden
+  banner(text, kind, sub, dur) {
     const b = this.el.banner;
+    dur = dur || 1.9;
     b.textContent = text;
+    if (sub) { const sm = document.createElement('small'); sm.textContent = sub; b.appendChild(sm); }
     b.className = '';
+    b.style.setProperty('--bd', dur + 's');
     void b.offsetWidth;
     b.className = 'show ' + (kind || '');
     clearTimeout(this.bannerT);
-    this.bannerT = setTimeout(() => { b.className = ''; }, 2600);
+    this.bannerT = setTimeout(() => { b.className = ''; }, dur * 1000);
   },
 
   achievement(a) {
@@ -619,14 +635,21 @@ const UI = {
       L.t = tt;
     }
     if (L.kills !== r.kills) { el.kills.textContent = fmtNum(r.kills); L.kills = r.kills; }
-    if (L.gold !== r.gold) { el.gold.textContent = fmtNum(r.gold); L.gold = r.gold; }
+    if (L.gold !== r.gold) {
+      el.gold.textContent = fmtNum(r.gold); L.gold = r.gold;
+      el.goldrow.hidden = !(r.gold > 0); // Goldzähler erst ab der ersten Münze
+    }
     const sig = r.weapons.map(w => w.id + w.level + (w.evo ? 'e' : '')).join() + '|' + r.passives.map(p => p.id + p.level).join();
     if (sig !== this.hudSig) {
       this.hudSig = sig;
+      // nur belegte Plätze plus ein „+“ für den nächsten freien
       const slot = (id, lvl, max, evo) => '<div class="slot' + (evo ? ' evo' : '') + '">' + this.icon(id) + '<span>' + (evo ? '★' : lvl) + '</span></div>';
+      const add = '<div class="slot add">+</div>';
       let wh = '', ph = '';
-      for (let i = 0; i < MAX_WEAPONS; i++) { const w = r.weapons[i]; wh += w ? slot(w.id, w.level, WEAPON_MAX, w.evo) : '<div class="slot empty"></div>'; }
-      for (let i = 0; i < MAX_PASSIVES; i++) { const p = r.passives[i]; ph += p ? slot(p.id, p.level, PASSIVES[p.id].max) : '<div class="slot empty"></div>'; }
+      for (const w of r.weapons) wh += slot(w.id, w.level, WEAPON_MAX, w.evo);
+      if (r.weapons.length < MAX_WEAPONS) wh += add;
+      for (const p of r.passives) ph += slot(p.id, p.level, PASSIVES[p.id].max);
+      if (r.passives.length < MAX_PASSIVES) ph += add;
       el.wslots.innerHTML = wh; el.pslots.innerHTML = ph;
     }
     let boss = null;

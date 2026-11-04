@@ -293,6 +293,7 @@ const LANG_EN = {
   'Gedrückt halten und ziehen zum Laufen': 'Hold and drag to move',
   'WASD / Pfeiltasten zum Laufen': 'WASD / arrow keys to move',
   'Sammle die blauen Edelsteine!': 'Collect the blue gems!',
+  'Trag die letzte Glut durch die Nacht und hol den Morgen zurück.': 'Carry the last ember through the night and bring back the dawn.',
   'Schleimkönig': 'Slime King',
   'Knochenfürst': 'Bone Lord',
   'Blutgraf': 'Blood Count',

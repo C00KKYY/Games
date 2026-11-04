@@ -37,13 +37,13 @@
 <div id="app">
   <canvas id="game" aria-label="Game world"></canvas>
   <div id="hud" hidden>
-    <div id="xp"><div id="xpfill"></div><div id="xplvl"></div></div>
+    <div id="xp"><div id="xplvl"></div><div id="xptrack"><div id="xpfill"></div></div></div>
     <div id="hudrow">
       <div id="slots"><div id="wslots" class="slotrow"></div><div id="pslots" class="slotrow"></div></div>
       <div id="timer">0:00</div>
       <div id="counters">
         <div><img data-icon="skull" alt=""><span id="kills">0</span></div>
-        <div><img data-icon="coin" alt=""><span id="goldc">0</span></div>
+        <div id="goldrow" hidden><img data-icon="coin" alt=""><span id="goldc">0</span></div>
       </div>
     </div>
     <div id="bossbar" hidden><div id="bossname"></div><div class="bar"><div id="bossfill"></div></div></div>

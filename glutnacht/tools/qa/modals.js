@@ -17,11 +17,12 @@ require('fs').mkdirSync(OUT, { recursive: true });
     await page.waitForSelector('[data-act="play"]');
     await page.click('[data-act="play"]', { force: true });
     await page.waitForTimeout(400);
-    if (name === 'iphone-land') {
+    // Seit M2 startet der erste Lauf ohne Story-Dialog; falls doch einer kommt, messen und bestätigen
+    if (await page.$('[data-act="storyok"]')) {
       const m = await page.evaluate(() => { const s = document.getElementById('screen'); const b = document.querySelector('[data-act="storyok"]').getBoundingClientRect(); return { scrollH: s.scrollHeight, clientH: s.clientHeight, btnBottom: b.bottom, vh: innerHeight }; });
-      console.log('story modal iphone-land', JSON.stringify(m));
+      console.log('story modal ' + name, JSON.stringify(m));
+      await page.click('[data-act="storyok"]', { force: true });
     }
-    await page.click('[data-act="storyok"]', { force: true });
     await page.waitForTimeout(350);
     await page.screenshot({ path: OUT + name + '-chapter-banner.png' });
     // force a level-up and a chest
