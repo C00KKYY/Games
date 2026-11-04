@@ -128,6 +128,8 @@ const Promo = {
       landscape: { hx: 0.3, hy: 0.6, hs: 0.42, tx: 0.72, ty: 0.48, ts: 0.25 },
       portrait: { hx: 0.5, hy: 0.4, hs: 0.36, tx: 0.5, ty: 0.79, ts: 0.25 },
       square: { hx: 0.5, hy: 0.38, hs: 0.36, tx: 0.5, ty: 0.79, ts: 0.21 },
+      // itch.io-Titelbild 630×500 (fast quadratisch, Querlayout mit kleinerem Titel)
+      itch: { hx: 0.25, hy: 0.6, hs: 0.38, tx: 0.68, ty: 0.48, ts: 0.17 },
     }[layout];
     const hx = L.hx * CW, hy = L.hy * CH, hs = L.hs * U; // Held: Mittelpunkt und Höhe
 

@@ -76,4 +76,6 @@ node tools/simtest.js aron 0 3 ashwood   # 3 Läufe headless mit einfachem Bot (
 node tools/balance-batch.js 12 ashwood:none:0 ashwood:light:0   # starker Bot: Siegquote je Land/Schmiede/Nachtstufe
 node tools/build-single.js out.html # alles in eine HTML-Datei bündeln
 node tools/build-single.js --crazygames  # dist/crazygames/index.html zum Hochladen bei CrazyGames
+node tools/build-single.js dist/itch/index.html   # ohne CrazyGames-SDK, z. B. für itch.io (als ZIP hochladen)
+node tools/promo/covers.js            # Titelbilder inkl. itch.io (630×500) nach dist/promo/
 ```
