@@ -348,12 +348,21 @@ function useTick(w: World, a: Agent, ctx: { mf: (a: Agent) => number; noiseBunks
     }
   }
   if (a.reform >= a.sentence && a.sentence > 0 && act.kind !== 'sleep' && act.kind !== 'eat') { finish(w, a); return; }
-  const low = a.needs.hunger < NEEDS.alarmBelow || a.needs.hygiene < NEEDS.alarmBelow || (needActive(w, 'fun') && a.needs.fun < NEEDS.alarmBelow);
+  // a critical need only interrupts the block if it can be fixed right now (else the rascal would loop walk → abort → walk)
+  const low = (a.needs.hunger < NEEDS.alarmBelow && inMeal(hourOf(w.t)) && canFix(w, 'canteen'))
+    || (a.needs.hygiene < NEEDS.alarmBelow && canFix(w, 'wash'))
+    || (needActive(w, 'fun') && a.needs.fun < NEEDS.alarmBelow && act.kind !== 'yard' && canFix(w, 'yard'));
   const blockKind = act.kind === 'class' || act.kind === 'work' || act.kind === 'yard' || act.kind === 'hang';
   // lunch bell: a meal window opens and the rascal is peckish → leave the block and go eat
   const h = hourOf(w.t), hPrev = hourOf(w.t - 1);
   const bell = blockKind && inMeal(h) && !inMeal(hPrev) && a.needs.hunger < 85;
   if (w.t >= act.untilT || (blockKind && low) || bell || (r && r.blockedUntilMs > w.rtMs)) finish(w, a);
+}
+
+/** is there a usable room of this type with a free slot right now? */
+function canFix(w: World, type: RoomType): boolean {
+  for (const r of roomsUsable(w, type)) { const n = openSlots(w, r); for (let i = 0; i < n; i++) if (r.slotUser[i] === 0) return true; }
+  return false;
 }
 
 function finish(w: World, a: Agent) {

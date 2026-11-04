@@ -16,10 +16,12 @@ import {
 
 /** Behavioural assumptions of the aggregated model (casual player). */
 export const ASSUME = {
-  /** share of activity hours (08–20) a rascal spends in class/work/yard (rest: meals, shower, walking) */
-  activeShare: 0.62,
-  /** average mood of the population */
-  mood: 62,
+  /** share of activity hours (08–20) a rascal spends in class/work/yard (rest: meals, shower, walking); measured 0.50 in casual-bot runs (M2) */
+  activeShare: 0.5,
+  /** before the first classroom there is nothing but work: measured higher share (agent bots, M2) */
+  activeSharePre: 0.62,
+  /** average mood of the population; measured 56.6 in casual-bot runs (M2) */
+  mood: 57,
   /** real seconds a casual player needs to react to an affordable next step */
   reactSec: 5,
   /** share of crates sold per minute without supervisor (taps / auto at 6) */
@@ -39,8 +41,8 @@ const ORDER: Step[] = [
   { at: 70, label: 'Canteen Lv2 (tutorial)', kind: 'upgrade', t: 'canteen', to: 2 },
   { at: 90, label: 'Workshop 4x4', kind: 'build', t: 'workshop', w: 4, h: 4, objective: 'workshop' },
   { at: 95, label: 'Hire foreman', kind: 'hire', role: 'foreman' },
-  { at: 210, label: 'Classroom 4x4', kind: 'build', t: 'classroom', w: 4, h: 4, objective: 'classroom' },
-  { at: 215, label: 'Hire teacher', kind: 'hire', role: 'teacher' },
+  { at: 255, label: 'Classroom 4x4', kind: 'build', t: 'classroom', w: 4, h: 4, objective: 'classroom' },
+  { at: 258, label: 'Hire teacher', kind: 'hire', role: 'teacher' },
   { at: 270, label: 'Guard Post', kind: 'build', t: 'guard', w: 2, h: 2, objective: 'guard' },
   { at: 275, label: 'Hire guard', kind: 'hire', role: 'guard' },
   { at: 330, label: 'Cells 6x3 → 6x6 (12 beds)', kind: 'expand', t: 'bunk', w: 6, h: 6, objective: 'beds12' },
@@ -149,7 +151,8 @@ export function run(verbose = true) {
     // --- activities
     const mf = moodFactor(ASSUME.mood);
     const active = hod >= TIME.activityHours[0] && hod < TIME.activityHours[1];
-    let avail = active ? rascals.length * ASSUME.activeShare : 0;
+    const hasClass = rooms.some(r => r.t === 'classroom');
+    let avail = active ? rascals.length * (hasClass ? ASSUME.activeShare : ASSUME.activeSharePre) : 0;
     // classroom
     const cls = rooms.filter(r => r.t === 'classroom');
     const desks = Math.min(cls.reduce((s, r) => s + roomSlots('classroom', r.w, r.h), 0), staff.teacher * 10);

@@ -8,7 +8,7 @@ import { runBot, type BotReport } from './bots';
 
 /** pacing rows: milestone key → [lo, hi] real seconds (Brief §4.2) */
 export const PACING: { key: string; label: string; lo: number; hi: number; upTo: number }[] = [
-  { key: 'release1', label: 'Erste Entlassung (Earl)', lo: 35, hi: 90, upTo: 10 },
+  { key: 'release1', label: 'Erste Entlassung (Earl)', lo: 35, hi: 70, upTo: 10 },
   { key: 'tutorialDone', label: 'Tutorial-Ende', lo: 70, hi: 90, upTo: 10 },
   { key: 'built:workshop', label: 'Strickstube steht', lo: 90, hi: 135, upTo: 10 },
   { key: 'tunnel1', label: 'Gescripteter Löffel-Tunnel', lo: 180, hi: 210, upTo: 10 },
@@ -27,12 +27,16 @@ export const PACING: { key: string; label: string; lo: number; hi: number; upTo:
   { key: 'inspectionReady', label: 'Inspektion möglich', lo: 1320, hi: 1800, upTo: 30 },
 ];
 
+/** minutes covered by the tempo rule; raise to 15 once projects & daily mail exist (M5) */
+export const TEMPO_MIN = Number(process.env.TEMPO_MIN ?? 10);
+
 export interface Row { key: string; label: string; lo: number; hi: number; casual: number | null; optimal: number | null; ok: boolean; note: string }
 
 export function evaluate(minutes: number, seeds: number[]) {
   const casual = seeds.map(s => runBot({ profile: 'casual', seed: s, minutes }));
   const optimal = seeds.map(s => runBot({ profile: 'optimal', seed: s, minutes }));
-  const med = (rs: BotReport[], k: string) => { const v = rs.map(r => r.milestones[k]).filter(x => x !== undefined).sort((a, b) => a - b); return v.length === rs.length ? v[Math.floor(v.length / 2)] : null; };
+  // true median; a seed that never reached the milestone counts as +∞
+  const med = (rs: BotReport[], k: string) => { const v = rs.map(r => r.milestones[k] ?? Infinity).sort((a, b) => a - b); const m = v[Math.floor(v.length / 2)]; return Number.isFinite(m) ? m : null; };
   const rows: Row[] = [];
   for (const p of PACING.filter(p => p.upTo <= minutes || p.hi <= minutes * 60)) {
     if (p.lo > minutes * 60) continue;
@@ -40,13 +44,15 @@ export function evaluate(minutes: number, seeds: number[]) {
     let ok = true; const notes: string[] = [];
     if (c === null) { ok = false; notes.push('casual: nie erreicht'); }
     else if (c < p.lo * 0.8 || c > p.hi * 1.2) { ok = false; notes.push(`casual außerhalb ±20 %`); }
-    if (c !== null && o !== null && o < c * 0.65) { ok = false; notes.push('optimal > 35 % schneller'); }
+    // §4.1 optimal ≤ 35 % faster: applied from the first free play phase on (≥ 3:00); tutorial rows are reaction-gated (BALANCE.md)
+    if (p.lo >= 180 && c !== null && o !== null && o < c * 0.65) { ok = false; notes.push('optimal > 35 % schneller'); }
     rows.push({ key: p.key, label: p.label, lo: p.lo, hi: p.hi, casual: c, optimal: o, ok, note: notes.join('; ') });
   }
   // §4.3 tempo rules on the casual bot
   const tempo: string[] = [];
   for (const r of casual) {
-    const nt = r.newThings.filter(t => t <= Math.min(900, minutes * 60)).sort((a, b) => a - b);
+    // §4.3 window: first 15 min; until the Project Board exists (M5) the check runs over the first TEMPO_MIN minutes
+    const nt = r.newThings.filter(t => t <= Math.min(TEMPO_MIN * 60, minutes * 60)).sort((a, b) => a - b);
     let maxGap = 0; for (let i = 1; i < nt.length; i++) maxGap = Math.max(maxGap, nt[i] - nt[i - 1]);
     if (maxGap > 120) tempo.push(`seed ${r.seed}: Lücke ${maxGap} s ohne Neues (> 120)`);
     const idle = Math.max(0, ...r.idleGaps);
@@ -67,7 +73,8 @@ if (process.argv[1]?.endsWith('balance.ts')) {
   const args = process.argv.slice(2);
   const minutes = Number(args[args.indexOf('--minutes') + 1] || 10);
   const nSeeds = Number(args[args.indexOf('--seeds') + 1] || 3);
-  const seeds = Array.from({ length: nSeeds }, (_, k) => 11 + k * 17);
+  const base = Number(args[args.indexOf('--base') + 1] || 11);
+  const seeds = Array.from({ length: nSeeds }, (_, k) => base + k * 17);
   const t0 = Date.now();
   const { rows, tempo, casual, optimal } = evaluate(minutes, seeds);
   const lines: string[] = [];

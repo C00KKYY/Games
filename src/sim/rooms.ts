@@ -75,7 +75,7 @@ export function validatePlacement(w: World, type: RoomType, x: number, y: number
   rebuild(w);
   const ok = connectivityOk(w);
   w.rooms.pop();
-  if (existing && saved) w.rooms.push(existing), w.rooms.sort((a, b) => a.id - b.id);
+  if (existing && saved) { w.rooms.push(existing); w.rooms.sort((a, b) => a.id - b.id); }
   rebuild(w);
   return ok ? { reason: 'ok', door } : { reason: 'blocksPath' };
 }

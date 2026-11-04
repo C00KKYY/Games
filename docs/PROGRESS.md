@@ -1,7 +1,7 @@
 # PROGRESS
 
-**Aktueller Meilenstein:** M1 Art-Spike, fertig → **wartet auf Freigabe G1**
-**Gates:** G1 **offen, Material liegt vor** · G2 offen · G3 offen
+**Aktueller Meilenstein:** M2 headless Simulation – Abnahme fast komplett (Review-Workflow läuft)
+**Gates:** G1 freigegeben? – Antwort "brides jq" als "beides ja" gelesen, **schriftliche Bestätigung ausstehend** · G2 offen · G3 offen
 
 ## Erledigt
 - **M0** (siehe Commit): Brief, Rules-Check, Pixi-Notizen, Namensprüfung („Rascal Rock Lockup" frei, EUIPO/TMview nicht prüfbar), Wettbewerb inklusive Gameplay-Screenshots, GDD, Style Guide, Economy-Sheet (H0 grün), Setup, Plattform-Wrapper, Mock-SDK. Tests 0, A1, A1b, A7.
@@ -18,9 +18,27 @@
   - Blindvergleich bestanden (1 von 3 billigsten ist eigenes Bild, mit Einschränkung, siehe ART_SPIKE.md).
 - G1-Material: `qa/g1/` + `docs/ART_SPIKE.md`
 
+- **M2 headless Simulation** (`src/sim/`):
+  - Raster mit Kantenwänden, Dijkstra-Distanzfeldern (8 Nachbarn) und Komponenten.
+  - Räume mit Platzierungsregeln, Türwahl nach Kapazität, Möbel-/Slot-Packer, Upgrades/Meilensteine, Abriss/Undo.
+  - Schlingel mit Bedürfnissen, Laune, Aktivitätswahl, Warteschlangen und Watchdog.
+  - Personal, Karren, Bautrupp, Fähre mit Horn-Regel und Dock-Schlange, Tor, Director (Tunnel, Essensschlacht, VIP-Ankündigung, Ruckus), Tutorial-Schritte, Klemmbrett (10 Ziele, 7 Pflicht), Freischaltungen.
+  - Befehls-API, Stepper (µs-Akkumulator, 8-Tick-Cap), Nachtsprung in Sitzung 1, Invarianten, State-Hash.
+  - Fluss-Leiste-Berechnung (`flow.ts`), Speicherformat (`src/save/serialize.ts`: lz-string, 2 Slots, CRC32, Migrationen).
+  - i18n EN/DE (`src/i18n`), Strafakten-Gags.
+  - Sim-Ansicht im Browser (`?sim&bot=casual&warp=300`).
+- Startgelände-Layout v2 (Baustreifen über der vorgebauten Reihe). Möbel für Werkstatt, Klassenzimmer, Wachposten und Hof.
+- Abnahme M2:
+  - C1a: p95 0,46 ms bei 206 Agenten.
+  - C2: Tick-Zahl bei 60/144/165 Hz gleich, Hash gleich.
+  - H4: Hash nach Speichern/Laden gleich, auch 3000 Ticks später.
+  - H0 grün.
+  - **H1 (erste 10 min) grün auf 27 Seeds**, Ausnahmen siehe BALANCE.md §0.
+
 ## Offen
-- G1-Freigabe durch den Auftraggeber.
-- Persistenz: Das Repo hat kein Remote (siehe Abweichung 5).
+- Schriftliche Bestätigung G1 und Push-Erlaubnis (Push zweimal vom Auto-Mode blockiert).
+- Review-Workflow über `src/sim` läuft, Befunde einarbeiten.
+- Taktungsregel 10–15 min hängt an der Projekttafel (M5).
 
 ## Abweichungen vom Brief
 1. Eltern-Repo enthält `verkehrsmeister/`, nicht `glutnacht/`. Ohne Auswirkung.
@@ -35,9 +53,9 @@
 - Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Topbar-Fluss-Leiste zu klein und zu leer (Blindvergleich). Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
 
 ## Letzte Testergebnisse
-- `npm test`: 6/6 grün (H0, Upgrade-Mathe, Art-Palette/Platzhalter/kein Text) · `npm run qa`: 5/5 grün · Nacht-Luminanz 0,476
+- `npm test`: 94/94 grün (H0, Pfadfindung, Layout, Kapazität, Sim-Smoke, C1a, C2, H4, i18n, Art) · ESLint/tsc sauber · `npm run balance -- --minutes 10`: alle Zeilen ✅
 
-## Nächste 3 Schritte (nach G1-Freigabe)
-1. G1-Rückmeldung einarbeiten.
-2. M2: headless Simulation (`src/sim/`) mit Raster, Räumen, Distanzfeldern, Bedürfnissen, Ökonomie, Zeit, Fähre, Entlassung, Director, RNG und Uhr. Dazu die Balance-Bots v1.
-3. M2-Abnahme: Vitest, C1a, C2, H1 (erste 10 min).
+## Nächste 3 Schritte
+1. Review-Befunde (Workflow) verifizieren und beheben.
+2. M3: Bau-Werkzeuge (Rechteck ziehen, Geist mit Grund-Icon, Kanten-Drag), echtes HUD mit Fluss-Leiste aus `flow.ts`, Panels, Tooltips, Kompakt-HUD, Tastatur/Touch → B1–B7, D5, D7.
+3. Spike-Szene ausmustern, Sim-Ansicht wird Standard.

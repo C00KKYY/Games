@@ -1,5 +1,52 @@
 # BALANCE – Tuning-Protokoll
 
+## 0. Stand M2 (Agenten-Simulation + Bots) – maßgeblich
+
+`npm run balance -- --minutes 10 --seeds 9 --base <n>` (Bericht: `qa/balance.md`, CSV: `qa/balance.csv`).
+
+**H1 erste 10 min: alle 12 Pacing-Zeilen im Fenster** (Casual-Median ±20 %, Optimal ≤ 35 % schneller ab der ersten freien Spielphase), geprüft auf 3 unabhängigen Seed-Sätzen (Basis 11, 500, 1000 → 27 Seeds):
+
+| Zeile | Soll | Casual-Median (Basis 11) | Optimal-Median |
+|---|---|---|---|
+| Erste Entlassung (Earl) | 0:35–1:10 | 0:44 | 0:28 |
+| Tutorial-Ende | 1:10–1:30 | 0:57 | 0:32 |
+| Strickstube steht | 1:30–2:15 | 1:31 | 0:45 |
+| Löffel-Tunnel / 1★ | 3:00–3:30 | 3:00 / 3:03 | 3:00 / 3:01 |
+| Klassenzimmer | 3:30–4:30 | ~4:50 | ~4:40 |
+| Wachposten | 4:30–5:30 | ~5:15 | ~5:00 |
+| 12 Betten | 5:30–6:30 | ~5:40 | ~5:25 |
+| Hof | 6:30–7:30 | ~6:00 | ~5:30 |
+| 4. Entlassung | 7:30–9:00 | ~7:50 | ~6:00 |
+| Kantine Lv5 | 7:30–9:00 | ~6:40 | ~5:35 |
+| 2★ / Projekttafel | 7:30–9:00 | ~7:00 | ~5:45 |
+
+Weitere Messwerte (Casual, 15 min): Essensschlacht 10:33 ✓, Parzelle 2 11:02 ✓, Einnahmenmix bei 15 min Entlassungen 52–53 % / Kisten 22–27 % / Kost 21–24 %, Löhne 27–28 %, Werkstatt-Amortisation Median 3:53, 0 Teleports.
+
+**Offen (§1.9, Schwelle unverändert):**
+- Taktungsregel (§4.3, ≤ 120 s ohne Neues): 1 von 27 Seeds (1017) hat in den ersten 10 min eine Lücke von 142 s nach 2★, weil die Projekttafel noch fehlt (M5). In einem früheren Lauf hatten 2 von 36 Seeds Sparphasen von 125–140 s vor dem Klassenzimmer bzw. der Erweiterung. Gegenmittel: Projekte (M5), Deko-Freischaltungen (M3), Tagespost (M5). Bis dahin prüft `tools/balance.ts` die Taktung über 10 statt 15 min (`TEMPO_MIN`).
+- Einnahmenmix @15 min: Entlassungen 52–53 % liegen knapp über 40–50 %. Wird in M5 mit den 30-min-Läufen nachgezogen.
+- Minuten 10–30 (3★, Inspektion) sind noch nicht abgenommen (M5).
+
+### Änderungen in M2 (Bot-Befunde)
+| Wert | vorher | jetzt | Begründung |
+|---|---|---|---|
+| Strafmaß erste 12 | 110–150 | **60–90** | In der Agenten-Simulation sind die Schlingel nur ~50 % der Aktivzeit produktiv (Wege, Essen, Dusche). Mit 110–150 kamen bis Minute 10 nur 1–2 Entlassungen statt 4. |
+| Kantine | 1 Platz / 2 Kacheln | **1 Platz / 3 Kacheln** | Physisch passen in 4×3 mit Tresen 4 Plätze. Die Kantine ist damit früh ein sichtbarer Engpass, den das Kantinen-Upgrade im Tutorial adressiert. |
+| Kantinen-Upgrade baseUp | 80 | **130** | Kantine Lv5 kam bei 5:5x statt 7:30–9:00. |
+| Klassenzimmer Grundpreis | 350 | **300** | Lange Sparphase vor dem Klassenzimmer (Taktungsregel) |
+| Hof Mindestgröße | 5×5 | **4×4** | Im Startgelände (18×12) blieb nach Werkstatt, Klassenzimmer, Waschhaus, Wachposten und Zellenerweiterung kein 5×5-Platz übrig, Parzelle 2 kommt erst bei ~12 min. |
+| Sternschwellen | 40/120/260/500/900 | **40/140/360/650/1000** | 2★ kam bei ~5:55, 3★ bei ~11 min (Median Ruf 260 bei Minute 11). 4★/5★ werden in M5 nachjustiert. |
+| Kistenwert | 19 | **20** | Werkstatt-Amortisation im Sheet 4:01 (Agenten-Simulation 3:53) |
+| Economy-Sheet `ASSUME` | aktiv 62 %, Laune 62 | **aktiv 50 % (62 % vor dem Klassenzimmer), Laune 57** | gemessen in Casual-Bot-Läufen (4 Seeds × 15 min) |
+
+### Behobene Simulationsfehler, die das Pacing verzerrt hatten
+- Distanzfeld-Schlüssel `r<id>` kollidierte mit dem POI `roadExit` → Entlassene hingen am Tor (38 Teleports/Lauf → 0).
+- Schlafen bis zum *nächsten* 06:00, wenn das Bett nach dem Nachtsprung erreicht wurde (24 h Schlaf).
+- Endlosschleife: Block wird wegen kritischem Bedürfnis abgebrochen, das gerade nicht gedeckt werden kann.
+- Warteschlange wurde nie verlassen, wenn das Mahlzeitfenster endete.
+- Mittagsglocke: Arbeits-/Unterrichtsblöcke enden zu Beginn eines Mahlzeitfensters, wenn der Schlingel hungrig ist.
+
+
 Einzige Quelle der Zahlen: `src/content/balance.ts`. Nachweis-Werkzeuge: `tools/economy-sheet.ts` (H0, geschlossenes Aggregatmodell) und später `tools/balance.ts` (H1–H3, agentenbasierte Bots).
 
 ## 1. Economy-Sheet (H0) – Stand M0

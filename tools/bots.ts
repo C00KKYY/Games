@@ -162,7 +162,8 @@ function candidates(w: World, p: Profile, layout: 'good' | 'random', rnd: Rng): 
   if (w.unlocked.yard && !roomsOf(w, 'yard').length) want.push('yard');
   for (const t of want) {
     const size = { workshop: [4, 4], classroom: [4, 4], guard: [2, 2], yard: [5, 5] }[t as 'workshop'] ?? [ROOMS[t].minW, ROOMS[t].minH];
-    add('build ' + t, roomCost(t, size[0], size[1]), 100, () => placeAndBuild(w, t, size[0], size[1], layout, rnd));
+    const fallback = [ROOMS[t].minW, ROOMS[t].minH];
+    add('build ' + t, roomCost(t, size[0], size[1]), 100, () => placeAndBuild(w, t, size[0], size[1], layout, rnd) || placeAndBuild(w, t, fallback[0], fallback[1], layout, rnd));
   }
   // staffing
   for (const r of built('workshop')) hireIf('foreman', staffOf(w, 'foreman').filter(s => s.roomId === r.id).length * 4 < Math.min(r.slots.length, 4), 95);
@@ -179,8 +180,9 @@ function candidates(w: World, p: Profile, layout: 'good' | 'random', rnd: Rng): 
     if (bunk && bunk.h < 6) add('expand bunk', ROOMS.bunk.perTile * bunk.w * 3, 92, () => cmd.resize(w, bunk.id, bunk.x, bunk.y - 3, bunk.w, bunk.h + 3).ok || cmd.resize(w, bunk.id, bunk.x, bunk.y, bunk.w, bunk.h + 3).ok || placeAndBuild(w, 'bunk', 6, 3, layout, rnd));
     else add('build bunk', roomCost('bunk', 6, 6), 88, () => placeAndBuild(w, 'bunk', 6, 6, layout, rnd));
   }
-  // parcels when space is needed
-  for (let k = 1; k < PARCELS.length; k++) if (!w.parcels[k] && w.parcels[k - 1] && (k === 1 ? beds >= 12 && w.rtMs > 600000 : w.rtMs > 1100000)) add('parcel ' + k, PARCELS[k].price, 70 - k * 5, () => cmd.buyParcel(w, k).ok);
+  // parcels when space is needed: no room for another 6x3 bunk while rascals wait at the dock → save for land
+  const noSpace = !hasSpot(w, 'bunk', 6, 3);
+  for (let k = 1; k < PARCELS.length; k++) if (!w.parcels[k] && w.parcels[k - 1] && (k === 1 ? beds >= 12 && w.rtMs > 600000 : w.rtMs > 1100000)) add('parcel ' + k, PARCELS[k].price, noSpace && (waiting > 0 || cur?.id === 'beds24') ? 94 : 70 - k * 5, () => cmd.buyParcel(w, k).ok);
   // react to the Flow Bar's red stage (that is what it is for); casual notices it with some delay (reaction already applied)
   const fb = flow(w).bottleneck;
   const boost: Partial<Record<string, string>> = { meals: 'canteen', showers: 'wash', workshop: 'workshop', class: 'classroom', cart: 'dock', gate: 'gate' };
@@ -232,6 +234,11 @@ export function placeAndBuild(w: World, t: RoomType, ww: number, hh: number, lay
     if (t === 'workshop' || t === 'yard') { // noise: keep away from bunks
       for (const b of roomsOf(w, 'bunk')) { const gap = Math.max(b.x - (x + ww), x - (b.x + b.w), b.y - (y + hh), y - (b.y + b.h)); if (gap < 3) score += 20; }
     }
+    // compact packing: reward edges that touch rooms, fixed structures or the parcel border (keeps big holes for later rooms)
+    let touch = 0;
+    for (let xx = x; xx < x + ww; xx++) { touch += blockedAt(w, xx, y - 1) + blockedAt(w, xx, y + hh); }
+    for (let yy = y; yy < y + hh; yy++) { touch += blockedAt(w, x - 1, yy) + blockedAt(w, x + ww, yy); }
+    score -= touch * 0.9;
     if (layout === 'random') score = rnd.next() * 100;
     spots.push({ x, y, score });
   }
@@ -240,6 +247,19 @@ export function placeAndBuild(w: World, t: RoomType, ww: number, hh: number, lay
     if (validatePlacement(w, t, s.x, s.y, ww, hh).reason === 'ok') return cmd.build(w, t, s.x, s.y, ww, hh).ok;
   }
   return false;
+}
+function hasSpot(w: World, t: RoomType, ww: number, hh: number): boolean {
+  for (let y = 0; y < w.grid.h - hh; y++) for (let x = 0; x < w.grid.w - ww; x++) {
+    let ok = true;
+    for (let yy = y; yy < y + hh && ok; yy++) for (let xx = x; xx < x + ww; xx++) { const i = yy * w.grid.w + xx; if (!w.grid.owned[i] || w.grid.fixed[i] || w.grid.roomAt[i] || w.grid.ground[i] < 2) { ok = false; break; } }
+    if (ok && validatePlacement(w, t, x, y, ww, hh).reason === 'ok') return true;
+  }
+  return false;
+}
+function blockedAt(w: World, x: number, y: number): number {
+  if (x < 0 || y < 0 || x >= w.grid.w || y >= w.grid.h) return 1;
+  const i = y * w.grid.w + x;
+  return w.grid.roomAt[i] || w.grid.blocked[i] || !w.grid.owned[i] || (w.grid.fixed[i] && !w.grid.road[i]) ? 1 : 0;
 }
 function partnerOf(w: World, t: RoomType): Room | undefined {
   const map: Partial<Record<RoomType, RoomType>> = { wash: 'bunk', workshop: 'dock', yard: 'canteen', classroom: 'bunk', bunk: 'wash', guard: 'yard' };

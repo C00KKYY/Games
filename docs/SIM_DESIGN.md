@@ -63,7 +63,7 @@ Verbindlich für alle Module unter `src/sim/`. Ergänzt Brief §3, §9.4 und §9
   - Unterricht: Block 2 h, Resozialisierung +6/h × LvFaktor × Laune-Faktor.
   - Werkstatt: Block 2 h, Kisten 0,5/h × LvFaktor × Laune-Faktor, Resozialisierung +2/h × Laune-Faktor.
   - Hof: Block 1,5 h, Spaß +20/h.
-  - Ein Block wird abgebrochen, sobald ein Bedürfnis < 15 fällt.
+  - Ein Block wird abgebrochen, sobald ein Bedürfnis < 15 fällt **und es sich gerade decken lässt** (Kantine im Mahlzeitfenster mit freiem Platz, freie Dusche, Hof vorhanden). Sonst würde der Schlingel in einer Schleife hin- und herlaufen (Bot-Messung M2).
 - **Durchsatzfaktor eines Raums** = `levelMult(lvl)` × Personalfaktor. Beispiel Kantine: Bedient werden nur `min(Plätze, Köche × 8)` Plätze, die übrigen Plätze bleiben gesperrt. Personal-Level: +5 % je Level.
 - **Bedürfnisse** nach Brief §3.9, inklusive Freischalt-Regel: Ein Bedürfnis ist fest 80, bis sein Raumtyp freigeschaltet ist. Nachts sinkt alles außer Energie nur halb so schnell. Ankunft mit Hygiene 25.
 - **Laune** = gewichteter Schnitt + Deko-Aura + Modifikatoren, auf 0–100 begrenzt. Laune-Faktor = 0,5 + Laune/100.
