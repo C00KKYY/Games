@@ -1,0 +1,95 @@
+@import '@fontsource/fredoka/latin-600.css';
+@import '@fontsource/fredoka/latin-700.css';
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-600.css';
+
+:root {
+  --wood900:#4a3022; --wood700:#7a4e33; --wood500:#a8713f; --wood300:#d39c63;
+  --teal900:#14424a; --teal700:#226b6e; --teal500:#33908a; --teal300:#66b9a8;
+  --sage900:#33502f; --sage700:#52763f; --sage500:#779a52;
+  --brick700:#8f4030; --cream700:#e3d3b2; --cream500:#efe3c8; --cream300:#f8f0de;
+  --ink900:#1f2b3e; --ink700:#36485f; --ink500:#5b6e89;
+  --gold700:#b37f1d; --gold500:#e8b13a; --coral700:#a93e34; --coral500:#df6450; --mint700:#2f8a68; --mint500:#5fc39a;
+  --ui: clamp(14px, 1.9vmin, 20px);
+  --r: 10px;
+  --shadow: 0 1px 0 var(--wood700), 0 6px 16px rgba(31,43,62,.25);
+  color-scheme: light;
+}
+html, body { font-family: Inter, system-ui, sans-serif; font-size: var(--ui); color: var(--ink900); }
+#app { position: fixed; inset: 0; }
+#world { position: absolute; inset: 0; display: block; touch-action: none; }
+.hud { position: absolute; inset: 0; pointer-events: none; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.hud * { box-sizing: border-box; }
+.num { font-family: Fredoka, Inter, sans-serif; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ---- top bar */
+.topbar { position: absolute; left: 8px; right: 8px; top: calc(6px + env(safe-area-inset-top)); height: 2.3rem; display: flex; gap: .45rem; align-items: center; pointer-events: none; }
+.pill { pointer-events: auto; height: 100%; display: flex; align-items: center; gap: .35rem; padding: 0 .6rem 0 .35rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: 99px; box-shadow: var(--shadow); white-space: nowrap; }
+.pill img { width: 1.45rem; height: 1.45rem; }
+.pill .num { font-size: 1.1rem; }
+.coins .num { min-width: 3.2em; }
+.stars { gap: .15rem; }
+.stars img { width: 1.05rem; height: 1.05rem; }
+.stars .bar { width: 3.6rem; height: .5rem; border-radius: 99px; background: var(--cream700); box-shadow: inset 0 1px 0 rgba(0,0,0,.15); margin-left: .25rem; overflow: hidden; }
+.stars .bar i { display: block; height: 100%; width: 40%; background: linear-gradient(var(--gold500), var(--gold700)); border-radius: 99px; }
+.clock .day { font-family: Fredoka; font-weight: 600; font-size: .8rem; color: var(--ink500); }
+.speed { padding: 0 .2rem; gap: .1rem; }
+.speed button { pointer-events: auto; width: 1.8rem; height: 1.8rem; border-radius: 99px; border: 0; background: transparent; display: grid; place-items: center; cursor: pointer; }
+.speed button img { width: 1.15rem; height: 1.15rem; }
+.speed button.on { background: var(--teal500); box-shadow: inset 0 -2px 0 var(--teal700); }
+.speed button:hover { transform: scale(1.05); } .speed button:active { transform: scale(.95); }
+.flow { flex: 1 1 auto; min-width: 0; justify-content: center; gap: .1rem; padding: 0 .45rem; }
+.flow .st { display: flex; align-items: center; gap: .2rem; padding: .1rem .3rem; border-radius: 8px; }
+.flow .st img { width: 1.25rem; height: 1.25rem; }
+.flow .st .num { font-size: .85rem; color: var(--ink700); }
+.flow .st.bad { background: rgba(223,100,80,.18); box-shadow: inset 0 0 0 2px var(--coral500); animation: pulse 1.1s ease-in-out infinite alternate; }
+.flow .st.bad .num { color: var(--coral700); }
+.flow .arrow { width: .5rem; height: .5rem; border-top: 2px solid var(--wood500); border-right: 2px solid var(--wood500); transform: rotate(45deg); opacity: .7; margin: 0 .05rem; }
+@keyframes pulse { to { background: rgba(223,100,80,.32); } }
+.iconbtn { pointer-events: auto; width: 2.3rem; height: 2.3rem; flex: 0 0 auto; border-radius: 99px; background: var(--cream300); border: 2px solid var(--wood500); box-shadow: var(--shadow); display: grid; place-items: center; cursor: pointer; }
+.iconbtn img { width: 1.35rem; height: 1.35rem; }
+
+/* ---- clipboard */
+.clip { position: absolute; left: 8px; top: calc(3.2rem + env(safe-area-inset-top)); width: 15.5rem; pointer-events: auto; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: var(--shadow); padding: .55rem .7rem .6rem; }
+.clip::before { content: ''; position: absolute; left: 50%; top: -.55rem; width: 3.2rem; height: .9rem; margin-left: -1.6rem; background: linear-gradient(var(--cream700), var(--wood300)); border: 2px solid var(--wood700); border-radius: 6px; }
+.clip h3 { margin: 0 0 .3rem; font: 600 .72rem Fredoka; letter-spacing: .06em; text-transform: uppercase; color: var(--wood700); display: flex; align-items: center; gap: .3rem; }
+.clip h3 img { width: 1rem; height: 1rem; }
+.clip .goal { font-weight: 600; font-size: .95rem; line-height: 1.25; }
+.clip .prog { margin-top: .4rem; display: flex; align-items: center; gap: .45rem; }
+.clip .prog .bar { flex: 1; height: .55rem; border-radius: 99px; background: var(--cream700); overflow: hidden; }
+.clip .prog .bar i { display: block; height: 100%; width: 35%; background: linear-gradient(var(--mint500), var(--mint700)); }
+.clip .prog .num { font-size: .8rem; color: var(--ink500); }
+.clip .show { margin-top: .45rem; font: 600 .8rem Inter; color: var(--teal700); background: none; border: 0; padding: 0; cursor: pointer; }
+.clip .stamp { position: absolute; right: .4rem; top: .35rem; font: 700 .62rem Fredoka; color: var(--coral500); border: 2px solid var(--coral500); border-radius: 5px; padding: 0 .25rem; transform: rotate(8deg); opacity: .8; }
+
+/* ---- build bar */
+.buildbar { position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(6px + env(safe-area-inset-bottom)); height: 3.6rem; display: flex; gap: .4rem; padding: .35rem .5rem; pointer-events: auto; background: linear-gradient(var(--wood300), var(--wood500)); border: 2px solid var(--wood700); border-radius: 14px; box-shadow: 0 2px 0 var(--wood900), 0 8px 20px rgba(31,43,62,.3); }
+.buildbar button { width: 4.2rem; height: 100%; border-radius: 10px; border: 2px solid var(--wood700); background: var(--cream300); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .05rem; cursor: pointer; box-shadow: inset 0 -3px 0 var(--cream700); font: 600 .66rem Inter; color: var(--ink700); }
+.buildbar button img { width: 1.6rem; height: 1.6rem; }
+.buildbar button:hover { transform: translateY(-1px) scale(1.05); } .buildbar button:active { transform: scale(.95); }
+.buildbar button.main { background: var(--gold500); box-shadow: inset 0 -3px 0 var(--gold700); color: var(--wood900); }
+
+/* ---- tutorial bubble */
+.tut { position: absolute; display: flex; align-items: flex-end; gap: .3rem; pointer-events: auto; }
+.tut img.warden { width: 4.2rem; height: auto; filter: drop-shadow(0 3px 0 rgba(31,43,62,.25)); }
+.tut .bubble { background: var(--cream300); border: 2px solid var(--wood700); border-radius: 12px; padding: .5rem .8rem; font: 700 1.05rem Fredoka; color: var(--ink900); box-shadow: var(--shadow); position: relative; margin-bottom: 1.3rem; }
+.tut .bubble::after { content: ''; position: absolute; left: -.55rem; bottom: .5rem; width: .8rem; height: .8rem; background: var(--cream300); border-left: 2px solid var(--wood700); border-bottom: 2px solid var(--wood700); transform: rotate(45deg); }
+.tut .skip { position: absolute; right: 0; bottom: -1.5rem; font: 600 .75rem Inter; color: var(--cream300); background: rgba(31,43,62,.55); border: 0; border-radius: 99px; padding: .15rem .6rem; }
+.hand { position: absolute; width: 3rem; height: 3rem; pointer-events: none; animation: tap 1s ease-in-out infinite; transform-origin: 30% 10%; }
+@keyframes tap { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(-4px,-8px) scale(.94); } }
+.ring { position: absolute; width: 3.4rem; height: 3.4rem; margin: -1.7rem 0 0 -1.7rem; border-radius: 50%; border: 3px solid var(--gold500); animation: ring 1s ease-out infinite; pointer-events: none; }
+@keyframes ring { from { transform: scale(.5); opacity: 1; } to { transform: scale(1.3); opacity: 0; } }
+
+/* ---- compact (≤ 900px wide) */
+@media (max-width: 900px) {
+  :root { --ui: 14px; }
+  .topbar { height: 2.1rem; top: 4px; left: 4px; right: 4px; gap: .3rem; }
+  .flow .st .num, .flow .arrow, .clock .day, .stars .bar { display: none; }
+  .flow { gap: 0; padding: 0 .25rem; } .flow .st { padding: .05rem .12rem; }
+  .pill { padding: 0 .45rem 0 .25rem; }
+  .clip { width: auto; max-width: 14rem; top: 2.7rem; left: 4px; padding: .3rem .55rem; }
+  .clip h3, .clip .show, .clip .stamp { display: none; }
+  .clip .goal { font-size: .82rem; } .clip .prog { margin-top: .2rem; }
+  .buildbar { height: 3.4rem; bottom: 4px; }
+  .buildbar button { width: 3.6rem; font-size: .6rem; }
+}
