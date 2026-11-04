@@ -48,6 +48,10 @@
 .hud .bb-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; padding: .15rem .1rem .35rem; scrollbar-width: thin; scrollbar-color: var(--wood300) transparent; }
 .hud .bb-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
 .hud .bb-scroll::-webkit-scrollbar-thumb { background: var(--wood300); border-radius: 99px; }
+/* horizontal scroll cue: the edge that still hides cards fades out (classes set by buildbar.ts menuShell) */
+.hud .bb-scroll.bb-fade-r { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.6rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2.6rem), transparent); }
+.hud .bb-scroll.bb-fade-l { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.6rem), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 2.6rem), transparent); }
+.hud .bb-scroll.bb-fade-l.bb-fade-r { -webkit-mask-image: linear-gradient(to right, transparent, #000 2.6rem, #000 calc(100% - 2.6rem), transparent); mask-image: linear-gradient(to right, transparent, #000 2.6rem, #000 calc(100% - 2.6rem), transparent); }
 .hud .bb-row { display: flex; gap: .5rem; width: max-content; align-items: stretch; }
 
 /* ---------------------------------------------------------------- cards */

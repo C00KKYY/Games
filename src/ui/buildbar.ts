@@ -1,7 +1,7 @@
 /**
  * Build bar (docs/UI_DESIGN.md §3): bottom centre, data-hud="bottom". Rooms (B) and Staff open their overlay card
  * through ctx.menu, Demolish (Del) toggles ctx.tool. Decor / Projects stay hidden until their systems exist (M5).
- * Also exports the small DOM kit and the menu-card shell shared by buildMenu.ts and staffMenu.ts.
+ * Also exports the small DOM kit and the menu-card shell shared by buildMenu.ts and staffMenu.ts (lock icon: ctx.icon('lock')).
  * Hotkeys belong to tools.ts – this file adds no keyboard listeners.
  */
 import './buildbar.css';
@@ -11,8 +11,6 @@ import { ROOMS, STAFF_ROOM, wageFor, type RoomType, type StaffRole } from '../co
 import { staffOf } from '../sim/staff';
 import { roomById, roomsOf } from '../sim/world';
 
-const svg = (s: string) => `data:image/svg+xml,${encodeURIComponent(s)}`;
-export const LOCK_ICON = svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" fill="none" stroke="#4a3022" stroke-width="2.6" stroke-linecap="round"/><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="#e8b13a" stroke="#4a3022" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.7" fill="#4a3022"/></svg>');
 /** DOM writes are throttled to this interval (≤ 10 / s) */
 export const WRITE_MS = 100;
 /** refund share when demolishing (src/sim/rooms.ts demolish: base * 0.5, full refund right after building) */
@@ -82,6 +80,8 @@ export interface MenuShell {
   open(): boolean;
   /** call from update(): handles show/hide and placement; returns true when the content should be (re)rendered now */
   tick(dt: number): boolean;
+  /** remove the card and every listener / store subscription the shell added (call from the menu's destroy()) */
+  destroy(): void;
 }
 
 /**
@@ -114,9 +114,19 @@ export function menuShell(ctx: UICtx, d: DomKit, name: 'rooms' | 'staff', icon: 
   let shown = false, acc = WRITE_MS, place = true, lang = '';
   const onResize = () => { place = true; };
   window.addEventListener('resize', onResize);
-  ctx.compact.on(v => { d.cls(card, 'bb-compact', v); place = true; });
+  const unsubs: (() => void)[] = [
+    () => window.removeEventListener('resize', onResize),
+    ctx.compact.on(v => { d.cls(card, 'bb-compact', v); place = true; }),
+    ctx.menu.on(() => { acc = WRITE_MS; }),
+  ];
   d.cls(card, 'bb-compact', ctx.compact.get());
-  ctx.menu.on(() => { acc = WRITE_MS; });
+  // horizontal scroll cue: fade the edge(s) that still hide cards (buildbar.css .bb-fade-l / .bb-fade-r)
+  const cue = () => {
+    const max = body.scrollWidth - body.clientWidth;
+    d.cls(body, 'bb-fade-l', max > 1 && body.scrollLeft > 1);
+    d.cls(body, 'bb-fade-r', max > 1 && body.scrollLeft < max - 1);
+  };
+  body.addEventListener('scroll', cue, { passive: true });
 
   const measure = () => {
     let top = 0;
@@ -147,8 +157,10 @@ export function menuShell(ctx: UICtx, d: DomKit, name: 'rooms' | 'staff', icon: 
       d.attr(close, 'aria-label', ctx.t('buildbar.close'));
       d.text(title, ctx.t(titleKey));
       if (place) { place = false; measure(); }
+      cue();
       return true;
     },
+    destroy() { for (const u of unsubs.splice(0)) u(); card.remove(); },
   };
 }
 
@@ -206,9 +218,11 @@ export function mountBuildbar(ctx: UICtx): Component {
 
   let acc = WRITE_MS;
   // a picked tool closes any open menu; opening a menu drops a build/demolish tool (only one thing at a time)
-  ctx.tool.on(v => { if (v.kind !== 'none' && ctx.menu.get() !== null) ctx.menu.set(null); acc = WRITE_MS; });
-  ctx.menu.on(v => { if (v !== null && (ctx.tool.get().kind === 'build' || ctx.tool.get().kind === 'demolish')) ctx.tool.set({ kind: 'none' }); acc = WRITE_MS; });
-  ctx.compact.on(() => { acc = WRITE_MS; });
+  const unsubs = [
+    ctx.tool.on(v => { if (v.kind !== 'none' && ctx.menu.get() !== null) ctx.menu.set(null); acc = WRITE_MS; }),
+    ctx.menu.on(v => { if (v !== null && (ctx.tool.get().kind === 'build' || ctx.tool.get().kind === 'demolish')) ctx.tool.set({ kind: 'none' }); acc = WRITE_MS; }),
+    ctx.compact.on(() => { acc = WRITE_MS; }),
+  ];
 
   const render = () => {
     const menu = ctx.menu.get(), tool = ctx.tool.get();
@@ -235,6 +249,6 @@ export function mountBuildbar(ctx: UICtx): Component {
       acc = 0;
       render();
     },
-    destroy() { bar.remove(); },
+    destroy() { for (const u of unsubs.splice(0)) u(); bar.remove(); },
   };
 }

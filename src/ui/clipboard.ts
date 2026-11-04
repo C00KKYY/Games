@@ -225,9 +225,16 @@ export function mountClipboard(ctx: UICtx): Component {
     if (e.target instanceof Node && root.contains(e.target)) return;
     setOpen(false, false);
   };
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && (cardOpen || listOpen)) setOpen(false, false); };
+  // Esc closes only the top-most thing: the goals list first, then the expanded compact card. Capture phase, so it runs
+  // before tools.ts (menu / tool / selection); preventDefault() marks the press as used. A press already used by the
+  // topbar stage list (defaultPrevented) is left alone; modals.ts stops the event before it gets here.
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || !(cardOpen || listOpen)) return;
+    e.preventDefault();
+    if (listOpen) setOpen(cardOpen, false); else setOpen(false, false);
+  };
   document.addEventListener('pointerdown', onDown, true);
-  window.addEventListener('keydown', onKey);
+  window.addEventListener('keydown', onKey, true);
   const offCompact = ctx.compact.on(() => { cardOpen = false; listOpen = false; posAcc = 1e9; acc = TICK_MS; });
   const offEvent = ctx.onEvent(e => {
     if (e.type === 'objective' || e.type === 'tutorialDone') pendingSlide = 'new';
@@ -265,9 +272,13 @@ export function mountClipboard(ctx: UICtx): Component {
     const gap = compact ? 6 : Math.round(ui * 0.75);
     const top = rb && rb.height > 0 ? rb.bottom + gap : (compact ? 2.7 : 3.2) * ui;
     css(root, 'top', `${Math.round(top)}px`);
-    // compact: the list hangs below the chip
+    // the list (compact: and the expanded card) hangs below the chip and must end above the build bar
     const listTop = top + (compact ? chip.offsetHeight + 6 : 0);
-    css(list, 'maxHeight', `${Math.max(120, Math.floor(window.innerHeight - listTop - 8))}px`);
+    const bots = [...document.querySelectorAll<HTMLElement>('[data-hud="bottom"]')].map(e => e.getBoundingClientRect()).filter(b => b.height > 0);
+    const bottom = (bots.length ? Math.min(...bots.map(b => b.top)) : window.innerHeight) - 6;
+    const maxH = `${Math.max(120, Math.floor(bottom - listTop))}px`;
+    css(list, 'maxHeight', maxH);
+    css(card, 'maxHeight', compact ? maxH : 'none');
   };
 
   // ------------------------------------------------------------------ render (≤ 10× / s, write on change)
@@ -380,7 +391,7 @@ export function mountClipboard(ctx: UICtx): Component {
     },
     destroy() {
       document.removeEventListener('pointerdown', onDown, true);
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKey, true);
       offCompact(); offEvent();
       root.remove();
     },

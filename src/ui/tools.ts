@@ -34,7 +34,6 @@ const ICON = {
   size: svg('<rect x="4" y="4" width="16" height="16" rx="2" fill="#f8f0de" stroke="#a93e34" stroke-width="2.2" stroke-dasharray="3 2.4"/><path d="M8 12h8M12 8v8" stroke="#a93e34" stroke-width="2.4" stroke-linecap="round"/>'),
   fence: svg('<path d="M5 20V7l2-2 2 2v13M11 20V7l2-2 2 2v13M17 20V7l2-2 2 2v13" fill="#d39c63" stroke="#4a3022" stroke-width="1.6" stroke-linejoin="round"/><path d="M3 11h19M3 16h19" stroke="#4a3022" stroke-width="1.8"/><path d="M4 21 20 3" stroke="#a93e34" stroke-width="2.6" stroke-linecap="round"/>'),
   overlap: svg('<rect x="3" y="3" width="12" height="12" rx="2" fill="#efe3c8" stroke="#4a3022" stroke-width="1.8"/><rect x="9" y="9" width="12" height="12" rx="2" fill="#df6450" fill-opacity=".85" stroke="#a93e34" stroke-width="1.8"/>'),
-  lock: svg('<path d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" fill="none" stroke="#4a3022" stroke-width="2.6" stroke-linecap="round"/><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="#e8b13a" stroke="#4a3022" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.7" fill="#4a3022"/>'),
   up: svg('<circle cx="12" cy="12" r="9" fill="#5fc39a" stroke="#2f8a68" stroke-width="2"/><path d="M12 17V8M8 11.5 12 7.5l4 4" fill="none" stroke="#f8f0de" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'),
   down: svg('<circle cx="12" cy="12" r="9" fill="#df6450" stroke="#a93e34" stroke-width="2"/><path d="M12 7v9M8 12.5l4 4 4-4" fill="none" stroke="#f8f0de" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'),
 };
@@ -47,7 +46,7 @@ interface Tile { x: number; y: number }
 
 const clamp = (v: number, lo: number, hi: number) => (v < lo ? lo : v > hi ? hi : v);
 const FIXED = new Set<RoomType>(['gate', 'dock', 'office']);
-const reasonIcon = (ctx: UICtx, r: Reason) => r === 'coins' ? ctx.icon('coin') : r === 'locked' ? ICON.lock
+const reasonIcon = (ctx: UICtx, r: Reason) => r === 'coins' ? ctx.icon('coin') : r === 'locked' ? ctx.icon('lock')
   : r === 'tooSmall' || r === 'tooLarge' ? ICON.size : r === 'outside' ? ICON.fence : r === 'overlap' ? ICON.overlap : ICON.no;
 
 /** a throw-away copy of the world for trial placements: everything validatePlacement()/rebuild() write is cloned */
@@ -66,16 +65,19 @@ export function mountTools(ctx: UICtx): Component {
 
   // ------------------------------------------------------------------ DOM kit (memoised writes)
   const memo = new WeakMap<Element, Map<string, string>>();
+  let writes = 0;                          // counts real DOM writes: a size is re-measured only after its content changed
   const put = (el: Element, k: string, v: string) => {
     let m = memo.get(el); if (!m) { m = new Map(); memo.set(el, m); }
-    if (m.get(k) === v) return;
+    if (m.get(k) === v) return false;
     m.set(k, v);
+    writes++;
     if (k === 'text') el.textContent = v;
     else if (k === 'hidden') (el as HTMLElement).hidden = v === '1';
     else if (k.startsWith('.')) el.classList.toggle(k.slice(1), v === '1');
     else if (k.startsWith('~')) (el as HTMLElement).style.setProperty(k.slice(1), v);
     else if (k === 'src') (el as HTMLImageElement).src = v;
     else el.setAttribute(k, v);
+    return true;
   };
   const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, parent: HTMLElement) => {
     const el = document.createElement(tag); el.className = cls; parent.appendChild(el); return el;
@@ -487,7 +489,7 @@ export function mountTools(ctx: UICtx): Component {
     if (e.key === 'Shift') shiftHeld = true;
     if (typing(e.target)) return;
     const k = e.key.toLowerCase();
-    if (modalOpen()) { if (k === 'escape') ctx.closeModal(); return; }
+    if (modalOpen()) return;                 // modals.ts owns every key while a modal is open (capture phase)
     if ((e.ctrlKey || e.metaKey) && k === 'z' && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       if (e.repeat) return;
@@ -497,7 +499,9 @@ export function mountTools(ctx: UICtx): Component {
       return;
     }
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (k === 'escape') { escape(); return; }
+    // Esc closes only the top-most thing: the topbar stage list / clipboard close themselves in the capture phase and
+    // mark the event with preventDefault(); then the press is used up here
+    if (k === 'escape') { if (!e.defaultPrevented) { e.preventDefault(); escape(); } return; }
     if (e.repeat) return;
     switch (k) {
       case 'b': ctx.menu.set(ctx.menu.get() === 'rooms' ? null : 'rooms'); break;
@@ -512,7 +516,7 @@ export function mountTools(ctx: UICtx): Component {
       case 'p': ctx.setPaused(!ctx.paused()); break;
       case '1': case '2': case '3': {
         const n = Number(k);
-        if (n === 3 && !w.unlocked.speed3) { ctx.feedback(ctx.cmd.setSpeed(w, 3)); break; }
+        if (n === 3 && !w.unlocked.speed3) { ctx.feedback(ctx.cmd.setSpeed(w, 3), t('topbar.lock3')); break; }
         ctx.setPaused(false);
         const res = ctx.cmd.setSpeed(w, n);
         if (!res.ok) ctx.feedback(res);
@@ -621,11 +625,24 @@ export function mountTools(ctx: UICtx): Component {
     return `${sign}${Math.round(abs * 100)}${ctx.lang() === 'de' ? ' %' : '%'}`;
   };
   const place = (el: HTMLElement, x: number, y: number) => put(el, '~transform', `translate(${Math.round(x)}px, ${Math.round(y)}px)`);
-  const box = (el: HTMLElement) => ({ w: el.offsetWidth, h: el.offsetHeight });
-  const view = () => ({ w: window.innerWidth, h: window.innerHeight, top: cam.inset.top + 4, bottom: window.innerHeight - cam.inset.bottom - 4 });
+  /** cached element sizes: measured (forced layout) only when a write since the last measure changed the content */
+  interface Box { w: number; h: number; at: number }
+  const boxes = new Map<HTMLElement, Box>();
+  const box = (el: HTMLElement, since: number): Box => {
+    let b = boxes.get(el);
+    if (!b) { b = { w: 0, h: 0, at: -1 }; boxes.set(el, b); }
+    if (b.at < 0 || writes !== since) { b.w = el.offsetWidth; b.h = el.offsetHeight; b.at = writes; }
+    return b;
+  };
+  const onResize = () => { for (const b of boxes.values()) b.at = -1; urgent = true; };   // rem / media query sizes
+  window.addEventListener('resize', onResize);
+  document.fonts?.ready.then(onResize).catch(() => { /* no font loading API */ });
+  let chipTop = Infinity;                // screen y of the tool chip's top edge (label / ✓ ✕ / bubble stay above it)
+  const view = () => ({ w: window.innerWidth, h: window.innerHeight, top: cam.inset.top + 4, bottom: Math.min(window.innerHeight - cam.inset.bottom - 4, chipTop - 6) });
 
   const labelBox = { x: 0, y: 0, w: 0, h: 0 };
   function renderLabel(pv: ReturnType<typeof preview>) {
+    const w0 = writes;
     const show = !!pv && (!!edge || dragging || !!pending || (lastPointer !== 'touch' && !!hover));
     put(label, 'hidden', show ? '0' : '1');
     if (!show || !pv) return;
@@ -665,7 +682,7 @@ export function mountTools(ctx: UICtx): Component {
     if (o && r.w * r.h < o.w * o.h) line(ICON.down, t('tools.noRefund'), 'note');
     for (; i < lLines.length; i++) put(lLines[i].row, 'hidden', '1');
     // position: right of the rectangle, else left; clamped into the play area
-    const v = view(), b = box(label);
+    const v = view(), b = box(label, w0);
     const tl = cam.worldToScreen(r.x * TILE, r.y * TILE), br = cam.worldToScreen((r.x + r.w) * TILE, (r.y + r.h) * TILE);
     let x = br.x + 10;
     if (x + b.w > v.w - 6) x = tl.x - 10 - b.w;
@@ -676,6 +693,7 @@ export function mountTools(ctx: UICtx): Component {
   }
 
   function renderConfirm() {
+    const w0 = writes;
     const show = !!pending && tool.kind === 'build' && !dragging;
     put(confirm, 'hidden', show ? '0' : '1');
     if (!show || !pending || tool.kind !== 'build') return;
@@ -684,7 +702,7 @@ export function mountTools(ctx: UICtx): Component {
     put(yes, '.off', ok ? '0' : '1');
     put(yes, 'aria-label', `${t('build.confirm')}: ${t(`room.${tool.type}`)} ${pending.w}×${pending.h}, ${ctx.fmt(cost)}`);
     put(no, 'aria-label', t('build.cancel'));
-    const v = view(), b = box(confirm);
+    const v = view(), b = box(confirm, w0);
     const tl = cam.worldToScreen(pending.x * TILE, pending.y * TILE), br = cam.worldToScreen((pending.x + pending.w) * TILE, (pending.y + pending.h) * TILE);
     let x = clamp((tl.x + br.x) / 2 - b.w / 2, 6, v.w - b.w - 6);
     let y = br.y + 10;
@@ -697,6 +715,7 @@ export function mountTools(ctx: UICtx): Component {
   }
 
   function renderBubble() {
+    const w0 = writes;
     const r = bubbleRoom ? roomById(w, bubbleRoom) : undefined;
     if (bubbleRoom && !r) bubbleRoom = 0;
     put(bubble, 'hidden', r ? '0' : '1');
@@ -707,7 +726,7 @@ export function mountTools(ctx: UICtx): Component {
     put(bubble, 'aria-label', t('tools.demolishQ', { room: name }));
     if (fixed || last) {
       put(bQ, 'text', name);
-      put(bIc, 'src', ICON.lock);
+      put(bIc, 'src', ctx.icon('lock'));
       put(bN, 'text', '');
       put(bNote, 'text', t(fixed ? 'tools.fixed' : 'tools.reason.lastOfType'));
       put(bYes, 'hidden', '1');
@@ -722,7 +741,7 @@ export function mountTools(ctx: UICtx): Component {
       put(bYes, 'aria-label', `${t('build.demolish')}: ${name}, +${ctx.fmt(rf.n)}`);
     }
     put(bNo, 'aria-label', t('build.cancel'));
-    const v = view(), b = box(bubble);
+    const v = view(), b = box(bubble, w0);
     const top = cam.worldToScreen((r.x + r.w / 2) * TILE, r.y * TILE), bot = cam.worldToScreen((r.x + r.w / 2) * TILE, (r.y + r.h) * TILE);
     let y = top.y - 12 - b.h;
     if (y < v.top) y = bot.y + 12;
@@ -730,9 +749,10 @@ export function mountTools(ctx: UICtx): Component {
   }
 
   function renderChip() {
+    const w0 = writes;
     const show = tool.kind !== 'none';
     put(chip, 'hidden', show ? '0' : '1');
-    if (!show) return;
+    if (!show) { chipTop = Infinity; return; }
     const tch = lastPointer === 'touch';
     if (tool.kind === 'build') {
       put(cIc, 'src', ctx.icon(ROOM_ICON[tool.type] ?? 'rooms'));
@@ -746,7 +766,9 @@ export function mountTools(ctx: UICtx): Component {
       put(cTx, 'text', t('tools.hint.resize'));
     }
     put(cX, 'aria-label', t('build.cancel'));
-    put(chip, '~bottom', `${Math.round(cam.inset.bottom + 8)}px`);
+    const bottom = Math.round(cam.inset.bottom + 8);
+    put(chip, '~bottom', `${bottom}px`);
+    chipTop = window.innerHeight - bottom - box(chip, w0).h;
   }
 
   function renderDom() {
@@ -754,10 +776,10 @@ export function mountTools(ctx: UICtx): Component {
     const ed = edge ? edge.e : hoverEdge;
     put(canvas, '~cursor', ed ? (ed === 'N' || ed === 'S' ? 'ns-resize' : 'ew-resize') : tool.kind === 'build' ? 'crosshair' : tool.kind === 'demolish' ? 'pointer' : 'default');
     const pv = preview();
+    renderChip();          // first: its top edge bounds the other overlays
     renderLabel(pv);
     renderConfirm();
     renderBubble();
-    renderChip();
   }
 
   return {
@@ -792,6 +814,7 @@ export function mountTools(ctx: UICtx): Component {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
+      window.removeEventListener('resize', onResize);
       offTool(); offSel();
       ctx.input.ownsPointer = false;
       layer.destroy();

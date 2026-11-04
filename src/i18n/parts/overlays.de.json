@@ -5,6 +5,7 @@
   "overlays.toast.caught": "Erwischt! +{coins} Münzen, +{ruf} Ruf",
   "overlays.toast.objBuild": "{room} bauen",
   "overlays.toast.objective": "Ziel geschafft: {goal}! +{coins} Münzen, +{ruf} Ruf",
+  "overlays.toast.objectiveUnlock": "Ziel geschafft: {goal}! +{coins} Münzen, +{ruf} Ruf · Neu: {room}",
   "overlays.toast.unlockSpeed3": "Tempo 3× freigeschaltet! Drück die 3.",
   "overlays.toast.unlockRoom": "Neuer Raum freigeschaltet: {room}",
   "overlays.toast.star": "Neuer Stern! Ruf {n}/5 ★",
@@ -41,7 +42,6 @@
   "overlays.credits.made": "Grafik, Code und Musik wurden für dieses Spiel gemacht.",
   "overlays.credits.fonts": "Schriften: Fredoka und Inter, beide unter der SIL Open Font License 1.1, eingebunden über @fontsource.",
   "overlays.credits.libs": "Bibliotheken: PixiJS, lz-string und ZzFX unter der MIT-Lizenz.",
-  "overlays.credits.sound": "Die Sound-Credits folgen.",
   "overlays.credits.thanks": "Danke, dass du die Schlingel so gut versorgst!",
   "overlays.version": "Version {v} · {build}",
   "overlays.or": "oder",
@@ -89,5 +89,12 @@
   "overlays.help.oneFinger": "Kamera schwenken; mit Bauwerkzeug: Raum aufziehen",
   "overlays.help.twoFingers": "Schwenken und mit Spreizen zoomen",
   "overlays.help.long": "Zeigt, was ein Knopf macht",
-  "overlays.help.confirm": "Aufgezogenen Raum kaufen oder verwerfen"
+  "overlays.help.confirm": "Aufgezogenen Raum kaufen oder verwerfen",
+  "overlays.reason.noRoom": "Dafür fehlt noch ein fertiger passender Raum",
+  "overlays.reason.unchanged": "Nichts geändert",
+  "overlays.reason.invalid": "Das geht hier nicht",
+  "overlays.reason.noFerry": "Gerade kommt keine Fähre an",
+  "overlays.reason.empty": "Noch keine Kisten zum Abholen",
+  "overlays.reason.none": "Gerade braucht das niemand",
+  "overlays.reason.open": "Zahl zuerst das laufende Darlehen zurück"
 }

@@ -16,9 +16,6 @@ const STAGE_ICON: Record<Stage, string> = { ferry: 'ferry', beds: 'bed', meals: 
 /** collapse levels, cumulative: 1 bottleneck label, 2 flow numbers + arrows, 3 mood label, 4 day label, 5 squeeze paddings, 6 flow as one button + list */
 const MAX_LEVEL = 6;
 const COMPACT_MIN_LEVEL = 2;
-const svg = (s: string) => `data:image/svg+xml,${encodeURIComponent(s)}`;
-const LOCK = svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" fill="none" stroke="#4a3022" stroke-width="2.6" stroke-linecap="round"/><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="#e8b13a" stroke="#4a3022" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.7" fill="#4a3022"/></svg>');
-const FIND = svg('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M15.2 15.2L21 21" stroke="#4a3022" stroke-width="3.4" stroke-linecap="round"/><circle cx="10" cy="10" r="7" fill="#66b9a8" stroke="#14424a" stroke-width="2"/><path d="M6.6 9a3.6 3.6 0 0 1 3-3" fill="none" stroke="#f8f0de" stroke-width="1.9" stroke-linecap="round"/><circle cx="10" cy="10" r="2.2" fill="#df6450"/></svg>');
 
 type Speed = 0 | 1 | 2 | 3;
 
@@ -77,7 +74,7 @@ export function mountTopbar(ctx: UICtx): Component {
   speed.setAttribute('role', 'group');
   const speedBtns: HTMLButtonElement[] = [];
   const SPEED_ICON = ['pause', 'play', 'fast', 'fast'];
-  const lockImg = document.createElement('img'); lockImg.className = 'lock'; lockImg.src = LOCK; lockImg.alt = '';
+  const lockImg = document.createElement('img'); lockImg.className = 'lock'; lockImg.src = ctx.icon('lock'); lockImg.alt = '';
   for (const s of [0, 1, 2, 3] as Speed[]) {
     const b = button('spd', speed, () => setSpeed(s));
     img(ctx.icon(SPEED_ICON[s]), b, 'ic');
@@ -90,7 +87,7 @@ export function mountTopbar(ctx: UICtx): Component {
   const stagesEl = h('div', 'stages', flowPill);
   const sumBtn = button('sum', flowPill, () => toggleList());
   const bnBtn = button('bn', flowPill, () => findBottleneck());
-  img(FIND, bnBtn, 'ic');
+  img(ctx.icon('find'), bnBtn, 'ic');
   const bnLbl = h('span', 'lbl', bnBtn);
 
   const mood = h('div', 'pill mood', bar);
@@ -155,7 +152,7 @@ export function mountTopbar(ctx: UICtx): Component {
   // ------------------------------------------------------------------ actions
   function setSpeed(s: Speed) {
     if (s === 0) { ctx.setPaused(true); render(); return; }
-    if (s === 3 && !ctx.w.unlocked.speed3) { ctx.feedback(ctx.cmd.setSpeed(ctx.w, 3)); return; }
+    if (s === 3 && !ctx.w.unlocked.speed3) { ctx.feedback(ctx.cmd.setSpeed(ctx.w, 3), t('topbar.lock3')); return; }
     ctx.setPaused(false);
     ctx.feedback(ctx.cmd.setSpeed(ctx.w, s));
     render();
@@ -196,6 +193,15 @@ export function mountTopbar(ctx: UICtx): Component {
   function closeList() { if (list.hidden) return; list.hidden = true; attr(sumBtn, 'aria-expanded', 'false'); }
   const outside = (e: PointerEvent) => { if (!list.hidden && !list.contains(e.target as Node) && !sumBtn.contains(e.target as Node)) closeList(); };
   document.addEventListener('pointerdown', outside, true);
+  // Esc closes only the top-most thing. The stage list is first (capture phase, mounted before the clipboard);
+  // preventDefault() marks the press as used, so the clipboard (capture) and tools.ts (menu / tool / selection) leave
+  // it alone. While a modal is open, modals.ts stops the event before it gets here.
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || list.hidden) return;
+    e.preventDefault();
+    closeList();
+  };
+  window.addEventListener('keydown', onKey, true);
   const unsubs: (() => void)[] = [
     ctx.panned.on(() => closeList()),
     ctx.compact.on(() => { fitKey = ''; }),
@@ -245,7 +251,7 @@ export function mountTopbar(ctx: UICtx): Component {
   });
   tip(gear, () => ({ title: t('hud.settings'), body: t('topbar.settingsBody') }));
   tip(help, () => ({ title: t('topbar.help'), body: t('topbar.helpBody'), hotkey: 'H' }));
-  tip(listClose, () => ({ title: t('topbar.close'), body: t('topbar.closeBody') }));
+  tip(listClose, () => ({ title: t('topbar.close'), body: t('topbar.closeBody'), hotkey: 'Esc' }));
 
   // ------------------------------------------------------------------ flow stages DOM (rebuilt only when the stage set changes)
   function buildStages() {
@@ -375,6 +381,7 @@ export function mountTopbar(ctx: UICtx): Component {
     destroy() {
       for (const u of unsubs) u();
       document.removeEventListener('pointerdown', outside, true);
+      window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('resize', onResize);
       bar.remove(); list.remove();
     },

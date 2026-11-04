@@ -36,6 +36,9 @@ export function uiIcons(): Sprite[] {
     icon('demolish', shape('M4 18L13 9L15.5 11.5L6.5 20.5Z', T.woodLight, { s: 1.5, h: 0.8 }) + shape(rr(11, 3, 11, 6.5, 1.5), T.stone, { s: 2, h: 1, transform: 'rotate(45 16.5 6.25)' })),
     icon('close', shape(ell(12, 12, 9.5, 9.5), T.coral, { s: 2.5, h: 1.2 }) + strokeP('M8.2 8.2L15.8 15.8M15.8 8.2L8.2 15.8', P.cream300, 2.4)),
     icon('check', shape(ell(12, 12, 9.5, 9.5), T.mint, { s: 2.5, h: 1.2 }) + strokeP('M7.5 12.2L10.6 15.2L16.6 8.8', P.cream300, 2.6)),
+    // locked state & bottleneck finder (raw palette SVG without shape(): adding shape() ids here would renumber warden.svg)
+    icon('lock', strokeP('M7.5 11V8a4.5 4.5 0 0 1 9 0v3', P.wood900, 2.6) + `<rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="${P.gold500}" stroke="${P.wood900}" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.7" fill="${P.wood900}"/>`),
+    icon('find', strokeP('M15.2 15.2L21 21', P.wood900, 3.4) + `<circle cx="10" cy="10" r="7" fill="${P.teal300}" stroke="${P.teal900}" stroke-width="2"/>` + strokeP('M6.6 9a3.6 3.6 0 0 1 3-3', P.cream300, 1.9) + `<circle cx="10" cy="10" r="2.2" fill="${P.coral500}"/>`),
   ];
 }
 

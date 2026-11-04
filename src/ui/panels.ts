@@ -31,7 +31,6 @@ const CONFIRM_S = 5;           // demolish confirmation times out
 const NEEDS: Need[] = ['hunger', 'energy', 'hygiene', 'fun'];
 const NEED_ICON: Record<Need, string> = { hunger: 'meal', energy: 'bed', hygiene: 'shower', fun: 'decor' };
 const ROAMING: ReadonlySet<StaffRole> = new Set<StaffRole>(['janitor', 'guard']);
-const LOCK_SVG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.5 11V8a4.5 4.5 0 0 1 9 0v3" fill="none" stroke="#4a3022" stroke-width="2.6" stroke-linecap="round"/><rect x="4.5" y="10.5" width="15" height="11" rx="2.5" fill="#e8b13a" stroke="#4a3022" stroke-width="1.8"/><circle cx="12" cy="15.6" r="1.7" fill="#4a3022"/></svg>');
 
 type Mode = 'room' | 'rascal' | 'staff' | 'other' | null;
 
@@ -109,6 +108,13 @@ export function mountPanels(ctx: UICtx): Component {
   tip(closeBtn, () => ({ title: t('panels.close'), body: t('panels.closeTip'), hotkey: 'Esc' }));
 
   const body = h('div', 'pn-body', root);
+  /** scroll cue: fade the body at an edge while more content is hidden there (memoised class writes) */
+  const scrollCue = () => {
+    const more = body.scrollHeight - body.clientHeight;
+    cls(body, 'pn-fade-b', more > 2 && body.scrollTop < more - 2);
+    cls(body, 'pn-fade-t', more > 2 && body.scrollTop > 2);
+  };
+  body.addEventListener('scroll', scrollCue, { passive: true });
 
   // ================================================================== room view
   const R = h('div', 'pn-view pn-room', body);
@@ -202,7 +208,7 @@ export function mountPanels(ctx: UICtx): Component {
   const rNoLbl = h('span', '', rNo);
   tip(rNo, () => ({ title: t('panels.no'), body: t('panels.noTip') }));
   const rLast = h('div', 'pn-line pn-locked', rFoot);
-  img(LOCK_SVG, 'pn-ic', rLast);
+  icon('lock', 'pn-ic', rLast);
   const rLastTxt = h('span', '', rLast);
   const rResize = h('div', 'pn-hint pn-resize', rB);
 
@@ -279,6 +285,7 @@ export function mountPanels(ctx: UICtx): Component {
     ctx.panned.on(v => { panSeen = v; following = false; if (sel) ctx.selection.set(null); }),
     ctx.compact.on(() => { dirty = true; posAcc = POS_S; }),
     ctx.menu.on(() => { dirty = true; }),
+    ctx.tool.on(() => { dirty = true; }),
   ];
 
   // ------------------------------------------------------------------ derived numbers
@@ -602,6 +609,7 @@ export function mountPanels(ctx: UICtx): Component {
     const bottom = bots.length ? window.innerHeight - Math.min(...bots.map(b => b.top)) : 4.6 * rem;
     cssVar(root, '--pn-top', `${Math.round(top + 6)}px`);
     cssVar(root, '--pn-bot', `${Math.round(bottom + 6)}px`);
+    if (!root.hidden) scrollCue();
   }
 
   function render() {
@@ -615,7 +623,9 @@ export function mountPanels(ctx: UICtx): Component {
       m = !agent ? null : agent.kind === 'rascal' || agent.kind === 'vip' ? 'rascal' : agent.kind === 'staff' ? 'staff' : 'other';
     }
     if (sel && !m) { ctx.selection.set(null); return; }   // the room was demolished / the rascal went home
-    const hideForMenu = ctx.compact.get() && ctx.menu.get() !== null;
+    // compact: the sheet gives way to an open build menu and to an active tool (chip + ✕, touch ✓ / ✕, demolish
+    // bubble, cursor label); the selection is kept and the sheet comes back when the menu / tool closes
+    const hideForMenu = ctx.compact.get() && (ctx.menu.get() !== null || ctx.tool.get().kind !== 'none');
     const visible = m !== null && !hideForMenu;
     if (!visible) { show(root, false); shownKey = ''; mode = m; return; }
 
@@ -634,6 +644,7 @@ export function mountPanels(ctx: UICtx): Component {
       // replay the 180 ms fade-in (opacity + transform only)
       root.classList.remove('pn--in'); void root.offsetWidth; root.classList.add('pn--in');
       body.scrollTop = 0;
+      requestAnimationFrame(scrollCue);
     }
     mode = m;
   }

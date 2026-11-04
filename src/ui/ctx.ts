@@ -68,8 +68,11 @@ export interface UICtx {
   /** open/close the modal overlays (settings, help) – modals pause the game (Brief §11.1) */
   openModal(name: 'settings' | 'help'): void;
   closeModal(): void;
-  /** result feedback for a command (toast with the localised reason on failure) */
-  feedback(r: CommandResult): void;
+  /**
+   * result feedback for a command: on failure a toast with the localised reason (every sim reason has its own text).
+   * `message` is an already localised override shown instead of the mapped reason (e.g. 'Unlocks at 3 stars').
+   */
+  feedback(r: CommandResult, message?: string): void;
   /** subscribe to new sim events; the app dispatches each event exactly once, in order, once per frame. Returns unsubscribe */
   onEvent(fn: (e: SimEvent) => void): () => void;
   /**

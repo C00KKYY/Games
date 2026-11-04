@@ -5,6 +5,7 @@
   "overlays.toast.caught": "Caught! +{coins} coins, +{ruf} reputation",
   "overlays.toast.objBuild": "Build a {room}",
   "overlays.toast.objective": "Goal done: {goal}! +{coins} coins, +{ruf} reputation",
+  "overlays.toast.objectiveUnlock": "Goal done: {goal}! +{coins} coins, +{ruf} reputation · New: {room}",
   "overlays.toast.unlockSpeed3": "3× speed unlocked! Press 3 to use it.",
   "overlays.toast.unlockRoom": "New room unlocked: {room}",
   "overlays.toast.star": "New star! Reputation {n}/5 ★",
@@ -41,7 +42,6 @@
   "overlays.credits.made": "Art, code and music were made for this game.",
   "overlays.credits.fonts": "Fonts: Fredoka and Inter, both under the SIL Open Font License 1.1, bundled via @fontsource.",
   "overlays.credits.libs": "Libraries: PixiJS, lz-string and ZzFX under the MIT License.",
-  "overlays.credits.sound": "Sound credits follow.",
   "overlays.credits.thanks": "Thanks for keeping the rascals cosy!",
   "overlays.version": "Version {v} · {build}",
   "overlays.or": "or",
@@ -89,5 +89,12 @@
   "overlays.help.oneFinger": "Pan the camera; with a build tool: outline the room",
   "overlays.help.twoFingers": "Pan, and pinch to zoom",
   "overlays.help.long": "Show what a button does",
-  "overlays.help.confirm": "Buy or drop the outlined room"
+  "overlays.help.confirm": "Buy or drop the outlined room",
+  "overlays.reason.noRoom": "Needs a finished room of the right type first",
+  "overlays.reason.unchanged": "Nothing changed",
+  "overlays.reason.invalid": "That doesn't work here",
+  "overlays.reason.noFerry": "No ferry is arriving right now",
+  "overlays.reason.empty": "No crates to collect yet",
+  "overlays.reason.none": "Nobody needs that right now",
+  "overlays.reason.open": "Pay back the current loan first"
 }

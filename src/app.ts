@@ -9,7 +9,7 @@ import type { Camera } from './render/camera';
 import { SimView } from './render/simView';
 import { newGame, Stepper, cmd, tick } from './sim/sim';
 import type { World, CommandResult, SimEvent } from './sim/types';
-import { t, fmtNum, setLang, getLang, langFromLocale, type Lang } from './i18n/i18n';
+import { t, fmtNum, setLang, getLang, langFromLocale, type Lang, type Key } from './i18n/i18n';
 import { Store, type UICtx, type Component, type Selection, type Tool } from './ui/ctx';
 import { DEFAULT_SETTINGS, type Settings } from './save/serialize';
 import { mountTooltips } from './ui/tooltips';
@@ -22,6 +22,19 @@ import { mountStaffMenu } from './ui/staffMenu';
 import { mountPanels } from './ui/panels';
 import { mountModals } from './ui/modals';
 import { mountTools } from './ui/tools';
+
+/** every CommandResult reason the sim returns (src/sim/rooms.ts, src/sim/sim.ts cmd) → its localised message */
+const REASON_KEY: Record<string, Key> = {
+  // placement (PlaceReason) and shared ones
+  tooSmall: 'place.tooSmall', tooLarge: 'place.tooLarge', outside: 'place.outside', overlap: 'place.overlap',
+  blocksPath: 'place.blocksPath', onRoad: 'place.onRoad', coins: 'place.coins', locked: 'place.locked',
+  // room commands
+  noRoom: 'overlays.reason.noRoom', unchanged: 'overlays.reason.unchanged', invalid: 'overlays.reason.invalid',
+  max: 'panels.maxLevel', lastOfType: 'tools.reason.lastOfType', tooLate: 'tools.reason.tooLate',
+  // taps, loan
+  noFerry: 'overlays.reason.noFerry', cooldown: 'tools.reason.cooldown', empty: 'overlays.reason.empty',
+  none: 'overlays.reason.none', open: 'overlays.reason.open',
+};
 
 export interface App { w: World; ctx: UICtx; input: { ownsPointer: boolean; onPanStart(): void }; frame(dt: number): void; container: Container; groundCull: Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number } }
 
@@ -79,11 +92,10 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     paused: () => paused,
     openModal(name) { late.modals?.open(name); },
     closeModal() { late.modals?.close(); },
-    feedback(r: CommandResult) {
+    feedback(r: CommandResult, message?: string) {
       if (r.ok) return;
-      const key = `place.${r.reason}`;
-      const msg = t(key);
-      ctx.toast(msg === key ? t('place.overlap') : msg, { kind: 'bad', ms: 1800 });
+      const key = (r.reason && REASON_KEY[r.reason]) || 'place.overlap'; // unknown reason → generic "something is in the way"
+      ctx.toast(message ?? t(key), { kind: 'bad', ms: 1800 });
     },
     onEvent(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i >= 0) subs.splice(i, 1); }; },
     input,

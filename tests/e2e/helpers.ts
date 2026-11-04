@@ -38,3 +38,17 @@ export async function screenshotVariance(page: Page): Promise<number> {
     const m = s / n; return s2 / n - m * m;
   }, buf.toString('base64'));
 }
+
+/**
+ * Navigate to the game (relative URL → works with any baseURL) and wait until the HUD is mounted, the loading
+ * screen is gone and the web fonts are loaded. `settleMs` lets throttled DOM writes (≤ 10/s) and the 0.5 s camera
+ * inset refresh catch up before measuring.
+ */
+export async function gotoGame(page: Page, query = '', settleMs = 800): Promise<void> {
+  await page.goto('/' + (query && !query.startsWith('?') ? '?' + query : query));
+  await page.waitForFunction(() => {
+    const g = window as unknown as Record<string, unknown>;
+    return !!g.__ctx && !!g.__game && !!document.getElementById('boot')?.classList.contains('gone') && document.fonts.status === 'loaded';
+  }, null, { timeout: 60_000 });
+  if (settleMs > 0) await page.waitForTimeout(settleMs);
+}
