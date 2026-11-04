@@ -2,12 +2,15 @@
  * D5 (Brief §12.5): every key the game handles is listed in the help overlay – and the help lists no key that does nothing
  * (docs/UI_DESIGN.md §4: "R … noch ohne Funktion → nicht anzeigen").
  *
- * Handled keys are extracted from the sources (src/**\/*.ts) with regexes:
- *   - `<e>.key === 'X'` / `!==` and `<e>.code === 'X'` / `!==` (e, ev, event)
- *   - `<e>.code.startsWith('Arrow')` → the four arrow keys
+ * Handled keys are extracted from the sources (src/**\/*.ts) with regexes (any receiver name: e, ev, evt, event, …):
+ *   - `<x>.key === 'X'` / `!==`, `<x>.code === 'X'`, also case-folded (`<x>.key.toLowerCase() === 'x'`) and reversed
+ *   - `<x>.code.startsWith('Arrow')` → the four arrow keys; `['a', 'b'].includes(<x>.key)`
  *   - `keys.has('KeyA')`-style lookups of a pressed-code set (any `.has('<KeyboardEvent.code>')`)
- *   - `const k = <e>.key.toLowerCase()` → every `k === 'x'` and every `case 'x':` inside `switch (k) { … }`
- *   - a comparison on a line that also tests `e.ctrlKey` / `e.metaKey` WITHOUT negation is a combo (Ctrl+X / Cmd+X)
+ *   - `switch (<x>.key) { case 'x': … }` (also case-folded)
+ *   - `const k = <x>.key[.toLowerCase()]` / `const { key } = <x>` → every `k === 'x'` and `case 'x':` of `switch (k)`
+ *   - a comparison on a line that also tests `<x>.ctrlKey` / `<x>.metaKey` WITHOUT negation is a combo (Ctrl+X / Cmd+X)
+ * Fail-safe: every keydown/keyup/keypress listener in src/ must yield at least one extracted key from its handler body,
+ * so a handler written in a form the regexes do not know turns the test red instead of silently passing.
  * Keys of the help overlay come from the help key table in src/ui/modals.ts (`helpRow(…, [[caps]], …)`): string caps and
  * `{ k: 'overlays.key.<name>' }` caps (resolved by key name, so the check is language independent; both languages must
  * have the text). Everything is normalised to one spelling: letters upper case, Esc, Del, Space, Shift, ↑ ← ↓ →, Ctrl+Z, Cmd+Z.
@@ -52,47 +55,99 @@ function norm(raw: string): string {
 }
 
 interface Found { key: string; where: string }
-function handledKeys(): Found[] {
+/** any receiver: e, ev, evt, event, ke, ev?.… */
+const RX = String.raw`\b[A-Za-z_$][\w$]*\??`;
+/** `.key` / `.code`, optionally case-folded */
+const KC = String.raw`\.(?:key|code)(?:\.to(?:Lower|Upper)Case\(\))?`;
+/** text of the `{ … }` block that starts at `open` (index of the opening brace) */
+function blockAt(src: string, open: number): string {
+  let depth = 0;
+  for (let i = open; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1); }
+  return src.slice(open);
+}
+/** keys compared / switched on in `src` (a whole file or one handler body) */
+function extractKeys(src: string, file: string): Found[] {
   const out: Found[] = [];
-  const add = (key: string, file: string, line: string) => {
+  const add = (key: string, line: string) => {
     const k = norm(key);
-    const ctrl = /(?<!!)\b(?:e|ev|event)\.ctrlKey/.test(line), meta = /(?<!!)\b(?:e|ev|event)\.metaKey/.test(line);
+    const ctrl = new RegExp(String.raw`(?<!!)${RX}\.ctrlKey`).test(line), meta = new RegExp(String.raw`(?<!!)${RX}\.metaKey`).test(line);
     const where = `${file.replace(ROOT, '')}: ${line.trim().slice(0, 90)}`;
     if (ctrl) out.push({ key: `Ctrl+${k}`, where });
     if (meta) out.push({ key: `Cmd+${k}`, where });
     if (!ctrl && !meta) out.push({ key: k, where });
   };
+  const isComment = (line: string) => /^\s*(\/\/|\*|\/\*)/.test(line);
+  /** `case 'x':` labels of every `switch (<subject>) { … }` whose subject matches `subj` */
+  const cases = (text: string, subj: string) => {
+    for (const m of text.matchAll(new RegExp(String.raw`switch\s*\(\s*${subj}\s*\)\s*\{`, 'g'))) {
+      const body = blockAt(text, m.index! + m[0].length - 1);
+      for (const c of body.matchAll(/case\s+'([^']+)'\s*:/g)) add(c[1], `switch (${m[0].slice(0, 40)}) case '${c[1]}'`);
+    }
+  };
+  for (const line of src.split('\n')) {
+    if (isComment(line)) continue;
+    for (const m of line.matchAll(new RegExp(String.raw`${RX}${KC}\s*[!=]==?\s*'([^']+)'`, 'g'))) add(m[1], line);
+    for (const m of line.matchAll(new RegExp(String.raw`'([^']+)'\s*[!=]==?\s*${RX}${KC}\b`, 'g'))) add(m[1], line);
+    for (const m of line.matchAll(new RegExp(String.raw`${RX}${KC}\.startsWith\('([^']+)'\)`, 'g'))) {
+      if (m[1] === 'Arrow') for (const a of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) add(a, line);
+      else add(m[1], line);
+    }
+    // ['a', 'b'].includes(e.key)
+    for (const m of line.matchAll(new RegExp(String.raw`\[([^\]]*)\]\.includes\(\s*${RX}${KC}\s*\)`, 'g'))) for (const q of m[1].matchAll(/'([^']+)'/g)) add(q[1], line);
+    for (const m of line.matchAll(/\.has\('((?:Key[A-Z])|(?:Digit\d)|(?:Arrow\w+)|Space|Escape|Delete)'\)/g)) add(m[1], line);
+  }
+  // switch (e.key) / switch (evt.code.toLowerCase())
+  cases(src, `${RX}${KC}`);
+  // `const k = e.key.toLowerCase()` / `const { key } = e`: comparisons with the variable and `case` labels of
+  // `switch (k)` – only inside the block (function body) that declares it, so unrelated variables with the same name
+  // elsewhere in the file are not mistaken for keys
+  const decls = [
+    ...[...src.matchAll(new RegExp(String.raw`(?:const|let|var)\s+(\w+)\s*=\s*${RX}${KC}\s*[;\n]`, 'g'))].map(d => ({ v: d[1], at: d.index! })),
+    ...[...src.matchAll(new RegExp(String.raw`(?:const|let|var)\s*\{([^}]*)\}\s*=\s*${RX}\s*[;\n]`, 'g'))].flatMap(d =>
+      [...d[1].matchAll(/\b(key|code)\b(?:\s*:\s*(\w+))?/g)].map(x => ({ v: x[2] ?? x[1], at: d.index! }))),
+  ];
+  for (const { v, at } of decls) {
+    let depth = 0, start = at;
+    for (; start > 0; start--) { if (src[start] === '}') depth++; else if (src[start] === '{' && depth-- === 0) break; }
+    const body = blockAt(src, start);
+    for (const line of body.split('\n')) {
+      if (isComment(line)) continue;
+      for (const m of line.matchAll(new RegExp(String.raw`\b${v}\s*[!=]==?\s*'([^']+)'`, 'g'))) add(m[1], line);
+      for (const m of line.matchAll(new RegExp(String.raw`'([^']+)'\s*[!=]==?\s*${v}\b`, 'g'))) add(m[1], line);
+    }
+    cases(body, v);
+  }
+  return out;
+}
+function handledKeys(): Found[] {
+  return files(SRC).flatMap(f => extractKeys(readFileSync(f, 'utf8'), f));
+}
+
+/**
+ * Every keyboard listener in src/ (addEventListener('keydown' | 'keyup' | 'keypress', …) and on…= assignments) with
+ * the body of its handler (inline arrow / function, or the named const / function it refers to).
+ */
+function keyListeners(): { file: string; what: string; body: string | null }[] {
+  const out: { file: string; what: string; body: string | null }[] = [];
   for (const f of files(SRC)) {
     const src = readFileSync(f, 'utf8');
-    const lines = src.split('\n');
-    lines.forEach(line => {
-      if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
-      for (const m of line.matchAll(/\b(?:e|ev|event)\.(?:key|code)\s*[!=]==?\s*'([^']+)'/g)) add(m[1], f, line);
-      for (const m of line.matchAll(/'([^']+)'\s*[!=]==?\s*(?:e|ev|event)\.(?:key|code)\b/g)) add(m[1], f, line);
-      for (const m of line.matchAll(/\b(?:e|ev|event)\.(?:code|key)\.startsWith\('([^']+)'\)/g)) {
-        if (m[1] === 'Arrow') for (const a of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) add(a, f, line);
-        else add(m[1], f, line);
+    // the handler text is a lookahead, so two listeners on adjacent lines are both matched
+    const re = /(?:addEventListener\(\s*'(key(?:down|up|press))'\s*,\s*|\.on(key(?:down|up|press))\s*=\s*)(?=([\s\S]{0,200}))/g;
+    for (const m of src.matchAll(re)) {
+      const rest = m[3];
+      const what = `${f.replace(ROOT, '')}: ${(m[0] + rest).slice(0, 80).replace(/\s+/g, ' ')}`;
+      let body: string | null = null;
+      const inline = rest.match(/^(?:async\s*)?(?:function\s*\w*\s*\([^)]*\)|\([^)]*\)|\w+)\s*(?::\s*[\w<>]+\s*)?(?:=>)?\s*\{/);
+      if (inline) body = blockAt(src, m.index! + m[0].length + inline[0].length - 1);
+      else {
+        const inlineExpr = rest.match(/^(?:\([^)]*\)|\w+)\s*=>\s*([^,)][^\n]*)/);
+        const name = rest.match(/^([A-Za-z_$][\w$]*)\s*[,)]/);
+        if (name) {
+          const def = new RegExp(String.raw`(?:function\s+${name[1]}\s*\([^)]*\)\s*(?::\s*\w+\s*)?\{|(?:const|let)\s+${name[1]}\s*=\s*(?:\([^)]*\)|\w+)\s*(?::\s*\w+\s*)?=>\s*\{)`).exec(src);
+          if (def) body = blockAt(src, def.index + def[0].length - 1);
+        } else if (inlineExpr) body = inlineExpr[1];
       }
-      for (const m of line.matchAll(/\.has\('((?:Key[A-Z])|(?:Digit\d)|(?:Arrow\w+)|Space|Escape|Delete)'\)/g)) add(m[1], f, line);
-    });
-    // `const k = e.key.toLowerCase()`: comparisons with k and `case` labels of `switch (k)` – only inside the block
-    // (function body) that declares k, so unrelated variables named k elsewhere in the file are not mistaken for keys
-    for (const d of src.matchAll(/(?:const|let)\s+(\w+)\s*=\s*(?:e|ev|event)\.key\.toLowerCase\(\)/g)) {
-      const v = d[1];
-      let depth = 0, start = d.index!;
-      for (; start > 0; start--) { if (src[start] === '}') depth++; else if (src[start] === '{' && depth-- === 0) break; }
-      depth = 0; let end = start;
-      for (let i = start; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}' && --depth === 0) { end = i; break; } }
-      const body = src.slice(start, end + 1);
-      for (const line of body.split('\n')) {
-        if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue;
-        for (const m of line.matchAll(new RegExp(`\\b${v}\\s*[!=]==?\\s*'([^']+)'`, 'g'))) add(m[1], f, line);
-      }
-      for (const m of body.matchAll(new RegExp(`switch\\s*\\(\\s*${v}\\s*\\)\\s*\\{`, 'g'))) {
-        let dd = 0, j = m.index! + m[0].length - 1, e2 = j;
-        for (; j < body.length; j++) { if (body[j] === '{') dd++; else if (body[j] === '}' && --dd === 0) { e2 = j; break; } }
-        for (const c of body.slice(m.index!, e2).matchAll(/case\s+'([^']+)'\s*:/g)) add(c[1], f, `switch (${v}) case '${c[1]}'`);
-      }
+      out.push({ file: f, what, body });
     }
   }
   return out;
@@ -143,6 +198,26 @@ describe('D5 hotkeys ↔ help overlay', () => {
   it('the extraction finds the documented hotkeys (sanity)', () => {
     for (const k of ['B', 'O', 'H', 'P', '1', '2', '3', 'Del', 'Esc', 'Ctrl+Z', 'W', 'A', 'S', 'D', '↑', 'Space']) expect(handledSet.has(k), `handled: ${k}  (found: ${[...handledSet].sort().join(' ')})`).toBe(true);
     expect(helpSet.size, `help keys: ${[...helpSet].join(' ')}`).toBeGreaterThan(10);
+  });
+
+  it('the extraction recognises the common handler spellings (self-check on planted source)', () => {
+    const planted = [
+      "window.addEventListener('keydown', evt => { if (evt.key === 'q') go(); });",
+      "function onKey(e: KeyboardEvent) { switch (e.key) { case 'g': a(); break; case 'Enter': b(); } }",
+      "const f = (ev: KeyboardEvent) => { if (ev.key.toLowerCase() === 'x') c(); if ('j' === ev.code) d(); };",
+      "const h2 = (ke: KeyboardEvent) => { const { key } = ke; if (key === 'n') e1(); };",
+      "const h3 = (e: KeyboardEvent) => { const kk = e.code; switch (kk) { case 'KeyT': t1(); } if (['KeyU', 'KeyV'].includes(e.code)) u(); };",
+      "const h4 = (e: KeyboardEvent) => { if (e.key === 'm' && e.ctrlKey) m1(); };",
+    ].join('\n');
+    const got = new Set(extractKeys(planted, 'planted.ts').map(k => k.key));
+    for (const k of ['Q', 'G', 'Enter', 'X', 'J', 'N', 'T', 'U', 'V', 'Ctrl+M']) expect(got.has(k), `planted ${k} found (got ${[...got].join(' ')})`).toBe(true);
+  });
+
+  it('every keyboard listener in src/ yields at least one extracted key (fail-safe for the extraction)', () => {
+    const ls = keyListeners();
+    expect(ls.length, 'keyboard listeners found').toBeGreaterThanOrEqual(5);
+    const bad = ls.filter(l => !l.body || extractKeys(l.body, l.file).length === 0).map(l => `${l.what}${l.body ? '' : '  (handler body not found)'}`);
+    expect(bad, 'keyboard listeners whose keys the extraction cannot see – extend extractKeys() so D5 checks them').toEqual([]);
   });
 
   it('every key the game handles is listed in the help overlay', () => {

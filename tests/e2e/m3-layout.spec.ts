@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- in-page probes read untyped window hooks (__sim, __ctx, __game) and Pixi internals */
 /**
  * M3 layout acceptance tests – Brief §12.3 B1 (screenshot matrix + DOM audit), B2 (canvas backing store), B7 (800×450).
  * Sizes from docs/UI_DESIGN.md §5. Runs with the project config or any config that sets baseURL (relative URLs only).
@@ -222,6 +223,18 @@ async function waitFor(page: Page, sel: string) {
   await page.waitForFunction(s => [...document.querySelectorAll(s)].some(e => e.checkVisibility() && e.getBoundingClientRect().width > 0), sel, { timeout: 10_000 });
 }
 
+/**
+ * CSS transitions/animations run on wall-clock time, not on __step: under SwiftShader an open/fade-in can still be
+ * half-way when a fixed wait ends (seen as half-transparent menus in the montage). Wait until every finite CSS
+ * animation has finished (infinite ones such as the bottleneck pulse are ignored).
+ */
+async function settleCss(page: Page) {
+  await page.waitForFunction(() => document.getAnimations().every(a => {
+    if (a.playState !== 'running') return true;
+    return a.effect?.getComputedTiming().iterations === Infinity;
+  }), null, { timeout: 15_000, polling: 100 });
+}
+
 test.describe('B1 screenshot matrix', () => {
   test('B1 pending screens (systems from M5/M6 not implemented yet)', async () => {
     for (const [screen, why] of PENDING) test.info().annotations.push({ type: 'pending', description: `${screen} – ${why}` });
@@ -271,8 +284,9 @@ test.describe('B1 screenshot matrix', () => {
         // throttled DOM writes (≤ 10/s) and the 0.5 s camera-inset refresh.
         await gotoGame(page, `lang=${lang}&capture=1${sc.query ? '&' + sc.query : ''}`, 0);
         await step(page, 45);
-        if (sc.prep) { await sc.prep(page); await step(page, 30); await page.waitForTimeout(400); /* CSS transitions */ }
+        if (sc.prep) { await sc.prep(page); await step(page, 30); }
         if (sc.check) await waitFor(page, sc.check);
+        await settleCss(page);
         const file = shotPath(lang, sc.name, w, h);
         mkdirSync(join(file, '..'), { recursive: true });
         await page.screenshot({ path: file });
@@ -381,6 +395,17 @@ test.describe('B7 at 800×450', () => {
     expect(strips.top, 'top bar incl. flow strip ≤ 40 px').toBeLessThanOrEqual(40);
     const bb = await page.evaluate(() => Math.max(...[...document.querySelectorAll('[data-hud="bottom"]')].map(e => e.getBoundingClientRect().height)));
     expect(bb, 'build bar ≤ 64 px').toBeLessThanOrEqual(64);
+    // the clipboard collapses to a chip ≤ 200×40 (and stays visible: D4)
+    const chip = await page.evaluate(() => {
+      const el = document.querySelector<HTMLElement>('.cb-chip');
+      if (!el || !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return null;
+      const r = el.getBoundingClientRect();
+      return { w: r.width, h: r.height };
+    });
+    note('measured', `clipboard chip ${chip ? `${chip.w.toFixed(1)}×${chip.h.toFixed(1)} px` : 'not visible'}`);
+    expect(chip, 'clipboard is a visible chip at 800×450').not.toBeNull();
+    expect(chip!.w, 'clipboard chip ≤ 200 px wide').toBeLessThanOrEqual(200);
+    expect(chip!.h, 'clipboard chip ≤ 40 px tall').toBeLessThanOrEqual(40);
   });
 
   for (const lang of LANGS) {

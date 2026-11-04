@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- in-page probes read untyped window hooks and CSSStyleDeclaration by name */
 /**
  * M3 UI acceptance tests – Brief §12.3 B3 (contrast), B4 (touch targets), B5 (no fullscreen, no external links),
  * B6 (user-select) and §12.5 D5 (every button has a label/icon and a tooltip). The hotkey half of D5 is a unit test
@@ -94,7 +95,18 @@ async function enter(page: Page, s: StateName): Promise<boolean> {
   }
   await page.mouse.move(2, 2);           // no hover tooltip in the measurement
   await page.waitForTimeout(450);        // open animations (≤ .18 s) and throttled DOM writes (≤ 10/s)
+  await settleCss(page);
   return true;
+}
+
+/**
+ * CSS transitions run on wall-clock time; under SwiftShader with a parallel worker a panel fade-in can still be at
+ * opacity .15 after the fixed wait above (it was then measured as "text over the world"). Wait until every finite CSS
+ * animation/transition has finished; infinite ones (bottleneck pulse) are ignored.
+ */
+async function settleCss(page: Page) {
+  await page.waitForFunction(() => document.getAnimations().every(a =>
+    a.playState !== 'running' || a.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 15_000, polling: 100 });
 }
 
 async function load(page: Page, query = MID) {
@@ -179,7 +191,8 @@ async function hudProbe(): Promise<Probe> {
     }
     return parts.join(' > ');
   };
-  const clipped = (el: Element, r: DOMRect) => {
+  /** the part of `r` that is actually painted: viewport ∩ every clipping ancestor (overflow ≠ visible) */
+  const visibleRect = (el: Element, r: DOMRect) => {
     let x0 = Math.max(0, r.left), y0 = Math.max(0, r.top), x1 = Math.min(vw, r.right), y1 = Math.min(vh, r.bottom);
     for (let p = el.parentElement; p && p !== document.documentElement; p = p.parentElement) {
       const cs = getComputedStyle(p);
@@ -188,8 +201,9 @@ async function hudProbe(): Promise<Probe> {
       if (cs.overflowX !== 'visible') { x0 = Math.max(x0, b.left); x1 = Math.min(x1, b.right); }
       if (cs.overflowY !== 'visible') { y0 = Math.max(y0, b.top); y1 = Math.min(y1, b.bottom); }
     }
-    return x1 - x0 < 1 || y1 - y0 < 1;
+    return { x0, y0, x1, y1 };
   };
+  const clipped = (el: Element, r: DOMRect) => { const v = visibleRect(el, r); return v.x1 - v.x0 < 1 || v.y1 - v.y0 < 1; };
   const isVis = (el: Element) => {
     if (!el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) return false;
     const r = el.getBoundingClientRect();
@@ -248,7 +262,9 @@ async function hudProbe(): Promise<Probe> {
     const cs = getComputedStyle(el);
     const fg0 = parse(cs.color); if (!fg0) continue;
     const fgA = fg0[3] * opacityChain(el);
-    const { layers, alpha } = layersOf(el, r.left + r.width / 2, r.top + r.height / 2);
+    // backdrop at the centre of the painted part (a row half scrolled out of a modal body is judged where it is visible)
+    const vr = visibleRect(el, r);
+    const { layers, alpha } = layersOf(el, (vr.x0 + vr.x1) / 2, (vr.y0 + vr.y1) / 2);
     const shadow = (cs.textShadow !== 'none' && colorsIn(cs.textShadow).some(c => c[3] > 0.2)) || parseFloat((cs as any).webkitTextStrokeWidth || '0') > 0;
     const item: TextItem = { where: desc(el), text: txt.slice(0, 40), kind: alpha >= 0.9 ? 'panel' : 'world', ratio: 0, fg: hex(fg0), bg: '', alpha: Math.round(alpha * 100) / 100, plaque: alpha >= 0.5, shadow };
     let worst = Infinity, worstBg: RGBA = [0, 0, 0, 1];
@@ -381,9 +397,9 @@ test.describe('B3 contrast (EN)', () => {
       await load(page, MID + '&lang=en');
       const fails: string[] = [], log: Record<string, unknown> = {};
       let panelTexts = 0, worldTexts = 0;
-      // the brief's states (base, rooms menu, room panel, settings) plus the build tool: its cursor label is the DOM text
-      // that sits over the world
-      await eachState(page, ['base', 'rooms', 'room', 'settings', 'build'], async s => {
+      // every main state (B3 covers all DOM text on opaque panels): includes the build tool, whose cursor label is the DOM
+      // text that sits over the world, the staff menu, the rascal panel, help and the clipboard / stage lists
+      await eachState(page, ALL_STATES, async s => {
         // scroll containers (modal body, panel body, menu rows) are walked page by page so text below the fold is measured too
         const pages: Probe[] = [];
         for (let step = 0; step < 12; step++) {
@@ -517,13 +533,35 @@ test.describe('D5 every button has a label/icon and a tooltip', () => {
         const ok = await expect.poll(() => page.evaluate(() => {
           const t = document.querySelector('.ov-tip.on') as HTMLElement | null;
           return t && t.checkVisibility({ opacityProperty: true, visibilityProperty: true }) ? (t.querySelector('.ov-tip-title')?.textContent ?? '').trim() : '';
-        }), { timeout: 2000 }).not.toBe('').then(() => true, () => false);
+        }), { timeout: 5000 }).not.toBe('').then(() => true, () => false); // 300 ms hover delay + fade; SwiftShader frames can take > 800 ms
         if (!ok) fails.push(`[${s}] no tooltip after hovering ${sm.comp} button ${sm.what}`);
         await page.mouse.move(2, 2);
         await page.waitForTimeout(150);
       }
     }
     expect([...seen].length, `components sampled: ${[...seen].join(', ')}`).toBeGreaterThanOrEqual(5);
+    expect(fails).toEqual([]);
+  });
+
+  // The source-level comparison (handled keys ↔ help key table) is tests/unit/hotkeys.test.ts. This checks the RENDERED help
+  // overlay: it opens with H and actually shows a key cap for every hotkey the UI contract names (docs/UI_DESIGN.md §4), in
+  // both languages (DE key names from overlays.key.*).
+  test('D5 the help overlay opens with H and renders every hotkey (EN + DE)', async ({ page }) => {
+    const common = ['W', 'A', 'S', 'D', '↑', '←', '↓', '→', 'B', 'O', 'P', 'H', '1', '2', '3', 'Z', 'Cmd', 'Esc'];
+    const named: Record<string, string[]> = { en: ['Del', 'Ctrl', 'Shift', 'Space'], de: ['Entf', 'Strg', 'Umschalt', 'Leertaste'] };
+    const fails: string[] = [];
+    for (const lang of ['en', 'de'] as const) {
+      await load(page, `lang=${lang}`);
+      await reset(page);
+      await page.keyboard.press('h');
+      await expect.poll(() => visible(page, '.ov-modal'), { message: `[${lang}] H opens the help overlay` }).toBe(true);
+      const caps = await page.evaluate(() => [...document.querySelectorAll('.ov-modal kbd')].map(k => (k.textContent ?? '').trim()));
+      const missing = [...common, ...named[lang]].filter(k => !caps.includes(k));
+      if (missing.length) fails.push(`[${lang}] help overlay lacks key caps: ${missing.join(' ')}  (rendered: ${[...new Set(caps)].join(' ')})`);
+      await page.keyboard.press('h');
+      await expect.poll(() => visible(page, '.ov-modal'), { message: `[${lang}] H closes the help overlay again` }).toBe(false);
+      await page.unroute('**/*');
+    }
     expect(fails).toEqual([]);
   });
 });

@@ -21,6 +21,7 @@ Grundlage: Brief §6 (UX), §7.5 (UI-Kit), §6.6 (Kompakt-HUD), §10 (Sprache), 
   - Bauleiste ≤ 64 px.
   - Klemmbrett als einklappbarer Chip ≤ 200×40 px.
   - Spielfläche ≥ 70 %.
+  - Das Budget gilt für 800×450 ohne Touch (so misst B7). Mit `ctx.touch` gehen die 44-px-Ziele aus B4 vor: Topbar und Klemmbrett-Chip dürfen dann höher als 40 px sein (gemessen bei 844×390: Topbar-Unterkante ≈ 50 px, Chip 44 px).
 - **Keine toten Buttons, kein „Coming soon“** (H6). Noch nicht freigeschaltete Dinge zeigen ein Schloss und den Grund („Unlocks with 2 stars“) oder sind ausgeblendet, wenn das System noch gar nicht existiert (Deko, Projekte bis M5).
 - Kein Fullscreen-Button, keine externen Links (B5).
 - `user-select:none` gilt global (B6).

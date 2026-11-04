@@ -137,7 +137,8 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
         break;
       }
       case 'dayEnd': {
-        const day = Number(e.day) || 0, wages = Number(e.wages) || 0;
+        // the sim emits the finished day 0-based (dayOf(t) - 1); the topbar clock counts from 1 (topbar.ts clockInfo)
+        const day = (Number(e.day) || 0) + 1, wages = Number(e.wages) || 0;
         const inc = totalIncome(), rel = w.stats.released;
         const earned = Math.max(0, inc - ledger.income), released = Math.max(0, rel - ledger.released);
         ledger = { income: inc, released: rel };
