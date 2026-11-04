@@ -1,0 +1,61 @@
+/* Canvas tools (src/ui/tools.ts): cursor label, touch ✓ / ✕, demolish bubble, tool chip. All overlays (data-overlay).
+   Sizes in rem (base --ui); every text ≥ 12 px also in compact mode (--ui 14 px → .86rem minimum). */
+.tl { position: absolute; inset: 0; pointer-events: none; }
+.tl [hidden] { display: none !important; }
+.tl-label, .tl-confirm, .tl-bubble { position: absolute; left: 0; top: 0; will-change: transform; }
+
+/* ---- cursor label */
+.tl-label { min-width: 10rem; max-width: 17.5rem; padding: .4rem .6rem .45rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: var(--shadow); font: 400 1rem/1.25 Inter, system-ui, sans-serif; color: var(--ink900); pointer-events: none; }
+.tl-row { display: flex; align-items: center; gap: .35rem; }
+.tl-ic { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
+.tl-head .tl-name { font: 600 1.05rem Fredoka, Inter, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-head .tl-size { margin-left: auto; padding-left: .5rem; font-size: 1rem; color: var(--ink500); white-space: nowrap; }
+.tl-stats { gap: .8rem; margin-top: .2rem; flex-wrap: wrap; }
+.tl-stats > span { display: flex; align-items: center; gap: .3rem; white-space: nowrap; }
+.tl-price .num { font-size: 1.1rem; }
+.tl-price.bad .num { color: var(--coral700); }
+.tl-cap { font-size: 1rem; color: var(--ink700); }
+.tl-line { margin-top: .25rem; font-size: 1rem; line-height: 1.2; align-items: flex-start; }
+.tl-line .tl-ic { width: 1.05rem; height: 1.05rem; margin-top: .05rem; }
+.tl-line.bad { color: var(--coral700); font-weight: 600; }
+.tl-line.good { color: var(--sage900); font-weight: 600; }
+.tl-line.note { color: var(--ink500); }
+
+/* ---- buttons */
+.tl-btn { pointer-events: auto; min-width: max(2.4rem, 32px); height: max(2.4rem, 32px); padding: 0 .45rem; border-radius: 99px; border: 2px solid var(--wood700); background: var(--cream300); box-shadow: inset 0 -3px 0 var(--cream700), 0 2px 0 var(--wood900); display: inline-flex; align-items: center; justify-content: center; gap: .3rem; cursor: pointer; font: 600 1rem Inter, system-ui, sans-serif; color: var(--ink900); transition: transform .08s ease-out; }
+.tl-btn:hover { transform: scale(1.05); }
+.tl-btn:active { transform: scale(.95); }
+.tl-btn:focus-visible { outline: 3px solid var(--teal500); outline-offset: 2px; }
+.tl-bi { width: 1.35rem; height: 1.35rem; pointer-events: none; }
+.touch .tl-btn { min-width: 44px; height: 44px; }
+
+/* ---- touch confirm ✓ / ✕ */
+.tl-confirm { display: flex; gap: .7rem; pointer-events: none; }
+.tl-confirm .tl-btn { min-width: max(3rem, 44px); height: max(3rem, 44px); }
+.tl-confirm .tl-bi { width: 1.6rem; height: 1.6rem; }
+.tl-yes { background: var(--mint500); border-color: var(--mint700); box-shadow: inset 0 -3px 0 var(--mint700), 0 2px 0 var(--wood900); }
+.tl-yes.off { background: var(--cream700); border-color: var(--wood500); box-shadow: inset 0 -3px 0 var(--wood300), 0 2px 0 var(--wood900); opacity: .85; }
+
+/* ---- demolish bubble */
+.tl-bubble { min-width: 11rem; max-width: 18rem; padding: .5rem .7rem .55rem; background: var(--cream300); border: 2px solid var(--wood700); border-radius: 12px; box-shadow: var(--shadow); pointer-events: auto; color: var(--ink900); }
+.tl-bq { font: 600 1.05rem/1.2 Fredoka, Inter, sans-serif; }
+.tl-brow { margin: .3rem 0 .5rem; font-size: 1rem; align-items: flex-start; }
+.tl-brow .tl-ic { margin-top: .1rem; }
+.tl-brow .num:empty { display: none; }
+.tl-brow .num { font-size: 1.1rem; color: var(--sage900); }
+.tl-note { color: var(--ink700); flex: 1 1 auto; min-width: 0; line-height: 1.25; }
+.tl-bubble.locked .tl-note { color: var(--coral700); font-weight: 600; }
+.tl-bbtns { display: flex; gap: .5rem; justify-content: flex-end; }
+.tl-byes { color: var(--coral700); border-color: var(--coral700); padding: 0 .7rem 0 .5rem; }
+.tl-bt { white-space: nowrap; }
+
+/* ---- tool chip (above the build bar) */
+.tl-chip { position: absolute; left: 50%; bottom: 5rem; transform: translateX(-50%); max-width: calc(100vw - 16px); display: flex; align-items: center; gap: .45rem; padding: .2rem .25rem .2rem .65rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: 99px; box-shadow: var(--shadow); pointer-events: auto; font: 600 1rem Inter, system-ui, sans-serif; color: var(--ink900); white-space: nowrap; }
+.tl-chip .tl-ic { width: 1.3rem; height: 1.3rem; }
+.tl-chip-t { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.tl-chip .tl-btn { flex: 0 0 auto; }
+
+@media (max-width: 900px) {
+  .tl-label { max-width: 15rem; padding: .3rem .5rem .35rem; }
+  .tl-chip { padding: .15rem .2rem .15rem .55rem; }
+}

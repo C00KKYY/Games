@@ -1,0 +1,85 @@
+/* Warden's Clipboard (src/ui/clipboard.ts) – look of the approved G1 sketch (.clip in hud.css), own class names so the
+   sketch's compact rules (hidden header, < 12 px text) do not apply. Every text ≥ .86rem (12 px at --ui 14 px). */
+.cb { position: absolute; left: calc(8px + env(safe-area-inset-left)); top: calc(3.2rem + env(safe-area-inset-top)); width: 0; height: 0; pointer-events: none; }
+.cb .cb-hide { display: none !important; }
+.cb button { font: inherit; color: inherit; -webkit-tap-highlight-color: transparent; }
+.cb img { pointer-events: none; }
+
+/* ---- card */
+.cb-card { position: absolute; left: 0; top: 0; width: 16rem; pointer-events: auto; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: inset 0 0 0 2px var(--cream300), inset 0 0 0 3px var(--cream700), var(--shadow); padding: .55rem .7rem .6rem; color: var(--ink900); }
+.cb-card::before { content: ''; position: absolute; left: 50%; top: -.55rem; width: 3.2rem; height: .9rem; margin-left: -1.6rem; background: linear-gradient(var(--cream700), var(--wood300)); border: 2px solid var(--wood700); border-radius: 6px; }
+.cb-h { margin: 0 0 .3rem; padding-right: 2.6rem; font: 600 .86rem/1.2 Fredoka, Inter, sans-serif; letter-spacing: .04em; text-transform: uppercase; color: var(--wood700); display: flex; align-items: center; gap: .3rem; }
+.cb-h-ic { width: 1.1rem; height: 1.1rem; flex: 0 0 auto; }
+.cb-goal { display: flex; align-items: flex-start; gap: .4rem; font-weight: 600; font-size: 1rem; line-height: 1.25; }
+.cb-goal-ic { width: 1.35rem; height: 1.35rem; flex: 0 0 auto; margin-top: -.05rem; }
+.cb-goal-txt { min-width: 0; overflow-wrap: anywhere; }
+.cb-req { display: inline-block; margin: .3rem 0 0 1.75rem; font: 700 .86rem/1.1 Fredoka, Inter, sans-serif; letter-spacing: .03em; color: var(--coral700); border: 2px solid var(--coral500); border-radius: 5px; padding: .05rem .3rem; transform: rotate(-3deg); opacity: .9; }
+.cb-prog { margin-top: .4rem; display: flex; align-items: center; gap: .45rem; }
+.cb-bar { flex: 1; height: .6rem; border-radius: 99px; background: var(--cream700); overflow: hidden; box-shadow: inset 0 1px 0 rgba(0,0,0,.15); }
+.cb-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(var(--mint500), var(--mint700)); border-radius: 99px; transform-origin: 0 50%; transform: scaleX(0); transition: transform .35s ease-out; }
+.cb-prog-num { font-size: .95rem; color: var(--ink700); white-space: nowrap; }
+.cb-rew { margin-top: .3rem; display: flex; align-items: center; gap: .3rem; font-size: .9rem; color: var(--ink700); }
+.cb-rew-ic { width: 1rem; height: 1rem; flex: 0 0 auto; }
+.cb-row { margin-top: .4rem; display: flex; flex-wrap: wrap; gap: .35rem; }
+.cb-btn { min-height: 2.3rem; min-width: 2.3rem; display: inline-flex; align-items: center; gap: .3rem; padding: 0 .6rem; border-radius: 99px; border: 2px solid var(--teal700); background: var(--cream300); color: var(--teal700) !important; font: 600 .92rem Inter, sans-serif !important; cursor: pointer; box-shadow: inset 0 -2px 0 var(--cream700); white-space: nowrap; }
+.cb-btn:hover { transform: scale(1.04); } .cb-btn:active { transform: scale(.96); }
+.cb-show { background: var(--teal500); border-color: var(--teal700); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--teal700); }
+.cb-btn-ic { width: 1.1rem; height: 1.1rem; }
+.cb-skip { border-color: var(--ink500); color: var(--ink700) !important; }
+.cb-stamp { position: absolute; right: .5rem; top: .4rem; font: 700 .86rem/1.1 Fredoka, Inter, sans-serif; color: var(--coral500); border: 2px solid var(--coral500); border-radius: 5px; padding: 0 .3rem; transform: rotate(8deg); opacity: 0; transition: opacity .3s; pointer-events: none; }
+.cb--new .cb-stamp { opacity: .85; }
+.cb-x { position: absolute; right: .3rem; top: .3rem; width: 2.3rem; height: 2.3rem; display: grid; place-items: center; border-radius: 99px; border: 2px solid var(--wood500); background: var(--cream500); cursor: pointer; padding: 0; }
+.cb-x img { width: 1.1rem; height: 1.1rem; }
+.cb-x:hover { transform: scale(1.06); } .cb-x:active { transform: scale(.94); }
+.cb-card-x { display: none; }
+
+/* ---- chip (compact) */
+.cb-chip { display: none; position: absolute; left: 0; top: 0; pointer-events: auto; width: max-content; max-width: 14.2rem; height: 2.8rem; align-items: center; gap: .35rem; padding: 0 .6rem 0 .4rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: var(--shadow); cursor: pointer; color: var(--ink900); overflow: hidden; }
+.cb-chip-ic { width: 1.35rem; height: 1.35rem; flex: 0 0 auto; }
+.cb-chip-txt { min-width: 0; flex: 1 1 auto; font: 600 .9rem/1.2 Inter, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cb-chip-num { flex: 0 0 auto; font-size: .95rem; color: var(--teal700); }
+.cb-chip-flash { position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px var(--coral500); opacity: 0; pointer-events: none; }
+.cb-chip:active { transform: scale(.97); }
+
+.cb--compact .cb-chip { display: flex; }
+.cb--compact .cb-card { display: none; top: calc(2.8rem + 6px); }
+.cb--compact.cb--open .cb-card { display: block; }
+.cb--compact .cb-card::before { display: none; }
+.cb--compact .cb-card-x { display: grid; }
+.cb--compact .cb-goal { padding-right: 2.2rem; }
+.cb--compact .cb-stamp { right: 2.9rem; }
+
+/* ---- list of all goals (overlay, right of the card) */
+.cb-list { display: none; position: absolute; left: calc(16rem + .5rem); top: 0; width: 20rem; pointer-events: auto; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r); box-shadow: inset 0 0 0 2px var(--cream300), inset 0 0 0 3px var(--cream700), var(--shadow); overflow: hidden; flex-direction: column; }
+.cb--list .cb-list { display: flex; }
+.cb--compact .cb-list { top: calc(2.8rem + 6px); }
+.cb-lhead { position: relative; flex: 0 0 auto; padding: .5rem 3rem .4rem .7rem; border-bottom: 2px solid var(--cream700); }
+.cb-ltitle { margin: 0; font: 700 1rem/1.2 Fredoka, Inter, sans-serif; color: var(--wood700); }
+.cb-lreq { display: block; font-size: .86rem; color: var(--coral700); font-weight: 600; margin-top: .1rem; }
+.cb-items { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: .3rem; display: flex; flex-direction: column; gap: .15rem; }
+.cb-item { flex: 0 0 auto; display: flex; align-items: flex-start; gap: .45rem; width: 100%; min-height: 2.3rem; padding: .35rem .45rem; border: 2px solid transparent; border-radius: 8px; background: transparent; text-align: left; cursor: pointer; }
+.cb-item:hover { background: var(--cream500); }
+.cb-item.cb-cur { background: rgba(51,144,138,.14); border-color: var(--teal500); }
+.cb-item-st { width: 1.3rem; height: 1.3rem; flex: 0 0 auto; }
+.cb-item-no { width: 1.3rem; height: 1.3rem; flex: 0 0 auto; display: grid; place-items: center; border-radius: 99px; background: var(--cream700); color: var(--ink700); font-size: .86rem; }
+.cb-item-main { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: .15rem; }
+.cb-item-txt { font-weight: 600; font-size: 1rem; line-height: 1.25; color: var(--ink900); }
+.cb-done .cb-item-txt { color: var(--ink500); text-decoration: line-through; text-decoration-color: rgba(91,110,137,.5); }
+.cb-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .2rem .55rem; font-size: .86rem; color: var(--ink700); }
+.cb-item-num { font-size: .9rem; color: var(--teal700); }
+.cb-done .cb-item-num { color: var(--mint700); }
+.cb-item-rew { display: inline-flex; align-items: center; gap: .15rem; }
+.cb-item-rew .num { font-size: .9rem; }
+.cb-mini-ic { width: .95rem; height: .95rem; }
+.cb-req-s { margin: 0; transform: none; padding: 0 .25rem; border-width: 1.5px; }
+
+/* ---- touch: every target ≥ 44 px */
+.cb--touch .cb-btn, .cb--touch .cb-item { min-height: 44px; }
+.cb--touch .cb-btn { min-width: 44px; }
+.cb--touch .cb-x { width: 44px; height: 44px; }
+.cb--touch .cb-chip { height: 44px; }
+.cb--touch.cb--compact .cb-card, .cb--touch.cb--compact .cb-list { top: calc(44px + 6px); }
+.cb--touch .cb-h, .cb--touch .cb-lhead { padding-right: 3.4rem; }
+.cb--touch.cb--compact .cb-goal { padding-right: 2.8rem; }
+
+@media (prefers-reduced-motion: reduce) { .cb-bar i, .cb-stamp { transition: none; } }
