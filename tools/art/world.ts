@@ -383,6 +383,56 @@ function booth(): Sprite {
   return { name: 'booth', w: W, h: H, ax: 0, ay: H - 4, body: b, pad: 4 };
 }
 
+
+// ---------------------------------------------------------------- workshop / classroom / guard / yard furniture
+function knitStation(): Sprite {
+  let b = contactShadow(16, 29, 30, 0.2);
+  b += shape(rr(3, 20, 4, 9, 1), T.woodDark, { s: 1, lw: 1.4 }) + shape(rr(25, 20, 4, 9, 1), T.woodDark, { s: 1, lw: 1.4 });
+  b += shape(rr(1, 8, 30, 14, 2.5), T.wood, { s: 2, h: 1.2 });                       // table top
+  b += strokeP('M3 14.5H29', P.wood700, 0.8, 'butt', 0.6);
+  b += shape(rr(4, 4, 12, 9, 3), T.woodLight, { s: 1.5, h: 0.8, lw: 1.4 });           // basket
+  b += shape(ell(8, 5.5, 3.4, 3.2), T.coral, { s: 1, h: 0.6, lw: 1.1 }) + shape(ell(13, 6, 3, 2.8), T.teal, { s: 1, h: 0.6, lw: 1.1 });
+  b += strokeP('M6.5 4.6Q8 7 9.5 4.8M11.6 5Q13 7.2 14.6 5.4', P.cream300, 0.7, 'round', 0.8);
+  b += shape(rr(18, 9, 10, 8, 2), T.gold, { s: 1.2, h: 0.6, lw: 1.2 }); // folded knitwear
+  b += strokeP('M19 12h8M19 14.5h8', P.gold700, 0.8);
+  b += strokeP('M21 3L26 11M25 3L22 11', P.stone700, 1.2);                                // needles
+  return { name: 'knitStation', w: 32, h: 30, ax: 0, ay: 30, body: b };
+}
+function desk(): Sprite {
+  let b = contactShadow(16, 27, 28, 0.2);
+  b += shape(rr(4, 16, 3, 10, 1), T.ink, { s: 0.8, lw: 1.2 }) + shape(rr(25, 16, 3, 10, 1), T.ink, { s: 0.8, lw: 1.2 });
+  b += shape(rr(2, 6, 28, 12, 2.5), T.woodLight, { s: 1.8, h: 1 });
+  b += shape(rr(7, 8, 11, 7, 1), T.cream, { s: 1, h: 0, lw: 1 }) + strokeP('M9 10.5h7M9 12.5h5', P.ink500, 0.8);
+  b += strokeP('M21 9L26 14', P.gold700, 1.4);                                             // pencil
+  b += shape(rr(9, 19, 14, 8, 2), T.brick, { s: 1.2, h: 0.8, lw: 1.3 });                   // chair seat
+  return { name: 'desk', w: 32, h: 28, ax: 0, ay: 28, body: b };
+}
+function chalkboard(): Sprite {
+  let b = contactShadow(32, 39, 56, 0.18);
+  b += shape(rr(6, 28, 4, 11, 1), T.woodDark, { s: 1, lw: 1.3 }) + shape(rr(54, 28, 4, 11, 1), T.woodDark, { s: 1, lw: 1.3 });
+  b += shape(rr(1, 2, 62, 30, 2.5), T.wood, { s: 2, h: 1.2 });
+  b += shape(rr(4, 5, 56, 23, 1.5), T.sageDark, { s: 1.2, h: 0, lw: 1.2 });
+  b += strokeP('M8 10h18M8 14h12M8 18h20M33 10l6 6M39 10l-6 6M45 13h10M50 8v10', P.cream300, 1, 'round', 0.85);
+  b += strokeP('M30 23q6-4 12 0', P.cream300, 1, 'round', 0.7);
+  b += shape(rr(18, 27, 26, 3, 1), T.woodDark, { s: 0.6, lw: 1 }) + `<rect x="22" y="26" width="5" height="2" rx="1" fill="${P.cream300}"/>`;
+  return { name: 'chalkboard', w: 64, h: 40, ax: 0, ay: 40, body: b };
+}
+function guardDesk(): Sprite {
+  let b = contactShadow(20, 27, 38, 0.2);
+  b += shape(rr(2, 12, 36, 15, 2), T.ink, { s: 2 });
+  b += shape(rr(0, 5, 40, 10, 2.5), T.wood, { s: 1.5, h: 1 });
+  b += shape(rr(4, 6, 12, 7, 1), T.cream, { s: 1, h: 0, lw: 1 }) + strokeP('M6 8.5h8M6 10.5h6', P.ink500, 0.8);   // logbook
+  b += shape(rr(28, -2, 3, 9, 1), T.ink, { s: 0.6, lw: 1 }) + shape('M24 -4L35 -4L33 1H26Z', T.gold, { s: 1, h: 0.6, lw: 1.1 }); // lamp
+  b += shape(ell(21, 9, 3, 2.2), T.stoneLight, { s: 0.8, lw: 1 }) + strokeP('M23.5 8.5l3-1.5', P.stone700, 1);        // whistle
+  return { name: 'guardDesk', w: 40, h: 28, ax: 0, ay: 27, body: b, pad: 6 };
+}
+const hoop = (): Sprite => ({ name: 'hoop', w: 28, h: 58, ax: 0, ay: 57,
+  body: contactShadow(14, 57, 16) + shape(rr(12, 14, 4, 43, 1.5), T.ink, { s: 1, h: 0.6, lw: 1.3 }) + shape(rr(3, 2, 22, 15, 2), T.cream, { s: 1.5, h: 1 })
+    + `<rect x="9" y="6" width="10" height="7" fill="none" stroke="${P.coral500}" stroke-width="1.4"/>` + shape(ell(14, 18, 7, 2.6), T.coral, { s: 0.6, h: 0, lw: 1.3 })
+    + strokeP('M8 19l2 6M14 20.5v6M20 19l-2 6', P.cream300, 0.9, 'round', 0.9) });
+const yardBall = (): Sprite => ({ name: 'yardBall', w: 14, h: 14, ax: 7, ay: 12,
+  body: contactShadow(7, 12, 12) + shape(ell(7, 6.5, 5.6, 5.6), T.coral, { s: 1.6, h: 0.8, lw: 1.3 }) + strokeP('M2 5.5Q7 8.5 12 5.5M7 1V12', P.cream300, 1, 'round', 0.9) });
+
 export function worldSprites(): Sprite[] {
   return [
     ...[0, 1, 2, 3].map(grass), ...[0, 1, 2].map(paving), ...[0, 1].map(sand), ...[0, 1, 2].map(v => planks(v)),
@@ -390,7 +440,7 @@ export function worldSprites(): Sprite[] {
     wave(), foam(), shore(),
     wallH(), wallV(), wallPost(), doorH(), doorMat(), fenceH(), fenceV(),
     bunkBed(), benchTable(), bistroTable(), counter(1), counter(2), showerStall(), crate(), bollard(), lamp(), lightGlow(), firefly(),
-    tree(0), tree(1), bush(), flowerBed(), bench(), rock(), ferry(), office(), gate(), gatePillar(), gateBeam(), booth(), stampDesk(), cart(), sign(),
+    tree(0), tree(1), bush(), flowerBed(), bench(), rock(), ferry(), office(), gate(), gatePillar(), gateBeam(), booth(), stampDesk(), knitStation(), desk(), chalkboard(), guardDesk(), hoop(), yardBall(), cart(), sign(),
     puff(), steam(), leaf(), confetti(), coin(), gull(), cloudShadow(),
   ];
 }

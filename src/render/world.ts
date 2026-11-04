@@ -1,6 +1,7 @@
 /** WorldView: sea, ground chunks, shore, walls, furniture, decor (Brief §9.6). */
 import { Container, Sprite, Texture, Rectangle, Graphics } from 'pixi.js';
-import { tex } from './atlas';
+import { tex, hasTex } from './atlas';
+const hasTexSafe = (n: string) => { try { return hasTex(n); } catch { return false; } };
 import { MAP_W, MAP_H, SEA, Ground, groundAt, islandOutline, type RoomDesc } from '../content/site1';
 import { P } from '../../art/palette';
 
@@ -122,7 +123,43 @@ export class WorldView {
     return items;
   }
 
+  /** sim room: walls with doors/links on any side, furniture from the layout packer */
+  addSimRoom(r: { id: number; type: string; x: number; y: number; w: number; h: number; door: { x: number; y: number; side: string }; links: { x: number; y: number; side: string }[]; furniture: { sprite: string; x: number; y: number; z?: number; flipX?: boolean }[]; built: boolean }) {
+    const items: Container[] = [];
+    const X = r.x * TILE, Y = r.y * TILE, W = r.w * TILE, H = r.h * TILE;
+    this.shadowRect(X, Y + 4, W, 6, 0.12);
+    this.shadowRect(X + W + 4, Y - 6, 5, H + 14, 0.1);
+    this.shadowRect(X + 6, Y + H + 4, W + 3, 5, 0.1);
+    const open = (x: number, y: number, side: string) => r.door.x === x && r.door.y === y && r.door.side === side || r.links.some(l => l.x === x && l.y === y && l.side === side);
+    const add = (name: string, x: number, y: number, z = y) => {
+      const s = new Sprite(tex(name)); s.position.set(x, y); s.zIndex = z;
+      if (!r.built) s.alpha = 0.45;
+      this.objects.addChild(s); items.push(s); return s;
+    };
+    const fence = r.type === 'yard';
+    for (let i = 0; i < r.w; i++) {
+      const tx = X + i * TILE, gx = r.x + i;
+      const n = open(gx, r.y, 'N'), so = open(gx, r.y + r.h - 1, 'S');
+      if (fence) { if (!n) add('fenceH', tx, Y + 4, Y + 4); if (!so) add('fenceH', tx, Y + H + 4, Y + H + 4); continue; }
+      add(n ? 'doorH' : 'wallH', tx, Y + 4, Y + 4);
+      add(so ? 'doorH' : 'wallH', tx, Y + H + 4, Y + H + 4);
+      if (so) add('doorMat', tx + 16, Y + H + 8, Y + H - 2);
+    }
+    for (let j = 0; j < r.h; j++) {
+      const gy = r.y + j;
+      const wO = open(r.x, gy, 'W'), eO = open(r.x + r.w - 1, gy, 'E');
+      if (fence) { if (!wO) add('fenceV', X, Y + j * TILE + 36, Y + j * TILE + 30); if (!eO) add('fenceV', X + W, Y + j * TILE + 36, Y + j * TILE + 30); continue; }
+      if (!wO) add('wallV', X, Y + j * TILE - 16, Y + j * TILE + 16);
+      if (!eO) add('wallV', X + W, Y + j * TILE - 16, Y + j * TILE + 16);
+    }
+    if (!fence) { add('wallPost', X, Y + 4, Y + 5); add('wallPost', X + W, Y + 4, Y + 5); add('wallPost', X, Y + H + 4, Y + H + 5); add('wallPost', X + W, Y + H + 4, Y + H + 5); }
+    for (const f of r.furniture) { if (!hasTexSafe(f.sprite)) continue; const s = add(f.sprite, X + f.x, Y + f.y, Y + f.y + (f.z ?? 0)); if (f.flipX) s.scale.x = -1; }
+    this.roomViews.set(String(r.id), items);
+    return items;
+  }
+
   removeRoom(id: string) { for (const s of this.roomViews.get(id) ?? []) s.destroy(); this.roomViews.delete(id); }
+  clearRooms() { for (const id of [...this.roomViews.keys()]) this.removeRoom(id); this.shadows.removeChildren(); }
 
   addProp(name: string, tx: number, ty: number, z?: number) {
     const s = new Sprite(tex(name)); s.position.set(tx * TILE, ty * TILE); s.zIndex = z ?? ty * TILE; this.objects.addChild(s); return s;

@@ -50,7 +50,7 @@ export interface RoomDef {
 
 export const ROOMS: Record<RoomType, RoomDef> = {
   bunk:      { minW: 3, minH: 3, baseCost: 80,  perTile: 15, tilesPerSlot: 3, baseUp: 60 },
-  canteen:   { minW: 4, minH: 3, baseCost: 120, perTile: 20, tilesPerSlot: 2, staff: 'cook', perStaff: 8, baseUp: 80 },
+  canteen:   { minW: 4, minH: 3, baseCost: 120, perTile: 20, tilesPerSlot: 3, staff: 'cook', perStaff: 8, baseUp: 80 },
   wash:      { minW: 3, minH: 3, baseCost: 100, perTile: 15, tilesPerSlot: 3, staff: 'janitor', perStaff: 99, baseUp: 60 },
   workshop:  { minW: 4, minH: 4, baseCost: 250, perTile: 22, tilesPerSlot: 4, staff: 'foreman', perStaff: 4, baseUp: 120 },
   classroom: { minW: 4, minH: 4, baseCost: 350, perTile: 25, tilesPerSlot: 3, staff: 'teacher', perStaff: 10, baseUp: 150 },
@@ -163,7 +163,7 @@ export const moodFactor = (mood: number) => 0.5 + mood / 100;
 
 export const SENTENCE = {
   earlyCount: 12,
-  early: [110, 150] as const,
+  early: [80, 110] as const,
   normal: [120, 220] as const,
   earl: 20,
   vip: 150,

@@ -6,6 +6,38 @@ import { createSpike } from './spike';
 import { mountHudSketch } from './ui/hudSketch';
 import { attachInput } from './ui/input';
 import { rclock } from './render/rclock';
+import { SimView } from './render/simView';
+import { newGame, Stepper } from './sim/sim';
+import { hourOf } from './sim/time';
+import type { Camera as Cam } from './render/camera';
+import type { Application as App } from 'pixi.js';
+
+/** sim-driven scene (dev: ?sim, ?bot=casual|optimal, ?speed=2, ?seed=n) – becomes the default in M3 */
+async function createSimScene(app: App, cam: Cam, params: URLSearchParams) {
+  const w = newGame(Number(params.get('seed') ?? 1), { debug: params.has('debug') });
+  w.speed = Number(params.get('speed') ?? 1);
+  const view = new SimView(app, w);
+  const stepper = new Stepper(w);
+  let bot: { step(): void } | null = null;
+  if (params.get('bot')) { const m = await import('../tools/bots'); bot = new m.BotDriver(w, { profile: params.get('bot') as 'casual', seed: 1 }); }
+  // dev: ?warp=<seconds> simulates ahead before the first frame
+  const warp = Number(params.get('warp') ?? 0) * 1000;
+  if (warp > 0) { const { tick } = await import('./sim/sim'); while (w.rtMs < warp) { tick(w); bot?.step(); } }
+  cam.bounds = { x0: -5 * 32, y0: -3 * 32, x1: 37 * 32, y1: 33 * 32 };
+  (window as unknown as Record<string, unknown>).__sim = w;
+  return {
+    world: view.world, container: view.container,
+    frameStart: () => cam.fit(-3.2 * 32, 10.0 * 32, 18.4 * 32, 23.6 * 32, 4),
+    get hour() { return hourOf(w.t); },
+    setNight(_h: number) { /* sim owns the clock */ },
+    update(dt: number) {
+      const before = stepper.ticks;
+      stepper.frame(dt * 1e6);
+      if (bot) for (let i = before; i < stepper.ticks; i++) bot.step();
+      view.update(dt);
+    },
+  };
+}
 
 export async function startGame(platform: Platform, setBoot: (p: number) => void) {
   const params = new URLSearchParams(location.search);
@@ -26,7 +58,8 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
   await Promise.all([loadAtlas(dpr, cam.maxZoom, p => setBoot(0.35 + p * 0.45)), document.fonts.load('700 20px Fredoka').catch(() => undefined)]);
   setBoot(0.85);
 
-  const spike = createSpike(app, cam, params);
+  const simMode = params.has('sim');
+  const spike = simMode ? await createSimScene(app, cam, params) : createSpike(app, cam, params);
   const hud = mountHudSketch(document.getElementById('app')!, params);
   const applyView = () => {
     cam.inset = hud.insets();
