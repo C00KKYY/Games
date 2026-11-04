@@ -627,7 +627,11 @@ const UI = {
     const xpk = Math.min(1, r.xp / r.xpNext);
     const xpw = (xpk * 100).toFixed(1);
     if (L.xp !== xpw) { el.xpfill.style.width = xpw + '%'; L.xp = xpw; }
-    if (L.level !== r.level) { el.xplvl.textContent = tr('Stufe {0}', r.level); L.level = r.level; }
+    if (L.level !== r.level) {
+      // Stufenaufstieg: Erfahrungsleiste leuchtet kurz auf
+      if (L.level && r.level > L.level) { const x = el.xplvl.parentNode; x.classList.remove('lvlglow'); void x.offsetWidth; x.classList.add('lvlglow'); }
+      el.xplvl.textContent = tr('Stufe {0}', r.level); L.level = r.level;
+    }
     const tt = Math.floor(r.t);
     if (L.t !== tt) {
       el.timer.textContent = fmtTime(r.t);

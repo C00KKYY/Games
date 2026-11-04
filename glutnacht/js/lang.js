@@ -287,6 +287,7 @@ const LANG_EN = {
 
   // ---------- Im Spiel ----------
   'Ein Elitegegner taucht auf – er trägt eine Truhe!': 'An elite enemy appears. It carries a chest!',
+  'Elite': 'Elite',
   '{0} erscheint!': '{0} appears!',
   '{0} besiegt!': '{0} defeated!',
   'Wiedergeboren!': 'Revived!',

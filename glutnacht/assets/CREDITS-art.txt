@@ -1,0 +1,9 @@
+Ember Night - Grafik-Herkunft (art credits)
+
+Alle Figuren, Gegner, Boeden und Symbole werden im Code gezeichnet (js/sprites.js).
+
+Effekt-Sprites (Funken, Ringe, Hieb, Blitz, Flammen, Rauch, Explosion):
+  Kenney - Particle Pack, Smoke Particles
+  www.kenney.nl - License: Creative Commons Zero (CC0 1.0)
+  http://creativecommons.org/publicdomain/zero/1.0/
+  Quellen und Lizenztext: assets/src/kenney/

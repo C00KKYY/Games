@@ -35,7 +35,7 @@
   // 2. Plattform (bestimmt den Speicherort), Grafiken und Klänge – nie länger als 2,5 s warten.
   //    Kommt das SDK später, stellt Platform.lateAttach() den Speicherort sicher um.
   await Promise.race([
-    Promise.all([Platform.init(), Sprites.load(), Sfx.preload()]).catch(() => {}),
+    Promise.all([Platform.init(), Sprites.load(), FxArt.load(), Sfx.preload()]).catch(() => {}),
     new Promise(r => setTimeout(r, 2500)),
   ]);
   Platform.booted = true;
@@ -54,7 +54,14 @@
 
   Hooks.sfx = (n, a) => Sfx.play(n, a);
   Hooks.shake = a => Render.addShake(a);
-  Hooks.levelUp = o => UI.levelUp(o);
+  // Stufenaufstieg: Lichtstoß um den Helden, 150 ms stehendes Bild (Treffer-Stopp), dann die Karten
+  let lvlT = 0;
+  Hooks.levelUp = () => {
+    Render.levelUp();
+    clearTimeout(lvlT);
+    lvlT = setTimeout(() => { if (Game.state === 'levelup') UI.levelUp(Game.lastLevelOptions); }, 150);
+  };
+  Hooks.kill = e => Render.onKill(e);
   Hooks.chest = r => UI.chest(r);
   Hooks.victory = () => UI.victory();
   Hooks.gameOver = s => UI.gameOver(s);

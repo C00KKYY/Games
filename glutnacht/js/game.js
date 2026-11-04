@@ -3,7 +3,7 @@
 
 const Hooks = {
   levelUp() {}, chest() {}, gameOver() {}, victory() {}, banner() {}, achievement() {},
-  sfx() {}, shake() {}, happy() {},
+  sfx() {}, shake() {}, happy() {}, kill() {},
 };
 
 const ENEMY_COLORS = {
@@ -534,6 +534,7 @@ const Game = {
     r.kills++;
     save.stats.kills++;
     const col = ENEMY_COLORS[e.type] || '#fff';
+    Hooks.kill(e); // nur Darstellung (Todes-Effekt)
     this.burst(e.x, e.y, col, e.boss ? 60 : e.elite ? 24 : 7, e.boss ? 320 : 150);
     if (e.swarm && Math.random() < 0.5) return;
     if (e.boss) {

@@ -232,7 +232,7 @@ const Sprites = (() => {
     if (c) return c;
     if (variant) {
       const base = enemy(type, frame, 0, tint);
-      c = variant === 1 ? tintVariant(base, '#ffffff', 0.6) : tintVariant(base, '#7fd8ff', 0.5);
+      c = variant === 1 ? tintVariant(base, '#ffffff', 0.8) : tintVariant(base, '#7fd8ff', 0.5);
       c.size = base.size;
     } else if (tint) {
       const base = enemy(type, frame, 0, null);

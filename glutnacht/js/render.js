@@ -13,11 +13,30 @@ const PLAYER_DRAW_SCALE = 1.25;
 // Kleinster Zoom: Held und Gegner bleiben auch auf Handys groß genug (vorher 0.55)
 const MIN_ZOOM = 0.8;
 
+// Darstellungsstufen: Auflösung des Spiel-Canvas (rs) und der Lichtkarte (lm, Anteil der CSS-Pixel).
+// Fällt die Bildrate im Spiel unter 50 fps, wird automatisch zurückgeschaltet (siehe autoQuality).
+// sprites: Partikel als Kenney-Funken (sonst gebündelte Quadrate); shadows: Schatten unter Gegnern
+const QUALITY = [
+  { rs: 1, lm: 0.5, gemLights: true, sprites: true, shadows: true },
+  { rs: 0.8, lm: 0.4, gemLights: true, sprites: true, shadows: true },
+  { rs: 0.6, lm: 0.3, gemLights: false, sprites: true, shadows: true },
+  { rs: 0.42, lm: 0.25, gemLights: false, sprites: false, shadows: false },
+  { rs: 0.34, lm: 0.2, gemLights: false, sprites: false, shadows: false },
+];
+// Umgebungslicht je Land: die Lichtkarte wird mit dieser Farbe gefüllt und mit der Szene multipliziert
+// (#ffffff = unverändert). Lichtquellen (Glut des Helden, Kohlebecken, Geschosse …) hellen sie auf.
+const AMBIENT = { graveyard: '#66769e', ashwood: '#84666e', frostlake: '#647ca4', ruins: '#74708c', nightheart: '#6a5a9e' };
+const AMBIENT_DEFAULT = '#7880a6';
+
 const Render = {
   keyArtOn: false, keyArtA: 0, hintA: 0,
   cv: null, ctx: null, dpr: 1, W: 0, H: 0, zoom: 1,
   cam: { x: 0, y: 0 }, camOffset: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
-  pattern: null, vignette: null, hurtVig: null, spr: {}, list: [], embers: [],
+  pattern: null, hurtVig: null, spr: {}, list: [], embers: [],
+  // Licht und Effekte (nur Darstellung)
+  quality: 0, qAuto: true, perf: { last: 0, acc: 0, ft: [], upBlock: 0, downs: 0 },
+  lm: null, lmG: null, lmVig: null, lmS: 0.5, ambient: AMBIENT_DEFAULT,
+  corpses: [], vfx: [], trails: [], tags: [], lvlFx: null, runRef: null,
 
   init(canvas) {
     this.cv = canvas;
@@ -36,6 +55,8 @@ const Render = {
     this.spr.sickle = this.sickleSprite('#e8f0ff');
     this.spr.sickleEvo = this.sickleSprite('#9dfff0');
     this.spr.light = this.glowSprite(200, 'rgba(255,190,90,0.35)', 'rgba(255,120,30,0)');
+    // Glut des Helden: weicher, warmer Schein, der über das Licht hinaus aufhellt (additiv)
+    this.spr.ember = this.poolSprite(['rgba(255,176,96,0.5)', 'rgba(255,140,60,0.16)', 'rgba(255,110,40,0)']);
     for (let i = 0; i < 40; i++) this.embers.push({ x: Math.random(), y: Math.random(), s: rand(1, 3), v: rand(10, 40), ph: rand(0, TAU) });
     this.resize();
   },
@@ -48,6 +69,7 @@ const Render = {
     this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground), 'repeat');
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
+    this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
   },
 
   glowSprite(size, c0, c1) {
@@ -97,7 +119,7 @@ const Render = {
   },
 
   resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(2, window.devicePixelRatio || 1) * QUALITY[this.quality].rs;
     const W = window.innerWidth, H = window.innerHeight;
     this.dpr = dpr; this.W = W; this.H = H;
     this.cv.width = Math.round(W * dpr); this.cv.height = Math.round(H * dpr);
@@ -106,8 +128,56 @@ const Render = {
     this.zoom = clamp(Math.max(Math.min(W, H) / 660, H > W ? H / 1200 : 0), MIN_ZOOM, 1.4);
     Game.view.hw = W / 2 / this.zoom;
     Game.view.hh = H / 2 / this.zoom;
-    this.vignette = this.makeVignette(W, H, 'rgba(6,2,20,0)', 'rgba(6,2,20,0.78)', 0.32);
     this.hurtVig = this.makeVignette(W, H, 'rgba(255,0,40,0)', 'rgba(255,0,40,0.55)', 0.45);
+    this.makeLightMap();
+  },
+
+  // Stufe fest setzen (fixed = keine automatische Umschaltung mehr) – für Tests und Einstellungen
+  setQuality(q, fixed) {
+    this.quality = clamp(Math.round(q), 0, QUALITY.length - 1);
+    if (fixed !== undefined) this.qAuto = !fixed;
+    this.perf.acc = 0; this.perf.ft.length = 0;
+    this.resize();
+  },
+
+  // Bildrate im laufenden Spiel messen (je 1,5 s, ohne die langsamsten 10 % der Bilder, damit einzelne Hänger
+  // nichts auslösen): unter 50 fps eine Stufe zurück, über 58 fps nach einer Sperrzeit wieder eine Stufe hoch
+  // (die Sperre wächst mit jeder Rückstufung, damit nichts pendelt)
+  autoQuality(active) {
+    const P = this.perf, now = performance.now();
+    if (!active || !this.qAuto || (typeof document !== 'undefined' && document.hidden)) { P.last = 0; return; }
+    if (P.last) { const ft = now - P.last; if (ft < 250) { P.acc += ft; P.ft.push(ft); } }
+    P.last = now;
+    if (P.acc < 1500) return;
+    const ft = P.ft.sort((a, b) => a - b), n = Math.max(1, Math.floor(ft.length * 0.9));
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += ft[i];
+    const avg = sum / n;
+    P.acc = 0; ft.length = 0;
+    if (avg > 1000 / 50 && this.quality < QUALITY.length - 1) {
+      // weit darunter (< 24 fps): zwei Stufen auf einmal
+      this.quality = Math.min(QUALITY.length - 1, this.quality + (avg > 1000 / 24 ? 2 : 1));
+      P.downs++; P.upBlock = now + 15000 * P.downs; this.resize();
+    } else if (avg < 1000 / 58 && this.quality > 0 && now > P.upBlock) {
+      this.quality--; P.upBlock = now + 15000; this.resize();
+    }
+  },
+
+  // Lichtkarte in geringer Auflösung; der Randabfall (Vignette) steckt schon darin
+  makeLightMap() {
+    const s = QUALITY[this.quality].lm;
+    const w = Math.max(1, Math.ceil(this.W * s)), h = Math.max(1, Math.ceil(this.H * s));
+    if (!this.lm) this.lm = document.createElement('canvas');
+    this.lm.width = w; this.lm.height = h;
+    this.lmS = s;
+    this.lmG = this.lm.getContext('2d');
+    const v = this.lmVig = document.createElement('canvas');
+    v.width = w; v.height = h;
+    const g = v.getContext('2d'), R = Math.hypot(w, h) / 2;
+    const gr = g.createRadialGradient(w / 2, h / 2, R * 0.3, w / 2, h / 2, R);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.55, '#e2dded'); gr.addColorStop(1, '#7a6e94');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, w, h);
   },
 
   makeVignette(W, H, c0, c1, inner) {
@@ -137,6 +207,12 @@ const Render = {
     this.time += dt;
     const inRun = r && Game.state !== 'menu';
     if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
+    if (r !== this.runRef) { this.runRef = r; this.corpses.length = 0; this.vfx.length = 0; this.lvlFx = null; }
+    this.autoQuality(inRun && Game.state === 'play');
+    // Effekt-Zeit läuft nur im Spiel (und im kurzen Stopp beim Stufenaufstieg), nicht unter Dialogen
+    const L = this.lvlFx;
+    this.fxDt = Game.state === 'play' || (L && L.stop > 0) ? dt : 0;
+    if (L) { if (L.stop > 0) L.stop -= dt; L.t += this.fxDt; if (L.t > 1.2) this.lvlFx = null; }
     if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; }
     else { const k = 1 - this.keyArtA * 0.85; this.cam.x += 18 * dt * k; this.cam.y += 7 * dt * k; } // vor dem Titelbild fast still
     let sx = 0, sy = 0;
@@ -158,13 +234,14 @@ const Render = {
     ctx.fillRect(vx0, vy0, hw * 2, hh * 2);
     this.drawDecor(vx0, vy0, vx1, vy1);
 
+    // Im Spiel setzt drawWorld die Lichtkarte zwischen Figuren und leuchtende Effekte; sonst nur Umgebungslicht
     if (inRun) this.drawWorld(r, vx0, vy0, vx1, vy1);
+    else this.drawLightMap(null);
 
-    // Bildschirm-Ebene
+    // Bildschirm-Ebene (die Vignette steckt in der Lichtkarte)
     ctx.setTransform(d, 0, 0, d, 0, 0);
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.drawImage(this.vignette, 0, 0, this.W, this.H);
     if (inRun) this.drawScreenFx(r, dt);
     else { this.drawKeyArt(dt); this.drawEmbers(dt); }
   },
@@ -187,58 +264,71 @@ const Render = {
     return Math.abs(x - this.cam.x) < hw && Math.abs(y - this.cam.y) < hh;
   },
 
+  // Ablauf: (1) Boden-Nahes und Figuren, (2) Lichtkarte multiplizieren, (3) Leuchtendes und Lesbares darüber
   drawWorld(r, x0, y0, x1, y1) {
-    const ctx = this.ctx, t = this.time, p = r.p;
+    const ctx = this.ctx, t = this.time, p = r.p, Q = QUALITY[this.quality];
+    const fl = 0.85 + Math.sin(t * 13) * 0.1 + Math.sin(t * 7.3) * 0.05;
 
+    // ---------- (1) beleuchtete Ebene ----------
     // Kohlebecken
     for (const pr of r.propList) {
       if (!this.inView(pr.x, pr.y, 60)) continue;
       const b = Sprites.brazier();
       ctx.drawImage(b, pr.x - b.size / 2, pr.y - b.size / 2, b.size, b.size);
     }
-
-    // Bodeneffekte (additiv)
-    ctx.globalCompositeOperation = 'lighter';
-    for (const pr of r.propList) {
-      if (!this.inView(pr.x, pr.y, 120)) continue;
-      const fl = 0.85 + Math.sin(t * 13 + pr.x) * 0.1 + Math.sin(t * 7.3 + pr.y) * 0.05;
-      ctx.globalAlpha = 0.9;
-      ctx.drawImage(this.spr.light, pr.x - 100 * fl, pr.y - 100 * fl, 200 * fl, 200 * fl);
-      ctx.globalAlpha = 1;
-      ctx.drawImage(this.spr.flame, pr.x - 14 * fl, pr.y - 30 * fl, 28 * fl, 34 * fl);
-    }
+    // Brandflecken unter Feuerpfützen
     for (const f of r.fx) {
       if (f.kind !== 'pool') continue;
-      const a = Math.min(1, (f.life - f.t) * 3, f.t * 6);
-      const fl = 1 + Math.sin(t * 20 + f.x) * 0.04;
-      ctx.globalAlpha = a;
-      const s = f.rad * 2.3 * fl;
-      ctx.drawImage(f.evo ? this.spr.poolEvo : this.spr.pool, f.x - s / 2, f.y - s / 2 * 0.75, s, s * 0.75);
+      const a = Math.min(1, (f.life - f.t) * 2, f.t * 8), s = f.rad * 2.9;
+      ctx.globalAlpha = 0.6 * a;
+      ctx.drawImage(FxArt.tint('scorch', '#160603', 64), f.x - s / 2, f.y - s * 0.375, s, s * 0.75);
+    }
+    // Warmer Schein auf dem Boden: Glut des Helden und Kohlebecken (unter den Figuren, damit sie nicht ausbleichen;
+    // dort ist die Lichtkarte weiß, der Schein hellt also über das Licht hinaus auf)
+    ctx.globalCompositeOperation = 'lighter';
+    const pf = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 13.7) * 0.02;
+    ctx.globalAlpha = 1;
+    ctx.drawImage(this.spr.ember, p.x - 220 * pf, p.y - 220 * pf, 440 * pf, 440 * pf);
+    ctx.globalAlpha = 0.4;
+    for (const pr of r.propList) {
+      if (!this.inView(pr.x, pr.y, 120)) continue;
+      const f2 = 0.85 + Math.sin(t * 13 + pr.x) * 0.1 + Math.sin(t * 7.3 + pr.y) * 0.05;
+      ctx.drawImage(this.spr.light, pr.x - 100 * f2, pr.y - 100 * f2, 200 * f2, 200 * f2);
     }
     ctx.globalAlpha = 1;
-    for (const w of r.weapons) {
-      if (w.id !== 'aura' || !w.rad) continue;
-      w.pulse = Math.max(0, (w.pulse || 0) - 1 / 60 * 3);
-      const R = w.rad * (1 + w.pulse * 0.06);
-      const gr = ctx.createRadialGradient(p.x, p.y, R * 0.2, p.x, p.y, R);
-      gr.addColorStop(0, 'rgba(0,0,0,0)');
-      gr.addColorStop(0.75, w.evo ? 'rgba(120,255,170,0.06)' : 'rgba(255,140,40,0.06)');
-      gr.addColorStop(0.97, w.evo ? 'rgba(200,255,150,' + (0.22 + w.pulse * 0.2) + ')' : 'rgba(255,190,90,' + (0.2 + w.pulse * 0.2) + ')');
-      gr.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, TAU); ctx.fill();
-    }
-    for (const f of r.fx) {
-      if (f.kind !== 'nova') continue;
-      const k = f.t / f.life;
-      ctx.strokeStyle = f.freeze ? 'rgba(200,250,255,' + (1 - k) + ')' : 'rgba(127,216,255,' + (1 - k) + ')';
-      ctx.lineWidth = 14 * (1 - k) + 2;
-      ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1, f.rad), 0, TAU); ctx.stroke();
-      ctx.fillStyle = 'rgba(127,216,255,' + (0.12 * (1 - k)) + ')';
-      ctx.fill();
-    }
     ctx.globalCompositeOperation = 'source-over';
 
+    // Schatten
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath();
+    const list = this.list;
+    list.length = 0;
+    this.tags.length = 0;
+    for (const e of r.enemies) {
+      if (e.dead || !this.inView(e.x, e.y, e.r + 30)) continue;
+      list.push(e);
+      if (!Q.shadows) continue;
+      ctx.moveTo(e.x + e.r, e.y + e.r * 0.85);
+      ctx.ellipse(e.x, e.y + e.r * 0.85, e.r, e.r * 0.32, 0, 0, TAU);
+    }
+    const PS = PLAYER_DRAW_SCALE;
+    ctx.moveTo(p.x + 11 * PS, p.y + 15 * PS);
+    ctx.ellipse(p.x, p.y + 15 * PS, 11 * PS, 4 * PS, 0, 0, TAU);
+    ctx.fill();
+
+    // Gegner und Spieler, nach y sortiert; danach die zerplatzenden Besiegten
+    list.push(p);
+    list.sort((a, b) => a.y - b.y);
+    for (const e of list) {
+      if (e === p) this.drawPlayer(r);
+      else this.drawEnemy(e, p);
+    }
+    this.drawCorpses();
+
+    // ---------- (2) Licht ----------
+    this.drawLightMap(r);
+
+    // ---------- (3) über dem Licht ----------
     // Boss-Warnungen
     for (const te of r.tele) {
       const k = te.t / te.life;
@@ -260,12 +350,23 @@ const Render = {
       ctx.restore();
     }
 
-    // Edelsteine und Gegenstände
+    // Edelsteine: springen beim Erscheinen auf, ziehen beim Einsammeln einen Schweif
+    const trails = this.trails;
+    trails.length = 0;
     for (const g of r.gems) {
-      if (!this.inView(g.x, g.y, 20)) continue;
-      const s = Sprites.gem(Sprites.gemTier(g.v));
-      const by = Math.sin(t * 4 + g.bob) * 2;
-      ctx.drawImage(s, g.x - s.size / 2, g.y - s.size / 2 + by, s.size, s.size);
+      if (g._b === undefined) { g._b = t; g._px = g.x; g._py = g.y; }
+      if (!this.inView(g.x, g.y, 20)) { g._px = g.x; g._py = g.y; continue; }
+      const tier = Sprites.gemTier(g.v), s = Sprites.gem(tier);
+      const age = t - g._b;
+      let sc = 1, hop = 0;
+      if (age < 0.35) { const k = age / 0.35; sc = k < 0.45 ? 0.3 + k / 0.45 * 1.05 : 1.35 - (k - 0.45) / 0.55 * 0.35; hop = -Math.sin(k * Math.PI) * 9; }
+      const by = Math.sin(t * 4 + g.bob) * 2 + hop, sz = s.size * sc;
+      ctx.drawImage(s, g.x - sz / 2, g.y - sz / 2 + by, sz, sz);
+      if (g.mag && trails.length < 600) {
+        const dx = g.x - g._px, dy = g.y - g._py, d = Math.hypot(dx, dy);
+        if (d > 0.5 && d < 90) trails.push(g.x, g.y + by, dx / d, dy / d, d, tier);
+      }
+      g._px = g.x; g._py = g.y;
     }
     for (const it of r.pickups) {
       if (!this.inView(it.x, it.y, 30)) continue;
@@ -286,39 +387,78 @@ const Render = {
       ctx.drawImage(s, it.x - s.size / 2, it.y - s.size / 2 + by, s.size, s.size);
     }
 
-    // Schatten
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
-    ctx.beginPath();
-    const list = this.list;
-    list.length = 0;
-    for (const e of r.enemies) {
-      if (e.dead || !this.inView(e.x, e.y, e.r + 30)) continue;
-      list.push(e);
-      ctx.moveTo(e.x + e.r, e.y + e.r * 0.85);
-      ctx.ellipse(e.x, e.y + e.r * 0.85, e.r, e.r * 0.32, 0, 0, TAU);
-    }
-    const PS = PLAYER_DRAW_SCALE;
-    ctx.moveTo(p.x + 11 * PS, p.y + 15 * PS);
-    ctx.ellipse(p.x, p.y + 15 * PS, 11 * PS, 4 * PS, 0, 0, TAU);
-    ctx.fill();
-
-    // Gegner und Spieler, nach y sortiert
-    list.push(p);
-    list.sort((a, b) => a.y - b.y);
-    for (const e of list) {
-      if (e === p) this.drawPlayer(r);
-      else this.drawEnemy(e, p);
-    }
-
-    // Geschosse, Waffeneffekte (additiv)
+    // Leuchtendes (additiv)
     ctx.globalCompositeOperation = 'lighter';
+    // Flammen der Kohlebecken (über dem Licht, damit sie wirklich glühen)
+    const flame = FxArt.tint('flame1', '#ffb35a', 64);
+    for (const pr of r.propList) {
+      if (!this.inView(pr.x, pr.y, 120)) continue;
+      const f2 = 0.85 + Math.sin(t * 13 + pr.x) * 0.1 + Math.sin(t * 7.3 + pr.y) * 0.05;
+      ctx.globalAlpha = 1;
+      ctx.drawImage(this.spr.flame, pr.x - 14 * f2, pr.y - 30 * f2, 28 * f2, 34 * f2);
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(flame, pr.x - 20 * f2, pr.y - 30 - 22 * f2, 40 * f2, 44 * f2);
+    }
+    ctx.globalAlpha = 1;
+    // Feuerpfützen: Glut und züngelnde Flammen
+    for (const f of r.fx) {
+      if (f.kind !== 'pool') continue;
+      const a = Math.min(1, (f.life - f.t) * 3, f.t * 6);
+      const fz = 1 + Math.sin(t * 20 + f.x) * 0.04;
+      ctx.globalAlpha = a;
+      const s = f.rad * 2.3 * fz;
+      ctx.drawImage(f.evo ? this.spr.poolEvo : this.spr.pool, f.x - s / 2, f.y - s / 2 * 0.75, s, s * 0.75);
+      const fc = FxArt.tint(f.evo ? 'flame2' : 'flame1', f.evo ? '#ff7ce0' : '#ff9a3c', 64);
+      for (let i = 0; i < 5; i++) {
+        const an = i * 2.4 + f.x * 0.01, rr = f.rad * (0.15 + (i % 3) * 0.22);
+        const ph = (t * 2.2 + i * 0.37) % 1, h = f.rad * (0.55 + 0.25 * Math.sin(i * 3.1)) * (1 - ph * 0.4);
+        ctx.globalAlpha = a * Math.sin(ph * Math.PI) * 0.9;
+        ctx.drawImage(fc, f.x + Math.cos(an) * rr - h * 0.6, f.y + Math.sin(an) * rr * 0.75 - h * (0.85 + ph * 0.3), h * 1.2, h * 1.3);
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Glutaura: Ring und zwei kreisende Wirbel (zwischengespeicherte Sprites statt Verlauf je Bild)
+    for (const w of r.weapons) {
+      if (w.id !== 'aura' || !w.rad) continue;
+      w.pulse = Math.max(0, (w.pulse || 0) - 1 / 60 * 3);
+      const R = w.rad * (1 + w.pulse * 0.06), col = w.evo ? '#8dffb4' : '#ffa04a';
+      ctx.globalAlpha = 0.13;
+      ctx.drawImage(FxArt.light(col), p.x - R * 1.05, p.y - R * 1.05, R * 2.1, R * 2.1);
+      ctx.globalAlpha = 0.3 + w.pulse * 0.4;
+      const rs = R * 2.9;
+      ctx.drawImage(FxArt.tint('ring', col, 128), p.x - rs / 2, p.y - rs / 2, rs, rs);
+      ctx.globalAlpha = 0.28;
+      this.drawRot(FxArt.tint('twirl1', col, 128), p.x, p.y, t * 1.3, R * 2.3, R * 2.3);
+      ctx.globalAlpha = 0.2;
+      this.drawRot(FxArt.tint('twirl2', col, 128), p.x, p.y, -t * 0.9 + 2, R * 2.1, R * 2.1);
+      this.resetT();
+    }
+    ctx.globalAlpha = 1;
+    // Frostnova: dicker Eisring
+    for (const f of r.fx) {
+      if (f.kind !== 'nova') continue;
+      const k = f.t / f.life, col = f.freeze ? '#c8faff' : '#7fd8ff';
+      const R = Math.max(4, f.rad), s = R * 2.36;
+      ctx.globalAlpha = 0.16 * (1 - k);
+      ctx.drawImage(FxArt.light(col), f.x - R, f.y - R, R * 2, R * 2);
+      ctx.globalAlpha = 1 - k * k;
+      ctx.drawImage(FxArt.tint('ringThick', col, 128), f.x - s / 2, f.y - s / 2, s, s);
+    }
+    ctx.globalAlpha = 1;
+
+    // Geschosse
     for (const s of r.shots) {
       if (!this.inView(s.x, s.y, 40)) continue;
       if (s.kind === 'bolt') {
         const sp = s.evo ? this.spr.boltEvo : this.spr.bolt;
-        const sz = 22 * (s.r / 7);
-        for (let k = 3; k >= 0; k--) {
-          ctx.globalAlpha = k ? 0.25 / k : 1;
+        const sz = 22 * (s.r / 7), v = Math.hypot(s.vx, s.vy) || 1;
+        // Schweif
+        const len = sz * 2.6;
+        ctx.globalAlpha = 0.85;
+        this.drawRot(FxArt.tint('trace', s.evo ? '#ff7cf5' : '#a77cff', 64), s.x - s.vx / v * len * 0.5, s.y - s.vy / v * len * 0.5, Math.atan2(s.vy, s.vx) + Math.PI / 2, sz * 2.4, len * 2);
+        this.resetT();
+        for (let k = 2; k >= 0; k--) {
+          ctx.globalAlpha = k ? 0.3 / k : 1;
           const tx = s.x - s.vx * 0.012 * k, ty = s.y - s.vy * 0.012 * k;
           const kk = 1 - k * 0.15;
           ctx.drawImage(sp, tx - sz * kk / 2, ty - sz * kk / 2, sz * kk, sz * kk);
@@ -345,48 +485,57 @@ const Render = {
         ctx.globalCompositeOperation = 'lighter';
       }
     }
+    // Schutzkugeln mit Lichthof
     for (const w of r.weapons) {
       if (w.id !== 'orbit' || w.active <= 0 || !w.orbs) continue;
       const sp = w.evo ? this.spr.orbEvo : this.spr.orb;
-      const sz = 40 * w.st.area;
-      for (let i = 0; i < w.orbs.length; i += 2) ctx.drawImage(sp, w.orbs[i] - sz / 2, w.orbs[i + 1] - sz / 2, sz, sz);
+      const halo = FxArt.tint('halo', w.evo ? '#ffd34f' : '#3fc8ff', 64);
+      const sz = 40 * w.st.area, hs = sz * 1.7;
+      for (let i = 0; i < w.orbs.length; i += 2) {
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(halo, w.orbs[i] - hs / 2, w.orbs[i + 1] - hs / 2, hs, hs);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(sp, w.orbs[i] - sz / 2, w.orbs[i + 1] - sz / 2, sz, sz);
+      }
     }
     for (const f of r.fx) {
       const k = f.t / f.life;
       if (f.kind === 'slash') {
-        ctx.save();
-        ctx.translate(f.x, f.y);
-        ctx.rotate(f.a);
-        ctx.globalAlpha = 1 - k;
-        ctx.strokeStyle = f.evo ? '#ff5a6e' : '#e8f6ff';
-        ctx.lineWidth = 16 * (1 - k) + 2;
-        ctx.beginPath(); ctx.arc(0, 0, f.rad * (0.7 + k * 0.25), -0.95, 0.95); ctx.stroke();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(0, 0, f.rad * (0.85 + k * 0.25), -0.8, 0.8); ctx.stroke();
-        ctx.restore();
+        // Hieb: Kenney-Sichelbogen, außen farbiger Schein, innen weißer Kern
+        // Sprite: flacher Bogen „)“ in der Bildmitte, gewölbt nach +x; vor den Helden in Schlagrichtung setzen
+        const s = f.rad * (2.0 + k * 0.35), a = 1 - k * k, d = f.rad * (0.62 + k * 0.2);
+        const cx = f.x + Math.cos(f.a) * d, cy = f.y + Math.sin(f.a) * d;
+        ctx.globalAlpha = a * 0.9;
+        this.drawRot(FxArt.tint('slash', f.evo ? '#ff3a5a' : '#8fd0ff', 128), cx, cy, f.a, s * 1.5, s * 1.1);
+        ctx.globalAlpha = a;
+        this.drawRot(FxArt.tint('slash', '#ffffff', 128), cx, cy, f.a, s, s);
+        this.resetT();
       } else if (f.kind === 'zap') {
+        // Blitz aus dem Himmel: Kenney-Blitz, alle 60 ms neu gewürfelt (Form und Spiegelung)
+        const roll = Math.floor(t / 0.06) + Math.floor(f.x * 0.37 + f.y * 0.11);
+        const nm = roll & 1 ? 'bolt1' : 'bolt2', h = 360, w = 130, flip = roll & 2 ? -1 : 1;
+        ctx.globalAlpha = (1 - k) * 0.7;
+        this.drawRot(FxArt.tint(nm, f.evo ? '#ffd84a' : '#5fc8ff', 128), f.x, f.y - h * 0.46, 0, w * 1.9 * flip, h);
         ctx.globalAlpha = 1 - k;
-        ctx.strokeStyle = f.evo ? '#fff9a8' : '#bff4ff';
-        ctx.lineWidth = 4 * (1 - k) + 1;
-        ctx.beginPath();
-        let x = f.x + rand(-20, 20), y = f.y - 320;
-        ctx.moveTo(x, y);
-        while (y < f.y) { y += rand(25, 45); x += rand(-18, 18); ctx.lineTo(y >= f.y ? f.x : x, Math.min(y, f.y)); }
-        ctx.stroke();
+        this.drawRot(FxArt.tint(nm, f.evo ? '#fffbd0' : '#e8fbff', 128), f.x, f.y - h * 0.46, 0, w * flip, h);
+        this.resetT();
+        const hs = f.rad * 3.4;
+        ctx.drawImage(FxArt.tint('zapHit', f.evo ? '#fff6a0' : '#d8f8ff', 64), f.x - hs / 2, f.y - hs / 2, hs, hs);
         ctx.drawImage(this.spr.orb, f.x - f.rad * 1.5, f.y - f.rad * 1.5, f.rad * 3, f.rad * 3);
       } else if (f.kind === 'arc') {
+        const dx = f.x2 - f.x, dy = f.y2 - f.y, len = Math.hypot(dx, dy) || 1;
+        const roll = Math.floor(t / 0.06) + Math.floor(f.x * 0.29);
         ctx.globalAlpha = 1 - k;
-        ctx.strokeStyle = '#fff9a8';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath(); ctx.moveTo(f.x, f.y);
-        for (let i = 1; i < 6; i++) { const q = i / 6; ctx.lineTo(lerp(f.x, f.x2, q) + rand(-10, 10), lerp(f.y, f.y2, q) + rand(-10, 10)); }
-        ctx.lineTo(f.x2, f.y2);
-        ctx.stroke();
+        this.drawRot(FxArt.tint('boltH', '#fff9a8', 128), (f.x + f.x2) / 2, (f.y + f.y2) / 2, Math.atan2(dy, dx), len * 1.1, 52 * (roll & 1 ? -1 : 1));
+        this.resetT();
       } else if (f.kind === 'boom') {
+        const warm = f.color === '#ff8a5c', s = f.rad * 2.5 * (0.55 + k * 0.6);
+        ctx.globalAlpha = (1 - k) * (1 - k);
+        this.drawRot(FxArt.raw(warm ? 'explosion' : 'burst'), f.x, f.y, f.x * 0.1, s, s);
+        this.resetT();
         ctx.globalAlpha = (1 - k) * 0.8;
-        ctx.fillStyle = f.color;
-        ctx.beginPath(); ctx.arc(f.x, f.y, f.rad * (0.4 + k * 0.6), 0, TAU); ctx.fill();
+        const rs = f.rad * 2.4 * (0.4 + k * 0.7);
+        ctx.drawImage(FxArt.tint('ring', f.color, 128), f.x - rs / 2, f.y - rs / 2, rs, rs);
       }
     }
     ctx.globalAlpha = 1;
@@ -395,15 +544,56 @@ const Render = {
       const sz = s.r * 3.4;
       ctx.drawImage(this.spr.eshot, s.x - sz / 2, s.y - sz / 2, sz, sz);
     }
-    // Partikel
-    for (const q of r.parts) {
-      ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5);
-      ctx.fillStyle = q.color;
-      const s = q.size * (0.5 + q.life / q.max * 0.5);
-      ctx.fillRect(q.x - s / 2, q.y - s / 2, s, s);
+    // Partikel: eingefärbte Funken und weiche Punkte (bei Leistungsmangel einfache Quadrate)
+    if (Q.sprites) {
+      const ps = r.parts;
+      for (let i = 0; i < ps.length; i++) {
+        const q = ps[i];
+        const sp = q._sp || (q._sp = FxArt.tint(i % 3 ? 'dot' : 'spark', q.color, 32));
+        const s = q.size * (0.5 + q.life / q.max * 0.5) * (i % 3 ? 3.2 : 3.6);
+        ctx.globalAlpha = Math.min(1, q.life / q.max * 1.5);
+        ctx.drawImage(sp, q.x - s / 2, q.y - s / 2, s, s);
+      }
+    } else {
+      // Sparstufe: Quadrate, je Farbe ein einziger Pfad (wenige Zeichenbefehle statt hunderter)
+      const paths = this.ppaths || (this.ppaths = new Map());
+      for (const pa of paths.values()) pa.n = 0;
+      for (const q of r.parts) {
+        let pa = paths.get(q.color);
+        if (!pa || !pa.n) { if (!pa) { pa = { n: 0 }; paths.set(q.color, pa); } pa.p = new Path2D(); }
+        pa.n++;
+        const s = q.size * (0.5 + q.life / q.max * 0.5);
+        pa.p.rect(q.x - s / 2, q.y - s / 2, s, s);
+      }
+      ctx.globalAlpha = 0.85;
+      for (const [col, pa] of paths) if (pa.n) { ctx.fillStyle = col; ctx.fill(pa.p); }
     }
+    // Schweife der angezogenen Edelsteine
+    for (let i = 0; i < trails.length; i += 6) {
+      const L = clamp(trails[i + 4] * 4, 12, 64), ux = trails[i + 2], uy = trails[i + 3];
+      ctx.globalAlpha = 0.8;
+      this.drawRot(FxArt.tint('trace', Sprites.GEM_COLORS[trails[i + 5]], 64), trails[i] - ux * L * 0.45, trails[i + 1] - uy * L * 0.45, Math.atan2(uy, ux) + Math.PI / 2, 44, L * 2);
+    }
+    this.resetT();
+    this.drawVfx();
+    this.drawLevelFx(p);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+
+    // Namensschilder der Elitegegner
+    if (this.tags.length) {
+      const z = this.zoom;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = Math.round(13 / z * 10) / 10 + 'px "Lilita One", Impact, sans-serif';
+      ctx.lineWidth = 3.5 / z; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(30,14,0,0.9)';
+      ctx.fillStyle = '#ffd34f';
+      const label = tr('Elite').toUpperCase();
+      for (const e of this.tags) {
+        const y = e.y - e.r * 1.2 - 20;
+        ctx.strokeText('★ ' + label + ' ★', e.x, y);
+        ctx.fillText('★ ' + label + ' ★', e.x, y);
+      }
+    }
 
     // Schadenszahlen
     if (Store.data.settings.dmgNums) {
@@ -427,26 +617,232 @@ const Render = {
     }
   },
 
+  // Bild um (x, y) zentriert, gedreht um a (Weltkoordinaten); danach resetT() aufrufen
+  drawRot(img, x, y, a, w, h) {
+    const k = this.dpr * this.zoom, B = this.base, c = Math.cos(a) * k, s = Math.sin(a) * k;
+    const fy = h < 0 ? -1 : 1, fx = w < 0 ? -1 : 1;
+    this.ctx.setTransform(c * fx, s * fx, -s * fy, c * fy, B.x + k * x, B.y + k * y);
+    this.ctx.drawImage(img, -Math.abs(w) / 2, -Math.abs(h) / 2, Math.abs(w), Math.abs(h));
+  },
+  resetT() {
+    const k = this.dpr * this.zoom;
+    this.ctx.setTransform(k, 0, 0, k, this.base.x, this.base.y);
+  },
+
+  // ---------- Lichtkarte ----------
+  // Umgebungsfarbe des Landes, darauf additiv alle Lichtquellen, dann die Vignette; das Ganze wird mit der
+  // Szene multipliziert. Halbe (oder geringere) Auflösung, ein einziger Vollbild-Durchgang.
+  drawLightMap(r) {
+    const g = this.lmG, w = this.lm.width, h = this.lm.height, s = this.lmS;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.fillStyle = this.ambient;
+    g.fillRect(0, 0, w, h);
+    if (r) {
+      g.globalCompositeOperation = 'lighter';
+      this.lk = this.zoom * s; this.lox = this.base.x / this.dpr * s; this.loy = this.base.y / this.dpr * s;
+      this.addLights(r);
+      g.globalAlpha = 1;
+    }
+    g.globalCompositeOperation = 'multiply';
+    g.drawImage(this.lmVig, 0, 0);
+    const ctx = this.ctx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 1;
+    ctx.drawImage(this.lm, 0, 0, this.cv.width, this.cv.height);
+    ctx.globalCompositeOperation = 'source-over';
+    this.resetT();
+  },
+
+  light(x, y, rad, color, a) {
+    const R = rad * this.lk, X = x * this.lk + this.lox, Y = y * this.lk + this.loy;
+    if (X + R < 0 || Y + R < 0 || X - R > this.lm.width || Y - R > this.lm.height || a <= 0.01) return;
+    this.lmG.globalAlpha = Math.min(1, a);
+    this.lmG.drawImage(FxArt.light(color), X - R, Y - R, R * 2, R * 2);
+  },
+
+  addLights(r) {
+    const t = this.time, p = r.p, Q = QUALITY[this.quality];
+    // Glut des Helden: warm, leicht flackernd
+    const fl = 1 + Math.sin(t * 9) * 0.025 + Math.sin(t * 13.7) * 0.02;
+    this.light(p.x, p.y - 6, 380 * fl, '#ffb877', 1);
+    this.light(p.x, p.y - 6, 150 * fl, '#ffe2b8', 0.75);
+    for (const pr of r.propList) {
+      const f2 = 0.9 + Math.sin(t * 13 + pr.x) * 0.07 + Math.sin(t * 7.3 + pr.y) * 0.04;
+      this.light(pr.x, pr.y - 10, 240 * f2, '#ff9a48', 0.95);
+    }
+    for (const it of r.pickups) {
+      if (it.kind === 'chest') this.light(it.x, it.y, 140, '#ffcf5a', 0.9);
+      else this.light(it.x, it.y, 46, '#ffe2a8', 0.45);
+    }
+    if (Q.gemLights) {
+      let n = 0;
+      for (const g of r.gems) {
+        if (!this.inView(g.x, g.y, 30)) continue;
+        this.light(g.x, g.y, 42, Sprites.GEM_COLORS[Sprites.gemTier(g.v)], 0.55);
+        if (++n > 90) break;
+      }
+    }
+    for (const s of r.shots) {
+      if (s.kind === 'bolt') this.light(s.x, s.y, 64, s.evo ? '#ff7cf5' : '#a77cff', 0.65);
+      else if (s.kind === 'flask') this.light(s.x, s.y, 54, '#ff9a48', 0.6);
+      else if (s.kind === 'sickle') this.light(s.x, s.y, 54, '#d8f0ff', 0.35);
+    }
+    for (const w of r.weapons) {
+      if (w.id === 'aura' && w.rad) this.light(p.x, p.y, w.rad * 1.15, w.evo ? '#8dffb4' : '#ff9a48', 0.3);
+      if (w.id !== 'orbit' || w.active <= 0 || !w.orbs) continue;
+      for (let i = 0; i < w.orbs.length; i += 2) this.light(w.orbs[i], w.orbs[i + 1], 84, w.evo ? '#ffd34f' : '#5fd0ff', 0.7);
+    }
+    for (const f of r.fx) {
+      const k = f.t / f.life;
+      if (f.kind === 'pool') this.light(f.x, f.y, f.rad * 1.7, f.evo ? '#ff5ad8' : '#ff7a30', Math.min(1, (f.life - f.t) * 3, f.t * 6) * 0.9);
+      else if (f.kind === 'nova') this.light(f.x, f.y, Math.max(20, f.rad) * 1.15, '#7fd8ff', (1 - k) * 0.7);
+      else if (f.kind === 'zap') this.light(f.x, f.y, 150, '#d8f6ff', 1 - k);
+      else if (f.kind === 'arc') this.light((f.x + f.x2) / 2, (f.y + f.y2) / 2, 90, '#fff9a8', (1 - k) * 0.7);
+      else if (f.kind === 'boom') this.light(f.x, f.y, f.rad * 1.8, '#ffc070', 1 - k);
+      else if (f.kind === 'slash') this.light(f.x + Math.cos(f.a) * f.rad * 0.6, f.y + Math.sin(f.a) * f.rad * 0.6, f.rad * 1.2, '#dff2ff', (1 - k) * 0.35);
+    }
+    for (const s of r.eshots) this.light(s.x, s.y, 46, '#ff4060', 0.6);
+    for (const e of this.list) {
+      if (e.elite) this.light(e.x, e.y, 135, '#ffcc50', 0.85);
+      else if (e.boss) this.light(e.x, e.y, e.r * 4, '#ff6a7a', 0.55);
+    }
+    if (this.quality === 0) for (const c of this.corpses) this.light(c.x, c.y, c.r * 3.5, c.col, (1 - c.t / c.life) * 0.6);
+    for (const v of this.vfx) this.light(v.x, v.y, v.rad * 2.2, '#ffc070', 1 - v.t / v.life);
+    const L = this.lvlFx;
+    if (L) { const k = L.t / 1.2; this.light(p.x, p.y, 220 + 420 * Math.sqrt(k), '#ffe6a0', (1 - k) * 0.95); }
+  },
+
+  // ---------- Treffer, Tod, Stufenaufstieg ----------
+  onKill(e) {
+    const r = Game.run;
+    if (!r) return;
+    const p = r.p;
+    if (this.corpses.length < 90 || e.elite || e.boss) {
+      this.corpses.push({ type: e.type, tint: e.tint, x: e.x, y: e.y, r: e.r, sc: e.r / Sprites.baseR(e.type), t: 0,
+        life: e.boss ? 0.5 : 0.24, flip: e.swarm ? e.sdx < 0 : p.x < e.x, col: ENEMY_COLORS[e.type] || '#ffffff' });
+    }
+    if (e.boss || e.elite) this.vfx.push({ x: e.x, y: e.y, rad: e.boss ? e.r * 2.6 : e.r * 2.2, t: 0, life: e.boss ? 0.9 : 0.55, boss: !!e.boss });
+  },
+
+  // Besiegte: kurz weiß, erst gestreckt, dann flachgedrückt und ausgeblendet (Füße bleiben am Boden)
+  drawCorpses() {
+    const cs = this.corpses, ctx = this.ctx, k0 = this.dpr * this.zoom, B = this.base;
+    for (let i = cs.length - 1; i >= 0; i--) {
+      const c = cs[i];
+      c.t += this.fxDt;
+      const k = c.t / c.life;
+      if (k >= 1) { cs[i] = cs[cs.length - 1]; cs.pop(); continue; }
+      if (!this.inView(c.x, c.y, c.r + 30)) continue;
+      const spr = Sprites.enemy(c.type, 0, 1, c.tint), size = spr.size * c.sc;
+      const sx = k < 0.25 ? 1 - k * 0.6 : 0.85 + (k - 0.25) * 1.1, sy = k < 0.25 ? 1 + k * 0.8 : 1.2 - (k - 0.25) * 1.3;
+      ctx.globalAlpha = 1 - k * k;
+      ctx.setTransform(k0 * sx * (c.flip ? -1 : 1), 0, 0, k0 * sy, B.x + k0 * c.x, B.y + k0 * (c.y + size * 0.35 * (1 - sy)));
+      ctx.drawImage(spr, -size / 2, -size / 2, size, size);
+    }
+    ctx.globalAlpha = 1;
+    this.resetT();
+  },
+
+  // Explosionen von Elite und Boss (additiv)
+  drawVfx() {
+    const ctx = this.ctx, vs = this.vfx;
+    for (let i = vs.length - 1; i >= 0; i--) {
+      const v = vs[i];
+      v.t += this.fxDt;
+      const k = v.t / v.life;
+      if (k >= 1) { vs[i] = vs[vs.length - 1]; vs.pop(); continue; }
+      const s = v.rad * 2 * (0.5 + k * 0.8);
+      ctx.globalAlpha = (1 - k) * (1 - k);
+      this.drawRot(FxArt.raw(v.boss ? 'explosion' : 'burst'), v.x, v.y, v.x * 0.07 + k * 0.6, s, s);
+      ctx.globalAlpha = (1 - k) * 0.9;
+      const rs = v.rad * 2.6 * (0.3 + k);
+      this.drawRot(FxArt.tint('ring', v.boss ? '#ff8a5c' : '#ffd34f', 128), v.x, v.y, 0, rs, rs);
+    }
+    this.resetT();
+  },
+
+  // Stufenaufstieg: 150 ms stehendes Bild, Lichtstoß, zwei Ringe, Stern und Funken; läuft nach den Karten weiter
+  levelUp() {
+    const r = Game.run;
+    if (!r) return;
+    this.lvlFx = { t: 0, stop: 0.15 };
+  },
+
+  drawLevelFx(p) {
+    const L = this.lvlFx;
+    if (!L) return;
+    const ctx = this.ctx, t = L.t;
+    for (const [d, col] of [[0, '#ffe08a'], [0.12, '#fff4d0']]) {
+      const k = (t - d) / 0.75;
+      if (k <= 0 || k >= 1) continue;
+      const rs = 60 + 620 * (1 - (1 - k) * (1 - k));
+      ctx.globalAlpha = (1 - k) * 0.95;
+      ctx.drawImage(FxArt.tint('ring', col, 128), p.x - rs / 2, p.y - rs / 2, rs, rs);
+    }
+    const k = Math.min(1, t / 0.6);
+    if (k < 1) {
+      const fs = 170 * (1 - k * 0.6);
+      ctx.globalAlpha = 1 - k;
+      this.drawRot(FxArt.tint('flare', '#ffe9a8', 64), p.x, p.y - 8, t * 2, fs, fs);
+      const st = FxArt.tint('star', '#fff1b8', 64);
+      for (let i = 0; i < 14; i++) {
+        const a = i / 14 * TAU + i, d = 30 + 260 * Math.sqrt(k) * (0.6 + (i % 3) * 0.2), ss = 26 * (1 - k) + 6;
+        this.drawRot(st, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d * 0.8 - 8, t * 3 + i, ss, ss);
+      }
+      this.resetT();
+    }
+    ctx.globalAlpha = 1;
+  },
+
+  // Waagrecht gespiegelte Fassung eines Sprites (einmal erzeugt, am Sprite gemerkt)
+  mirror(c) {
+    if (c._mir) return c._mir;
+    const m = document.createElement('canvas');
+    m.width = c.width; m.height = c.height;
+    const g = m.getContext('2d');
+    g.translate(c.width, 0); g.scale(-1, 1);
+    g.drawImage(c, 0, 0);
+    m.size = c.size;
+    c._mir = m;
+    return m;
+  },
+
   drawEnemy(e, p) {
     const ctx = this.ctx;
     const frame = Math.floor(e.anim * 5 + e.id) % 2;
     const variant = e.flash > 0 ? 1 : (e.slowT > 0 || e.freezeT > 0) ? 2 : 0;
-    const spr = Sprites.enemy(e.type, frame, variant, e.tint);
-    const sc = e.r / Sprites.baseR(e.type);
+    // Sprite am Gegner merken, solange Bild und Variante gleich bleiben (spart hunderte Nachschlagungen je Bild)
+    if (e._rf !== frame || e._rv !== variant || !e._rs) { e._rs = Sprites.enemy(e.type, frame, variant, e.tint); e._rf = frame; e._rv = variant; e._rsc = e.r / Sprites.baseR(e.type); }
+    const spr = e._rs, sc = e._rsc;
     const size = spr.size * sc;
     const flip = e.swarm ? e.sdx < 0 : p.x < e.x;
     const bob = e.freezeT > 0 ? 0 : Math.sin(e.anim * 9 + e.id) * e.r * 0.06;
-    if (e.elite || e.boss) {
+    if (e.boss) {
       ctx.globalCompositeOperation = 'lighter';
       const gs = e.r * 3.2 * (1 + Math.sin(this.time * 5) * 0.06);
-      ctx.drawImage(e.boss ? this.spr.boltEvo : this.spr.light, e.x - gs / 2, e.y - gs / 2, gs, gs);
+      ctx.drawImage(this.spr.boltEvo, e.x - gs / 2, e.y - gs / 2, gs, gs);
       ctx.globalCompositeOperation = 'source-over';
+    } else if (e.elite) {
+      // Elite: goldener Schein, Ring am Boden, goldener Umriss und Namensschild
+      const pu = 1 + Math.sin(this.time * 5) * 0.06;
+      ctx.globalCompositeOperation = 'lighter';
+      const gs = e.r * 3.4 * pu;
+      ctx.drawImage(this.spr.light, e.x - gs / 2, e.y - gs / 2, gs, gs);
+      const rw = e.r * 3.6 * pu;
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(FxArt.tint('ring', '#ffd34f', 128), e.x - rw / 2, e.y + e.r * 0.8 - rw * 0.2, rw, rw * 0.4);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      const gold = spr._gold || (spr._gold = Sprites.tintVariant(spr, '#ffd34f', 1));
+      const os = size * 1.16;
+      ctx.drawImage(flip ? this.mirror(gold) : gold, e.x - os / 2, e.y + bob - os / 2 - size * 0.02, os, os);
+      this.tags.push(e);
     }
-    // direkt per setTransform statt save/restore (spürbar schneller bei hunderten Gegnern)
-    const k = this.dpr * this.zoom, B = this.base;
-    ctx.setTransform(flip ? -k : k, 0, 0, k, B.x + k * e.x, B.y + k * (e.y + bob));
-    ctx.drawImage(spr, -size / 2, -size / 2, size, size);
-    ctx.setTransform(k, 0, 0, k, B.x, B.y);
+    // gespiegelte Fassung aus dem Zwischenspeicher statt eigener Transformation je Gegner (spürbar schneller bei hunderten)
+    ctx.drawImage(flip ? this.mirror(spr) : spr, e.x - size / 2, e.y + bob - size / 2, size, size);
     if (e.boss && e.boss.id === 'slimeking') {
       ctx.save(); ctx.translate(e.x, e.y - e.r * 0.95 + bob);
       ctx.fillStyle = '#ffd34f';

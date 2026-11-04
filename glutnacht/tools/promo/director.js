@@ -90,6 +90,8 @@ const Promo = {
     UI.el.hud.hidden = opts.hud === false;
     UI.hudSig = '';
     UI.lastHud = {};
+    // Aufnahmen laufen Bild für Bild (langsam): volle Darstellungsstufe festhalten, keine automatische Rückstufung
+    if (Render.setQuality) Render.setQuality(0, true);
     Render.resize();
     this.setZoom(opts.zoom || 1.0);
     return r;

@@ -29,7 +29,8 @@ function build() {
       'url(data:font/woff2;base64,' + fs.readFileSync(path.join(ROOT, ff)).toString('base64') + ')');
     return '<style>\n' + css + '</style>';
   });
-  html = html.replace(/<script src="(js\/[^"]+)"><\/script>/g, (m, f) =>
+  // Code und erzeugte Daten (assets/fx.js: Effektgrafiken als data:-URI) werden eingebettet
+  html = html.replace(/<script src="((?:js|assets)\/[^"]+)"><\/script>/g, (m, f) =>
     '<script>\n' + fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/<\/script/gi, '<\\/script') + '</script>');
   // SDK-Tag in den <head>, damit der Download so früh wie möglich beginnt (async, blockiert nicht)
   if (crazy) html = html.replace('</head>', SDK_TAG + '\n</head>');
@@ -37,6 +38,11 @@ function build() {
   const lic = fs.readdirSync(path.join(ROOT, 'fonts')).filter(f => f.endsWith('.txt'))
     .map(f => '=== ' + f + ' ===\n' + fs.readFileSync(path.join(ROOT, 'fonts', f), 'utf8')).join('\n');
   html = html.replace('</body>', '<script type="text/plain" id="font-licenses">\n' + lic.replace(/<\//g, '<\\/') + '</script>\n</body>');
+  // Ebenso Herkunft und Lizenzen der eingebetteten Grafiken (Kenney, CC0) und Klänge
+  const cred = ['assets/CREDITS-art.txt', 'assets/src/kenney/LICENSE.txt', 'assets/CREDITS-audio.txt']
+    .filter(f => fs.existsSync(path.join(ROOT, f)))
+    .map(f => '=== ' + f + ' ===\n' + fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n');
+  html = html.replace('</body>', '<script type="text/plain" id="asset-credits">\n' + cred.replace(/<\//g, '<\\/') + '</script>\n</body>');
   if (fragment) {
     html = html
       .replace(/<!doctype html>\s*/i, '')

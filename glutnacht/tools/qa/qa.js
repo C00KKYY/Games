@@ -152,6 +152,23 @@ fs.mkdirSync(dir, { recursive: true });
     Hooks.sfx = (n, a) => { sfxCount[n] = (sfxCount[n] || 0) + 1; return sf(n, a); };
   });
 
+  // Bildzeiten während des Spiels (nur im Zustand 'play') und Helligkeit der Spielbilder
+  await page.evaluate(() => {
+    const ft = window.__qa.ft = []; let last = 0;
+    const f = now => { if (Game.state === 'play' && last && now - last < 500) ft.push(now - last); last = Game.state === 'play' ? now : 0; requestAnimationFrame(f); };
+    requestAnimationFrame(f);
+  });
+  // Mittlere Luminanz (Rec. 601, wie PIL 'L') und Anteil der Pixel > 128 eines Bildschirmfotos
+  const lumOf = async (buf) => page.evaluate(async (b64) => {
+    const img = new Image(); img.src = 'data:image/png;base64,' + b64; await img.decode();
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, c.width, c.height).data; let sum = 0, bright = 0;
+    for (let i = 0; i < d.length; i += 4) { const L = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; sum += L; if (L > 128) bright++; }
+    const n = d.length / 4;
+    return { mean: +(sum / n).toFixed(1), brightPct: +(bright / n * 100).toFixed(2) };
+  }, buf.toString('base64'));
+
   // Bot: walk in a slowly rotating direction (like a casual player circling), pick card 1 on level-ups.
   const dirs = [['KeyD'], ['KeyD', 'KeyS'], ['KeyS'], ['KeyA', 'KeyS'], ['KeyA'], ['KeyA', 'KeyW'], ['KeyW'], ['KeyD', 'KeyW']];
   let held = [];
@@ -194,23 +211,29 @@ fs.mkdirSync(dir, { recursive: true });
     if (el >= nextDir) { await setKeys(dirs[di % 8]); di++; nextDir = el + 2.2; }
     if (el >= nextShot) {
       const f = path.join(dir, 'play-' + String(Math.round(nextShot)).padStart(2, '0') + 's.png');
-      await page.screenshot({ path: f });
-      samples.push({ el: +el.toFixed(1), shot: path.basename(f), ...st });
+      const buf = await page.screenshot({ path: f });
+      samples.push({ el: +el.toFixed(1), shot: path.basename(f), ...st, lum: await lumOf(buf), quality: await page.evaluate(() => Render.quality) });
       nextShot += 3;
     }
     await page.waitForTimeout(100);
   }
   await setKeys([]);
+  const fps = await page.evaluate(() => {
+    const t = window.__qa.ft.slice().sort((a, b) => a - b); if (!t.length) return null;
+    const q = k => +t[Math.min(t.length - 1, Math.floor(t.length * k))].toFixed(1), sum = t.reduce((a, b) => a + b, 0);
+    return { frames: t.length, avgFps: +(1000 * t.length / sum).toFixed(1), medMs: q(0.5), p95Ms: q(0.95), quality: Render.quality };
+  });
+  const s30 = samples.find(s => s.shot === 'play-30s.png');
   const tail = await page.evaluate(() => ({ events: window.__qa.events, sfx: window.__qa.sfx, frames: window.__qa.frames.slice(0, 60), dmgFont: window.__qa.dmgFont }));
   const result = {
     profile: name, cpu, target: TARGET, bootWallMs: bootWall, menu: menuInfo, clicksBeforeGameplay: clicks.filter(c => !c.startsWith('levelup')), storyWords,
     storyText: afterPlay.text, msFromFirstClickToGameplay: tGameplay - tClick1, hud: hudInfo, samples, events: tail.events, sfx: tail.sfx,
     canvasLum: tail.frames, logs, levelPicks: clicks.filter(c => c.startsWith('levelup')),
-    wordsBeforeGameplay: menuInfo.menuWords + storyWords, dmgFontScreenPx: tail.dmgFont, levelupFit,
+    wordsBeforeGameplay: menuInfo.menuWords + storyWords, dmgFontScreenPx: tail.dmgFont, levelupFit, fps, lum30: s30 && s30.lum,
   };
   fs.writeFileSync(path.join(dir, 'result.json'), JSON.stringify(result, null, 1));
   console.log(JSON.stringify({ profile: name, cpu, marks: menuInfo.marks, bootWall, lang: menuInfo.lang, clicks: result.clicksBeforeGameplay, storyWords, menuWords: menuInfo.menuWords, menuScroll: menuInfo.menuScroll, zoom: menuInfo.zoom,
     playerBoxPx: +hudInfo.playerOnScreenPx.toFixed(1), playerVisiblePx: +hudInfo.playerVisiblePx.toFixed(1), dmgFontPx: tail.dmgFont, timerY: hudInfo.timer && hudInfo.timer.y,
-    slotNumFont: hudInfo.slotNum && hudInfo.slotNum.font, xplvlFont: hudInfo.xplvl && hudInfo.xplvl.font, levelupFit, errors: logs.filter(l => /error/i.test(l)) }));
+    slotNumFont: hudInfo.slotNum && hudInfo.slotNum.font, xplvlFont: hudInfo.xplvl && hudInfo.xplvl.font, levelupFit, fps, lum30: s30 && s30.lum, errors: logs.filter(l => /error/i.test(l)) }));
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });
