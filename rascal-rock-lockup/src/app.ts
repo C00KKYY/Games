@@ -117,6 +117,8 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx)];
   (window as unknown as Record<string, unknown>).__sim = w;
   (window as unknown as Record<string, unknown>).__ctx = ctx;
+  // test hook (D5): the tooltip content actually bound to an element through ctx.tip (null when none is bound)
+  (window as unknown as Record<string, unknown>).__tipOf = (el: HTMLElement) => late.tip?.contentOf(el) ?? null;
 
   const insets = () => {
     const top = Math.max(0, ...[...root.querySelectorAll<HTMLElement>('[data-hud="top"]')].map(e => e.getBoundingClientRect().bottom)) + 2;

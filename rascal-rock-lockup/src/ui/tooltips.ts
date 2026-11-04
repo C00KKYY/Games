@@ -16,7 +16,7 @@ const REFRESH_S = 0.25;
 const TOUCH_HIDE_MS = 3500;
 const TIP_ID = 'ov-tip';
 
-export function mountTooltips(ctx: UICtx): Component & { tip(el: HTMLElement, content: () => TipContent): void } {
+export function mountTooltips(ctx: UICtx): Component & { tip(el: HTMLElement, content: () => TipContent): void; contentOf(el: HTMLElement): TipContent | null } {
   const contents = new WeakMap<HTMLElement, () => TipContent>();
   const wired = new WeakSet<HTMLElement>();
 
@@ -124,7 +124,9 @@ export function mountTooltips(ctx: UICtx): Component & { tip(el: HTMLElement, co
     if (performance.now() < swallow.until && t && swallow.el.contains(t)) { e.preventDefault(); e.stopImmediatePropagation(); }
     swallow = null;
   };
-  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && shown) hide(); };
+  // Esc closes only the top-most thing: a visible tooltip is that thing, so the press is used up (tools.ts leaves a
+  // defaultPrevented Esc alone and does not also deselect / close the menu behind it)
+  const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && shown) { hide(); e.preventDefault(); } };
   const onScroll = () => { if (shown || showTimer) hide(); };
   const onCancelPress = (e: PointerEvent) => {
     if (!press || e.pointerId !== press.id) return;
@@ -172,6 +174,7 @@ export function mountTooltips(ctx: UICtx): Component & { tip(el: HTMLElement, co
   };
 
   return {
+    contentOf: (el: HTMLElement) => (contents.has(el) ? evalContent(el) : null),
     tip(el, content) {
       el.dataset.tip = '1';
       el.setAttribute('aria-describedby', TIP_ID);

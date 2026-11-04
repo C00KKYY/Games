@@ -79,7 +79,7 @@
 .hud .bb-card.locked { background: var(--cream500); border-style: dashed; }
 .hud .bb-card.locked .bb-plaque img { filter: grayscale(.85); opacity: .75; }
 .hud .bb-card.locked .bb-name { color: var(--ink700); }
-.hud .bb-card.locked .bb-line, .hud .bb-card.locked .bb-cost { color: var(--ink500); }
+.hud .bb-card.locked .bb-line, .hud .bb-card.locked .bb-cost, .hud .bb-card.locked .bb-muted { color: var(--ink700); }
 
 /* staff */
 .hud .bb-role { width: 12.2rem; cursor: default; }

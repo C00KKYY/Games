@@ -40,9 +40,10 @@
 /* ---- body */
 .pn-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: .45rem .7rem .6rem; scrollbar-width: thin; scrollbar-color: var(--wood300) transparent; }
 /* scroll cue: the body fades out at an edge while more content is hidden there (classes set by panels.ts) */
-.pn-body.pn-fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(to bottom, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
-.pn-body.pn-fade-t { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(to top, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
-.pn-body.pn-fade-t.pn-fade-b { -webkit-mask-image: linear-gradient(rgba(0,0,0,.12), #000 2rem, #000 calc(100% - 2rem), rgba(0,0,0,.12)); mask-image: linear-gradient(rgba(0,0,0,.12), #000 2rem, #000 calc(100% - 2rem), rgba(0,0,0,.12)); }
+.pn-body { --pn-fb: 2rem; --pn-ft: 2rem; --pn-fbe: min(2rem, var(--pn-fb)); --pn-fte: min(2rem, var(--pn-ft)); }
+.pn-body.pn-fade-b { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--pn-fbe)), rgba(0,0,0,.12)); mask-image: linear-gradient(to bottom, #000 calc(100% - var(--pn-fbe)), rgba(0,0,0,.12)); }
+.pn-body.pn-fade-t { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - var(--pn-fte)), rgba(0,0,0,.12)); mask-image: linear-gradient(to top, #000 calc(100% - var(--pn-fte)), rgba(0,0,0,.12)); }
+.pn-body.pn-fade-t.pn-fade-b { -webkit-mask-image: linear-gradient(rgba(0,0,0,.12), #000 var(--pn-fte), #000 calc(100% - var(--pn-fbe)), rgba(0,0,0,.12)); mask-image: linear-gradient(rgba(0,0,0,.12), #000 var(--pn-fte), #000 calc(100% - var(--pn-fbe)), rgba(0,0,0,.12)); }
 .pn-view { display: flex; flex-direction: column; gap: .45rem; }
 .pn-col { display: flex; flex-direction: column; gap: .45rem; min-width: 0; }
 .pn-ic { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; }
@@ -51,16 +52,16 @@
 .pn-hint { font-size: 1rem; line-height: 1.3; color: var(--ink700); }
 .pn-small { font-size: 1rem; line-height: 1.3; color: var(--ink700); }
 .pn-bad, .pn .bad { color: var(--coral700); }
-.pn-good { color: var(--mint700); font-weight: 600; }
+.pn-good { color: var(--sage900); font-weight: 600; }
 .pn-locked { color: var(--ink700); font-size: 1rem; }
-.pn-building { font-weight: 600; color: var(--gold700); }
+.pn-building { font-weight: 600; color: var(--wood700); }
 
 /* throughput + limit */
 .pn-rate { display: flex; align-items: baseline; gap: .35rem; flex-wrap: wrap; }
 .pn-rate-num { font-size: 1.6rem; line-height: 1; color: var(--teal700); }
 .pn-rate-unit { font: 600 1rem Inter, sans-serif; color: var(--ink700); }
 .pn-limit { display: flex; }
-.pn-limit-tag { font: 700 .92rem/1.2 Fredoka, Inter, sans-serif; letter-spacing: .02em; padding: .05rem .4rem; border-radius: 6px; border: 2px solid var(--mint700); color: var(--mint700); }
+.pn-limit-tag { font: 700 .92rem/1.2 Fredoka, Inter, sans-serif; letter-spacing: .02em; padding: .05rem .4rem; border-radius: 6px; border: 2px solid var(--sage700); color: var(--sage900); }
 .pn-limit-tag.bad { border-color: var(--coral500); color: var(--coral700); background: rgba(223,100,80,.1); transform: rotate(-2deg); }
 
 /* utilisation: track = all places, light = open, green = in use */
@@ -75,7 +76,7 @@
 /* staff + hire */
 .pn-staff { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; padding-top: .1rem; }
 .pn-staff-txt { flex: 1 1 6rem; min-width: 0; font-weight: 600; font-size: 1rem; }
-.pn-hire { border-color: var(--teal700); background: var(--teal500); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--teal700); }
+.pn-hire { border-color: var(--teal900); background: var(--teal700); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--teal900); }
 .pn-cost { display: inline-flex; align-items: center; gap: .15rem; }
 .pn-cost .num { font-size: .95rem; }
 .pn-coin { width: 1rem; height: 1rem; flex: 0 0 auto; }
@@ -97,13 +98,13 @@
 .pn-demo { align-self: flex-start; border-color: var(--coral500); color: var(--coral700) !important; }
 .pn-confirm { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem; }
 .pn-confirm-txt { flex: 1 1 100%; font-weight: 600; font-size: 1rem; color: var(--coral700); }
-.pn-yes { background: var(--coral500); border-color: var(--coral700); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--coral700); }
+.pn-yes { background: var(--coral700); border-color: var(--brick700); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--brick700); }
 .pn-yes img { background: var(--cream300); border-radius: 99px; }
 .pn-resize { font-style: italic; }
 
 /* ---- rascal: case file */
 .pn-file { position: relative; padding: .45rem .6rem .5rem; border-radius: 8px; background: var(--cream500); border: 1px solid var(--cream700); box-shadow: inset 4px 0 0 var(--wood300); }
-.pn-file-no { position: absolute; right: .4rem; top: .35rem; font: 700 .9rem/1.1 Fredoka, Inter, sans-serif; color: var(--coral500); border: 2px solid var(--coral500); border-radius: 5px; padding: 0 .3rem; transform: rotate(6deg); opacity: .85; pointer-events: none; }
+.pn-file-no { position: absolute; right: .4rem; top: .35rem; font: 700 .9rem/1.1 Fredoka, Inter, sans-serif; color: var(--coral700); border: 2px solid var(--coral700); border-radius: 5px; padding: 0 .3rem; transform: rotate(6deg); pointer-events: none; }
 .pn-file-lbl { font: 600 .86rem/1.2 Fredoka, Inter, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--wood700); }
 .pn-file-off { font-weight: 600; font-size: 1rem; line-height: 1.25; padding-right: 0; margin-top: .1rem; }
 .pn-act { display: flex; align-items: center; gap: .4rem; font-size: 1rem; font-weight: 600; color: var(--teal700); }
@@ -124,7 +125,7 @@
 .pn-need--reform .pn-need-bar i { background: linear-gradient(var(--teal300), var(--teal700)); }
 .pn-need--reform .pn-need-num { font-size: .95rem; }
 .pn-follow { align-self: flex-start; border-color: var(--teal700); color: var(--teal700) !important; }
-.pn-follow.on { background: var(--teal500); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--teal700); }
+.pn-follow.on { background: var(--teal700); color: var(--cream300) !important; box-shadow: inset 0 -2px 0 var(--teal900); }
 
 /* staff / small panels */
 .pn--small { width: 17rem; }

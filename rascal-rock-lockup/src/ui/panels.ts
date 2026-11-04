@@ -111,8 +111,13 @@ export function mountPanels(ctx: UICtx): Component {
   /** scroll cue: fade the body at an edge while more content is hidden there (memoised class writes) */
   const scrollCue = () => {
     const more = body.scrollHeight - body.clientHeight;
-    cls(body, 'pn-fade-b', more > 2 && body.scrollTop < more - 2);
-    cls(body, 'pn-fade-t', more > 2 && body.scrollTop > 2);
+    const below = more - body.scrollTop, above = body.scrollTop;
+    cls(body, 'pn-fade-b', more > 2 && below > 2);
+    cls(body, 'pn-fade-t', more > 2 && above > 2);
+    // the fade is never deeper than what is actually hidden: a body that overflows by 10 px must not fade its last
+    // button to 12 % (it then looks disabled); capped at 2rem (CSS)
+    cssVar(body, '--pn-fb', `${Math.round(Math.max(0, below))}px`);
+    cssVar(body, '--pn-ft', `${Math.round(Math.max(0, above))}px`);
   };
   body.addEventListener('scroll', scrollCue, { passive: true });
 
@@ -625,7 +630,8 @@ export function mountPanels(ctx: UICtx): Component {
     if (sel && !m) { ctx.selection.set(null); return; }   // the room was demolished / the rascal went home
     // compact: the sheet gives way to an open build menu and to an active tool (chip + ✕, touch ✓ / ✕, demolish
     // bubble, cursor label); the selection is kept and the sheet comes back when the menu / tool closes
-    const hideForMenu = ctx.compact.get() && (ctx.menu.get() !== null || ctx.tool.get().kind !== 'none');
+    // … and to the expanded clipboard card / goal list (otherwise the sheet covers them: the list would open underneath)
+    const hideForMenu = ctx.compact.get() && (ctx.menu.get() !== null || ctx.tool.get().kind !== 'none' || !!ctx.root.querySelector('.cb--open, .cb--list'));
     const visible = m !== null && !hideForMenu;
     if (!visible) { show(root, false); shownKey = ''; mode = m; return; }
 

@@ -236,6 +236,14 @@ export function mountClipboard(ctx: UICtx): Component {
   document.addEventListener('pointerdown', onDown, true);
   window.addEventListener('keydown', onKey, true);
   const offCompact = ctx.compact.on(() => { cardOpen = false; listOpen = false; posAcc = 1e9; acc = TICK_MS; });
+  // a menu, a tool or a new selection (hotkey B / Del, flow-strip jump, …) takes over: the goal list and the expanded
+  // compact card close, so the top-most visible layer is always the one Esc closes and nothing opens underneath them
+  const closeQuiet = () => { if (!cardOpen && !listOpen) return; cardOpen = false; listOpen = false; acc = TICK_MS; place(); render(); };
+  const offTakeover = [
+    ctx.menu.on(v => { if (v !== null) closeQuiet(); }),
+    ctx.tool.on(v => { if (v.kind !== 'none') closeQuiet(); }),
+    ctx.selection.on(v => { if (v !== null) closeQuiet(); }),
+  ];
   const offEvent = ctx.onEvent(e => {
     if (e.type === 'objective' || e.type === 'tutorialDone') pendingSlide = 'new';
     else if (e.type === 'tutorialStep' && pendingSlide !== 'new') pendingSlide = 'step';
@@ -392,7 +400,7 @@ export function mountClipboard(ctx: UICtx): Component {
     destroy() {
       document.removeEventListener('pointerdown', onDown, true);
       window.removeEventListener('keydown', onKey, true);
-      offCompact(); offEvent();
+      offCompact(); offEvent(); for (const off of offTakeover) off();
       root.remove();
     },
   };

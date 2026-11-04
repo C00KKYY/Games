@@ -103,7 +103,8 @@
 
 /* sliders */
 .ov-slider { display: grid; grid-template-columns: minmax(7rem, 9.5rem) 1fr 3.4rem; align-items: center; gap: .7rem; min-height: 2.6rem; }
-.ov-slider.muted .ov-range, .ov-slider.muted .ov-val { opacity: .5; }
+.ov-slider.muted .ov-range { opacity: .5; }
+.ov-slider.muted .ov-val { color: var(--ink500); }
 .ov-val { text-align: right; font-size: 1rem; color: var(--ink700); }
 .ov-range {
   -webkit-appearance: none; appearance: none; width: 100%; height: 2.4rem; min-height: 32px; margin: 0; background: transparent; cursor: pointer;
@@ -145,8 +146,9 @@
   font: 600 1rem/1.2 Inter, system-ui, sans-serif; color: var(--ink900);
   background: var(--cream300); border: 2px solid var(--wood700); box-shadow: inset 0 -3px 0 var(--cream700);
 }
-.ov-danger-soft { color: var(--coral700); border-color: var(--coral700); }
-.ov-danger { background: var(--coral700); border-color: var(--brick700); color: var(--cream300); box-shadow: inset 0 -3px 0 var(--brick700); }
+/* .ov-modal prefix: `.ov-modal button { color: inherit }` (0,1,1) would otherwise beat the plain class (0,1,0) */
+.ov-modal .ov-danger-soft { color: var(--coral700); border-color: var(--coral700); }
+.ov-modal .ov-danger { background: var(--coral700); border-color: var(--brick700); color: var(--cream300); box-shadow: inset 0 -3px 0 var(--brick700); }
 .ov-reset { padding: .2rem 0 .1rem; }
 .ov-confirm { padding: .5rem .75rem .65rem; background: var(--cream500); border: 2px dashed var(--coral500); border-radius: var(--r); }
 .ov-confirm .ov-p { margin-top: 0; color: var(--ink900); }
