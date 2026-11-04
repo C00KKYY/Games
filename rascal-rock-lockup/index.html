@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Rascal Rock Lockup</title>
+<style>
+  /* Inline loading screen – painted before anything else loads (Brief §6.1, §9.2) */
+  html,body{margin:0;height:100%;overflow:hidden;background:#33908a;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-touch-callout:none;overscroll-behavior:none;touch-action:none}
+  #boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2.2vmin;background:radial-gradient(ellipse at 50% 58%,#66b9a8 0,#33908a 46%,#226b6e 100%);z-index:50;transition:opacity .35s ease-out}
+  #boot.gone{opacity:0;pointer-events:none}
+  #boot svg{width:min(62vmin,460px);height:auto;filter:drop-shadow(0 .8vmin 0 rgba(20,66,74,.35))}
+  #boot .bar{width:min(44vmin,320px);height:max(10px,1.6vmin);border-radius:99px;background:#14424a;box-shadow:inset 0 2px 0 rgba(0,0,0,.25),0 1px 0 #66b9a8;overflow:hidden}
+  #boot .bar i{display:block;height:100%;width:8%;border-radius:99px;background:linear-gradient(#f6d27a,#e8b13a 55%,#b37f1d);transition:width .25s ease-out;animation:bootpulse 1.1s ease-in-out infinite alternate}
+  @keyframes bootpulse{from{filter:brightness(1)}to{filter:brightness(1.12)}}
+  #boot .wave{position:absolute;left:0;right:0;bottom:0;height:16vmin;background:repeating-linear-gradient(90deg,transparent 0 6vmin,rgba(248,240,222,.08) 6vmin 7vmin);animation:bootwave 6s linear infinite}
+  @keyframes bootwave{to{background-position:13vmin 0}}
+</style>
+<script>
+  // CrazyGames SDK v3, loaded async so the loading screen paints immediately (see docs/RULES_CHECK.md §A1b decision).
+  window.__cgSdkReady = new Promise(function (res) {
+    var s = document.createElement('script');
+    s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js';
+    s.async = true; s.onload = function () { res(); }; s.onerror = function () { res(); };
+    document.head.appendChild(s);
+  });
+</script>
+</head>
+<body>
+<div id="boot" aria-label="Loading">
+  <svg viewBox="0 0 460 250" width="460" height="250" role="img" aria-label="Rascal Rock Lockup">
+    <g transform="translate(230 128)">
+      <ellipse cx="4" cy="74" rx="168" ry="22" fill="#14424a" opacity=".35"/>
+      <path d="M-150 60 Q-140 18 -96 10 L96 10 Q140 18 150 60 Q120 78 0 80 Q-120 78 -150 60Z" fill="#d39c63" stroke="#7a4e33" stroke-width="4"/>
+      <path d="M-122 40 Q-110 2 -60 -2 L60 -2 Q112 2 122 40 Q96 56 0 58 Q-96 56 -122 40Z" fill="#779a52" stroke="#33502f" stroke-width="4"/>
+      <rect x="-70" y="-58" width="140" height="70" rx="6" fill="#b85d40" stroke="#5e2b23" stroke-width="4"/>
+      <rect x="-70" y="-58" width="140" height="14" rx="4" fill="#d48a6a" opacity=".55"/>
+      <g fill="#3e3c42"><rect x="-50" y="-34" width="18" height="26" rx="3"/><rect x="-9" y="-34" width="18" height="26" rx="3"/><rect x="32" y="-34" width="18" height="26" rx="3"/></g>
+      <g stroke="#9b96a1" stroke-width="3"><path d="M-44 -34v26M-38 -34v26M-3 -34v26M3 -34v26M38 -34v26M44 -34v26"/></g>
+      <rect x="-80" y="-70" width="160" height="16" rx="5" fill="#7a4e33" stroke="#4a3022" stroke-width="4"/>
+      <circle cx="0" cy="-92" r="22" fill="#e8b13a" stroke="#4a3022" stroke-width="4"/>
+      <rect x="-6" y="-92" width="12" height="30" rx="4" fill="#e8b13a" stroke="#4a3022" stroke-width="4"/>
+      <circle cx="0" cy="-92" r="8" fill="#b37f1d"/>
+    </g>
+    <text x="230" y="232" text-anchor="middle" font-family="Fredoka, 'Trebuchet MS', system-ui, sans-serif" font-weight="700" font-size="44" fill="#f8f0de" stroke="#14424a" stroke-width="8" paint-order="stroke" letter-spacing="1">Rascal Rock Lockup</text>
+  </svg>
+  <div class="bar"><i id="bootbar"></i></div>
+  <div class="wave"></div>
+</div>
+<div id="app"></div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
