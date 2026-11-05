@@ -504,7 +504,7 @@ const UI = {
 
   chapterBanner(premise) {
     const r = Game.run;
-    if (r) this.banner(tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event', premise ? tr(PREMISE_SHORT) : '', premise ? 3.2 : 2.2);
+    if (r) this.banner(tr('Land {0}: {1}', STAGES.indexOf(r.stage) + 1, tr(r.stage.name)), 'event chapter', premise ? tr(PREMISE_SHORT) : '', premise ? 3.2 : 2.2);
   },
 
   toMenu() {

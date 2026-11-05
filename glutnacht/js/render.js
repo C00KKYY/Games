@@ -930,7 +930,7 @@ const Render = {
     ctx.restore();
     ctx.globalAlpha = 1;
     // Lebensleiste
-    const w = 40, k = Math.max(0, p.hp / r.stats.maxHp);
+    const w = 40, k = clamp(p.hp / r.stats.maxHp, 0, 1);
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(p.x - w / 2 - 1, p.y + 23, w + 2, 8);
     ctx.fillStyle = k > 0.5 ? '#5dff8f' : k > 0.25 ? '#ffd34f' : '#ff5a6e';
