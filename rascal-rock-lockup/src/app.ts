@@ -22,6 +22,9 @@ import { mountStaffMenu } from './ui/staffMenu';
 import { mountPanels } from './ui/panels';
 import { mountModals } from './ui/modals';
 import { mountTools } from './ui/tools';
+import { mountTutorial } from './ui/tutorial';
+import { mountJuice } from './render/juice';
+import { mountAudio, type Audio } from './audio/audio';
 
 /** every CommandResult reason the sim returns (src/sim/rooms.ts, src/sim/sim.ts cmd) → its localised message */
 const REASON_KEY: Record<string, Key> = {
@@ -62,7 +65,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   window.addEventListener('resize', () => compact.set(window.innerWidth <= 900));
 
   let paused = false, speedBeforePause = 1;
-  const late: { tip?: ReturnType<typeof mountTooltips>; toasts?: ReturnType<typeof mountToasts>; modals?: ReturnType<typeof mountModals> } = {};
+  const late: { tip?: ReturnType<typeof mountTooltips>; toasts?: ReturnType<typeof mountToasts>; modals?: ReturnType<typeof mountModals>; audio?: Audio } = {};
   const fly = { on: false, x: 0, y: 0, z: 1 };
   const subs: ((e: SimEvent) => void)[] = [];
   let evSeen = w.eventSeq;
@@ -82,7 +85,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     toast: (text, opts) => late.toasts?.toast(text, opts),
     tip: (el, c) => late.tip?.tip(el, c),
     focusTile(x, y, z) { fly.on = true; fly.x = x * 32; fly.y = y * 32; fly.z = z ?? Math.max(cam.zoom, 1); },
-    sound: () => { /* M4 audio */ },
+    sound: (name: string) => late.audio?.play(name),
     setPaused(p) {
       if (p === paused) return;
       paused = p;
@@ -111,10 +114,11 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     for (const e of w.events.slice(w.events.length - n)) for (const f of subs.slice()) f(e);
   };
 
+  late.audio = mountAudio(ctx, platform);
   late.tip = mountTooltips(ctx);
   late.toasts = mountToasts(ctx);
   late.modals = mountModals(ctx);
-  const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx)];
+  const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx), mountTutorial(ctx), mountJuice(ctx, view), late.audio];
   (window as unknown as Record<string, unknown>).__sim = w;
   (window as unknown as Record<string, unknown>).__ctx = ctx;
   // test hook (D5): the tooltip content actually bound to an element through ctx.tip (null when none is bound)
