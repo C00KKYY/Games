@@ -14,7 +14,7 @@ const PLAYER_DRAW_SCALE = 1.25;
 const MIN_ZOOM = 0.8;
 
 // Darstellungsstufen: Auflösung des Spiel-Canvas (rs) und der Lichtkarte (lm, Anteil der CSS-Pixel).
-// Fällt die Bildrate im Spiel unter 42 fps, wird probeweise zurückgeschaltet (siehe autoQuality).
+// Fällt die Bildrate im Spiel unter 42 fps, wird auf Probe zurückgeschaltet (siehe autoQuality).
 // sprites: Partikel als Kenney-Funken (sonst gebündelte Quadrate); shadows: Schatten unter Gegnern.
 // Die Lichtkarte ist weich, daher genügt ihr wenig Auflösung; die teuren Schritte (Canvas-Auflösung) kommen zuletzt.
 const QUALITY = [
@@ -143,12 +143,15 @@ const Render = {
   },
 
   // Bildrate im laufenden Spiel messen (je 1,5 s, ohne die langsamsten 10 % der Bilder, damit einzelne Hänger
-  // nichts auslösen). Unter 42 fps eine Stufe zurück – aber nur auf Probe: Bringt die niedrigere Stufe im nächsten
-  // Messfenster keine spürbar kürzere Bildzeit, liegt es nicht an der Grafik, sondern an einer Obergrenze der
-  // Anzeige (Stromsparmodus mit 30 Hz, 30-Hz-Bildschirm, gedrosselter Tab). Dann wird die Stufe zurückgenommen
-  // und dieser Takt als Obergrenze gemerkt (capMs); zurückgeschaltet wird erst wieder, wenn es deutlich langsamer
-  // als diese Obergrenze wird. Die reine Rechenzeit in JS taugt dafür nicht als Maß: Das Rastern des Canvas läuft
-  // außerhalb von JS (im Profil als „(program)“) und ist bei vielen Figuren der größte Posten.
+  // nichts auslösen). Unter 42 fps eine Stufe zurück – aber auf Probe: Bringt die niedrigere Stufe im nächsten
+  // Messfenster keine um 10 % kürzere Bildzeit, wird zuerst die nächste Stufe probiert, die die Canvas-Auflösung
+  // senkt (die billigen Stufen ohne Auflösungsschritt sparen auf einem ausgelasteten Gerät oft nur wenige Prozent,
+  // das allein beweist nichts). Erst wenn auch ein Auflösungsschritt nichts bringt, liegt es nicht an der Grafik,
+  // sondern an einer Obergrenze der Anzeige (Stromsparmodus mit 30 Hz, 30-Hz-Bildschirm, gedrosselter Tab): Dann
+  // geht es zurück auf die Stufe vor der Probe, und dieser Takt wird als Obergrenze gemerkt (capMs); zurückgeschaltet
+  // wird erst wieder, wenn es deutlich langsamer als diese Obergrenze wird. Die reine Rechenzeit in JS taugt dafür
+  // nicht als Maß: Das Rastern des Canvas läuft außerhalb von JS (im Profil als „(program)“) und ist bei vielen
+  // Figuren der größte Posten.
   // Hochgeschaltet wird nach einer Sperrzeit, wenn die Bildzeit wieder am Ziel liegt (die Sperre wächst mit jeder
   // Rückstufung, damit nichts pendelt).
   autoQuality(active) {
@@ -168,10 +171,20 @@ const Render = {
     const slowMs = Math.max(1000 / 42, P.capMs * 1.15), goodMs = P.capMs ? P.capMs * 1.05 : 1000 / 56;
     const pr = P.probe;
     P.probe = null;
+    const rs = i => QUALITY[i].rs;
     if (pr && this.quality > pr.q && avg > pr.avg * 0.9) {
-      // Probe ohne Gewinn: Stufe zurücknehmen, Takt als Obergrenze merken
-      this.quality = pr.q; P.downs = pr.downs; P.upBlock = pr.upBlock;
-      P.capMs = Math.max(P.capMs, pr.avg);
+      // Probe ohne Gewinn. Hat sie die Auflösung nicht gesenkt und ist es noch zu langsam: gleich die nächste
+      // Stufe mit kleinerer Canvas-Auflösung probieren (Ausgangsstufe und Messwert der Probe bleiben).
+      let nx = this.quality + 1;
+      while (nx < last && rs(nx) >= rs(this.quality)) nx++;
+      if (rs(this.quality) >= rs(pr.q) && avg > slowMs && nx <= last && rs(nx) < rs(this.quality)) {
+        P.probe = pr; this.quality = nx;
+      } else if (rs(this.quality) < rs(pr.q)) {
+        // Auch weniger Pixel bringen nichts: Obergrenze der Anzeige. Zurück auf die Stufe vor der Probe.
+        this.quality = pr.q; P.downs = pr.downs; P.upBlock = pr.upBlock;
+        P.capMs = Math.max(P.capMs, pr.avg);
+      }
+      // sonst: billige Stufe behalten (schadet nicht), es geht ohnehin schon schnell genug
     } else if (avg > slowMs && this.quality < last) {
       // weit darunter (< 24 fps): zwei Stufen auf einmal
       P.probe = { q: this.quality, avg, downs: P.downs, upBlock: P.upBlock };

@@ -6,7 +6,8 @@
 // (unsterblich, damit die Zahl stabil bleibt), Partikel per Game.burst auf ~700 halten, dann 6 s messen.
 // quality: auto = automatische Rückstufung erlaubt (Standard), 0…5 = Stufe fest (0 = volles Licht).
 // cap: Anzeige auf N fps begrenzt (wie Stromsparmodus auf iPhone/Chrome: requestAnimationFrame liefert nur jedes
-// zweite Bild). Erwartung: Die automatische Stufe bleibt oben, weil eine niedrigere Stufe hier nichts bringt.
+// zweite Bild). Erwartung: Nach einer kurzen Probe (billige Stufe, dann eine mit kleinerem Canvas) kehrt die
+// automatische Stufe zurück nach oben, weil eine niedrigere Stufe hier nichts bringt.
 //   z. B. node tools/qa/perf.js 1 40 --cap=30   (wenig Last, nur die Obergrenze)
 'use strict';
 const { chromium } = require('playwright');
