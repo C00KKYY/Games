@@ -11,14 +11,16 @@
 // angekündigt wird – Geschosse (eshots), Warnzeichen (tele: Kreise, Linien, Ziellinien, Bahnen, Ladekreise),
 // Pfützen (haz) und das Ausholen der Fernkämpfer –, sieht der Bot erst:
 //   1. sobald es einmal im Sichtfeld war (Game.view.hw/hh; nichts außerhalb des Bildes),
-//   2. nach einer Reaktionszeit von U(0,20 … 0,30) s ab dem ersten sichtbaren Bild (je Objekt gewürfelt),
-//   3. mit Aussetzern: pLate = min(0,25; 0,03 + 0,004 · Gegner im Bild); mit pLate kommt die Reaktion
-//      +U(0,30 … 0,40) s später, mit pLate/4 (ein Viertel davon) wird das Objekt ganz übersehen,
+//   2. nach einer Reaktionszeit von U(0,20 … 0,35) s ab dem ersten sichtbaren Bild (je Objekt gewürfelt),
+//   3. mit Aussetzern: pLate = min(0,45; 0,15 + 0,01 · Gegner im Bild); mit pLate kommt die Reaktion
+//      +U(0,30 … 0,40) s später, 35 % dieser Aussetzer werden ganz übersehen (kalibriert mit tools/dodgetest.js;
+//      die Vorgabe begann mit 0,03 + 0,004, höchstens 0,25, ein Viertel übersehen, Reaktion 0,20 … 0,30 s),
 //   4. mit festen Schätzfehlern je Objekt: Flugrichtung N(0, 4°) (höchstens ±8°), Tempo ×U(0,92 … 1,08),
 //      Kreismitten ±U(0 … 8) px, Winkel von Linien und Bahnen ±2°, Restzeit von Markierungen ±0,05 s,
 //   5. mit begrenzter Aufmerksamkeit: je Entscheidung zählen nur die 10 nächsten Geschosse (kleinste Zeit bis
 //      zur größten Annäherung) und die 6 nächsten Flächen (Kreise, Bahnen, Pfützen).
-// Neu erkannte Gefahren: Pfützen (Glut voll, Schleim-Bremse 0,4), Ziellinie (beim Nachführen 0,3, gesperrt voll),
+// Neu erkannte Gefahren: Pfützen (Glut voll, Schleim-Bremse 0,4; entsteht sie aus einer schon gesehenen Markierung,
+// kennt der Bot sie sofort – wie ein Mensch, der weiß, wo die Kohle einschlägt), Ziellinie (beim Nachführen 0,3, gesperrt voll),
 // Bahnen (wie die Ansturm-Linie, aber fest), nachführende Kreise (mit kurzer Vorhersage), Ladekreise und Fächer
 // (die kommenden Geschosse werden als „virtuelle“ Geschosse mit Verzögerung vorhergesagt), Ausholen ohne
 // eigenes Warnzeichen (leichte Gefahr entlang der Linie Schütze–Held).
@@ -51,6 +53,13 @@ function load() {
     'r.dmgBy[wid] = (r.dmgBy[wid] || 0) + Math.min(dmg, Math.max(0, e.hp)); if (r.M) { if (e.boss) r.M.bossDmg += Math.min(dmg, Math.max(0, e.hp)); else { r.M.dmg += Math.min(dmg, Math.max(0, e.hp)); if (wid !== "bomb" && wid !== "revive") r.M.raw += dmg; } }');
   src = rep(src, '    r.enemies.push(e);\n    return e;', '    r.enemies.push(e); if (r.M) { r.M.spawnHp += hp; r.M.spawnN++; } e.born = r.t;\n    return e;');
   src = rep(src, '    const r = this.run, save = Store.data;\n    e.dead = true;', '    const r = this.run, save = Store.data;\n    e.dead = true; if (r.M && !e.swarm && !e.boss) { r.M.life += r.t - e.born; r.M.lifeN++; r.M.dd += Math.hypot(e.x - r.p.x, e.y - r.p.y); }');
+  // abgefeuerte Gegnergeschosse und Mörser-Markierungen je Quelle (für Trefferquoten im echten Spiel)
+  src = opt(src, "    this.run.eshots.push({ x, y, vx: dx * speed, vy: dy * speed, dmg, r: rad, life: o.life || 3.5, kind: o.kind || 'orb', src: o.src || 'shot' });",
+    "    this.run.eshots.push({ x, y, vx: dx * speed, vy: dy * speed, dmg, r: rad, life: o.life || 3.5, kind: o.kind || 'orb', src: o.src || 'shot' }); { const M = this.run.M, k = o.src || 'shot'; if (M) M.fired[k] = (M.fired[k] || 0) + 1; }");
+  src = opt(src, "          coal: { sx: e.x, sy: e.y - e.r * 0.7 }, small: true });", "          coal: { sx: e.x, sy: e.y - e.r * 0.7 }, small: true }); if (r.M) r.M.fired.mortar = (r.M.fired.mortar || 0) + 1;");
+  src = opt(src, "    if (dist2(p.x, p.y, t.x, t.y) < (t.rad + p.r) * (t.rad + p.r)) this.hurtPlayer(t.dmg, t.src || 'area');",
+    "    if (dist2(p.x, p.y, t.x, t.y) < (t.rad + p.r) * (t.rad + p.r)) { if (r.M) r.M.hitN[t.src || 'area'] = (r.M.hitN[t.src || 'area'] || 0) + 1; this.hurtPlayer(t.dmg, t.src || 'area'); }");
+  src = opt(src, "        this.hurtPlayer(s.dmg, s.src || 'shot');", "        if (r.M) r.M.hitN[s.src || 'shot'] = (r.M.hitN[s.src || 'shot'] || 0) + 1; this.hurtPlayer(s.dmg, s.src || 'shot');");
   src = rep(src, 'if (alive >= cap) { r.spawnAcc = 0; break; }', 'if (alive >= cap) { r.spawnAcc = 0; if (r.M) r.M.capped++; break; }');
   if (process.env.PATCH) for (const [a, b] of JSON.parse(fs.readFileSync(process.env.PATCH, 'utf8'))) src = rep(src, a, b);
   src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, CHARS, HEAT, SHOP, ENEMIES, fmtTime, xpFor };';
@@ -81,12 +90,22 @@ const U = (a, b) => a + Math.random() * (b - a);
 function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 const PER = new WeakMap();   // Objekt -> Wahrnehmung (Reaktion, Aussetzer, Schätzfehler)
 const PSTAT = { seen: 0, late: 0, miss: 0 };
+const EXPECT = []; // erwartete Pfützen aus wahrgenommenen Markierungen
+// Kalibrierbar (tools/dodgetest.js): LAPSE=basis,je-gegner,höchstens,anteil-übersehen  REACT=min,max
+// Kalibriert mit dodgetest.js (siehe dort): Mit den Startwerten der Vorgabe (0,03 + 0,004/Gegner, höchstens 0,25,
+// ein Viertel übersehen; Reaktion 0,20–0,30 s) traf fast nichts mehr (alle Arten ≤ 0,2 %). Nach der Vorgabe erst die
+// Aussetzer, dann die Reaktionszeit angehoben: 0,15 + 0,01/Gegner im Bild, höchstens 0,45, davon 35 % übersehen;
+// Reaktion 0,20–0,35 s. Damit Mörser ~1–4 %, Glockengitter ~1–6 % (mit Füllung ~6 %); Kugeln, Fächer und Nadeln
+// bleiben nahe 0 %, auch mit 50 % übersehen – der Bot bleibt nie stehen, und ungelenkte Kugeln verfehlen einen
+// laufenden Helden von selbst. Die Spielwarnzeichen wurden dafür nicht verändert.
+const LAPSE = (process.env.LAPSE || '0.15,0.01,0.45,0.35').split(',').map(Number);
+const REACT = (process.env.REACT || '0.20,0.35').split(',').map(Number);
 function newPercept(t, onScreen) {
-  const pLate = Math.min(0.25, 0.03 + 0.004 * onScreen), u = Math.random();
-  const miss = u < pLate / 4, late = !miss && u < pLate;
+  const pLate = Math.min(LAPSE[2], LAPSE[0] + LAPSE[1] * onScreen), u = Math.random();
+  const miss = u < pLate * LAPSE[3], late = !miss && u < pLate;
   PSTAT.seen++; if (late) PSTAT.late++; if (miss) PSTAT.miss++;
   const oa = U(0, 2 * Math.PI), od = U(0, 8);
-  return { seen: t, react: OMNI ? 0 : U(0.20, 0.30) + (late ? U(0.30, 0.40) : 0), miss: OMNI ? false : miss,
+  return { seen: t, react: OMNI ? 0 : U(REACT[0], REACT[1]) + (late ? U(0.30, 0.40) : 0), miss: OMNI ? false : miss,
     ang: OMNI ? 0 : Math.max(-8, Math.min(8, gauss() * 4)) * DEG, spd: OMNI ? 1 : U(0.92, 1.08),
     ox: OMNI ? 0 : Math.cos(oa) * od, oy: OMNI ? 0 : Math.sin(oa) * od, la: OMNI ? 0 : U(-2, 2) * DEG, life: OMNI ? 0 : U(-0.05, 0.05) };
 }
@@ -120,6 +139,7 @@ function perceiveThreats(r, Game, hw, hh) {
   let onScreen = 0;
   for (const e of r.enemies) if (!e.dead && Math.abs(e.x - p.x) < hw && Math.abs(e.y - p.y) < hh) onScreen++;
   const P = { px: p.x, py: p.y, hw, hh, onScreen };
+  for (let i = EXPECT.length - 1; i >= 0; i--) if (EXPECT[i].until < t) EXPECT.splice(i, 1);
   const shots = [], areas = [];
   // Geschosse: eingeschätzte Richtung und Tempo
   for (const s of r.eshots) {
@@ -134,6 +154,7 @@ function perceiveThreats(r, Game, hw, hh) {
     if (!q) continue;
     const rem = Math.max(0, tl.life - tl.t + q.life);
     if (tl.kind === 'circle') {
+      if (tl.onImpact && !tl._exp) { tl._exp = true; EXPECT.push({ x: tl.x, y: tl.y, until: t + rem + 1 }); }
       areas.push({ k: tl.track && tl.t < tl.track.until ? 'track' : 'circle', x: tl.x + q.ox, y: tl.y + q.oy, rad: tl.rad, rem, dmg: tl.dmg || 10,
         spd: tl.track ? tl.track.spd : 0, trem: tl.track ? Math.max(0, tl.track.until - tl.t) : 0, w: tl.onImpact === 'slow' && !(tl.dmg > 0) ? 0.4 : 1 });
     } else if (tl.kind === 'line') {
@@ -154,6 +175,8 @@ function perceiveThreats(r, Game, hw, hh) {
     }
   }
   for (const h of r.haz || []) {
+    // Eine Pfütze, deren Markierung schon wahrgenommen war, kennt der Bot vorab (ein Mensch weiß, wo sie entsteht)
+    if (!PER.has(h)) for (const x of EXPECT) if (x.until > t && Math.abs(x.x - h.x) < 2 && Math.abs(x.y - h.y) < 2) { const q0 = newPercept(t, 0); q0.react = 0; q0.miss = false; PER.set(h, q0); break; }
     const q = perceive(h, h.x, h.y, t, P);
     if (!q) continue;
     areas.push({ k: 'puddle', x: h.x + q.ox, y: h.y + q.oy, rad: h.rad, rem: 0, dmg: h.dmg || 6, w: h.kind === 'slow' ? 0.4 : 1, life: h.life - h.t });
@@ -496,7 +519,7 @@ for (let i = 0; i < n; i++) {
   let over = null, pending = null;
   Hooks.levelUp = o => { pending = o; }; Hooks.chest = () => {}; Hooks.victory = () => {}; Hooks.gameOver = s => { over = s; };
   const r = Game.newRun(charId, heat, STAGE);
-  const newM = () => ({ taken: 0, src: {}, dmg: 0, raw: 0, bossDmg: 0, spawnHp: 0, spawnN: 0, capped: 0, aliveSum: 0, frames: 0, kills0: r.kills, life: 0, lifeN: 0, dd: 0, byType: {}, rangedS: 0, normS: 0, samples: 0, shotsMax: 0 });
+  const newM = () => ({ taken: 0, src: {}, dmg: 0, raw: 0, bossDmg: 0, spawnHp: 0, spawnN: 0, capped: 0, aliveSum: 0, frames: 0, kills0: r.kills, life: 0, lifeN: 0, dd: 0, byType: {}, rangedS: 0, normS: 0, samples: 0, shotsMax: 0, fired: {}, hitN: {} });
   r.M = newM();
   const mins = [];
   const dt = 1 / 60; let frame = 0, curMin = 0, revT = null; const startRev = r.revivals;
@@ -542,7 +565,7 @@ for (let i = 0; i < n; i++) {
     if (m > curMin) {
       const M = r.M;
       mins.push({ m: curMin, lvl: r.level, hp: Math.round(r.p.hp), maxHp: r.stats.maxHp, taken: Math.round(M.taken), src: M.src, dps: Math.round(M.dmg / 60), raw: Math.round(M.raw / 60), bossDmg: Math.round(M.bossDmg), spawnHp: Math.round(M.spawnHp), spawnN: M.spawnN, kills: r.kills - M.kills0, alive: Math.round(M.aliveSum / Math.max(1, M.frames)), capped: M.capped, life: +(M.life / Math.max(1, M.lifeN)).toFixed(1), dd: Math.round(M.dd / Math.max(1, M.lifeN)), nW: r.weapons.length, evo: r.evolvedCount, gems: r.gems.length, gemV: Math.round(r.gems.reduce((a, g) => a + g.v, 0)), gemMax: Math.round(r.gems.reduce((a, g) => Math.max(a, g.v), 0)), gemMaxD: Math.round(r.gems.reduce((a, g) => g.v > a[0] ? [g.v, Math.hypot(g.x - r.p.x, g.y - r.p.y)] : a, [0, 0])[1]),
-        aliveByType: Object.fromEntries(Object.entries(M.byType).map(([k, v]) => [k, Math.round(v / Math.max(1, M.samples))])), rangedShare: +(M.rangedS / Math.max(1, M.normS)).toFixed(3), shotsMax: M.shotsMax });
+        aliveByType: Object.fromEntries(Object.entries(M.byType).map(([k, v]) => [k, Math.round(v / Math.max(1, M.samples))])), rangedShare: +(M.rangedS / Math.max(1, M.normS)).toFixed(3), shotsMax: M.shotsMax, fired: M.fired, hitN: M.hitN });
       r.M = newM(); curMin = m;
     }
     if (Date.now() - t0 > 300000) break;
