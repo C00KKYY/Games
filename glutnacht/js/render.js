@@ -68,7 +68,7 @@ const Render = {
   setStage(stage) {
     if (this.stageId === stage.id) return;
     this.stageId = stage.id;
-    this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground), 'repeat');
+    this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground, stage.id), 'repeat');
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
     this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
@@ -850,7 +850,11 @@ const Render = {
     const frame = Math.floor(e.anim * 5 + e.id) % 2;
     const variant = e.flash > 0 ? 1 : (e.slowT > 0 || e.freezeT > 0) ? 2 : 0;
     // Sprite am Gegner merken, solange Bild und Variante gleich bleiben (spart hunderte Nachschlagungen je Bild)
-    if (e._rf !== frame || e._rv !== variant || !e._rs) { e._rs = Sprites.enemy(e.type, frame, variant, e.tint); e._rf = frame; e._rv = variant; e._rsc = e.r / Sprites.baseR(e.type); }
+    if (e._rf !== frame || e._rv !== variant || !e._rs) {
+      const bk = e.boss ? Math.min(3, Math.ceil(e.r / Sprites.baseR(e.type))) : 1; // Bosse: scharf statt hochskaliert (einmalig ~30 ms je Bild)
+      e._rs = bk > 1 ? Sprites.hires('boss' + e.type + frame + variant + (e.tint || ''), bk, () => Sprites.enemy(e.type, frame, variant, e.tint)) : Sprites.enemy(e.type, frame, variant, e.tint);
+      e._rf = frame; e._rv = variant; e._rsc = e.r / Sprites.baseR(e.type);
+    }
     const spr = e._rs, sc = e._rsc;
     const size = spr.size * sc;
     const flip = e.swarm ? e.sdx < 0 : p.x < e.x;
@@ -1030,9 +1034,9 @@ const Render = {
   },
 
   // ---------- Titelbild im Menü: Held mit Glut, links; Monster-Schattenrisse mit Glutrand und leuchtenden Augen ----------
-  KEYART_EYES: { // Augen relativ zum Radius: [y, Abstand, Größe, Farbe] (wie in Sprites.ENEMY_DRAW)
-    bat: [-0.08, 0.24, 0.13, '#ff4060'], ghoul: [-0.2, 0.3, 0.14, '#9dff4f'], wraith: [-0.22, 0.2, 0.1, '#ffe14f'],
-    brute: [-0.1, 0.27, 0.09, '#ffde4f'], golem: [-0.25, 0.3, 0.12, '#5ff2ff'],
+  KEYART_EYES: { // Augen relativ zum Radius: [y, Abstand, Größe, Farbe, x-Mitte] (wie in Sprites.ENEMY_DRAW)
+    bat: [-0.08, 0.25, 0.13, '#ff4060', 0.01], ghoul: [-0.42, 0.26, 0.14, '#9dff4f', 0.06], wraith: [-0.2, 0.185, 0.1, '#ffe14f', 0.085],
+    brute: [-0.12, 0.28, 0.1, '#ffde4f', 0.02], golem: [-0.25, 0.29, 0.12, '#5ff2ff', 0.05],
   },
 
   keyArtLayout(land) {
@@ -1057,12 +1061,12 @@ const Render = {
     const hx = land ? Math.max(hh * 0.9, W * 0.13) : W * 0.5;
     const gy = land ? H * 0.88 : H - Math.max(18, H * 0.04);
     const fl = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 13.7) * 0.02;
-    const s = hh / 31; // Spieler-Sprite: rund 31 sichtbare Einheiten hoch, Füße bei +17,4
+    const s = hh / 40; // Spieler-Sprite: rund 40 sichtbare Einheiten hoch, Füße bei +17,4, Glut in der Hand bei (9,6 | −3,8)
 
     // Glut-Schein um den Helden und auf dem Boden
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = A;
-    const ex = hx + 9 * s, ey = gy - 21 * s;
+    const ex = hx + 9.6 * s, ey = gy - 21.2 * s;
     let gr = ctx.createRadialGradient(ex, ey, 0, ex, ey, hh * 2.4 * fl);
     gr.addColorStop(0, 'rgba(255,170,80,0.42)'); gr.addColorStop(0.3, 'rgba(255,110,40,0.16)'); gr.addColorStop(1, 'rgba(255,80,20,0)');
     ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
@@ -1078,10 +1082,10 @@ const Render = {
     list.forEach(([type, fx, fy, rel, faceL], i) => {
       const R = Sprites.baseR(type), frame = type === 'bat' ? Math.floor(t * 5 + i) % 2 : 0;
       const box = hh * rel * 1.55; // Spritekasten (Figur ist etwas kleiner)
-      const sc = box / (R * 3.4);
+      const esz = Sprites.enemySize(type), sc = box / esz * Sprites.ENEMY_VIS; // Bildpixel je Radius-Einheit
       const bob = Math.sin(t * (type === 'bat' || type === 'wraith' ? 3 : 1.6) + i * 1.7) * hh * (type === 'bat' || type === 'wraith' ? 0.05 : 0.012);
       const x = fx * W, y = fy * H - box * 0.36 + bob;
-      const k = clamp(Math.ceil(box * d / (R * 3.4) / 2), 1, 6);
+      const k = clamp(Math.ceil(box * d / esz / 2), 1, 6);
       const base = Sprites.hires('ka-' + type + frame, k, () => Sprites.enemy(type, frame, 0, null));
       const rim = Sprites.hires('ka-rim-' + type + frame, k, () => Sprites.tintVariant(base, '#ff9a4a', 1));
       const sil = Sprites.hires('ka-sil-' + type + frame, k, () => Sprites.tintVariant(base, '#08040f', 0.9));
@@ -1098,10 +1102,10 @@ const Render = {
       if (e) {
         ctx.globalCompositeOperation = 'lighter';
         const blink = (Math.sin(t * 0.9 + i * 2.3) > 0.97) ? 0.15 : 1;
-        const ey2 = e[0] * R * sc, gx = e[1] * R * sc, er = Math.max(2, e[2] * R * sc);
+        const ey2 = e[0] * R * sc, gx = e[1] * R * sc, er = Math.max(2, e[2] * R * sc), ex0 = (e[4] || 0) * R * sc;
         const gl = this.eyeGlow(e[3]);
         ctx.globalAlpha = A * blink;
-        for (const sx of [-1, 1]) ctx.drawImage(gl, sx * gx - er * 2, ey2 - er * 2, er * 4, er * 4);
+        for (const sx of [-1, 1]) ctx.drawImage(gl, ex0 + sx * gx - er * 2, ey2 - er * 2, er * 4, er * 4);
         ctx.globalCompositeOperation = 'source-over';
       }
       ctx.restore();
@@ -1110,14 +1114,14 @@ const Render = {
     // Held (schaut nach rechts zur Horde) mit Glut in der Hand
     const ch = CHARS[Store.data.lastChar] || CHARS.aron;
     const p0 = Sprites.player(ch.color, 0, false);
-    const k = clamp(Math.ceil(46 * s * d / p0.width), 1, 8);
+    const hb = p0.size, k = clamp(Math.ceil(hb * s * d / p0.width), 1, 8);
     const hero = Sprites.hires('ka-hero' + ch.color, k, () => Sprites.player(ch.color, 0, false));
     ctx.globalAlpha = A * 0.5;
     ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(hx, gy, 12 * s, 3.5 * s, 0, 0, TAU); ctx.fill();
     ctx.globalAlpha = A;
     const by = Math.sin(t * 1.8) * s * 0.4;
-    ctx.drawImage(hero, hx - 23 * s, gy - 17.4 * s - 23 * s + by, 46 * s, 46 * s);
+    ctx.drawImage(hero, hx - hb / 2 * s, gy - 17.4 * s - hb / 2 * s + by, hb * s, hb * s);
     ctx.globalCompositeOperation = 'lighter';
     const fs = 22 * s * fl;
     ctx.drawImage(this.spr.flame, ex - fs / 2, ey - fs * 0.6 + by, fs, fs);
