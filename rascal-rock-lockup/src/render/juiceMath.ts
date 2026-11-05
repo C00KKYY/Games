@@ -44,3 +44,18 @@ export function placePlaque(list: readonly PlaqueSlot[], src: string, x: number,
   if (sameSign >= 0) return { kind: 'merge', index: sameSign };
   return { kind: 'replace', index: oldest, level: list[oldest].level };
 }
+
+/**
+ * Escapee marker slot for agent `id` (index into `slots`, or -1 = leave it unmarked). Already marked → its slot.
+ * A free slot (id < 0) is taken first; with every slot busy only a fresh escape event (`steal`) takes over the slot
+ * marked longest – the periodic scan never steals, so with more escapees than slots the markers do not hop.
+ */
+export function escSlot(slots: readonly { id: number; t: number }[], id: number, steal: boolean): number {
+  const mine = slots.findIndex(q => q.id === id);
+  if (mine >= 0) return mine;
+  const free = slots.findIndex(q => q.id < 0);
+  if (free >= 0 || !steal || !slots.length) return free;
+  let best = 0;
+  for (let i = 1; i < slots.length; i++) if (slots[i].t > slots[best].t) best = i;
+  return best;
+}

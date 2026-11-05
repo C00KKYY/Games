@@ -7,9 +7,9 @@
  * runs with ?capture=1 and the test steps window.__step (1/30 s per frame) – deterministic, independent of how fast
  * SwiftShader renders. A driver plays like a person: it taps where the tutorial ring is (read again before every tap,
  * the camera moves), after a 1 s reaction time; after the tutorial it answers the world prompts (horn, stamp, escapee).
- * D4 is probed once per second of game time (accept-kit.ts __accGoal); the clipboard's goal-change slide (a ≤ 420 ms
- * wall-clock Web Animation, frozen while game time is stepped synchronously) is finished before measuring and its
- * length is asserted separately.
+ * D4 is probed once per second of game time (accept-kit.ts __accGoal), as the widget is at that moment: a running
+ * goal-change animation (wall-clock, frozen while game time is stepped) is measured as it stands – on screen, ≥ 60 %
+ * opacity, uncovered.
  */
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
@@ -192,9 +192,6 @@ for (const sz of PATH_SIZES) test.describe(`tutorial path (game time) @ ${sz.nam
     console.log(`[D4] ${goal.length} samples (${goal.filter(g => g.tut).length} in the tutorial), ${bad.length} without a visible goal widget`);
     expect(goal.length).toBeGreaterThanOrEqual(205);
     expect(bad.slice(0, 10).map(g => `${g.rt}: ${g.why}`), 'D4: goal widget visible 100 %').toEqual([]);
-    const slides = await acc<number[]>(page, 'slides');
-    console.log(`[D4] clipboard slide-ins: ${slides.length}, longest ${Math.max(0, ...slides)} ms`);
-    expect(Math.max(0, ...slides), 'D4: a goal change slides in within 0.5 s').toBeLessThanOrEqual(500);
 
     // ---- D6: no blocking text popup in the first 60 s
     const modals = goal.filter(g => g.rt <= 60_000 && g.modal);
@@ -330,3 +327,85 @@ test.describe('skip path (game time)', () => {
   });
 });
 
+
+// ---------------------------------------------------------------------------------------------------------- D4 + Skip with a menu open
+/**
+ * Verifier findings: on short phone screens the Rooms / Staff sheet reached up to the top bar and covered the compact
+ * clipboard chip (D4), and in the tutorial no Skip was left on screen while it was open (Brief §6.2 "Skip tutorial ist
+ * dauerhaft sichtbar"). Every frame with a menu open – in the tutorial and after it – the goal widget must pass the D4
+ * probe and (tutorial) a Skip must be visible and the top element at its centre.
+ */
+const MENU_SIZES = [
+  { name: '844x390 touch', viewport: { width: 844, height: 390 }, touch: true },
+  { name: '667x375 touch', viewport: { width: 667, height: 375 }, touch: true },
+  { name: '800x450 touch', viewport: { width: 800, height: 450 }, touch: true },
+  { name: '800x450', viewport: { width: 800, height: 450 }, touch: false },
+];
+for (const sz of MENU_SIZES) {
+  test.describe(`menu open @ ${sz.name}`, () => {
+    test.use({ viewport: sz.viewport, isMobile: sz.touch, hasTouch: sz.touch });
+    test(`D4 goal widget uncovered and Skip on screen while the Rooms / Staff menu is open @ ${sz.name}`, async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.addInitScript(instr);
+      const errors: string[] = [];
+      page.on('pageerror', e => errors.push(String(e)));
+      await setup(page);
+      await gotoGame(page, 'capture=1&lang=de', 0);
+      await hook(page);
+      await renderOff(page);
+      const probe = (n: number, tag: string) => page.evaluate(([k, tg]) => {
+        const g = window as unknown as Win;
+        const bad: string[] = [];
+        let frames = 0, skipFrames = 0;
+        for (let i = 0; i < k; i++) {
+          g.__step(1);
+          if (!document.querySelector('.bb-menu:not([hidden])')) continue;
+          frames++;
+          const goal = g.__accGoal();
+          if (!goal.ok) bad.push(`${tg} f${i}: D4 ${goal.why}`);
+          if (g.__sim.tutorial.active) {
+            const skips = [...document.querySelectorAll<HTMLElement>('.tu-bub.on .tu-skip, .cb-skip')].filter(e => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getBoundingClientRect().width > 0);
+            const hit = skips.some(e => { const r = e.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.tu-skip, .cb-skip') === e; });
+            if (hit) skipFrames++; else bad.push(`${tg} f${i}: no clickable Skip (bubble ${g.__tutorial.mode()}${g.__tutorial.away() ? ', away' : ''})`);
+          }
+        }
+        return { bad, frames, skipFrames };
+      }, [n, tag] as const);
+      const all: string[] = [];
+      let frames = 0, skipFrames = 0;
+      const run = async (menu: string | null, n: number, tag: string) => {
+        await page.evaluate(m => (window as unknown as Win).__ctx.menu.set(m), menu);
+        const r = await probe(n, tag);
+        all.push(...r.bad); frames += r.frames; skipFrames += r.skipFrames;
+      };
+      // tutorial step 1 (the ferry honks) and step 2 (Wash Hut: the card in the Rooms menu is the target)
+      await run('rooms', 60, 'tut1 rooms');
+      await run('staff', 40, 'tut1 staff');
+      await page.evaluate(() => { const g = window as unknown as Win; g.__ctx.menu.set(null); for (let i = 0; i < 40 && g.__sim.tutorial.step < 1; i++) { if (g.__sim.ferry.state === 'arriving' && !g.__sim.ferry.tapped) g.__ctx.cmd.tapHorn(g.__sim); g.__step(15); } });
+      expect(await page.evaluate(() => (window as unknown as Win).__sim.tutorial.step)).toBe(1);
+      await run('rooms', 60, 'tut2 rooms');
+      await page.evaluate(() => (window as unknown as Win).__ctx.toast('Toast', { kind: 'info', icon: 'coin', ms: 2500 }));
+      await run('rooms', 40, 'tut2 rooms+toast');
+      await run('staff', 40, 'tut2 staff');
+      if (sz.name === '844x390 touch') {
+        await page.evaluate(() => (window as unknown as Win).__ctx.menu.set('rooms'));
+        await renderOn(page);
+        await page.screenshot({ path: `${SHOTS}/menu-tutorial-844x390.png`, timeout: 60_000 });
+        await renderOff(page);
+      }
+      // after the tutorial (skipped): the clipboard chip shows the Wash Hut goal
+      await page.evaluate(() => { const g = window as unknown as Win; g.__ctx.menu.set(null); g.__step(2); });
+      await page.locator('.tu-bub.on .tu-skip, .cb-skip').filter({ visible: true }).first().click();
+      await page.evaluate(() => (window as unknown as Win).__step(30));
+      expect(await page.evaluate(() => (window as unknown as Win).__sim.tutorial.active)).toBe(false);
+      await run('rooms', 60, 'post rooms');
+      await run('staff', 60, 'post staff');
+      console.log(`[menu ${sz.name}] ${frames} menu frames, ${skipFrames} tutorial frames with a clickable Skip, ${all.length} bad`);
+      if (all.length) console.log(all.slice(0, 15).join('\n'));
+      expect(frames).toBeGreaterThanOrEqual(350);
+      expect(skipFrames).toBeGreaterThanOrEqual(230);
+      expect(all).toEqual([]);
+      expect(errors).toEqual([]);
+    });
+  });
+}

@@ -1,7 +1,8 @@
 /** M1 HUD sketch (static numbers) – the real HUD arrives in M3. */
 import './hud.css';
+import { assetUrl } from '../platform/assets';
 
-const ic = (n: string) => `ui/${n}.svg`;
+const ic = (n: string) => assetUrl(`ui/${n}.svg`);
 export function mountHudSketch(root: HTMLElement, params: URLSearchParams) {
   const de = params.get('lang') === 'de';
   const L = de

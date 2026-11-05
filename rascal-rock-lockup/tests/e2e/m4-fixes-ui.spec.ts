@@ -63,7 +63,7 @@ async function sample(page: Page, n: number, tag: string) {
     };
     const ar = (a: R, b: R) => Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0])) * Math.max(0, Math.min(a[3], b[3]) - Math.max(a[1], b[1]));
     const bad: string[] = [];
-    let bubbleFrames = 0, ctlFrames = 0, panelFrames = 0, toastFrames = 0, miniFrames = 0, awayFrames = 0;
+    let bubbleFrames = 0, ctlFrames = 0, panelFrames = 0, toastFrames = 0, miniFrames = 0, awayFrames = 0, menuFrames = 0, skipFrames = 0;
     for (let i = 0; i < k; i++) {
       g.__step(1);
       const bub = document.querySelector('.tu-bub.on') ? rect(document.querySelector('.tu-bub')) : null;
@@ -76,6 +76,13 @@ async function sample(page: Page, n: number, tag: string) {
       const bar = rect(document.querySelector('[data-hud="bottom"]'));
       const at = `${tg} f${i} step ${g.__sim.tutorial.step} aim ${a?.key ?? '-'}`;
       if (pn) panelFrames++;
+      if (document.querySelector('.bb-menu:not([hidden])')) menuFrames++;
+      // Brief §6.2 "Skip tutorial ist dauerhaft sichtbar": in every tutorial frame one Skip is on screen and on top
+      if (g.__sim.tutorial.active) {
+        const skips = [...document.querySelectorAll('.tu-bub.on .tu-skip, .cb-skip')].filter(e => !!rect(e) && Number(getComputedStyle(e).opacity) > 0);
+        const top = skips.some(e => { const r = e.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.tu-skip, .cb-skip') === e; });
+        if (top) skipFrames++; else bad.push(`${at}: no clickable Skip on screen (bubble ${g.__tutorial.mode()}${g.__tutorial.away() ? ', away' : ''})`);
+      }
       if (g.__tutorial.away()) awayFrames++;
       if (toasts.length) toastFrames++;
       if (bub) {
@@ -94,7 +101,7 @@ async function sample(page: Page, n: number, tag: string) {
         if (bub && ar(ctl, bub) > 0.5) bad.push(`${at}: controls ${ctl.map(Math.round)} over bubble ${bub.map(Math.round)}`);
       }
     }
-    return { bad, bubbleFrames, ctlFrames, panelFrames, toastFrames, miniFrames, awayFrames };
+    return { bad, bubbleFrames, ctlFrames, panelFrames, toastFrames, miniFrames, awayFrames, menuFrames, skipFrames };
   }, [n, tag] as const);
 }
 
@@ -261,11 +268,11 @@ for (const sz of BUBBLE_SIZES) {
       await fresh(page, sz.lang);
       await renderOff(page);
       const all: string[] = [];
-      const stats = { bubble: 0, ctl: 0, panel: 0, toast: 0, mini: 0, away: 0 };
+      const stats = { bubble: 0, ctl: 0, panel: 0, toast: 0, mini: 0, away: 0, menu: 0, skip: 0 };
       const run = async (n: number, what: string) => {
         const r = await sample(page, n, what);
         all.push(...r.bad);
-        stats.bubble += r.bubbleFrames; stats.ctl += r.ctlFrames; stats.panel += r.panelFrames; stats.toast += r.toastFrames; stats.mini += r.miniFrames; stats.away += r.awayFrames;
+        stats.bubble += r.bubbleFrames; stats.ctl += r.ctlFrames; stats.panel += r.panelFrames; stats.toast += r.toastFrames; stats.mini += r.miniFrames; stats.away += r.awayFrames; stats.menu += r.menuFrames; stats.skip += r.skipFrames;
       };
       const toast = (k: string) => page.evaluate(key => { const c = (window as unknown as Win).__ctx; c.toast(c.t(key, { day: 1, earned: c.fmt(1240), wages: c.fmt(85), released: 3 }), { kind: 'info', icon: 'coin', ms: 2500 }); }, k);
       // controls overlay placement at the start
@@ -314,13 +321,17 @@ for (const sz of BUBBLE_SIZES) {
       await shot(page, `step4-panel-${tag}`);
       await renderOff(page);
       await run(10, 'upgrade panel after shot');
-      console.log(`[layers ${sz.name}] frames: bubble ${stats.bubble}, controls ${stats.ctl}, panel open ${stats.panel}, toast ${stats.toast}, mini bubble ${stats.mini}, bubble stepped aside ${stats.away}; overlap samples ${all.length}`);
+      console.log(`[layers ${sz.name}] frames: bubble ${stats.bubble}, controls ${stats.ctl}, panel open ${stats.panel}, toast ${stats.toast}, mini bubble ${stats.mini}, bubble stepped aside ${stats.away}, menu open ${stats.menu}, clickable Skip ${stats.skip}; bad samples ${all.length}`);
       if (all.length) console.log(all.slice(0, 20).join('\n'));
       expect(stats.panel, 'panel frames sampled').toBeGreaterThan(50);
       expect(stats.toast, 'toast frames sampled').toBeGreaterThan(50);
       expect(stats.ctl, 'controls overlay frames sampled').toBeGreaterThan(50);
+      expect(stats.menu, 'menu frames sampled').toBeGreaterThanOrEqual(60);
+      expect(stats.skip, 'tutorial frames with a clickable Skip').toBeGreaterThan(300);
       expect(all).toEqual([]);
-      expect(slot0, 'controls overlay starts on the left').toMatch(/^(bl|bla|lc):/);
+      // Brief §6.2 "unten links". On the compact sizes the ferry (the step-1 target) sits in the bottom-left corner, so
+      // the overlay goes left under the clipboard there – documented deviation 15 (docs/PROGRESS.md), wide sizes only bottom left
+      expect(slot0, 'controls overlay bottom left (compact: left under the clipboard, deviation 15)').toMatch(sz.viewport.width <= 900 ? /^(bl|bla|lc):/ : /^(bl|bla):/);
     });
   });
 }

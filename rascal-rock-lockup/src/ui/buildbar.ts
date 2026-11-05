@@ -80,6 +80,8 @@ export interface MenuShell {
   open(): boolean;
   /** call from update(): handles show/hide and placement; returns true when the content should be (re)rendered now */
   tick(dt: number): boolean;
+  /** call right after rendering the content: keeps the sheet clear of the clipboard (its height is known only now) */
+  fit(): void;
   /** remove the card and every listener / store subscription the shell added (call from the menu's destroy()) */
   destroy(): void;
 }
@@ -139,14 +141,37 @@ export function menuShell(ctx: UICtx, d: DomKit, name: 'rooms' | 'staff', icon: 
     d.style(card, 'max-height', `${Math.max(120, Math.floor(barTop - gap - Math.max(top, 0) - gap))}px`);
   };
 
+  /**
+   * The menu never covers the clipboard (D4: the goal widget stays visible). On a short phone screen the sheet reaches
+   * up to the top bar and would cover the compact clipboard chip: then it starts right of the chip instead (CSS
+   * --bb-res, buildbar.css). Measured on layout boxes (offset*), so a running open / slide animation does not matter.
+   * Once reserved it stays for as long as the menu is open (a narrower sheet is never shorter → no flip-flop).
+   */
+  let res = 0;
+  const reserve = () => {
+    const cb = ctx.root.querySelector<HTMLElement>('.cb');
+    const clip = cb ? [...cb.querySelectorAll<HTMLElement>('.cb-chip, .cb-card')].find(e => e.offsetWidth > 0 && e.offsetHeight > 0) : undefined;
+    const hud = card.offsetParent as HTMLElement | null;
+    if (!cb || !clip || !hud) return;
+    const o = cb.getBoundingClientRect(), hb = hud.getBoundingClientRect();
+    const cl = o.left - hb.left + clip.offsetLeft, ct = o.top - hb.top + clip.offsetTop;
+    const cr = cl + clip.offsetWidth, cbm = ct + clip.offsetHeight;
+    const gap = 8;
+    const mt = card.offsetTop, ml = card.offsetLeft - card.offsetWidth / 2;  // left: 50% + translateX(-50%)
+    const want = res > 0 || (mt < cbm + gap && ml < cr + gap && mt + card.offsetHeight > ct) ? Math.ceil(cr) : 0;
+    if (want !== res) { res = want; card.style.setProperty('--bb-res', `${res}px`); }
+  };
+
   return {
     card, body, title, sub, extra,
     open: () => shown,
+    fit: () => { if (shown) reserve(); },
     tick(dt) {
       const want = ctx.menu.get() === name;
       if (want !== shown) {
         shown = want; card.hidden = !want;
         if (want) { place = true; acc = WRITE_MS; body.scrollLeft = 0; }
+        if (res) { res = 0; card.style.removeProperty('--bb-res'); }
       }
       if (!shown) return false;
       acc += dt * 1000;

@@ -32,6 +32,7 @@ import { mountTools } from './ui/tools';
 import { mountTutorial } from './ui/tutorial';
 import { mountJuice } from './render/juice';
 import { mountAudio, type Audio } from './audio/audio';
+import { assetUrl } from './platform/assets';
 
 /** every CommandResult reason the sim returns (src/sim/rooms.ts, src/sim/sim.ts cmd) → its localised message */
 const REASON_KEY: Record<string, Key> = {
@@ -93,7 +94,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
 
   const ctx: UICtx = {
     w: w0, cmd, t, lang: getLang, fmt: fmtNum, cam, root,
-    icon: (n: string) => `ui/${n}.svg`,
+    icon: (n: string) => assetUrl(`ui/${n}.svg`),
     selection: tracked(new Store<Selection>(null)),
     tool: tracked(new Store<Tool>({ kind: 'none' })),
     menu: tracked(new Store<'rooms' | 'staff' | null>(null)),

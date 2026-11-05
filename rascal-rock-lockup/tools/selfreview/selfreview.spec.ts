@@ -107,16 +107,31 @@ for (const run of RUNS) {
         lastEv.i = r.n;
         return r.list as any[];
       };
+      const findSel = (sel: string) => page.evaluate(s => {
+        const el = [...document.querySelectorAll(s)].find(e => (e as HTMLElement).checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getBoundingClientRect().width > 0) as HTMLElement | undefined;
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        const x = r.left + r.width / 2, y = r.top + r.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        return { x, y, ok: !!hit && (hit === el || el.contains(hit)), hit: hit ? `${hit.tagName.toLowerCase()}.${String((hit as HTMLElement).className).split(' ')[0]}` : 'none' };
+      }, sel);
       const clickSel = async (sel: string) => {
-        const b = await page.evaluate(s => {
-          const el = [...document.querySelectorAll(s)].find(e => (e as HTMLElement).checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getBoundingClientRect().width > 0) as HTMLElement | undefined;
-          if (!el) return null;
-          const r = el.getBoundingClientRect();
-          const x = r.left + r.width / 2, y = r.top + r.height / 2;
-          const hit = document.elementFromPoint(x, y);
-          return { x, y, ok: !!hit && (hit === el || el.contains(hit)) };
-        }, sel);
-        if (!b || !b.ok) return false;
+        let b = await findSel(sel);
+        for (let k = 0; k < 4 && !(b && b.ok); k++) {
+          if (!b) await stepN(page, 6); // a menu that is still opening
+          else if (b.hit === 'none') {
+            // outside the viewport (the rooms row scrolls sideways at narrow widths): scroll it in, as a person swipes the row
+            console.log(`[clickSel] ${sel}: off screen, scrolling the row`);
+            await page.evaluate(q => { const el = [...document.querySelectorAll(q)].find(e => e.getBoundingClientRect().width > 0); el?.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }, sel);
+            await stepN(page, 3);
+          } else {
+            // a person moves the mouse onto the target first (a hover tooltip of the previous button may sit over it)
+            console.log(`[clickSel] ${sel}: covered by ${b.hit}, moving the mouse onto it`);
+            await page.mouse.move(b.x, b.y); await stepN(page, 3);
+          }
+          b = await findSel(sel);
+        }
+        if (!b || !b.ok) { console.log(`[clickSel] ${sel}: ${b ? 'covered by ' + b.hit : 'not visible'}`); return false; }
         await page.mouse.click(b.x, b.y);
         await stepN(page, 4);
         return true;

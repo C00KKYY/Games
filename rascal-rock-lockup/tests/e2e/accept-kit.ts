@@ -21,7 +21,7 @@ export interface Click { what: string; rt: number; x: number; y: number; frame: 
  */
 export function instr() {
   const g = window as any;
-  const A = (g.__acc = { inputs: [] as any[], ev: [] as any[], fx: [] as any[], plays: [] as any[], goal: [] as any[], slides: [] as number[], coinTxt: [] as any[], hooked: false, lastFx: null as any, nextGoalRt: 0, raf: [] as number[] });
+  const A = (g.__acc = { inputs: [] as any[], ev: [] as any[], fx: [] as any[], plays: [] as any[], goal: [] as any[], coinTxt: [] as any[], hooked: false, lastFx: null as any, nextGoalRt: 0, raf: [] as number[] });
   for (const ty of ['pointerdown', 'pointerup', 'click', 'keydown', 'touchstart', 'touchend', 'wheel']) {
     window.addEventListener(ty, () => { A.inputs.push({ ty, t: performance.now(), frame: g.__fxFrame ?? -1 }); }, { capture: true, passive: true });
   }
@@ -34,24 +34,19 @@ export function instr() {
     const modal = [...document.querySelectorAll('[aria-modal="true"], .ov-modal')].some(el => !el.closest('[hidden]') && vis(el));
     // flow bar: every stage as a button, or (narrow topbar, collapsed after measuring) the summary with one icon per stage
     const flow = Math.max([...document.querySelectorAll('.tb .stages .st')].filter(vis).length, [...document.querySelectorAll('.tb .flow .sum .ic')].filter(vis).length);
-    // the clipboard slides a new goal / step in with a Web Animation (≤ 420 ms of wall-clock time). Wall-clock
-    // animations do not advance while game time is stepped synchronously, so a running slide would be measured frozen
-    // at its first keyframe for many game seconds: finish it (layout state), and report its length (must stay short)
-    for (const a of document.getAnimations()) {
-      const t = (a.effect as KeyframeEffect | null)?.target as Element | null;
-      if (!t || !t.closest('.cb') || a.playState !== 'running') continue;
-      // only the slide of the widget itself counts towards "hidden for a moment" (the chip's highlight flash does not)
-      if (t.matches('.cb-card, .cb-chip')) A.slides.push(Number(a.effect?.getTiming().duration) || 0);
-      a.finish();
-    }
     const card = document.querySelector('.cb-card'), chip = document.querySelector('.cb-chip');
     const useCard = vis(card);
     const el = useCard ? card : vis(chip) ? chip : null;
     const tut = !!w.tutorial.active;
     const res = { rt: w.rtMs, ok: false, why: '', mode: useCard ? 'card' : el ? 'chip' : 'none', flow, modal, tut };
     if (!el) { res.why = 'no clipboard card/chip visible'; return res; }
+    // measured as it is right now – a running goal-change animation included (it runs on wall-clock time and stands
+    // still while game time is stepped, so its first keyframe must already be on screen and readable)
     const b = el.getBoundingClientRect();
     if (b.left < -1 || b.top < -1 || b.right > innerWidth + 1 || b.bottom > innerHeight + 1) { res.why = `widget off screen ${[b.left, b.top, b.right, b.bottom].map(Math.round)}`; return res; }
+    let op = 1;
+    for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) op *= Number(getComputedStyle(e).opacity);
+    if (op < 0.6) { res.why = `widget faded (opacity ${op.toFixed(2)})`; return res; }
     const txtEl = el.querySelector(useCard ? '.cb-goal-txt' : '.cb-chip-txt');
     const numEl = el.querySelector(useCard ? '.cb-prog-num' : '.cb-chip-num');
     const txt = (txtEl?.textContent ?? '').trim(), num = (numEl?.textContent ?? '').trim();

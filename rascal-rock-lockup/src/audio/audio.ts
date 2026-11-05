@@ -1,8 +1,8 @@
 /**
  * Audio runtime (Brief §8.4, §11.1, §12.6, §12.8): mounts the WebAudio mixer (mixer.ts) into the app.
- * - loading: the INITIAL bundle + musicDayLo (16 kbps stand-in of music loop 1) + musicDay right away (fetch, never
- *   awaited → never blocks boot or gameplayStart),
- *   the rest after the first gameplayStart (or 3 s). Only files that exist in public/audio are requested (build-time
+ * - loading: the INITIAL bundle (tutorial sounds) + musicDayLo (16 kbps stand-in of music loop 1) right away (fetch,
+ *   never awaited → never blocks boot or gameplayStart); the rest – musicDay first – after the first gameplayStart (or
+ *   3 s), Brief §8.4 "der Rest wird nach gameplayStart nachgeladen". Only files that exist in public/audio are requested (build-time
  *   glob), so missing assets never produce a 404 or console error; decode failures are swallowed.
  * - unlock: the AudioContext is created/resumed inside the first user gesture (capture listeners on window, incl.
  *   click/touchend for iOS). Music and ambience start with that first tap, never before.
@@ -18,6 +18,7 @@ import { hourOf, isNight } from '../sim/time';
 import { INITIAL, INITIAL_MUSIC, LOOPS, LO_OF, MUSIC, MUSIC_LO, SFX, type SoundId } from './manifest';
 import { Mixer, resolveId, type CtxLike, type BufferLike, type LoopPoints, type MuteReason } from './mixer';
 import { cueFor } from './events';
+import { assetUrl } from '../platform/assets';
 
 export interface Audio extends Component {
   /** play a sound by id or M3 alias; unknown/unloaded ids are ignored */
@@ -36,8 +37,9 @@ const PRESENT = new Set(Object.keys(import.meta.glob('../../public/audio/*.mp3')
 if (import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('audioAll')) for (const id of [...SFX, ...LOOPS, ...MUSIC, ...MUSIC_LO]) PRESENT.add(id);
 const LOOP_JSON = Object.values(import.meta.glob('../../public/audio/loops.json', { eager: true, import: 'default' }))[0] as Record<string, LoopPoints> | undefined;
 
-/** loading order after gameplayStart: ambience beds first (they start with the first tap), then events, then night/evening */
-const LATER: SoundId[] = ['ambWaves', 'ambGulls', ...SFX.filter(s => !INITIAL.includes(s)), 'ambMurmur', 'musicEvening', 'ambClatter', 'ambCrickets'];
+/** loading order after gameplayStart: the full day loop (takes over from musicDayLo), ambience beds (they start with the
+ *  first tap), then events, then night/evening */
+const LATER: SoundId[] = ['musicDay', 'ambWaves', 'ambGulls', ...SFX.filter(s => !INITIAL.includes(s)), 'ambMurmur', 'musicEvening', 'ambClatter', 'ambCrickets'];
 const PHASE2_FALLBACK_MS = 3000;
 /** low-quality stand-in → full track cross-fade (s); track changes (day ↔ evening) use MUSIC_XFADE */
 const LO_XFADE = 1.5, MUSIC_XFADE = 3;
@@ -86,7 +88,7 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     while (active < CONCURRENCY && queue.length) {
       const id = queue.shift()!;
       active++;
-      fetch(`audio/${id}.mp3`)
+      fetch(assetUrl(`audio/${id}.mp3`))
         .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
         .then(decode)
         .then(buf => mixer.setBuffer(id, buf as unknown as BufferLike, LOOP_JSON?.[id]))
@@ -101,12 +103,12 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     }
     pump();
   };
-  load([...INITIAL, ...INITIAL_MUSIC, 'musicDay']);
-  let phase2 = false;
+  load([...INITIAL, ...INITIAL_MUSIC]);
+  let phase2 = false, phase2At = -1;   // performance.now() when the rest was queued (test hook, A4 / §8.4)
   const startPhase2 = () => {
     if (phase2) return;
     phase2 = true;
-    const go = () => load(LATER);
+    const go = () => { phase2At = now(); load(LATER); };
     const ric = (win as unknown as { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => void }).requestIdleCallback;
     if (ric) ric(go, { timeout: 1500 }); else setTimeout(go, 200);
   };
@@ -250,7 +252,7 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     debug: () => ({
       ctxState: mixer.ctx?.state ?? 'none', unlocked: mixer.unlocked, muted: mixer.muted(), reasons: [...mixer.reasons],
       targets: mixer.targets(), master: mixer.master?.gain.value ?? null, loaded: [...mixer.buffers.keys()], present: [...PRESENT],
-      loops: [...mixer.loops.entries()].filter(([, L]) => L.src).map(([id, L]) => ({ id, target: L.target })), phase2, voices: mixer.voices,
+      loops: [...mixer.loops.entries()].filter(([, L]) => L.src).map(([id, L]) => ({ id, target: L.target })), phase2, phase2At, voices: mixer.voices,
     }),
   };
   return audio;

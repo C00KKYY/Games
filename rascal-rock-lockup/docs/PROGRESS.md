@@ -1,7 +1,7 @@
 # PROGRESS
 
-**Aktueller Meilenstein:** M3 abgeschlossen (inkl. Review und Abnahmetests) → M4 Feel/Juice, Audio, Speichern, Tutorial-UI
-**Gates:** G1 **freigegeben** (2026-11-04) · G2 offen · G3 offen
+**Aktueller Meilenstein:** M4 abgeschlossen (Tutorial, Audio, Juice, Speichern; Review, Abnahmetests, Selbst-Review) → G2 → M5
+**Gates:** G1 **freigegeben** (2026-11-04) · G2: Material bereit; Auftraggeber hat mit "mach fertig" das Weiterarbeiten freigegeben, Musikwahl und eigener Playtest stehen aus · G3 offen
 
 ## Erledigt
 - **M0** (siehe Commit): Brief, Rules-Check, Pixi-Notizen, Namensprüfung („Rascal Rock Lockup" frei, EUIPO/TMview nicht prüfbar), Wettbewerb inklusive Gameplay-Screenshots, GDD, Style Guide, Economy-Sheet (H0 grün), Setup, Plattform-Wrapper, Mock-SDK. Tests 0, A1, A1b, A7.
@@ -54,7 +54,21 @@
   - Cross-Component-Review (1 schwer, 4 mittel, 11 leicht) behoben, danach zwei adversariale Prüfer (Test-Ehrlichkeit mit Mutationstests, Produktverhalten); deren Befunde ebenfalls behoben.
   - Abnahme M3: B1–B7, D5, D7 grün (Details QA_REPORT.md). B1-Screens für M5/M6 ausstehend.
 
+- **M4 Feel, Audio, Speichern, Tutorial:**
+  - Tutorial-UI (`src/ui/tutorial.ts`): Ring/Hand auf das Ziel, Wärter-Blase ≤ 8 Wörter mit Skip (aria-label + Tooltip), Ein-Tipp-Geist fürs Waschhaus, Steuerungshinweis, JIT-Tipps (höchstens 1 pro 30 s), die verschwinden, sobald ihr Anlass weg ist. Die Blase weicht Panels, Toasts, Menüs und Ziel aus.
+  - Audio (`src/audio/`): 36 MP3s aus CC0/CC-BY-Quellen (`docs/AUDIO.md`), Mixer mit Bussen, Dedupe, Rate-Limit, Jingle-Priorität. Start-Bundle 12 SFX + `musicDayLo` (16 kbps), Überblendung auf `musicDay` phasengleich. Mute über SDK, Tab, Ad und Einstellungen.
+  - Juice (`src/render/juice.ts`): Münzen und Plaketten (zusammengefasst), Bau-Animation, Konfetti, Meilenstein-Sterne, Fluchtmarker (Ring + „!“) am Ausbrecher, Zähler-Tweens, Freischaltungs-Feier.
+  - Speichern (`src/save/`): 2 Slots über SDK-Data bzw. localStorage, Einstellungen im Spielstand, „Spielstand zurücksetzen“.
+  - Review-Fixes (7 UI-, 5 Juice/Audio-Punkte) und Abnahme: `tests/e2e/m4-onboarding.spec.ts`, `m4-accept.spec.ts`, `m4-save.spec.ts`, `m4-fixes-ui.spec.ts` (A2–A4, A6, D1–D4, D6, D8–D10, E, G1–G3, C4). D8 erste Entlassung bei 28,5 s, D9 Skip bei 3 s, A4 4,73 MB/94 Dateien, initial 1,10 MB.
+  - Selbst-Review der ersten 10 Minuten (4 Läufe EN/DE × 1280/907): `docs/QA_REPORT.md`, Bilder `qa/m4/`. Werkzeuge `tools/selfreview/`.
+  - G2-Material `qa/g2/`: Playtest-Zip mit ANLEITUNG.txt und Musik-Hörproben, Single-File-Build (läuft per Doppelklick von file://, geprüft mit `tools/selfreview/singlefile.spec.ts`), 60-s-Video, `MUSIK.md`. Beides markiert als „nur Playtest, nicht einreichen“.
+
 ## Offen
+- **G2:** Musikwahl und eigener Playtest des Auftraggebers stehen aus. Die Rückmeldungen kommen in QA_REPORT.md und werden vor P0b/P1 abgearbeitet.
+- Befunde aus dem Selbst-Review (QA_REPORT.md): zweite Entlassung erst bei ~5:20, Leerlauf 1:05–3:00 und 3:33–6:18. Kein Randhinweis bei einem Ausbrecher außerhalb des Bildes. Toasts überlappen beim Nachtsprung. ~23 s Warten im Tutorial-Schritt 3. Viel ungenutztes Geld ab Minute 6.
+- C4: Ein echter Browser-Freeze (CDP `frozen`) wirkt im Headless-Chromium nicht. Prüfung mit sichtbarem Browser (Xvfb) in M7.
+- M8-Lizenzpass: OFL-Texte der Schriften fehlen in THIRD_PARTY_NOTICES, über die CC-BY-3.0-Pfeife ist noch zu entscheiden.
+- Aufräumen außerhalb des Projekts (von Hand, Sicherheitsprüfung verweigert): `/dist` und `/layers.log` im Wurzelverzeichnis.
 - B1-Screens Projekttafel, Rückkehr-Panel, Inspektionsergebnis, Versetzung (kommen mit M5/M6).
 - Kosmetik: Scroll-Hinweis in Einstellungen/Hilfe fehlt; „Folgen“-Button im Rascal-Panel bei 907×510 DE ragt 5 px unter die Kante; Platzierungs-Icons in `tools.ts` noch als Inline-SVG.
 - Taktungsregel §4.3 in 6/27 Seeds verletzt (Spar-Phase vor dem Klassenzimmer, siehe BALANCE.md §0). Der Bereich 10–15 min hängt an der Projekttafel (M5).
@@ -69,14 +83,26 @@
 6. Freiheitstor: Der Weg knickt am rechten Ende nach Süden ab, das Tor steht frontal. In der Seitenansicht war ein Tor im 3/4-Blick nicht lesbar. Die Leserichtung bleibt „Steg links → Tor rechts".
 7. Ein Teil der Küste und die Insel-Silhouette sind ein einmalig erzeugtes Pixi-`Graphics`-Polygon (statische Geometrie, kein Canvas-2D pro Frame).
 
+8. Musik-Platzhalter `musicDayLo` liegt in `INITIAL_MUSIC`, nicht in `INITIAL` (sonst 13 statt ≤ 12 Sounds). Er hat 16 statt 24–32 kbps, sonst wären < 200 KB nicht erreichbar. Die 250-KB-Grenze gilt für SFX plus Platzhalter zusammen.
+9. Fluchttipp (JIT) hält die 30-s-Sperre ein (Brief §6.2 ohne Ausnahme). Er verschwindet aber, sobald der Ausbrecher gefangen ist.
+10. A4: Die CrazyGames-SDK-URL in index.html ist die einzige fremde URL (Pflicht laut §11.1). MB wird dezimal gezählt.
+11. A6 deckt beide Lesarten ab: 10 min Echtzeit bei 2× und ≥ 10 min Spielzeit.
+12. Single-File-Playtest-Build: `vite.config.ts` bettet mit `SINGLEFILE=1` die Laufzeit-Dateien aus `public/` (UI-Icons, Atlas, Audio) als data:-URLs ein (`src/platform/assets.ts`). Sonst liefe er von file:// nicht. Der normale Build ist unverändert (leere Tabelle).
+13. Selbst-Review-Montagen sind mit ImageMagick `montage` gebaut (mit Zeitlabel je Kachel) und mit ffmpeg nach WebP gewandelt. Das ist kein reines ffmpeg-`tile`.
+14. G2-Video: Headless-Chromium nimmt keinen Ton auf. Der Ton in `qa/g2/first-60s.mp4` ist aus dem Mixer-Log des Spiels mit den ausgelieferten MP3s nachgemischt (`tools/selfreview/mix-audio.ts`), also eine Annäherung.
+15. Steuerungs-Overlay (Brief §6.2 „unten links“): Bei den Kompaktgrößen (≤ 900 px Breite, z. B. 800×450, 844×390) liegt die Fähre, also das Ziel von Tutorial-Schritt 1, in der Ecke unten links. Dort hat das Overlay keinen freien Platz, ohne Fähre und Zeigehand zu verdecken. Es steht dann links unter dem Klemmbrett-Chip (Slot `lc`). Bei den breiten Größen steht es unten links (`bl`). Der Test `m4-fixes-ui` lässt `lc` nur bei ≤ 900 px zu. Entscheidung bei G2 bestätigen lassen.
+16. Bau-Menüs auf kurzen Handy-Bildschirmen (844×390, 667×375, 800×450 Touch): Das Menü-Blatt beginnt rechts vom Klemmbrett-Chip und ist dafür schmaler (horizontal scrollbar wie bisher). So bleibt das Ziel-Widget sichtbar (D4). Findet die Tutorial-Blase dann keinen Platz, bleibt als letzte Form der Skip-Knopf allein stehen, auch neben der Bauleiste (§6.2 „dauerhaft sichtbar“).
+
 ## Bekannte Bugs / Schwächen
 - Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
 - Bei 800×450 verdeckt das Raum-Panel als Bottom-Sheet fast die ganze Welt.
 
 ## Letzte Testergebnisse
-- `npm test`: 112/112 grün · `npx playwright test`: 65 bestanden, 1 übersprungen (ausstehende B1-Screens) · tsc und eslint sauber · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
+- Stand Abnahme M4 (2026-11-05): `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 16 Dateien, 194/194 grün · `npx playwright test --workers=1`: 103 Tests, **102 bestanden, 0 fehlgeschlagen, 1 übersprungen** (ausstehende B1-Screens M5/M6), 41,8 min · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
+- Selbst-Review: 4 × 600 s ohne pageerror, console.error oder Warnung · Single-File-Build von file://: 2/2 (offline und mit SDK-Mock)
+- Nach dem Asset-Umbau für den Single-File-Build (`src/platform/assets.ts`): tsc und eslint sauber, `vitest` 194/194, `m0-infra` 5/5 gegen den neuen `dist`. Die volle Playwright-Suite lief danach nicht erneut.
 
 ## Nächste 3 Schritte
-1. M4: Tutorial-UI und Welt-Taps (Horn, Stempel, Kisten), Juice (Floating-Coins, Bau-Animation, Freischaltungs-Feier), Audio (ZzFX-SFX, Musik, Mute über SDK), Speichern/Laden mit Einstellungen.
-2. Abnahme M4 (D1–D4, D6, D8–D10, E, G, A3/A5/A5b/A6) und Selbst-Review der ersten 10 Minuten.
-3. G2: Material zusammenstellen und auf Freigabe warten.
+1. M5 (freigegeben mit „mach fertig“): Projekttafel, Rückkehr-Panel, Inspektion. Dabei die Pacing-Befunde aus dem Selbst-Review (zweite Entlassung, Leerlauf 1–3 min) angehen.
+2. G2-Rückmeldung einarbeiten, sobald sie kommt: Musikwahl (`qa/g2/MUSIK.md`, `npm run audio:build`) und Notizen aus dem Playtest.
+3. Kleine UX-Befunde: Randhinweis für Ausbrecher, Toast-Abstand beim Nachtsprung, Wartezeit im Tutorial-Schritt 3.

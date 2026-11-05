@@ -1,0 +1,1934 @@
+{
+ "tag": "en-907x510",
+ "shots": [
+  {
+   "file": "000-000s-start.webp",
+   "rt": 0,
+   "label": "start"
+  },
+  {
+   "file": "001-002s-ferryDock.webp",
+   "rt": 1600,
+   "label": "ferryDock"
+  },
+  {
+   "file": "002-005s-first-impression.webp",
+   "rt": 5000,
+   "label": "first-impression"
+  },
+  {
+   "file": "003-006s-built-wash.webp",
+   "rt": 5800,
+   "label": "built-wash"
+  },
+  {
+   "file": "004-015s-t.webp",
+   "rt": 15000,
+   "label": "t"
+  },
+  {
+   "file": "005-029s-release.webp",
+   "rt": 28800,
+   "label": "release"
+  },
+  {
+   "file": "006-030s-t.webp",
+   "rt": 30000,
+   "label": "t"
+  },
+  {
+   "file": "007-032s-unlock-workshop.webp",
+   "rt": 31600,
+   "label": "unlock-workshop"
+  },
+  {
+   "file": "008-045s-t.webp",
+   "rt": 45100,
+   "label": "t"
+  },
+  {
+   "file": "009-059s-build-workshop.webp",
+   "rt": 59300,
+   "label": "build-workshop"
+  },
+  {
+   "file": "010-060s-t.webp",
+   "rt": 60100,
+   "label": "t"
+  },
+  {
+   "file": "011-063s-built-workshop.webp",
+   "rt": 63100,
+   "label": "built-workshop"
+  },
+  {
+   "file": "012-065s-ferryDock.webp",
+   "rt": 65100,
+   "label": "ferryDock"
+  },
+  {
+   "file": "013-075s-t.webp",
+   "rt": 75000,
+   "label": "t"
+  },
+  {
+   "file": "014-090s-t.webp",
+   "rt": 90000,
+   "label": "t"
+  },
+  {
+   "file": "015-105s-t.webp",
+   "rt": 105000,
+   "label": "t"
+  },
+  {
+   "file": "016-115s-nightSkip.webp",
+   "rt": 114800,
+   "label": "nightSkip"
+  },
+  {
+   "file": "017-120s-t.webp",
+   "rt": 120000,
+   "label": "t"
+  },
+  {
+   "file": "018-126s-ferryDock.webp",
+   "rt": 126200,
+   "label": "ferryDock"
+  },
+  {
+   "file": "019-135s-t.webp",
+   "rt": 135000,
+   "label": "t"
+  },
+  {
+   "file": "020-150s-t.webp",
+   "rt": 150000,
+   "label": "t"
+  },
+  {
+   "file": "021-165s-t.webp",
+   "rt": 165000,
+   "label": "t"
+  },
+  {
+   "file": "022-180s-tunnel.webp",
+   "rt": 180200,
+   "label": "tunnel"
+  },
+  {
+   "file": "023-180s-t.webp",
+   "rt": 180200,
+   "label": "t"
+  },
+  {
+   "file": "024-186s-ferryDock.webp",
+   "rt": 186200,
+   "label": "ferryDock"
+  },
+  {
+   "file": "025-195s-t.webp",
+   "rt": 195000,
+   "label": "t"
+  },
+  {
+   "file": "026-199s-build-classroom.webp",
+   "rt": 199000,
+   "label": "build-classroom"
+  },
+  {
+   "file": "027-203s-built-classroom.webp",
+   "rt": 202800,
+   "label": "built-classroom"
+  },
+  {
+   "file": "028-205s-build-guard.webp",
+   "rt": 205100,
+   "label": "build-guard"
+  },
+  {
+   "file": "029-207s-built-guard.webp",
+   "rt": 207300,
+   "label": "built-guard"
+  },
+  {
+   "file": "030-210s-hire.webp",
+   "rt": 209600,
+   "label": "hire"
+  },
+  {
+   "file": "031-210s-t.webp",
+   "rt": 210000,
+   "label": "t"
+  },
+  {
+   "file": "032-220s-hire.webp",
+   "rt": 220300,
+   "label": "hire"
+  },
+  {
+   "file": "033-226s-t.webp",
+   "rt": 226000,
+   "label": "t"
+  },
+  {
+   "file": "034-237s-nightSkip.webp",
+   "rt": 236800,
+   "label": "nightSkip"
+  },
+  {
+   "file": "035-240s-t.webp",
+   "rt": 240000,
+   "label": "t"
+  },
+  {
+   "file": "036-255s-t.webp",
+   "rt": 255000,
+   "label": "t"
+  },
+  {
+   "file": "037-270s-t.webp",
+   "rt": 270000,
+   "label": "t"
+  },
+  {
+   "file": "038-285s-t.webp",
+   "rt": 285000,
+   "label": "t"
+  },
+  {
+   "file": "039-300s-t.webp",
+   "rt": 300100,
+   "label": "t"
+  },
+  {
+   "file": "040-312s-release.webp",
+   "rt": 312300,
+   "label": "release"
+  },
+  {
+   "file": "041-315s-t.webp",
+   "rt": 315100,
+   "label": "t"
+  },
+  {
+   "file": "042-322s-release.webp",
+   "rt": 322300,
+   "label": "release"
+  },
+  {
+   "file": "043-330s-t.webp",
+   "rt": 330100,
+   "label": "t"
+  },
+  {
+   "file": "044-332s-release.webp",
+   "rt": 332300,
+   "label": "release"
+  },
+  {
+   "file": "045-345s-t.webp",
+   "rt": 345000,
+   "label": "t"
+  },
+  {
+   "file": "046-360s-t.webp",
+   "rt": 360050,
+   "label": "t"
+  },
+  {
+   "file": "047-375s-t.webp",
+   "rt": 375100,
+   "label": "t"
+  },
+  {
+   "file": "048-385s-tunnel.webp",
+   "rt": 384900,
+   "label": "tunnel"
+  },
+  {
+   "file": "049-390s-t.webp",
+   "rt": 390100,
+   "label": "t"
+  },
+  {
+   "file": "050-405s-t.webp",
+   "rt": 405000,
+   "label": "t"
+  },
+  {
+   "file": "051-420s-t.webp",
+   "rt": 420000,
+   "label": "t"
+  },
+  {
+   "file": "052-427s-star.webp",
+   "rt": 426800,
+   "label": "star"
+  },
+  {
+   "file": "053-435s-t.webp",
+   "rt": 435000,
+   "label": "t"
+  },
+  {
+   "file": "054-450s-t.webp",
+   "rt": 450100,
+   "label": "t"
+  },
+  {
+   "file": "055-465s-t.webp",
+   "rt": 465100,
+   "label": "t"
+  },
+  {
+   "file": "056-480s-t.webp",
+   "rt": 480100,
+   "label": "t"
+  },
+  {
+   "file": "057-495s-t.webp",
+   "rt": 495100,
+   "label": "t"
+  },
+  {
+   "file": "058-512s-milestone.webp",
+   "rt": 512050,
+   "label": "milestone"
+  },
+  {
+   "file": "059-512s-t.webp",
+   "rt": 512050,
+   "label": "t"
+  },
+  {
+   "file": "060-525s-t.webp",
+   "rt": 525050,
+   "label": "t"
+  },
+  {
+   "file": "061-540s-t.webp",
+   "rt": 540000,
+   "label": "t"
+  },
+  {
+   "file": "062-543s-milestone.webp",
+   "rt": 542600,
+   "label": "milestone"
+  },
+  {
+   "file": "063-555s-t.webp",
+   "rt": 555000,
+   "label": "t"
+  },
+  {
+   "file": "064-570s-t.webp",
+   "rt": 570000,
+   "label": "t"
+  },
+  {
+   "file": "065-585s-hire.webp",
+   "rt": 585100,
+   "label": "hire"
+  },
+  {
+   "file": "066-585s-t.webp",
+   "rt": 585300,
+   "label": "t"
+  },
+  {
+   "file": "067-600s-end.webp",
+   "rt": 600000,
+   "label": "end"
+  }
+ ],
+ "actions": [
+  {
+   "rt": 1200,
+   "what": "ring-step0",
+   "how": "click 298,373 on canvas.",
+   "ok": true
+  },
+  {
+   "rt": 2400,
+   "what": "ring-step1",
+   "how": "click 423,179 on img.tu-ghost-ic",
+   "ok": true
+  },
+  {
+   "rt": 28400,
+   "what": "ring-step2",
+   "how": "click 850,379 on canvas.",
+   "ok": true
+  },
+  {
+   "rt": 29600,
+   "what": "ring-step3",
+   "how": "click 556,297 on canvas.",
+   "ok": true
+  },
+  {
+   "rt": 31200,
+   "what": "ring-step3",
+   "how": "click 671,351 on span.num",
+   "ok": true
+  },
+  {
+   "rt": 57300,
+   "what": "build workshop 4x4 @4,10",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 64700,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 64900,
+   "what": "hire foreman",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 85200,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 125800,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 141800,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 161600,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 181600,
+   "what": "escapee",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 182400,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 185800,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 197000,
+   "what": "build classroom 4x4 @8,10",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 201400,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 203000,
+   "what": "build guard 2x2 @7,15",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 208700,
+   "what": "hire teacher",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 214200,
+   "what": "upgrade workshop#16",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 219400,
+   "what": "hire guard",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 224300,
+   "what": "upgrade workshop#16",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 248800,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 268000,
+   "what": "upgrade bunk#2",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 270000,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 288400,
+   "what": "upgrade wash#12",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 307700,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 320700,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 320900,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 321700,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 325900,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 326700,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 327500,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 328300,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 329100,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 329900,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 330700,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 331500,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 332500,
+   "what": "upgrade gate#3",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 341000,
+   "what": "upgrade dock#4",
+   "how": "UI",
+   "ok": false
+  },
+  {
+   "rt": 364050,
+   "what": "upgrade bunk#2",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 371200,
+   "what": "upgrade bunk#2",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 386300,
+   "what": "escapee",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 397700,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 397900,
+   "what": "upgrade gate#3",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 425800,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 432400,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 432600,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 433400,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 434200,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 435000,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 435400,
+   "what": "upgrade wash#12",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 438200,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 438400,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 439200,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 439800,
+   "what": "upgrade gate#3",
+   "how": "UI",
+   "ok": false
+  },
+  {
+   "rt": 441800,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 442600,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 443400,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 444200,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 445000,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 445800,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 447800,
+   "what": "upgrade workshop#16",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 458700,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 497700,
+   "what": "upgrade dock#4",
+   "how": "UI",
+   "ok": false
+  },
+  {
+   "rt": 509900,
+   "what": "upgrade bunk#2",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 540600,
+   "what": "upgrade workshop#16",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 548800,
+   "what": "horn",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 566200,
+   "what": "crates",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 575600,
+   "what": "upgrade dock#4",
+   "how": "UI",
+   "ok": false
+  },
+  {
+   "rt": 583600,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 583800,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 584000,
+   "what": "hire janitor",
+   "how": "UI",
+   "ok": true
+  },
+  {
+   "rt": 585100,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 585700,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 586500,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 587300,
+   "what": "stamp",
+   "how": "click",
+   "ok": true
+  },
+  {
+   "rt": 590900,
+   "what": "upgrade dock#4",
+   "how": "UI",
+   "ok": false
+  },
+  {
+   "rt": 597500,
+   "what": "upgrade wash#12",
+   "how": "UI",
+   "ok": true
+  }
+ ],
+ "end": {
+  "rt": 600000,
+  "coins": 1772,
+  "ruf": 260,
+  "released": 10,
+  "caught": 2,
+  "escaped": 0,
+  "rooms": [
+   "canteen L2 4x3",
+   "bunk L5 6x3",
+   "gate L3 2x2",
+   "dock L1 1x2",
+   "office L1 3x3",
+   "wash L4 3x3",
+   "workshop L5 4x4",
+   "classroom L1 4x4",
+   "guard L1 2x2"
+  ],
+  "staff": [
+   "cook",
+   "carter",
+   "foreman",
+   "teacher",
+   "guard",
+   "janitor"
+  ],
+  "rascals": 10,
+  "obj": {
+   "done": {
+    "wash": true,
+    "workshop": true,
+    "classroom": true,
+    "guard": true
+   },
+   "current": 4
+  },
+  "tutorial": {
+   "active": false,
+   "step": 3,
+   "skipped": false,
+   "done": true
+  },
+  "unlocked": {
+   "bunk": true,
+   "canteen": true,
+   "wash": true,
+   "gate": true,
+   "dock": true,
+   "office": true,
+   "workshop": true,
+   "classroom": true,
+   "guard": true,
+   "projects": true
+  },
+  "plays": {
+   "ferryHorn": 18,
+   "horn": 9,
+   "hover": 19,
+   "build": 4,
+   "buildDone": 4,
+   "coin": 126,
+   "stamp": 38,
+   "releaseFanfare": 10,
+   "panelOpen": 38,
+   "upgrade": 14,
+   "milestone": 8,
+   "objective": 7,
+   "panelClose": 38,
+   "click": 14,
+   "hire": 4,
+   "crateStack": 20,
+   "tap": 10,
+   "cartRoll": 8,
+   "ledgerRegister": 4,
+   "tunnelPop": 2,
+   "netSwoosh": 2,
+   "deny": 1
+  },
+  "audioLogTail": [
+   {
+    "id": "stamp",
+    "t": 100542.29999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 100538.8999999999,
+    "inputH": 100542.20000000019,
+    "skip": "dedupe"
+   },
+   {
+    "id": "hover",
+    "t": 100576.79999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 100538.8999999999,
+    "inputH": 100542.3999999999
+   },
+   {
+    "id": "click",
+    "t": 100579.6000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 100574.5,
+    "inputH": 100579.6000000001
+   },
+   {
+    "id": "hover",
+    "t": 100615.8999999999,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 100574.5,
+    "inputH": 100579.6000000001,
+    "skip": "dedupe"
+   },
+   {
+    "id": "click",
+    "t": 100618.6000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 100615.29999999981,
+    "inputH": 100618.6000000001,
+    "skip": "dedupe"
+   },
+   {
+    "id": "hire",
+    "t": 100621.79999999981,
+    "ctxState": "running",
+    "src": "event",
+    "inputT": 100615.29999999981,
+    "inputH": 100618.6000000001
+   },
+   {
+    "id": "stamp",
+    "t": 101703,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 101698.5,
+    "inputH": 101702.79999999981
+   },
+   {
+    "id": "stamp",
+    "t": 102081.5,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102078.3999999999,
+    "inputH": 102081.3999999999
+   },
+   {
+    "id": "stamp",
+    "t": 102155.3999999999,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102151.79999999981,
+    "inputH": 102155.29999999981,
+    "skip": "dedupe"
+   },
+   {
+    "id": "stamp",
+    "t": 102230.79999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102227.3999999999,
+    "inputH": 102230.79999999981
+   },
+   {
+    "id": "coin2",
+    "t": 102250.79999999981,
+    "ctxState": "running",
+    "src": "event",
+    "inputT": 102227.3999999999,
+    "inputH": 102231.1000000001
+   },
+   {
+    "id": "releaseFanfare",
+    "t": 102251.20000000019,
+    "ctxState": "running",
+    "src": "event",
+    "inputT": 102227.3999999999,
+    "inputH": 102231.1000000001
+   },
+   {
+    "id": "coin3",
+    "t": 102403.70000000019,
+    "ctxState": "running",
+    "src": "event",
+    "inputT": 102227.3999999999,
+    "inputH": 102231.1000000001
+   },
+   {
+    "id": "panelOpen",
+    "t": 102746.20000000019,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102740.70000000019,
+    "inputH": 102746.1000000001
+   },
+   {
+    "id": "panelClose",
+    "t": 102778.1000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102775.29999999981,
+    "inputH": 102777.5
+   },
+   {
+    "id": "panelOpen",
+    "t": 102806.29999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102801.20000000019,
+    "inputH": 102806.1000000001,
+    "skip": "dedupe"
+   },
+   {
+    "id": "panelClose",
+    "t": 102823.1000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102822.3999999999,
+    "inputH": 102822.79999999981,
+    "skip": "dedupe"
+   },
+   {
+    "id": "panelOpen",
+    "t": 102843.6000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102838,
+    "inputH": 102843.5
+   },
+   {
+    "id": "panelClose",
+    "t": 102866.3999999999,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102866,
+    "inputH": 102866.29999999981
+   },
+   {
+    "id": "panelOpen",
+    "t": 102895.29999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102890.20000000019,
+    "inputH": 102895.29999999981,
+    "skip": "dedupe"
+   },
+   {
+    "id": "panelClose",
+    "t": 102916.6000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102916.1000000001,
+    "inputH": 102916.3999999999,
+    "skip": "dedupe"
+   },
+   {
+    "id": "panelOpen",
+    "t": 102944.3999999999,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102939.29999999981,
+    "inputH": 102944.3999999999
+   },
+   {
+    "id": "panelClose",
+    "t": 102979.79999999981,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 102979.29999999981,
+    "inputH": 102979.6000000001
+   },
+   {
+    "id": "panelOpen",
+    "t": 103002.20000000019,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103000.1000000001,
+    "inputH": 103002.20000000019,
+    "skip": "dedupe"
+   },
+   {
+    "id": "panelClose",
+    "t": 103020.20000000019,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103019.79999999981,
+    "inputH": 103020,
+    "skip": "dedupe"
+   },
+   {
+    "id": "coin1",
+    "t": 103384.20000000019,
+    "ctxState": "running",
+    "src": "event",
+    "inputT": 103019.79999999981,
+    "inputH": 103020
+   },
+   {
+    "id": "panelOpen",
+    "t": 103541.20000000019,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103536,
+    "inputH": 103541.1000000001
+   },
+   {
+    "id": "hover",
+    "t": 103583.70000000019,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103536,
+    "inputH": 103541.5
+   },
+   {
+    "id": "upgrade",
+    "t": 103586.6000000001,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103582,
+    "inputH": 103586.6000000001
+   },
+   {
+    "id": "panelClose",
+    "t": 103610,
+    "ctxState": "running",
+    "src": "ui",
+    "inputT": 103608.5,
+    "inputH": 103609.79999999981
+   }
+  ],
+  "juice": {
+   "world": 4,
+   "screen": 0,
+   "sea": 0,
+   "floats": 1,
+   "plaques": [
+    {
+     "x": 80,
+     "y": 470,
+     "level": 0,
+     "amount": -75,
+     "src": "misc",
+     "t": 0.9999999999999999
+    }
+   ],
+   "needs": 1,
+   "escapees": []
+  }
+ },
+ "errors": [],
+ "warnings": [],
+ "events": [
+  {
+   "type": "ferryHorn",
+   "rt": 100
+  },
+  {
+   "type": "hornTap",
+   "rt": 1200
+  },
+  {
+   "type": "ferryDock",
+   "rt": 1300
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 1300
+  },
+  {
+   "type": "arrive",
+   "rt": 1900,
+   "id": 11
+  },
+  {
+   "type": "admit",
+   "rt": 1900,
+   "id": 11
+  },
+  {
+   "type": "build",
+   "rt": 2400,
+   "rtype": "wash"
+  },
+  {
+   "type": "arrive",
+   "rt": 2500,
+   "id": 13
+  },
+  {
+   "type": "admit",
+   "rt": 2500,
+   "id": 13
+  },
+  {
+   "type": "arrive",
+   "rt": 3100,
+   "id": 14
+  },
+  {
+   "type": "admit",
+   "rt": 3100,
+   "id": 14
+  },
+  {
+   "type": "arrive",
+   "rt": 3700,
+   "id": 15
+  },
+  {
+   "type": "admit",
+   "rt": 3700,
+   "id": 15
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 3700
+  },
+  {
+   "type": "built",
+   "rt": 5500,
+   "rtype": "wash"
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 5500
+  },
+  {
+   "type": "ruf",
+   "rt": 28400
+  },
+  {
+   "type": "release",
+   "rt": 28400,
+   "id": 11
+  },
+  {
+   "type": "happytime",
+   "rt": 28400
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 28400
+  },
+  {
+   "type": "upgrade",
+   "rt": 31200
+  },
+  {
+   "type": "unlock",
+   "rt": 31200,
+   "what": "workshop"
+  },
+  {
+   "type": "tutorialDone",
+   "rt": 31200
+  },
+  {
+   "type": "build",
+   "rt": 58800,
+   "rtype": "workshop"
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 60000
+  },
+  {
+   "type": "built",
+   "rt": 62800,
+   "rtype": "workshop"
+  },
+  {
+   "type": "ruf",
+   "rt": 62800
+  },
+  {
+   "type": "unlock",
+   "rt": 62800,
+   "what": "classroom"
+  },
+  {
+   "type": "objective",
+   "rt": 62800,
+   "id": "workshop"
+  },
+  {
+   "type": "hornTap",
+   "rt": 64700
+  },
+  {
+   "type": "ferryDock",
+   "rt": 64800
+  },
+  {
+   "type": "arrive",
+   "rt": 65400,
+   "id": 17
+  },
+  {
+   "type": "admit",
+   "rt": 65400,
+   "id": 17
+  },
+  {
+   "type": "hire",
+   "rt": 65400,
+   "id": 18
+  },
+  {
+   "type": "arrive",
+   "rt": 66000,
+   "id": 19
+  },
+  {
+   "type": "admit",
+   "rt": 66000,
+   "id": 19
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 66000
+  },
+  {
+   "type": "cartDepart",
+   "rt": 85300
+  },
+  {
+   "type": "crateSold",
+   "rt": 98000
+  },
+  {
+   "type": "dayEnd",
+   "rt": 114500
+  },
+  {
+   "type": "nightSkip",
+   "rt": 114500
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 122000
+  },
+  {
+   "type": "hornTap",
+   "rt": 125800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 125900
+  },
+  {
+   "type": "arrive",
+   "rt": 126500,
+   "id": 20
+  },
+  {
+   "type": "admit",
+   "rt": 126500,
+   "id": 20
+  },
+  {
+   "type": "arrive",
+   "rt": 127100,
+   "id": 21
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 127100
+  },
+  {
+   "type": "cartDepart",
+   "rt": 141900
+  },
+  {
+   "type": "crateSold",
+   "rt": 154600
+  },
+  {
+   "type": "cartDepart",
+   "rt": 161700
+  },
+  {
+   "type": "crateSold",
+   "rt": 174400
+  },
+  {
+   "type": "tunnel",
+   "rt": 180000,
+   "id": 13
+  },
+  {
+   "type": "ruf",
+   "rt": 181600
+  },
+  {
+   "type": "ruf",
+   "rt": 181600
+  },
+  {
+   "type": "star",
+   "rt": 181600
+  },
+  {
+   "type": "caught",
+   "rt": 181600,
+   "id": 13
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 182000
+  },
+  {
+   "type": "cartDepart",
+   "rt": 182500
+  },
+  {
+   "type": "hornTap",
+   "rt": 185800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 185900
+  },
+  {
+   "type": "arrive",
+   "rt": 186500,
+   "id": 22
+  },
+  {
+   "type": "arrive",
+   "rt": 187100,
+   "id": 23
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 187100
+  },
+  {
+   "type": "crateSold",
+   "rt": 195200
+  },
+  {
+   "type": "build",
+   "rt": 198500,
+   "rtype": "classroom"
+  },
+  {
+   "type": "cartDepart",
+   "rt": 201500
+  },
+  {
+   "type": "built",
+   "rt": 202500,
+   "rtype": "classroom"
+  },
+  {
+   "type": "ruf",
+   "rt": 202500
+  },
+  {
+   "type": "objective",
+   "rt": 202500,
+   "id": "classroom"
+  },
+  {
+   "type": "build",
+   "rt": 204600,
+   "rtype": "guard"
+  },
+  {
+   "type": "built",
+   "rt": 207100,
+   "rtype": "guard"
+  },
+  {
+   "type": "ruf",
+   "rt": 207100
+  },
+  {
+   "type": "objective",
+   "rt": 207100,
+   "id": "guard"
+  },
+  {
+   "type": "hire",
+   "rt": 209100,
+   "id": 26
+  },
+  {
+   "type": "crateSold",
+   "rt": 214200
+  },
+  {
+   "type": "upgrade",
+   "rt": 215800
+  },
+  {
+   "type": "hire",
+   "rt": 219700,
+   "id": 27
+  },
+  {
+   "type": "upgrade",
+   "rt": 225700
+  },
+  {
+   "type": "unpaid",
+   "rt": 236500
+  },
+  {
+   "type": "dayEnd",
+   "rt": 236500
+  },
+  {
+   "type": "nightSkip",
+   "rt": 236500
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 244000
+  },
+  {
+   "type": "hornTap",
+   "rt": 248900
+  },
+  {
+   "type": "ferryDock",
+   "rt": 248900
+  },
+  {
+   "type": "arrive",
+   "rt": 249500,
+   "id": 28
+  },
+  {
+   "type": "arrive",
+   "rt": 250100,
+   "id": 29
+  },
+  {
+   "type": "arrive",
+   "rt": 250700,
+   "id": 30
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 250700
+  },
+  {
+   "type": "upgrade",
+   "rt": 269600
+  },
+  {
+   "type": "cartDepart",
+   "rt": 270100
+  },
+  {
+   "type": "crateSold",
+   "rt": 287000
+  },
+  {
+   "type": "upgrade",
+   "rt": 289500
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 304000
+  },
+  {
+   "type": "hornTap",
+   "rt": 307700
+  },
+  {
+   "type": "ferryDock",
+   "rt": 307800
+  },
+  {
+   "type": "ruf",
+   "rt": 312000
+  },
+  {
+   "type": "release",
+   "rt": 312000,
+   "id": 17
+  },
+  {
+   "type": "admit",
+   "rt": 312100,
+   "id": 21
+  },
+  {
+   "type": "arrive",
+   "rt": 312200,
+   "id": 31
+  },
+  {
+   "type": "ruf",
+   "rt": 322000
+  },
+  {
+   "type": "release",
+   "rt": 322000,
+   "id": 14
+  },
+  {
+   "type": "admit",
+   "rt": 322100,
+   "id": 22
+  },
+  {
+   "type": "arrive",
+   "rt": 322200,
+   "id": 32
+  },
+  {
+   "type": "ferryLeftWithRest",
+   "rt": 322900
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 322900
+  },
+  {
+   "type": "ruf",
+   "rt": 332000
+  },
+  {
+   "type": "release",
+   "rt": 332000,
+   "id": 15
+  },
+  {
+   "type": "admit",
+   "rt": 332100,
+   "id": 23
+  },
+  {
+   "type": "upgrade",
+   "rt": 333900
+  },
+  {
+   "type": "dayEnd",
+   "rt": 364000
+  },
+  {
+   "type": "upgrade",
+   "rt": 365600
+  },
+  {
+   "type": "upgrade",
+   "rt": 372750
+  },
+  {
+   "type": "tunnel",
+   "rt": 384700,
+   "id": 19
+  },
+  {
+   "type": "ruf",
+   "rt": 386350
+  },
+  {
+   "type": "ruf",
+   "rt": 386350
+  },
+  {
+   "type": "caught",
+   "rt": 386350,
+   "id": 19
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 394000
+  },
+  {
+   "type": "hornTap",
+   "rt": 397700
+  },
+  {
+   "type": "ferryDock",
+   "rt": 397800
+  },
+  {
+   "type": "arrive",
+   "rt": 398400,
+   "id": 33
+  },
+  {
+   "type": "upgrade",
+   "rt": 399300
+  },
+  {
+   "type": "ferryLeftWithRest",
+   "rt": 412900
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 412900
+  },
+  {
+   "type": "cartDepart",
+   "rt": 425900
+  },
+  {
+   "type": "ruf",
+   "rt": 426600
+  },
+  {
+   "type": "star",
+   "rt": 426600
+  },
+  {
+   "type": "release",
+   "rt": 426600,
+   "id": 19
+  },
+  {
+   "type": "unlock",
+   "rt": 426600,
+   "what": "projects"
+  },
+  {
+   "type": "admit",
+   "rt": 426700,
+   "id": 28
+  },
+  {
+   "type": "ruf",
+   "rt": 436600
+  },
+  {
+   "type": "release",
+   "rt": 436600,
+   "id": 13
+  },
+  {
+   "type": "admit",
+   "rt": 436700,
+   "id": 29
+  },
+  {
+   "type": "upgrade",
+   "rt": 436800
+  },
+  {
+   "type": "crateSold",
+   "rt": 438600
+  },
+  {
+   "type": "ruf",
+   "rt": 446600
+  },
+  {
+   "type": "release",
+   "rt": 446600,
+   "id": 20
+  },
+  {
+   "type": "admit",
+   "rt": 446700,
+   "id": 30
+  },
+  {
+   "type": "upgrade",
+   "rt": 449100
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 454000
+  },
+  {
+   "type": "hornTap",
+   "rt": 458700
+  },
+  {
+   "type": "ferryDock",
+   "rt": 458800
+  },
+  {
+   "type": "arrive",
+   "rt": 459400,
+   "id": 34
+  },
+  {
+   "type": "arrive",
+   "rt": 460000,
+   "id": 35
+  },
+  {
+   "type": "arrive",
+   "rt": 460600,
+   "id": 36
+  },
+  {
+   "type": "ferryLeftWithRest",
+   "rt": 473900
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 473900
+  },
+  {
+   "type": "ruf",
+   "rt": 474400
+  },
+  {
+   "type": "release",
+   "rt": 474400,
+   "id": 21
+  },
+  {
+   "type": "admit",
+   "rt": 474500,
+   "id": 31
+  },
+  {
+   "type": "upgrade",
+   "rt": 511500
+  },
+  {
+   "type": "ruf",
+   "rt": 511500
+  },
+  {
+   "type": "milestone",
+   "rt": 511500
+  },
+  {
+   "type": "dayEnd",
+   "rt": 514000
+  },
+  {
+   "type": "upgrade",
+   "rt": 542000
+  },
+  {
+   "type": "ruf",
+   "rt": 542000
+  },
+  {
+   "type": "milestone",
+   "rt": 542000
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 544000
+  },
+  {
+   "type": "hornTap",
+   "rt": 548800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 548900
+  },
+  {
+   "type": "arrive",
+   "rt": 549500,
+   "id": 37
+  },
+  {
+   "type": "ferryLeftWithRest",
+   "rt": 564000
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 564000
+  },
+  {
+   "type": "cartDepart",
+   "rt": 566300
+  },
+  {
+   "type": "ruf",
+   "rt": 577600
+  },
+  {
+   "type": "release",
+   "rt": 577600,
+   "id": 22
+  },
+  {
+   "type": "admit",
+   "rt": 577700,
+   "id": 32
+  },
+  {
+   "type": "crateSold",
+   "rt": 579000
+  },
+  {
+   "type": "hire",
+   "rt": 584500,
+   "id": 38
+  },
+  {
+   "type": "ruf",
+   "rt": 587600
+  },
+  {
+   "type": "release",
+   "rt": 587600,
+   "id": 23
+  },
+  {
+   "type": "admit",
+   "rt": 587700,
+   "id": 33
+  },
+  {
+   "type": "upgrade",
+   "rt": 599100
+  }
+ ]
+}

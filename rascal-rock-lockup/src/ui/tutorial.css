@@ -75,6 +75,10 @@
 .tu-bub.stack .tu-row { flex-direction: column; align-items: stretch; gap: .3rem; }
 .tu-bub.stack .tu-prog { justify-content: center; }
 .tu-bub.stack .tu-skip { white-space: normal; max-width: 8.5rem; justify-content: center; text-align: center; line-height: 1.15; padding: .2rem .6rem; }
+/* last resort before stepping aside: the Skip button alone (no plate, no dots) – fits the strip beside a phone's build bar */
+.tu-bub.skiponly .tu-say { padding: 0; background: none; border: 0; box-shadow: none; }
+.tu-bub.skiponly .tu-prog { display: none; }
+.tu-bub.skiponly .tu-skip { box-shadow: inset 0 -2px 0 var(--cream700), var(--shadow); }
 
 /* controls overlay (first 20 s) */
 .tu-ctl { display: flex; gap: .7rem; padding: .35rem .6rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r);
