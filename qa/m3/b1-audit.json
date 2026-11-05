@@ -15,7 +15,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       168.2
      ]
@@ -31,11 +31,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 68638.025390625,
+   "hudArea": 68916.167720625,
    "textNodes": 16
   },
   "1216x684": {
@@ -53,7 +55,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       168.2
      ]
@@ -69,11 +71,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79882.728515625,
+   "hudArea": 80160.870845625,
    "textNodes": 23
   },
   "1077x606": {
@@ -91,7 +95,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       168.2
      ]
@@ -107,11 +111,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 74824.431640625,
+   "hudArea": 75102.573970625,
    "textNodes": 22
   },
   "821x462": {
@@ -145,7 +151,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -167,7 +175,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       174.4
      ]
@@ -183,11 +191,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 90313.61645507812,
+   "hudArea": 90619.03905507812,
    "textNodes": 23
   },
   "1920x1080": {
@@ -205,7 +215,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       237
      ]
@@ -221,11 +231,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 171767.41943359375,
+   "hudArea": 172379.41943359375,
    "textNodes": 23
   },
   "1536x864": {
@@ -243,7 +255,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       196
      ]
@@ -259,11 +271,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 114316.53173828125,
+   "hudArea": 114713.76858756124,
    "textNodes": 23
   },
   "1280x720": {
@@ -281,7 +295,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       168.2
      ]
@@ -297,11 +311,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 82211.728515625,
+   "hudArea": 82489.870845625,
    "textNodes": 23
   },
   "800x450": {
@@ -335,7 +351,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -357,7 +375,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       168.2
      ]
@@ -373,12 +391,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 74933.603515625,
+   "hudArea": 75211.745845625,
    "textNodes": 22
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      154.1,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 57997.36083984375,
+   "textNodes": 10
   }
  },
  "en/gameplay": {
@@ -397,7 +457,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -413,11 +473,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 16
   },
   "1216x684": {
@@ -435,7 +497,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -451,11 +513,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 26
   },
   "1077x606": {
@@ -473,7 +537,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -489,11 +553,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 18
   },
   "821x462": {
@@ -527,7 +593,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -549,7 +617,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -565,11 +633,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 27
   },
   "1920x1080": {
@@ -587,7 +657,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -603,11 +673,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 27
   },
   "1536x864": {
@@ -625,7 +697,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -641,11 +713,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 27
   },
   "1280x720": {
@@ -663,7 +737,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -679,11 +753,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 26
   },
   "800x450": {
@@ -717,7 +793,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -739,7 +817,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -755,12 +833,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 18
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 10
   }
  },
  "en/buildbar-rooms": {
@@ -779,7 +899,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -795,11 +915,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 50
   },
   "1216x684": {
@@ -817,7 +939,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -833,11 +955,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 71
   },
   "1077x606": {
@@ -855,7 +979,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -871,11 +995,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 59
   },
   "821x462": {
@@ -909,7 +1035,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -931,7 +1059,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -947,11 +1075,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 72
   },
   "1920x1080": {
@@ -969,7 +1099,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -985,11 +1115,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 72
   },
   "1536x864": {
@@ -1007,7 +1139,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -1023,11 +1155,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 72
   },
   "1280x720": {
@@ -1045,7 +1179,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1061,11 +1195,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 71
   },
   "800x450": {
@@ -1099,7 +1235,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -1121,7 +1259,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1137,12 +1275,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 59
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 44
   }
  },
  "en/staff-menu": {
@@ -1161,7 +1341,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1177,11 +1357,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 44
   },
   "1216x684": {
@@ -1199,7 +1381,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1215,11 +1397,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 64
   },
   "1077x606": {
@@ -1237,7 +1421,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1253,11 +1437,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 51
   },
   "821x462": {
@@ -1291,7 +1477,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -1313,7 +1501,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -1329,11 +1517,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 65
   },
   "1920x1080": {
@@ -1351,7 +1541,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -1367,11 +1557,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 65
   },
   "1536x864": {
@@ -1389,7 +1581,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -1405,11 +1597,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 65
   },
   "1280x720": {
@@ -1427,7 +1621,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1443,11 +1637,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 64
   },
   "800x450": {
@@ -1481,7 +1677,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -1503,7 +1701,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1519,12 +1717,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 51
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 38
   }
  },
  "en/room-panel": {
@@ -1543,7 +1783,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1559,11 +1799,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 37
   },
   "1216x684": {
@@ -1581,7 +1823,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1597,11 +1839,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 49
   },
   "1077x606": {
@@ -1619,7 +1863,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1635,11 +1879,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 41
   },
   "821x462": {
@@ -1673,7 +1919,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -1695,7 +1943,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -1711,11 +1959,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 50
   },
   "1920x1080": {
@@ -1733,7 +1983,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -1749,11 +1999,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 50
   },
   "1536x864": {
@@ -1771,7 +2023,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -1787,11 +2039,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 50
   },
   "1280x720": {
@@ -1809,7 +2063,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1825,11 +2079,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 49
   },
   "800x450": {
@@ -1863,7 +2119,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -1885,7 +2143,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1901,12 +2159,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 41
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 32
   }
  },
  "en/rascal-panel": {
@@ -1925,7 +2225,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1941,11 +2241,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 36
   },
   "1216x684": {
@@ -1963,7 +2265,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -1979,11 +2281,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 46
   },
   "1077x606": {
@@ -2001,7 +2305,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2017,11 +2321,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 38
   },
   "821x462": {
@@ -2055,7 +2361,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -2077,7 +2385,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -2093,11 +2401,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 47
   },
   "1920x1080": {
@@ -2115,7 +2425,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -2131,11 +2441,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 47
   },
   "1536x864": {
@@ -2153,7 +2465,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -2169,11 +2481,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 47
   },
   "1280x720": {
@@ -2191,7 +2505,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2207,11 +2521,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 46
   },
   "800x450": {
@@ -2245,7 +2561,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -2267,7 +2585,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2283,12 +2601,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 38
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 30
   }
  },
  "en/settings": {
@@ -2307,7 +2667,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2323,11 +2683,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 39
   },
   "1216x684": {
@@ -2345,7 +2707,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2361,11 +2723,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 52
   },
   "1077x606": {
@@ -2383,7 +2747,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2399,11 +2763,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 44
   },
   "821x462": {
@@ -2437,7 +2803,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -2459,7 +2827,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -2475,11 +2843,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 53
   },
   "1920x1080": {
@@ -2497,7 +2867,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -2513,11 +2883,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 53
   },
   "1536x864": {
@@ -2535,7 +2907,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -2551,11 +2923,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 53
   },
   "1280x720": {
@@ -2573,7 +2947,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2589,11 +2963,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 52
   },
   "800x450": {
@@ -2627,7 +3003,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -2649,7 +3027,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2665,12 +3043,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 44
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 26
   }
  },
  "en/help": {
@@ -2689,7 +3109,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2705,11 +3125,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 72936.025390625,
+   "hudArea": 73214.167720625,
    "textNodes": 51
   },
   "1216x684": {
@@ -2727,7 +3149,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2743,11 +3165,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84180.728515625,
+   "hudArea": 84458.870845625,
    "textNodes": 73
   },
   "1077x606": {
@@ -2765,7 +3189,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2781,11 +3205,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79122.431640625,
+   "hudArea": 79400.573970625,
    "textNodes": 57
   },
   "821x462": {
@@ -2819,7 +3245,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -2841,7 +3269,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -2857,11 +3285,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 95070.54223632812,
+   "hudArea": 95375.96483632813,
    "textNodes": 84
   },
   "1920x1080": {
@@ -2879,7 +3309,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -2895,11 +3325,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180407.41943359375,
+   "hudArea": 181019.41943359375,
    "textNodes": 86
   },
   "1536x864": {
@@ -2917,7 +3349,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -2933,11 +3365,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120336.74731445312,
+   "hudArea": 120733.98416373313,
    "textNodes": 84
   },
   "1280x720": {
@@ -2955,7 +3389,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -2971,11 +3405,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86509.728515625,
+   "hudArea": 86787.870845625,
    "textNodes": 80
   },
   "800x450": {
@@ -3009,7 +3445,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3031,7 +3469,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3047,12 +3485,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79231.603515625,
+   "hudArea": 79509.745845625,
    "textNodes": 57
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      111.2,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      316,
+      328.1,
+      528,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56107.42333984375,
+   "textNodes": 29
   }
  },
  "de/gameplay-start": {
@@ -3071,7 +3551,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       205.3
      ]
@@ -3087,11 +3567,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 76777.15869140625,
+   "hudArea": 77055.30102140625,
    "textNodes": 16
   },
   "1216x684": {
@@ -3109,7 +3591,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       205.3
      ]
@@ -3125,11 +3607,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 88021.86181640625,
+   "hudArea": 88300.00414640625,
    "textNodes": 23
   },
   "1077x606": {
@@ -3147,7 +3631,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       205.3
      ]
@@ -3163,11 +3647,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 82963.56494140625,
+   "hudArea": 83241.70727140625,
    "textNodes": 23
   },
   "821x462": {
@@ -3201,7 +3687,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3223,7 +3711,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       213
      ]
@@ -3239,11 +3727,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 99156.67309570312,
+   "hudArea": 99462.09569570313,
    "textNodes": 23
   },
   "1920x1080": {
@@ -3261,7 +3751,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       290
      ]
@@ -3277,11 +3767,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 188412.04736328125,
+   "hudArea": 189024.04736328125,
    "textNodes": 23
   },
   "1536x864": {
@@ -3299,7 +3791,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       239.5
      ]
@@ -3315,11 +3807,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 125516.73486328125,
+   "hudArea": 125913.97171256125,
    "textNodes": 23
   },
   "1280x720": {
@@ -3337,7 +3831,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       205.3
      ]
@@ -3353,11 +3847,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 90350.86181640625,
+   "hudArea": 90629.00414640625,
    "textNodes": 23
   },
   "800x450": {
@@ -3391,7 +3887,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3413,7 +3911,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       205.3
      ]
@@ -3429,12 +3927,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 83072.73681640625,
+   "hudArea": 83350.87914640625,
    "textNodes": 23
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      192,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 59471.24560546875,
+   "textNodes": 10
   }
  },
  "de/gameplay": {
@@ -3453,7 +3993,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3469,11 +4009,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 16
   },
   "1216x684": {
@@ -3491,7 +4033,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3507,11 +4049,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 26
   },
   "1077x606": {
@@ -3529,7 +4073,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3545,11 +4089,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 18
   },
   "821x462": {
@@ -3583,7 +4129,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3605,7 +4153,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -3621,11 +4169,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 27
   },
   "1920x1080": {
@@ -3643,7 +4193,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -3659,11 +4209,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 27
   },
   "1536x864": {
@@ -3681,7 +4233,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -3697,11 +4249,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 27
   },
   "1280x720": {
@@ -3719,7 +4273,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3735,11 +4289,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 27
   },
   "800x450": {
@@ -3773,7 +4329,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3795,7 +4353,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3811,12 +4369,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 18
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 10
   }
  },
  "de/buildbar-rooms": {
@@ -3835,7 +4435,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3851,11 +4451,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 50
   },
   "1216x684": {
@@ -3873,7 +4475,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3889,11 +4491,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 71
   },
   "1077x606": {
@@ -3911,7 +4515,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -3927,11 +4531,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 59
   },
   "821x462": {
@@ -3965,7 +4571,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -3987,7 +4595,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -4003,11 +4611,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 72
   },
   "1920x1080": {
@@ -4025,7 +4635,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -4041,11 +4651,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 72
   },
   "1536x864": {
@@ -4063,7 +4675,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -4079,11 +4691,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 72
   },
   "1280x720": {
@@ -4101,7 +4715,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4117,11 +4731,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 72
   },
   "800x450": {
@@ -4155,7 +4771,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -4177,7 +4795,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4193,12 +4811,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 59
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 44
   }
  },
  "de/staff-menu": {
@@ -4217,7 +4877,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4233,11 +4893,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 44
   },
   "1216x684": {
@@ -4255,7 +4917,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4271,11 +4933,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 64
   },
   "1077x606": {
@@ -4293,7 +4957,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4309,11 +4973,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 51
   },
   "821x462": {
@@ -4347,7 +5013,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -4369,7 +5037,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -4385,11 +5053,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 65
   },
   "1920x1080": {
@@ -4407,7 +5077,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -4423,11 +5093,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 65
   },
   "1536x864": {
@@ -4445,7 +5117,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -4461,11 +5133,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 65
   },
   "1280x720": {
@@ -4483,7 +5157,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4499,11 +5173,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 65
   },
   "800x450": {
@@ -4537,7 +5213,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -4559,7 +5237,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4575,12 +5253,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 51
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 38
   }
  },
  "de/room-panel": {
@@ -4599,7 +5319,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4615,11 +5335,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 36
   },
   "1216x684": {
@@ -4637,7 +5359,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4653,11 +5375,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 49
   },
   "1077x606": {
@@ -4675,7 +5399,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4691,11 +5415,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 41
   },
   "821x462": {
@@ -4729,7 +5455,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -4751,7 +5479,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -4767,11 +5495,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 50
   },
   "1920x1080": {
@@ -4789,7 +5519,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -4805,11 +5535,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 50
   },
   "1536x864": {
@@ -4827,7 +5559,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -4843,11 +5575,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 50
   },
   "1280x720": {
@@ -4865,7 +5599,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4881,11 +5615,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 50
   },
   "800x450": {
@@ -4919,7 +5655,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -4941,7 +5679,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4957,12 +5695,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 41
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 32
   }
  },
  "de/rascal-panel": {
@@ -4981,7 +5761,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -4997,11 +5777,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 36
   },
   "1216x684": {
@@ -5019,7 +5801,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5035,11 +5817,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 46
   },
   "1077x606": {
@@ -5057,7 +5841,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5073,11 +5857,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 38
   },
   "821x462": {
@@ -5111,7 +5897,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -5133,7 +5921,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -5149,11 +5937,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 47
   },
   "1920x1080": {
@@ -5171,7 +5961,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -5187,11 +5977,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 47
   },
   "1536x864": {
@@ -5209,7 +6001,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -5225,11 +6017,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 47
   },
   "1280x720": {
@@ -5247,7 +6041,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5263,11 +6057,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 47
   },
   "800x450": {
@@ -5301,7 +6097,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -5323,7 +6121,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5339,12 +6137,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 38
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 30
   }
  },
  "de/settings": {
@@ -5363,7 +6203,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5379,11 +6219,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 39
   },
   "1216x684": {
@@ -5401,7 +6243,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5417,11 +6259,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 52
   },
   "1077x606": {
@@ -5439,7 +6283,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5455,11 +6299,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 44
   },
   "821x462": {
@@ -5493,7 +6339,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -5515,7 +6363,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -5531,11 +6379,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 53
   },
   "1920x1080": {
@@ -5553,7 +6403,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -5569,11 +6419,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 53
   },
   "1536x864": {
@@ -5591,7 +6443,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -5607,11 +6459,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 53
   },
   "1280x720": {
@@ -5629,7 +6483,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5645,11 +6499,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 53
   },
   "800x450": {
@@ -5683,7 +6539,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -5705,7 +6563,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5721,12 +6579,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 44
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 26
   }
  },
  "de/help": {
@@ -5745,7 +6645,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5761,11 +6661,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 73390.65283203125,
+   "hudArea": 73668.79516203125,
    "textNodes": 45
   },
   "1216x684": {
@@ -5783,7 +6685,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5799,11 +6701,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 84014.36181640625,
+   "hudArea": 84292.50414640625,
    "textNodes": 69
   },
   "1077x606": {
@@ -5821,7 +6725,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -5837,11 +6741,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 78956.06494140625,
+   "hudArea": 79234.20727140625,
    "textNodes": 56
   },
   "821x462": {
@@ -5875,7 +6781,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -5897,7 +6805,7 @@
      "root": "div.cb",
      "box": [
       8,
-      53,
+      47,
       241.5,
       194.7
      ]
@@ -5913,11 +6821,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 94892.22045898438,
+   "hudArea": 95197.64305898438,
    "textNodes": 76
   },
   "1920x1080": {
@@ -5935,7 +6845,7 @@
      "root": "div.cb",
      "box": [
       8,
-      71,
+      62,
       328,
       264
      ]
@@ -5951,11 +6861,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 180092.04736328125,
+   "hudArea": 180704.04736328125,
    "textNodes": 84
   },
   "1536x864": {
@@ -5973,7 +6885,7 @@
      "root": "div.cb",
      "box": [
       8,
-      59,
+      52,
       270.6,
       219
      ]
@@ -5989,11 +6901,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 120116.18701171875,
+   "hudArea": 120513.42386099875,
    "textNodes": 77
   },
   "1280x720": {
@@ -6011,7 +6925,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -6027,11 +6941,13 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 86343.36181640625,
+   "hudArea": 86621.50414640625,
    "textNodes": 76
   },
   "800x450": {
@@ -6065,7 +6981,9 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
@@ -6087,7 +7005,7 @@
      "root": "div.cb",
      "box": [
       8,
-      51,
+      45.3,
       232,
       187.4
      ]
@@ -6103,12 +7021,54 @@
     }
    ],
    "overlap": [],
+   "inner": [],
    "clipped": [],
+   "spill": [],
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 79065.23681640625,
+   "hudArea": 79343.37914640625,
    "textNodes": 56
+  },
+  "844x390-touch": {
+   "blocks": [
+    {
+     "root": "div.topbar.tb.touch.lv1.lv2.lv3.lv4.lv5.lv6",
+     "box": [
+      4,
+      2,
+      840,
+      50.3
+     ]
+    },
+    {
+     "root": "div.cb.cb--touch.cb--compact",
+     "box": [
+      8,
+      56,
+      120.3,
+      100
+     ]
+    },
+    {
+     "root": "div.buildbar.bb-bar.bb-touch.bb-compact",
+     "box": [
+      317.7,
+      328.1,
+      526.3,
+      386
+     ]
+    }
+   ],
+   "overlap": [],
+   "inner": [],
+   "clipped": [],
+   "spill": [],
+   "offscreen": [],
+   "small": [],
+   "running": [],
+   "hudArea": 56313.55810546875,
+   "textNodes": 29
   }
  }
 }

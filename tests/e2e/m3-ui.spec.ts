@@ -7,134 +7,26 @@
  * Runs with the project config or any config that sets baseURL (relative URLs only). Every page goes through
  * helpers.setup() (SDK mock, foreign-request guard) and helpers.gotoGame().
  *
- * States ("all main states", docs/UI_DESIGN.md §3): one page per viewport, the states are entered one after the other
- * through the runtime hooks (window.__ctx) or real clicks where no hook exists (clipboard list, topbar stage list):
+ * States (tests/e2e/states.ts): one page per viewport, the states are entered one after the other through the runtime
+ * hooks (window.__ctx) or real input where no hook exists:
  *   base · rooms menu · staff menu · room panel · rascal panel · build tool · demolish tool · settings · help ·
- *   clipboard goal list · topbar stage list (only exists at collapse level 6, i.e. narrow widths)
- * The game is paused after loading so the bot/sim cannot change the HUD between measurements.
+ *   clipboard goal list · topbar stage list (only exists at collapse level 6, i.e. narrow widths) ·
+ *   the confirmation sub-states: room-panel demolish confirm, canvas demolish bubble, touch build ✓ / ✕, settings
+ *   reset confirm · and for B3/B4/D5 the transient layers (hover tooltip, toasts).
+ * Every page loads the mid-game bot state; B3, B4 and D5 also run a fresh-game (tutorial) pass, so the tutorial
+ * clipboard (step 1/4, Skip) is measured too. The game is paused after loading so the HUD holds still.
  */
 import { test, expect, type Page, type TestInfo } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { setup, gotoGame, SDK_URL } from './helpers';
-
-/** mid-game state: casual bot, 300 s warped (rooms, staff, agents exist) */
-const MID = 'bot=casual&warp=300';
-
-type StateName = 'base' | 'rooms' | 'staff' | 'room' | 'rascal' | 'build' | 'demolish' | 'settings' | 'help' | 'clipList' | 'stageList';
-const ALL_STATES: StateName[] = ['base', 'rooms', 'staff', 'room', 'rascal', 'build', 'demolish', 'settings', 'help', 'clipList', 'stageList'];
-
-// ---------------------------------------------------------------------------------------------------------- states
-const ctxEval = <T>(page: Page, fn: (ctx: any) => T) => page.evaluate(`(${fn.toString()})(window.__ctx)`) as Promise<T>;
-
-async function visible(page: Page, sel: string) {
-  return page.evaluate(s => [...document.querySelectorAll(s)].some(e => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && e.getBoundingClientRect().width > 0), sel);
-}
-
-/** back to the plain HUD: nothing open, no tool, no selection */
-async function reset(page: Page) {
-  await page.mouse.move(2, 2);
-  await ctxEval(page, ctx => { ctx.closeModal(); ctx.menu.set(null); ctx.tool.set({ kind: 'none' }); ctx.selection.set(null); });
-  // the clipboard list/card and the topbar stage list close on Esc (capture phase) – nothing else reacts to a bare Esc now
-  for (let i = 0; i < 3; i++) {
-    if (!(await visible(page, '.cb-list, .tb-list')) && !(await page.evaluate(() => !!document.querySelector('.cb--open, .cb-card.open')))) break;
-    await page.keyboard.press('Escape');
-  }
-  await ctxEval(page, ctx => { ctx.selection.set(null); ctx.menu.set(null); });
-  await page.waitForTimeout(150);
-}
-
-/** enter a state; returns false when the state does not exist at this viewport (e.g. stage list above collapse level 6) */
-async function enter(page: Page, s: StateName): Promise<boolean> {
-  switch (s) {
-    case 'base': break;
-    case 'rooms': case 'staff':
-      await ctxEval(page, ctx => ctx.menu.set(null));
-      await page.evaluate(m => (window as any).__ctx.menu.set(m), s);
-      await expect.poll(() => visible(page, `.bb-menu--${s}`), { message: `${s} menu opens` }).toBe(true);
-      break;
-    case 'room':
-      await ctxEval(page, ctx => {
-        const rooms = ctx.w.rooms as { id: number; type: string }[];
-        const r = rooms.find(x => x.type === 'workshop') ?? rooms.find(x => x.type === 'bunk') ?? rooms[0];
-        ctx.selection.set({ kind: 'room', id: r.id });
-      });
-      await expect.poll(() => visible(page, '.pn'), { message: 'room panel opens' }).toBe(true);
-      break;
-    case 'rascal':
-      await ctxEval(page, ctx => {
-        const a = (ctx.w.agents as { id: number; kind: string; flags: number }[]).find(x => x.kind === 'rascal' && !(x.flags & (4 | 64)));
-        if (a) ctx.selection.set({ kind: 'agent', id: a.id });
-      });
-      await expect.poll(() => visible(page, '.pn'), { message: 'rascal panel opens' }).toBe(true);
-      break;
-    case 'build': {
-      await ctxEval(page, ctx => ctx.tool.set({ kind: 'build', type: 'bunk' }));
-      const vp = page.viewportSize()!;
-      await page.mouse.move(vp.width / 2, vp.height / 2);
-      await page.mouse.move(vp.width / 2 + 10, vp.height / 2 + 6);
-      break;
-    }
-    case 'demolish': await ctxEval(page, ctx => ctx.tool.set({ kind: 'demolish' })); break;
-    case 'settings': case 'help':
-      await page.evaluate(m => (window as any).__ctx.openModal(m), s);
-      await expect.poll(() => visible(page, '.ov-modal'), { message: `${s} modal opens` }).toBe(true);
-      break;
-    case 'clipList':
-      // compact: the chip expands the card first
-      if (!(await visible(page, '.cb-more'))) await page.locator('.cb-chip').click();
-      await expect.poll(() => visible(page, '.cb-more'), { message: 'clipboard card shows "all goals"' }).toBe(true);
-      await page.locator('.cb-more').click();
-      await expect.poll(() => visible(page, '.cb-list'), { message: 'clipboard goal list opens' }).toBe(true);
-      break;
-    case 'stageList':
-      if (!(await visible(page, '.tb .flow .sum'))) return false;
-      await page.locator('.tb .flow .sum').click();
-      await expect.poll(() => visible(page, '.tb-list'), { message: 'topbar stage list opens' }).toBe(true);
-      break;
-  }
-  await page.mouse.move(2, 2);           // no hover tooltip in the measurement
-  await page.waitForTimeout(450);        // open animations (≤ .18 s) and throttled DOM writes (≤ 10/s)
-  await settleCss(page);
-  return true;
-}
-
-/**
- * CSS transitions run on wall-clock time; under SwiftShader with a parallel worker a panel fade-in can still be at
- * opacity .15 after the fixed wait above (it was then measured as "text over the world"). Wait until every finite CSS
- * animation/transition has finished; infinite ones (bottleneck pulse) are ignored.
- */
-async function settleCss(page: Page) {
-  await page.waitForFunction(() => document.getAnimations().every(a =>
-    a.playState !== 'running' || a.effect?.getComputedTiming().iterations === Infinity), null, { timeout: 15_000, polling: 100 });
-}
-
-async function load(page: Page, query = MID) {
-  const guard = await setup(page);
-  await gotoGame(page, query);
-  await ctxEval(page, ctx => ctx.setPaused(true));
-  await page.waitForTimeout(200);
-  return guard;
-}
-
-/** run `fn` in every state; returns the list of states actually visited */
-async function eachState(page: Page, states: StateName[], fn: (s: StateName) => Promise<void>): Promise<StateName[]> {
-  const done: StateName[] = [];
-  for (const s of states) {
-    await reset(page);
-    if (!(await enter(page, s))) continue;
-    await fn(s);
-    done.push(s);
-  }
-  await reset(page);
-  return done;
-}
+import { MID, ALL_STATES, TRANSIENT, TUTORIAL_STATES, type StateName, load, reset, enter, eachState, visible } from './states';
 
 // ---------------------------------------------------------------------------------------------------------- in-page probe
-interface TextItem { where: string; text: string; kind: 'panel' | 'world'; ratio: number; fg: string; bg: string; alpha: number; plaque: boolean; shadow: boolean }
+interface TextItem { where: string; text: string; kind: 'panel' | 'world'; ratio: number; fg: string; bg: string; alpha: number; plaque: boolean; shadow: boolean; shadowRatio: number; disabled: boolean }
 interface CtlItem {
   where: string; comp: string; tag: string; w: number; h: number; disabled: boolean;
-  text: string; icon: boolean; aria: string; tip: string;
+  text: string; icon: boolean; aria: string; tip: string; tipTitle: string | null;
   inPanel: boolean; nonText: { ok: boolean; how: string; best: number };
 }
 interface Probe { texts: TextItem[]; ctls: CtlItem[]; links: string[]; fsMentions: string[]; userSelect: { where: string; v: string }[]; unparsed: string[] }
@@ -151,9 +43,11 @@ interface Probe { texts: TextItem[]; ctls: CtlItem[]; links: string[]; fsMention
  *      A ≥ 0.9  → "panel text": text colour (alpha × cumulative opacity) composited over every candidate background
  *                 colour (all stop combinations, any remaining transparency composited over black AND over white, i.e. the
  *                 unknown world behind) – the WORST ratio counts and must be ≥ 4.5:1.
- *      A < 0.9  → "text over the world": must have a plaque (A ≥ 0.5) or a text-shadow / -webkit-text-stroke.
- *  - Native `disabled` controls are exempt (WCAG 1.4.3 "inactive user interface component"); aria-disabled locked cards
- *    are NOT exempt, they show the unlock reason and must be readable.
+ *      A < 0.9  → "text over the world": must have a readable plaque – A ≥ 0.5 AND the same worst-case ratio over a
+ *                 black and a white world ≥ 4.5:1 – or a shadow: a text-shadow (alpha > 0.2) / -webkit-text-stroke whose
+ *                 colour has ≥ 3:1 against the text colour (a same-hue shadow does not separate text from the world).
+ *  - No exemption for disabled controls (the brief has none): natively disabled and aria-disabled controls are held to
+ *    the same rules; a disabled button must additionally explain itself in its tooltip (D5 resolves the bound tooltip).
  *  - Important non-text UI (B3 ≥ 3:1, WCAG 1.4.11): every visible, enabled button / [role=button] whose own parent sits on a
  *    panel (A ≥ 0.9). Its boundary must be perceivable against the panel colour P (worst candidate):
  *      a) its own background (composited over P) vs P ≥ 3:1, or
@@ -254,7 +148,6 @@ async function hudProbe(): Promise<Probe> {
     const txt = (n.textContent ?? '').trim();
     if (!txt) continue;
     const el = n.parentElement!;
-    if (el.closest('[disabled]')) continue;
     if (!isVis(el)) continue;
     const range = document.createRange(); range.selectNodeContents(n);
     const r = range.getBoundingClientRect();
@@ -265,8 +158,15 @@ async function hudProbe(): Promise<Probe> {
     // backdrop at the centre of the painted part (a row half scrolled out of a modal body is judged where it is visible)
     const vr = visibleRect(el, r);
     const { layers, alpha } = layersOf(el, (vr.x0 + vr.x1) / 2, (vr.y0 + vr.y1) / 2);
-    const shadow = (cs.textShadow !== 'none' && colorsIn(cs.textShadow).some(c => c[3] > 0.2)) || parseFloat((cs as any).webkitTextStrokeWidth || '0') > 0;
-    const item: TextItem = { where: desc(el), text: txt.slice(0, 40), kind: alpha >= 0.9 ? 'panel' : 'world', ratio: 0, fg: hex(fg0), bg: '', alpha: Math.round(alpha * 100) / 100, plaque: alpha >= 0.5, shadow };
+    // shadow / stroke colours that actually separate the glyphs from the world: ≥ 3:1 against the text colour
+    const sep: RGBA[] = [];
+    if (cs.textShadow !== 'none') for (const c of colorsIn(cs.textShadow)) if (c[3] > 0.2) sep.push(c);
+    if (parseFloat((cs as any).webkitTextStrokeWidth || '0') > 0) { const c = parse((cs as any).webkitTextStrokeColor); if (c && c[3] > 0.2) sep.push(c); }
+    const shadowRatio = sep.length ? Math.max(...sep.map(c => ratio([fg0[0], fg0[1], fg0[2], 1], over(c, c[3], [fg0[0], fg0[1], fg0[2], 1])))) : 0;
+    const item: TextItem = {
+      where: desc(el), text: txt.slice(0, 40), kind: alpha >= 0.9 ? 'panel' : 'world', ratio: 0, fg: hex(fg0), bg: '', alpha: Math.round(alpha * 100) / 100,
+      plaque: alpha >= 0.5, shadow: shadowRatio >= 3, shadowRatio: Math.round(shadowRatio * 100) / 100, disabled: !!el.closest('[disabled], [aria-disabled="true"]'),
+    };
     let worst = Infinity, worstBg: RGBA = [0, 0, 0, 1];
     for (const b of candidates(layers)) { const rr = ratio(over(fg0, fgA, b), b); if (rr < worst) { worst = rr; worstBg = b; } }
     item.ratio = Math.round(worst * 100) / 100; item.bg = hex(worstBg);
@@ -289,10 +189,13 @@ async function hudProbe(): Promise<Probe> {
       text: (el.innerText ?? '').trim().replace(/\s+/g, ' ').slice(0, 40),
       icon: !!el.querySelector('img, svg') || getComputedStyle(el).backgroundImage.includes('url('),
       aria: (el.getAttribute('aria-label') ?? '').trim(), tip: el.getAttribute('data-tip') ?? '',
+      // D5: the tooltip content actually bound through ctx.tip (src/app.ts test hook) – null when nothing is bound,
+      // '' when the content function returns no title (or throws: tooltips.ts catches that and yields null)
+      tipTitle: typeof (window as any).__tipOf === 'function' ? (() => { const c = (window as any).__tipOf(el); return c ? String(c.title ?? '').trim() : null; })() : null,
       inPanel: false, nonText: { ok: true, how: 'n/a', best: 0 },
     };
     out.ctls.push(it);
-    if (disabled || !/^(BUTTON)$/.test(el.tagName) && el.getAttribute('role') !== 'button') continue;
+    if (!/^(BUTTON)$/.test(el.tagName) && el.getAttribute('role') !== 'button') continue;
     if (clipped(el, r)) continue;
     // ---- B3 non-text contrast
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
@@ -388,77 +291,114 @@ const attach = async (info: TestInfo, name: string, data: unknown) => {
   await info.attach(name, { body, contentType: 'application/json' });
 };
 const uniq = (xs: string[]) => [...new Set(xs)];
+/** the one URL the PixiJS console banner prints (node_modules/pixi.js: sayHello) */
+const PIXI_BANNER = 'http://www.pixijs.com/';
 
 // ---------------------------------------------------------------------------------------------------------- B3
+/** fresh game = tutorial (clipboard shows step 1/4 and the Skip button) */
+const FRESH = 'lang=en';
+
+async function b3Run(page: Page, info: TestInfo, tag: string, states: StateName[]) {
+  const fails: string[] = [], log: Record<string, unknown> = {};
+  let panelTexts = 0, worldTexts = 0;
+  const visited = await eachState(page, states, async s => {
+    // scroll containers (modal body, panel body, menu rows) are walked page by page so text below the fold is measured too
+    const pages: Probe[] = [];
+    for (let step = 0; step < 12; step++) {
+      pages.push(await probe(page));
+      if (s === 'tip') break;   // scrolling hides the tooltip (by design): measured on the first page only
+      const more = await page.evaluate(() => {
+        let moved = false;
+        for (const el of document.querySelectorAll<HTMLElement>('.hud *')) {
+          const cs = getComputedStyle(el);
+          if (!/(auto|scroll)/.test(cs.overflowY + cs.overflowX) || !el.checkVisibility()) continue;
+          if (el.scrollHeight > el.clientHeight + 1 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) { el.scrollTop += Math.max(20, el.clientHeight * 0.8); moved = true; }
+          else if (el.scrollWidth > el.clientWidth + 1 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1) { el.scrollLeft += Math.max(20, el.clientWidth * 0.8); moved = true; }
+        }
+        return moved;
+      });
+      if (!more) break;
+      await page.waitForTimeout(200);
+    }
+    log[s] = pages;
+    for (const p of pages) {
+      for (const u of p.unparsed) fails.push(`[${s}] unparsable colour ${u}`);
+      for (const t of p.texts) {
+        if (t.kind === 'panel') { panelTexts++; if (t.ratio < 4.5) fails.push(`[${s}] text ${t.ratio}:1 < 4.5 – "${t.text}" ${t.fg} on ${t.bg} – ${t.where}${t.disabled ? ' (disabled – no exemption)' : ''}`); }
+        else {
+          worldTexts++;
+          const plaqueOk = t.plaque && t.ratio >= 4.5;
+          if (!plaqueOk && !t.shadow) fails.push(`[${s}] world text: ${t.plaque ? `plaque (alpha ${t.alpha}) only ${t.ratio}:1 < 4.5 over the world` : `no plaque (alpha ${t.alpha})`} and ${t.shadowRatio ? `shadow only ${t.shadowRatio}:1 < 3 vs the text` : 'no shadow'} – "${t.text}" – ${t.where}`);
+        }
+      }
+      for (const c of p.ctls) if (c.inPanel && !c.nonText.ok) fails.push(`[${s}] UI ${c.nonText.how} (best edge ${c.nonText.best}:1 < 3) – ${c.where}`);
+    }
+    // the state's own layer was part of the first measured page
+    if (s === 'tip') expect(pages[0].texts.some(t => t.where.includes('ov-tip')), 'tooltip text measured').toBe(true);
+    if (s === 'toast') expect(pages[0].texts.filter(t => t.where.includes('ov-toast')).length, 'toast texts measured').toBeGreaterThanOrEqual(3);
+  });
+  await attach(info, `b3-${tag}.json`, { visited, log });
+  expect(visited, 'every requested state was entered (except the stage list above collapse level 6)').toEqual(states.filter(s => s !== 'stageList' || visited.includes('stageList')));
+  expect(panelTexts, 'panel texts were measured').toBeGreaterThan(20);
+  info.annotations.push({ type: 'measured', description: `${panelTexts} panel text nodes, ${worldTexts} world text nodes; states ${visited.join(', ')}` });
+  expect(uniq(fails)).toEqual([]);
+}
+
 test.describe('B3 contrast (EN)', () => {
   for (const [w, h] of [[1280, 720], [800, 450]] as const) {
     test(`B3 text ≥ 4.5:1 on panels, UI ≥ 3:1, world text has plaque/shadow @ ${w}x${h}`, async ({ page }, info) => {
       await page.setViewportSize({ width: w, height: h });
       await load(page, MID + '&lang=en');
-      const fails: string[] = [], log: Record<string, unknown> = {};
-      let panelTexts = 0, worldTexts = 0;
-      // every main state (B3 covers all DOM text on opaque panels): includes the build tool, whose cursor label is the DOM
-      // text that sits over the world, the staff menu, the rascal panel, help and the clipboard / stage lists
-      await eachState(page, ALL_STATES, async s => {
-        // scroll containers (modal body, panel body, menu rows) are walked page by page so text below the fold is measured too
-        const pages: Probe[] = [];
-        for (let step = 0; step < 12; step++) {
-          pages.push(await probe(page));
-          const more = await page.evaluate(() => {
-            let moved = false;
-            for (const el of document.querySelectorAll<HTMLElement>('.hud *')) {
-              const cs = getComputedStyle(el);
-              if (!/(auto|scroll)/.test(cs.overflowY + cs.overflowX) || !el.checkVisibility()) continue;
-              if (el.scrollHeight > el.clientHeight + 1 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) { el.scrollTop += Math.max(20, el.clientHeight * 0.8); moved = true; }
-              else if (el.scrollWidth > el.clientWidth + 1 && el.scrollLeft + el.clientWidth < el.scrollWidth - 1) { el.scrollLeft += Math.max(20, el.clientWidth * 0.8); moved = true; }
-            }
-            return moved;
-          });
-          if (!more) break;
-          await page.waitForTimeout(200);
-        }
-        log[s] = pages;
-        for (const p of pages) {
-          for (const u of p.unparsed) fails.push(`[${s}] unparsable colour ${u}`);
-          for (const t of p.texts) {
-            if (t.kind === 'panel') { panelTexts++; if (t.ratio < 4.5) fails.push(`[${s}] text ${t.ratio}:1 < 4.5 – "${t.text}" ${t.fg} on ${t.bg} – ${t.where}`); }
-            else { worldTexts++; if (!t.plaque && !t.shadow) fails.push(`[${s}] world text without plaque/shadow (bg alpha ${t.alpha}) – "${t.text}" – ${t.where}`); }
-          }
-          for (const c of p.ctls) if (c.inPanel && !c.nonText.ok) fails.push(`[${s}] UI ${c.nonText.how} (best edge ${c.nonText.best}:1 < 3) – ${c.where}`);
-        }
-      });
-      await attach(info, `b3-${w}x${h}.json`, log);
-      expect(panelTexts, 'panel texts were measured').toBeGreaterThan(20);
-      info.annotations.push({ type: 'measured', description: `${panelTexts} panel text nodes, ${worldTexts} world text nodes` });
-      expect(uniq(fails)).toEqual([]);
+      // every main state, every confirmation sub-state and the transient layers (tooltip, toasts)
+      await b3Run(page, info, `${w}x${h}`, [...ALL_STATES, ...TRANSIENT]);
+    });
+    test(`B3 tutorial (fresh game) @ ${w}x${h}`, async ({ page }, info) => {
+      await page.setViewportSize({ width: w, height: h });
+      await load(page, FRESH);
+      expect(await page.evaluate(() => (window as any).__sim.tutorial.active), 'fresh game runs the tutorial').toBe(true);
+      await b3Run(page, info, `tutorial-${w}x${h}`, TUTORIAL_STATES);
     });
   }
 });
 
 // ---------------------------------------------------------------------------------------------------------- B4
+/** mobile and tablet sizes; 800×450 is the brief's mandatory mobile size, 667×375 the smallest landscape phone */
 const TOUCH_SIZES = [
-  { name: 'phone 844x390', viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true },
-  { name: 'tablet 1024x768', viewport: { width: 1024, height: 768 }, isMobile: false, hasTouch: true },
-  { name: 'tablet 1180x820', viewport: { width: 1180, height: 820 }, isMobile: false, hasTouch: true },
+  { name: 'phone 800x450', viewport: { width: 800, height: 450 }, isMobile: true, hasTouch: true, tutorial: true },
+  { name: 'phone 667x375', viewport: { width: 667, height: 375 }, isMobile: true, hasTouch: true, tutorial: false },
+  { name: 'phone 844x390', viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, tutorial: true },
+  { name: 'tablet 1024x768', viewport: { width: 1024, height: 768 }, isMobile: false, hasTouch: true, tutorial: false },
+  { name: 'tablet 1180x820', viewport: { width: 1180, height: 820 }, isMobile: false, hasTouch: true, tutorial: false },
 ];
+async function b4Run(page: Page, info: TestInfo, tag: string, states: StateName[]) {
+  expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'touch emulation active').toBe(true);
+  const fails: string[] = [], log: Record<string, unknown> = {};
+  let n = 0;
+  const visited = await eachState(page, states, async s => {
+    const p = await probe(page);
+    log[s] = p.ctls;
+    for (const c of p.ctls) { n++; if (c.w < 44 || c.h < 44) fails.push(`[${s}] ${c.w}×${c.h} – ${c.where}${c.aria ? ` "${c.aria}"` : c.text ? ` "${c.text}"` : ''}`); }
+  });
+  await attach(info, `b4-${tag}.json`, { visited, log });
+  expect(n).toBeGreaterThan(20);
+  expect(uniq(fails)).toEqual([]);
+  return visited;
+}
 test.describe('B4 touch targets ≥ 44×44', () => {
   for (const sz of TOUCH_SIZES) {
     test.describe(sz.name, () => {
       test.use({ viewport: sz.viewport, isMobile: sz.isMobile, hasTouch: sz.hasTouch });
       test(`B4 every visible control ≥ 44×44 CSS px in all states @ ${sz.name}`, async ({ page }, info) => {
         await load(page);
-        expect(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), 'touch emulation active').toBe(true);
-        const fails: string[] = [], log: Record<string, unknown> = {};
-        let n = 0;
-        const visited = await eachState(page, ALL_STATES, async s => {
-          const p = await probe(page);
-          log[s] = p.ctls;
-          for (const c of p.ctls) { n++; if (c.w < 44 || c.h < 44) fails.push(`[${s}] ${c.w}×${c.h} – ${c.where}${c.aria ? ` "${c.aria}"` : c.text ? ` "${c.text}"` : ''}`); }
-        });
-        await attach(info, `b4-${sz.viewport.width}x${sz.viewport.height}.json`, { visited, log });
-        expect(n).toBeGreaterThan(20);
-        expect(uniq(fails)).toEqual([]);
+        await b4Run(page, info, `${sz.viewport.width}x${sz.viewport.height}`, ALL_STATES);
       });
+      if (sz.tutorial) {
+        test(`B4 tutorial (fresh game) @ ${sz.name}`, async ({ page }, info) => {
+          await load(page, FRESH);
+          expect(await page.evaluate(() => (window as any).__sim.tutorial.active), 'fresh game runs the tutorial').toBe(true);
+          await b4Run(page, info, `tutorial-${sz.viewport.width}x${sz.viewport.height}`, TUTORIAL_STATES);
+        });
+      }
     });
   }
   test('B4 the topbar stage list was covered at the phone size', async ({ browser }) => {
@@ -471,36 +411,53 @@ test.describe('B4 touch targets ≥ 44×44', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------- D5
+async function d5Run(page: Page, info: TestInfo, tag: string, states: StateName[]) {
+  expect(await page.evaluate(() => typeof (window as any).__tipOf), 'test hook window.__tipOf (src/app.ts)').toBe('function');
+  const fails: string[] = [], log: Record<string, unknown> = {};
+  let n = 0;
+  await eachState(page, states, async s => {
+    const p = await probe(page);
+    log[s] = p.ctls;
+    for (const c of p.ctls) {
+      if (!c.tag.startsWith('button')) continue;   // [role=button] below; form fields are not buttons
+      n++;
+      const name = `${c.where}${c.aria ? ` "${c.aria}"` : c.text ? ` "${c.text}"` : ''}`;
+      const label = !!c.text || c.icon || !!c.aria;
+      if (!label) fails.push(`[${s}] no text, icon or aria-label – ${c.where}`);
+      // the contract marker (docs/UI_DESIGN.md §2) AND a tooltip that is really bound through ctx.tip and has a title
+      if (!c.tip.trim()) fails.push(`[${s}] no data-tip marker – ${name}`);
+      if (c.tipTitle === null) fails.push(`[${s}] no tooltip bound via ctx.tip (or its content function throws) – ${name}`);
+      else if (!c.tipTitle) fails.push(`[${s}] tooltip with an empty title – ${name}`);
+      // UI contract (docs/UI_DESIGN.md §2): icon-only buttons need an accessible name
+      if (!c.text && !c.aria) fails.push(`[${s}] icon-only button without aria-label – ${c.where}`);
+    }
+    // [role=button] elements are buttons too
+    const roleBtns = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.hud [role="button"]')]
+      .filter(e => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
+      .map(e => {
+        const c = (window as any).__tipOf(e);
+        return { tip: c ? String(c.title ?? '').trim() : '', named: !!(e.innerText.trim() || e.querySelector('img,svg') || e.getAttribute('aria-label')?.trim()), cls: e.className };
+      }));
+    for (const r of roleBtns) { n++; if (!r.named || !r.tip) fails.push(`[${s}] [role=button].${r.cls}: named=${r.named} bound tooltip title="${r.tip}"`); }
+  });
+  await attach(info, `d5-${tag}.json`, log);
+  expect(n).toBeGreaterThan(20);
+  expect(uniq(fails)).toEqual([]);
+}
 test.describe('D5 every button has a label/icon and a tooltip', () => {
   for (const [w, h] of [[1280, 720], [800, 450]] as const) {
     test(`D5 buttons in all states @ ${w}x${h}`, async ({ page }, info) => {
       await page.setViewportSize({ width: w, height: h });
       await load(page);
-      const fails: string[] = [], log: Record<string, unknown> = {};
-      let n = 0;
-      await eachState(page, ALL_STATES, async s => {
-        const p = await probe(page);
-        log[s] = p.ctls;
-        for (const c of p.ctls) {
-          if (!c.tag.startsWith('button')) continue;   // [role=button] below; form fields are not buttons
-          n++;
-          const label = !!c.text || c.icon || !!c.aria;
-          if (!label) fails.push(`[${s}] no text, icon or aria-label – ${c.where}`);
-          if (!c.tip.trim()) fails.push(`[${s}] no data-tip (tooltip) – ${c.where}${c.aria ? ` "${c.aria}"` : c.text ? ` "${c.text}"` : ''}`);
-          // UI contract (docs/UI_DESIGN.md §2): icon-only buttons need an accessible name
-          if (!c.text && !c.aria) fails.push(`[${s}] icon-only button without aria-label – ${c.where}`);
-        }
-        // [role=button] elements are buttons too
-        const roleBtns = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.hud [role="button"]')]
-          .filter(e => e.checkVisibility({ opacityProperty: true, visibilityProperty: true }))
-          .map(e => ({ tip: e.dataset.tip ?? '', named: !!(e.innerText.trim() || e.querySelector('img,svg') || e.getAttribute('aria-label')?.trim()), cls: e.className })));
-        for (const r of roleBtns) { n++; if (!r.named || !r.tip) fails.push(`[${s}] [role=button].${r.cls}: named=${r.named} tip="${r.tip}"`); }
-      });
-      await attach(info, `d5-${w}x${h}.json`, log);
-      expect(n).toBeGreaterThan(20);
-      expect(uniq(fails)).toEqual([]);
+      await d5Run(page, info, `${w}x${h}`, ALL_STATES);
     });
   }
+  test('D5 buttons in the tutorial (fresh game) @ 800x450', async ({ page }, info) => {
+    await page.setViewportSize({ width: 800, height: 450 });
+    await load(page, FRESH);
+    expect(await page.evaluate(() => (window as any).__sim.tutorial.active), 'fresh game runs the tutorial').toBe(true);
+    await d5Run(page, info, 'tutorial-800x450', TUTORIAL_STATES);
+  });
 
   test('D5 hovering one button per component shows a tooltip with text @ 1280x720', async ({ page }) => {
     await load(page);
@@ -614,14 +571,14 @@ test.describe('B5 no fullscreen button, no external links', () => {
         const u = m[0];
         if (/^https?:\/\/www\.w3\.org\//.test(u)) continue;            // XML/SVG namespaces
         if (u === SDK_URL) continue;                                     // CrazyGames SDK v3 (loaded by the platform layer)
-        // A string that is only ever printed to the console is not a link (never rendered, never requested) – e.g. the
-        // PixiJS "hello" banner. Exempt exactly that: within ±450 chars of the URL there is a console.log/info call and
-        // none of the sinks that could turn it into a link or request (href, location, open(, fetch(, src=, innerHTML,
-        // XMLHttpRequest, sendBeacon, import(, <a).
-        const win = f.body.slice(Math.max(0, m.index! - 450), m.index! + u.length + 450);
-        if (/console\.(?:log|info)\(/.test(win) && !/href|location|\.open\(|fetch\(|\.src\s*=|innerHTML|XMLHttpRequest|sendBeacon|import\(|<a[\s>]/i.test(win)) continue;
+        // exactly the PixiJS "hello" console banner (`PixiJS <version> - <renderer> - http://www.pixijs.com/`): printed
+        // to the console once, never rendered or requested. Exempt only this exact URL and only next to a console.log call.
+        if (u === PIXI_BANNER && /console\.log\(/.test(f.body.slice(Math.max(0, m.index! - 300), m.index! + 800))) continue;
         fails.push(`${f.url}: ${u}  …${f.body.slice(Math.max(0, m.index! - 60), m.index! + u.length + 20).replace(/\s+/g, ' ')}…`);
       }
+      // protocol-relative hosts ("//host.tld/…", url(//host…)) and mailto: links
+      for (const m of f.body.matchAll(/(?:["'`(=]\s*)\/\/(?:[a-z0-9-]+\.)+[a-z]{2,}(?=[:/?#"'`)\s])/gi)) fails.push(`${f.url}: protocol-relative ${m[0]}  …${f.body.slice(Math.max(0, m.index! - 40), m.index! + m[0].length + 30).replace(/\s+/g, ' ')}…`);
+      for (const m of f.body.matchAll(/mailto:[^\s"'`)<>]*/gi)) fails.push(`${f.url}: ${m[0]}`);
     }
     expect(uniq(fails)).toEqual([]);
   });
@@ -640,4 +597,71 @@ test('B6 user-select is none on body, .hud and every visible HUD element (form f
   });
   expect(n).toBeGreaterThan(50);
   expect(uniq(fails)).toEqual([]);
+});
+
+// ---------------------------------------------------------------------------------------------------------- regressions
+// Product findings of the M3 verifier pass (stacking and Esc order); each test reproduces the reported case.
+test.describe('M3 regressions: layer stacking and Esc order', () => {
+  test('compact: the open clipboard card / goal list is never hidden under the room sheet (800×450)', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 450 });
+    await load(page, `${MID}&lang=de`);
+    await reset(page);
+    await enter(page, 'room');
+    await page.locator('.cb-chip').click();
+    await expect.poll(() => visible(page, '.cb-more'), { message: 'card expanded' }).toBe(true);
+    await expect.poll(() => visible(page, '.pn'), { message: 'the sheet gives way to the expanded card' }).toBe(false);
+    await page.locator('.cb-more').click();
+    await expect.poll(() => visible(page, '.cb-list'), { message: 'goal list open' }).toBe(true);
+    // every goal row is the top-most element at its centre (nothing drawn over the list)
+    // (rows are judged where they are painted: inside the list's scroll box and the viewport)
+    const covered = await page.evaluate(() => {
+      const box = document.querySelector('.cb-items')!.getBoundingClientRect();
+      return [...document.querySelectorAll<HTMLElement>('.cb-list .cb-item')].flatMap(e => {
+        const r = e.getBoundingClientRect();
+        const y0 = Math.max(r.top, box.top, 0), y1 = Math.min(r.bottom, box.bottom, innerHeight);
+        if (y1 - y0 < 4) return [];
+        const hit = document.elementFromPoint(r.left + r.width / 2, (y0 + y1) / 2);
+        return hit && hit.closest('.cb-list') ? [] : [`${(e.innerText || '').trim().slice(0, 30)} → ${hit ? hit.tagName.toLowerCase() + '.' + String(hit.className).split(' ')[0] : 'nothing'}`];
+      });
+    });
+    expect(covered, 'goal rows covered by another layer').toEqual([]);
+    // closing the clipboard layers brings the sheet back (selection kept)
+    await page.keyboard.press('Escape'); await page.keyboard.press('Escape');
+    await expect.poll(() => visible(page, '.pn'), { message: 'sheet back after the clipboard closed' }).toBe(true);
+  });
+
+  test('a menu or tool opened by hotkey closes the goal list, so one Esc closes what is visible (800×450 and 1280×720)', async ({ page }) => {
+    for (const [w, h] of [[800, 450], [1280, 720]] as const) {
+      await page.setViewportSize({ width: w, height: h });
+      await load(page, `${MID}&lang=de`);
+      await reset(page);
+      await enter(page, 'clipList');
+      await page.keyboard.press('b');
+      await expect.poll(() => page.evaluate(() => (window as any).__ctx.menu.get()), { message: `[${w}] B opens the rooms menu` }).toBe('rooms');
+      await expect.poll(() => visible(page, '.cb-list'), { message: `[${w}] goal list closed by the menu` }).toBe(false);
+      expect(await page.evaluate(() => !!document.querySelector('.cb--open')), `[${w}] compact card closed by the menu`).toBe(false);
+      await page.keyboard.press('Escape');
+      await expect.poll(() => page.evaluate(() => (window as any).__ctx.menu.get()), { message: `[${w}] one Esc closes the menu` }).toBe(null);
+      // the same for a tool (Del → demolish)
+      await enter(page, 'clipList');
+      await page.keyboard.press('Delete');
+      await expect.poll(() => page.evaluate(() => (window as any).__ctx.tool.get().kind), { message: `[${w}] Del picks the demolish tool` }).toBe('demolish');
+      await expect.poll(() => visible(page, '.cb-list'), { message: `[${w}] goal list closed by the tool` }).toBe(false);
+      await page.unroute('**/*');
+    }
+  });
+
+  test('Esc while a tooltip is visible only hides the tooltip (1280×720)', async ({ page }) => {
+    await load(page, `${MID}&lang=en`);
+    await reset(page);
+    await enter(page, 'room');
+    await page.locator('.bb-bar button[data-tip]').first().hover();
+    await expect.poll(() => visible(page, '.ov-tip.on'), { message: 'tooltip shown' }).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => visible(page, '.ov-tip.on'), { message: 'tooltip hidden' }).toBe(false);
+    expect(await page.evaluate(() => (window as any).__ctx.selection.get()?.kind ?? null), 'the room stays selected').toBe('room');
+    await page.mouse.move(2, 2);
+    await page.keyboard.press('Escape');
+    await expect.poll(() => page.evaluate(() => (window as any).__ctx.selection.get()), { message: 'the next Esc deselects' }).toBe(null);
+  });
 });
