@@ -39,6 +39,15 @@ function report(sp) {
     console.log(`   früh: Stufe@60s ${av(r => r.early && r.early.lvl60)}  erster Treffer (Median) ${md(r => r.early && r.early.firstHit)} s` +
       `  Schaden/min m0/m1/m2: ${tkm(0)}/${tkm(1)}/${tkm(2)}  im Bild @2/10/30/60 s: ${av(r => r.early && r.early.scr2)}/${av(r => r.early && r.early.scr10)}/${av(r => r.early && r.early.scr30)}/${av(r => r.early && r.early.scr60)}` +
       `  Truhe bis 60 s: ${R.filter(r => r.early && r.early.chest60 > 0).length}/${R.length}`);
+    // M9: Fernkampf-Kennzahlen
+    const RANGED = ['shot', 'needle', 'mortar', 'puddle', 'ring', 'bossShot', 'area', 'lane', 'slam'];
+    let rs = 0, all = 0;
+    for (const r of R) for (const x of r.mins) if (x.m >= 1 && x.m <= 3) for (const k in x.src) { all += x.src[k]; if (RANGED.includes(k)) rs += x.src[k]; }
+    const share = (a, b) => { const v = R.map(r => r.mins.filter(x => x.m >= a && x.m <= b && x.rangedShare !== undefined)).flat(); return v.length ? Math.round(v.reduce((s, x) => s + x.rangedShare, 0) / v.length * 100) : '-'; };
+    const shotsMax = Math.max(0, ...R.map(r => Math.max(0, ...r.mins.map(x => x.shotsMax || 0))));
+    const byHero = {}; for (const r of R) { const h = byHero[r.char] || (byHero[r.char] = [0, 0]); h[1]++; if (r.won) h[0]++; }
+    console.log(`   Fernkampf: Fernschaden-Anteil m1-m3 ${all ? Math.round(rs / all * 100) : '-'} %  Schaden/min m1/m2/m3: ${tkm(1)}/${tkm(2)}/${tkm(3)}` +
+      `  Fernkämpfer-Anteil (lebend) m3-m10 ${share(3, 10)} %  max. Gegnergeschosse ${shotsMax}  Siege je Held ${Object.entries(byHero).map(([k, v]) => k + ' ' + v[0] + '/' + v[1]).join(', ')}`);
     if (process.env.OUT) require('fs').appendFileSync(process.env.OUT, R.map(r => JSON.stringify(r)).join('\n') + '\n');
   }
 }

@@ -2,8 +2,31 @@
 // Balance-Bot für Ember Night: starker Ausweich-Bot, misst Siegquote und Werte je Minute.
 //   node tools/balancebot.js <held> <nachtstufe> <läufe> <preset> [land] [tmax]
 //   preset: none | light | mid | max ; land: graveyard | ashwood | frostlake | ruins | nightheart
-//   env BOT=weak nutzt den alten simtest-Bot, PATCH=<datei.json> ersetzt Codestellen ([[alt, neu], …]).
+//   env BOT=weak nutzt den alten simtest-Bot, PATCH=<datei.json> ersetzt Codestellen ([[alt, neu], …]),
+//   VIEW=phone rechnet mit dem Sichtfeld eines Handys im Hochformat (244×527 statt 640×360 Halbmaße),
+//   PERC=omni schaltet die menschliche Wahrnehmung aus (nur zum Vergleich).
 // Prints one JSON line per run with per-minute stats.
+//
+// Wahrnehmung (M9, wie ein geübter Mensch): Alles, was vom Gegner auf den Helden zufliegt oder am Boden
+// angekündigt wird – Geschosse (eshots), Warnzeichen (tele: Kreise, Linien, Ziellinien, Bahnen, Ladekreise),
+// Pfützen (haz) und das Ausholen der Fernkämpfer –, sieht der Bot erst:
+//   1. sobald es einmal im Sichtfeld war (Game.view.hw/hh; nichts außerhalb des Bildes),
+//   2. nach einer Reaktionszeit von U(0,20 … 0,30) s ab dem ersten sichtbaren Bild (je Objekt gewürfelt),
+//   3. mit Aussetzern: pLate = min(0,25; 0,03 + 0,004 · Gegner im Bild); mit pLate kommt die Reaktion
+//      +U(0,30 … 0,40) s später, mit pLate/4 (ein Viertel davon) wird das Objekt ganz übersehen,
+//   4. mit festen Schätzfehlern je Objekt: Flugrichtung N(0, 4°) (höchstens ±8°), Tempo ×U(0,92 … 1,08),
+//      Kreismitten ±U(0 … 8) px, Winkel von Linien und Bahnen ±2°, Restzeit von Markierungen ±0,05 s,
+//   5. mit begrenzter Aufmerksamkeit: je Entscheidung zählen nur die 10 nächsten Geschosse (kleinste Zeit bis
+//      zur größten Annäherung) und die 6 nächsten Flächen (Kreise, Bahnen, Pfützen).
+// Neu erkannte Gefahren: Pfützen (Glut voll, Schleim-Bremse 0,4), Ziellinie (beim Nachführen 0,3, gesperrt voll),
+// Bahnen (wie die Ansturm-Linie, aber fest), nachführende Kreise (mit kurzer Vorhersage), Ladekreise und Fächer
+// (die kommenden Geschosse werden als „virtuelle“ Geschosse mit Verzögerung vorhergesagt), Ausholen ohne
+// eigenes Warnzeichen (leichte Gefahr entlang der Linie Schütze–Held).
+// Schützenjagd: Nahkampf-Bauten mit mehr als halbem Leben gehen auf den nächsten sichtbaren Fernkämpfer
+// in 320 px zu (Zielgewicht 0,4) – wie ein Mensch, der Schützen jagt.
+// Bekannte Allwissenheit (unverändert): Nahkampfgegner werden ohne Verzögerung und mit exaktem Tempo
+// gesehen (auch knapp außerhalb des Bildes, Umkreis 460 px), Entscheidungen 20-mal je Sekunde,
+// Ausbau-Wahl nach fester Rangliste.
 const fs = require('fs'), path = require('path'), vm = require('vm');
 
 const JSDIR = process.env.JSDIR || path.join(__dirname, '..', 'js');
@@ -11,22 +34,23 @@ const STAGE = process.argv[6] || 'ashwood';
 const FILES = ['util.js', 'lang.js', 'data.js', 'game.js', 'weapons.js'];
 
 function rep(src, a, b) { if (!src.includes(a)) throw new Error('patch miss: ' + a); return src.split(a).join(b); }
+const opt = (src, a, b) => (src.includes(a) ? src.split(a).join(b) : src);
 
 function load() {
   const mem = {};
-  const ctx = { console, Math, JSON, Date, Map, Set, localStorage: { getItem: k => mem[k] || null, setItem: (k, v) => { mem[k] = v; } } };
+  const ctx = { console, Math, JSON, Date, Map, Set, WeakMap, localStorage: { getItem: k => mem[k] || null, setItem: (k, v) => { mem[k] = v; } } };
   vm.createContext(ctx);
   let src = FILES.map(f => fs.readFileSync(path.join(JSDIR, f), 'utf8')).join('\n;\n');
-  // Instrumentation (does not change game rules)
-  src = rep(src, 'if (d < rr) this.hurtPlayer(e.dmg);', 'if (d < rr) { this._src = e.boss ? "boss" : (e.elite ? "elite" : e.swarm ? "swarm" : "contact"); this.hurtPlayer(e.dmg); }');
-  src = rep(src, 'this.hurtPlayer(s.dmg);', 'this._src = "shot"; this.hurtPlayer(s.dmg);');
-  src = rep(src, 'this.hurtPlayer(t.dmg);', '{ this._src = "slam"; this.hurtPlayer(t.dmg); }');
-  src = rep(src, 'p.hp -= taken;', 'p.hp -= taken; if (r.M) { r.M.taken += taken; r.M.src[this._src || "?"] = (r.M.src[this._src || "?"] || 0) + taken; } (r.hits = r.hits || []).push([Math.round(r.t * 10) / 10, this._src, Math.round(taken), Math.round(p.hp)]); if (r.hits.length > 25) r.hits.shift();');
+  // Instrumentation (does not change game rules). Ab M9 trägt hurtPlayer(dmg, src) die Quelle selbst;
+  // die alten Ersetzungen greifen nur noch bei älterem Spielcode (Bot-Vergleich auf altem Inhalt).
+  src = opt(src, 'if (d < rr) this.hurtPlayer(e.dmg);', 'if (d < rr) { this._src = e.boss ? "boss" : (e.elite ? "elite" : e.swarm ? "swarm" : "contact"); this.hurtPlayer(e.dmg); }');
+  src = opt(src, 'this.hurtPlayer(s.dmg);', 'this._src = "shot"; this.hurtPlayer(s.dmg);');
+  src = opt(src, 'this.hurtPlayer(t.dmg);', '{ this._src = "slam"; this.hurtPlayer(t.dmg); }');
+  src = rep(src, 'p.hp -= taken;', 'p.hp -= taken; { const _s = (typeof src !== "undefined" && src) || this._src || "?"; if (r.M) { r.M.taken += taken; r.M.src[_s] = (r.M.src[_s] || 0) + taken; } (r.hits = r.hits || []).push([Math.round(r.t * 10) / 10, _s, Math.round(taken), Math.round(p.hp)]); if (r.hits.length > 25) r.hits.shift(); }');
   src = rep(src, 'r.dmgBy[wid] = (r.dmgBy[wid] || 0) + Math.min(dmg, Math.max(0, e.hp));',
     'r.dmgBy[wid] = (r.dmgBy[wid] || 0) + Math.min(dmg, Math.max(0, e.hp)); if (r.M) { if (e.boss) r.M.bossDmg += Math.min(dmg, Math.max(0, e.hp)); else { r.M.dmg += Math.min(dmg, Math.max(0, e.hp)); if (wid !== "bomb" && wid !== "revive") r.M.raw += dmg; } }');
-  src = rep(src, '    r.enemies.push(e);\n    return e;', '    r.enemies.push(e); if (r.M) { r.M.spawnHp += hp; r.M.spawnN++; }\n    return e;');
-  src = rep(src, '      shootT: rand(1.5, 3), ranged: !!d.ranged,', '      shootT: rand(1.5, 3), ranged: !!d.ranged, born: r.t,');
-  src = rep(src, '    e.dead = true;\n    r.kills++;', '    e.dead = true; if (r.M && !e.swarm && !e.boss) { r.M.life += r.t - e.born; r.M.lifeN++; r.M.dd += Math.hypot(e.x - r.p.x, e.y - r.p.y); }\n    r.kills++;');
+  src = rep(src, '    r.enemies.push(e);\n    return e;', '    r.enemies.push(e); if (r.M) { r.M.spawnHp += hp; r.M.spawnN++; } e.born = r.t;\n    return e;');
+  src = rep(src, '    const r = this.run, save = Store.data;\n    e.dead = true;', '    const r = this.run, save = Store.data;\n    e.dead = true; if (r.M && !e.swarm && !e.boss) { r.M.life += r.t - e.born; r.M.lifeN++; r.M.dd += Math.hypot(e.x - r.p.x, e.y - r.p.y); }');
   src = rep(src, 'if (alive >= cap) { r.spawnAcc = 0; break; }', 'if (alive >= cap) { r.spawnAcc = 0; if (r.M) r.M.capped++; break; }');
   if (process.env.PATCH) for (const [a, b] of JSON.parse(fs.readFileSync(process.env.PATCH, 'utf8'))) src = rep(src, a, b);
   src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, CHARS, HEAT, SHOP, ENEMIES, fmtTime, xpFor };';
@@ -50,11 +74,119 @@ const TAUS = [0.1, 0.22, 0.38, 0.58, 0.85, 1.2];
 const TW = JSON.parse(process.env.TW || '[1, 0.7, 0.4, 0.15, 0.05, 0.02]');
 const BS = { lastDir: 0, near: [], tgt: null };
 
+// ---------------------------------------------------------------- human-like perception (M9)
+const OMNI = process.env.PERC === 'omni';
+const DEG = Math.PI / 180;
+const U = (a, b) => a + Math.random() * (b - a);
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+const PER = new WeakMap();   // Objekt -> Wahrnehmung (Reaktion, Aussetzer, Schätzfehler)
+const PSTAT = { seen: 0, late: 0, miss: 0 };
+function newPercept(t, onScreen) {
+  const pLate = Math.min(0.25, 0.03 + 0.004 * onScreen), u = Math.random();
+  const miss = u < pLate / 4, late = !miss && u < pLate;
+  PSTAT.seen++; if (late) PSTAT.late++; if (miss) PSTAT.miss++;
+  const oa = U(0, 2 * Math.PI), od = U(0, 8);
+  return { seen: t, react: OMNI ? 0 : U(0.20, 0.30) + (late ? U(0.30, 0.40) : 0), miss: OMNI ? false : miss,
+    ang: OMNI ? 0 : Math.max(-8, Math.min(8, gauss() * 4)) * DEG, spd: OMNI ? 1 : U(0.92, 1.08),
+    ox: OMNI ? 0 : Math.cos(oa) * od, oy: OMNI ? 0 : Math.sin(oa) * od, la: OMNI ? 0 : U(-2, 2) * DEG, life: OMNI ? 0 : U(-0.05, 0.05) };
+}
+// Wahrnehmung eines Objekts o (sichtbar = im Bild an Stelle x,y); null = (noch) nicht wahrgenommen
+function perceive(o, x, y, t, P) {
+  let q = PER.get(o);
+  if (!q) {
+    if (Math.abs(x - P.px) > P.hw || Math.abs(y - P.py) > P.hh) return null;
+    q = newPercept(t, P.onScreen); PER.set(o, q);
+  }
+  if (q.miss || t - q.seen < q.react) return null;
+  return q;
+}
+// Ausholen eines Schützen: je Ausholen (windStart) neu würfeln
+const WIND = new WeakMap();
+function perceiveWind(e, t, P) {
+  let w = WIND.get(e);
+  if (!w || w.ws !== e.windStart) {
+    if (Math.abs(e.x - P.px) > P.hw || Math.abs(e.y - P.py) > P.hh) return null;
+    w = { ws: e.windStart, q: newPercept(t, P.onScreen) }; WIND.set(e, w);
+  }
+  const q = w.q;
+  return q.miss || t - q.seen < q.react ? null : q;
+}
+const rot = (x, y, a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+
+// Alles, was der Bot in dieser Entscheidung an Fernkampf-Gefahren kennt: Geschosse (auch angekündigte,
+// noch nicht abgefeuerte als „virtuell“ mit Verzögerung d0), Flächen (Kreise, Bahnen, Linien, Pfützen).
+function perceiveThreats(r, Game, hw, hh) {
+  const p = r.p, t = r.t;
+  let onScreen = 0;
+  for (const e of r.enemies) if (!e.dead && Math.abs(e.x - p.x) < hw && Math.abs(e.y - p.y) < hh) onScreen++;
+  const P = { px: p.x, py: p.y, hw, hh, onScreen };
+  const shots = [], areas = [];
+  // Geschosse: eingeschätzte Richtung und Tempo
+  for (const s of r.eshots) {
+    const q = perceive(s, s.x, s.y, t, P);
+    if (!q) continue;
+    const [vx, vy] = rot(s.vx * q.spd, s.vy * q.spd, q.ang);
+    shots.push({ x: s.x, y: s.y, vx, vy, r: s.r, dmg: s.dmg, life: s.life, d0: 0 });
+  }
+  for (const tl of r.tele) {
+    const f = tl.follow, cx = f ? f.x : tl.x, cy = f ? f.y : tl.y;
+    const q = perceive(tl, tl.kind === 'circle' || tl.kind === 'lane' ? tl.x : cx, tl.kind === 'circle' || tl.kind === 'lane' ? tl.y : cy, t, P);
+    if (!q) continue;
+    const rem = Math.max(0, tl.life - tl.t + q.life);
+    if (tl.kind === 'circle') {
+      areas.push({ k: tl.track && tl.t < tl.track.until ? 'track' : 'circle', x: tl.x + q.ox, y: tl.y + q.oy, rad: tl.rad, rem, dmg: tl.dmg || 10,
+        spd: tl.track ? tl.track.spd : 0, trem: tl.track ? Math.max(0, tl.track.until - tl.t) : 0, w: tl.onImpact === 'slow' && !(tl.dmg > 0) ? 0.4 : 1 });
+    } else if (tl.kind === 'line') {
+      areas.push({ k: 'line', x: cx, y: cy, a: tl.a + q.la, rem, wd: (f ? f.r : 40) + p.r + 22, dmg: 20 });
+    } else if (tl.kind === 'lane') {
+      areas.push({ k: 'lane', x: tl.x, y: tl.y, a: tl.a + q.la, len: tl.len, rem, wd: tl.w / 2 + p.r + 8, dmg: tl.dmg || 10 });
+    } else if (tl.kind === 'aim') {
+      const locked = tl.t >= tl.lockAt;
+      // Nadel/Lanze: kommt nach der Restzeit mit tl.spd an
+      areas.push({ k: 'aim', x: cx, y: cy, a: tl.a + q.la, len: tl.len || 700, rem, spd: tl.spd || 460, wd: (tl.hr || 6) + p.r + 10, w: locked ? 1 : 0.3, dmg: tl.dmg || 10 });
+    } else if (tl.kind === 'charge' && tl.shots) {
+      // angekündigte Geschosse: Winkel, Tempo, Verzögerung (Ladekreis-Punkte, Fächer)
+      const sr = tl.sr || 0;
+      for (const sh of tl.shots) {
+        const a = sh.a + q.la, sp = sh.spd * q.spd;
+        shots.push({ x: cx + Math.cos(a) * sr, y: cy + Math.sin(a) * sr, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: sh.r || 8, dmg: sh.dmg || 8, life: sh.life || 3.5, d0: rem + (sh.d || 0) });
+      }
+    }
+  }
+  for (const h of r.haz || []) {
+    const q = perceive(h, h.x, h.y, t, P);
+    if (!q) continue;
+    areas.push({ k: 'puddle', x: h.x + q.ox, y: h.y + q.oy, rad: h.rad, rem: 0, dmg: h.dmg || 6, w: h.kind === 'slow' ? 0.4 : 1, life: h.life - h.t });
+  }
+  // Ausholen ohne eigenes Warnzeichen: leichte Gefahr entlang Schütze -> Held
+  const winders = [];
+  for (const e of r.enemies) {
+    if (e.dead || !(e.windT > 0) || e.boss) continue;
+    const q = perceiveWind(e, t, P);
+    if (q) winders.push(e);
+  }
+  // Aufmerksamkeit: 10 Geschosse mit kleinster Zeit bis zur größten Annäherung, 6 Flächen
+  for (const s of shots) {
+    const rx = p.x - s.x, ry = p.y - s.y, v2 = s.vx * s.vx + s.vy * s.vy || 1;
+    const tc = (rx * s.vx + ry * s.vy) / v2;
+    const cx = s.x + s.vx * Math.max(0, tc) - p.x, cy = s.y + s.vy * Math.max(0, tc) - p.y;
+    s.imm = tc > 0 && Math.hypot(cx, cy) < 200 ? tc + s.d0 : Infinity;
+  }
+  shots.sort((a, b) => a.imm - b.imm);
+  if (shots.length > 10) shots.length = 10;
+  while (shots.length && shots[shots.length - 1].imm === Infinity) shots.pop();
+  for (const a of areas) a.imm = a.k === 'puddle' ? Math.max(0, Math.hypot(a.x - p.x, a.y - p.y) - a.rad) / 150 : a.rem;
+  areas.sort((a, b) => a.imm - b.imm);
+  if (areas.length > 6) areas.length = 6;
+  return { shots, areas, winders };
+}
+
 function strongBot(api) {
   const { Game } = api;
   const r = Game.run, p = r.p, sp = r.stats.speed;
   const pr = p.r;
   const hpFrac = p.hp / r.stats.maxHp;
+  const TH = perceiveThreats(r, Game, Game.view.hw, Game.view.hh);
   // nearby enemies
   const near = BS.near; near.length = 0;
   let cxs = 0, cys = 0, cw = 0;
@@ -104,6 +236,12 @@ function strongBot(api) {
   // preferred boss distance: melee-ish builds must get close to hurt the boss
   let melee = 0;
   for (const w of r.weapons) if (w.id === 'whip' || w.id === 'aura' || w.id === 'orbit' || w.id === 'nova') melee++;
+  // Schützenjagd: Nahkampf-Bau, mehr als halbes Leben, sichtbarer Fernkämpfer in 320 px
+  if (melee >= 1 && hpFrac > 0.5) {
+    let best = null, bd = 320 * 320;
+    for (const e of near) if (e.ranged && !e.boss && e._d2 < bd && Math.abs(e.x - p.x) < Game.view.hw && Math.abs(e.y - p.y) < Game.view.hh) { bd = e._d2; best = e; }
+    if (best) { const d = Math.sqrt(bd) || 1; goals.push((best.x - p.x) / d, (best.y - p.y) / d, 0.4, 1); }
+  }
   // rough burst damage per second (to judge which enemies die before they reach us)
   let burst = 0;
   for (const w of r.weapons) burst += w.st.dmg * Math.max(1, w.st.amount) / Math.max(0.3, w.st.cd);
@@ -141,39 +279,72 @@ function strongBot(api) {
         }
       }
     }
-    // 2) Enemy shots
-    for (const s of r.eshots) {
+    // 2) Enemy shots (wahrgenommen; virtuelle erst nach ihrer Verzögerung)
+    for (const s of TH.shots) {
       const rr = s.r + pr + 8;
       for (let k = 0; k < TAUS.length; k++) {
         const t = TAUS[k];
-        if (t > s.life) break;
+        if (t < s.d0) continue;
+        if (t - s.d0 > s.life) break;
         const px = p.x + ux * sp * t, py = p.y + uy * sp * t;
-        const sx = s.x + s.vx * t, sy = s.y + s.vy * t;
+        const sx = s.x + s.vx * (t - s.d0), sy = s.y + s.vy * (t - s.d0);
         const d = Math.hypot(px - sx, py - sy);
         if (d < rr + 14) danger += (d < rr ? 2 : 0.4) * (0.6 + s.dmg / 10) / (1 + t);
       }
     }
-    // 3) Telegraphs
-    for (const tl of r.tele) {
-      const rem = tl.life - tl.t;
-      if (tl.kind === 'circle') {
+    // 3) Telegraphs, Pfützen
+    for (const tl of TH.areas) {
+      const rem = tl.rem;
+      if (tl.k === 'circle' || tl.k === 'track') {
         const t = Math.min(rem, 1.0);
         const px = p.x + ux * sp * t, py = p.y + uy * sp * t;
-        const d = Math.hypot(px - tl.x, py - tl.y);
+        let cx = tl.x, cy = tl.y;
+        if (tl.k === 'track') { // folgt dem Helden noch trem Sekunden mit spd
+          const dx = px - cx, dy = py - cy, dd = Math.hypot(dx, dy) || 1, st = Math.min(dd, tl.spd * Math.min(tl.trem, t));
+          cx += dx / dd * st; cy += dy / dd * st;
+        }
+        const d = Math.hypot(px - cx, py - cy);
         const rr = tl.rad + pr + 14;
-        if (d < rr) danger += (4 + (rr - d) / 20) * (0.6 + tl.dmg / 12);
-      } else if (tl.kind === 'line') {
+        if (d < rr) danger += (4 + (rr - d) / 20) * (0.6 + tl.dmg / 12) * tl.w;
+      } else if (tl.k === 'puddle') {
+        for (let k = 0; k < 3; k++) {
+          const t = TAUS[k];
+          if (t > tl.life) break;
+          const px = p.x + ux * sp * t, py = p.y + uy * sp * t;
+          const d = Math.hypot(px - tl.x, py - tl.y), rr = tl.rad + pr;
+          if (d < rr) danger += (2 + (rr - d) / 15) * (0.6 + tl.dmg / 12) * tl.w * TW[k];
+        }
+      } else if (tl.k === 'line') {
         const ca = Math.cos(tl.a), sa = Math.sin(tl.a);
-        const e = tl.follow;
-        const wd = (e ? e.r : 40) + pr + 22;
         for (const t of [rem, rem + 0.2, rem + 0.4]) {
           const tt = Math.min(t, 1.2);
           const px = p.x + ux * sp * tt, py = p.y + uy * sp * tt;
           const rx = px - tl.x, ry = py - tl.y;
           const along = rx * ca + ry * sa, perp = Math.abs(-rx * sa + ry * ca);
-          if (along > -60 && along < 420 && perp < wd) danger += 3 + (wd - perp) / 15;
+          if (along > -60 && along < 420 && perp < tl.wd) danger += 3 + (tl.wd - perp) / 15;
         }
+      } else if (tl.k === 'lane') {
+        const ca = Math.cos(tl.a), sa = Math.sin(tl.a), tt = Math.min(rem, 1.2);
+        const px = p.x + ux * sp * tt, py = p.y + uy * sp * tt;
+        const rx = px - tl.x, ry = py - tl.y;
+        const along = rx * ca + ry * sa, perp = Math.abs(-rx * sa + ry * ca);
+        if (along > -tl.wd && along < tl.len + tl.wd && perp < tl.wd) danger += (4 + (tl.wd - perp) / 15) * (0.6 + tl.dmg / 12);
+      } else if (tl.k === 'aim') {
+        const ca = Math.cos(tl.a), sa = Math.sin(tl.a);
+        // Ankunft der Nadel an der Stelle des Helden: Restzeit + Flugzeit
+        const d0 = Math.hypot(p.x - tl.x, p.y - tl.y), tt = Math.min(1.2, rem + d0 / tl.spd);
+        const px = p.x + ux * sp * tt, py = p.y + uy * sp * tt;
+        const rx = px - tl.x, ry = py - tl.y;
+        const along = rx * ca + ry * sa, perp = Math.abs(-rx * sa + ry * ca);
+        if (along > 0 && along < tl.len && perp < tl.wd) danger += (3 + (tl.wd - perp) / 5) * (0.6 + tl.dmg / 12) * tl.w;
       }
+    }
+    for (const e of TH.winders) {
+      // Ausholen ohne Warnzeichen am Boden: leicht weg von der Schusslinie
+      const dx = p.x - e.x, dy = p.y - e.y, dd = Math.hypot(dx, dy) || 1;
+      const t = 0.38, px = p.x + ux * sp * t, py = p.y + uy * sp * t;
+      const rx = px - e.x, ry = py - e.y, perp = Math.abs(-rx * dy / dd + ry * dx / dd);
+      if (perp < pr + 20) danger += 0.3 * (1 + (pr + 20 - perp) / 20);
     }
     // 4) Clearance / crowd: how open is this direction?
     let crowd = 0, clear = 600;
@@ -307,11 +478,15 @@ function chooseWeak(api, opts) {
 }
 
 // ---------------------------------------------------------------- main
+module.exports = { load, strongBot, BS, PSTAT };
+if (require.main === module) main();
+function main() {
 const api = load();
 const [charId, heatS, nS, preset] = process.argv.slice(2);
 const heat = +heatS, n = +nS;
 const TMAX = +(process.argv[7] || 1080);
 const weak = process.env.BOT === 'weak';
+if (process.env.VIEW === 'phone') api.Game.view = { hw: 244, hh: 527 };
 for (let i = 0; i < n; i++) {
   const { Game, Hooks, Store, SHOP } = api;
   Store.load();
@@ -321,7 +496,7 @@ for (let i = 0; i < n; i++) {
   let over = null, pending = null;
   Hooks.levelUp = o => { pending = o; }; Hooks.chest = () => {}; Hooks.victory = () => {}; Hooks.gameOver = s => { over = s; };
   const r = Game.newRun(charId, heat, STAGE);
-  const newM = () => ({ taken: 0, src: {}, dmg: 0, raw: 0, bossDmg: 0, spawnHp: 0, spawnN: 0, capped: 0, aliveSum: 0, frames: 0, kills0: r.kills, life: 0, lifeN: 0, dd: 0 });
+  const newM = () => ({ taken: 0, src: {}, dmg: 0, raw: 0, bossDmg: 0, spawnHp: 0, spawnN: 0, capped: 0, aliveSum: 0, frames: 0, kills0: r.kills, life: 0, lifeN: 0, dd: 0, byType: {}, rangedS: 0, normS: 0, samples: 0, shotsMax: 0 });
   r.M = newM();
   const mins = [];
   const dt = 1 / 60; let frame = 0, curMin = 0, revT = null; const startRev = r.revivals;
@@ -340,6 +515,11 @@ for (let i = 0; i < n; i++) {
     Game.update(dt);
     if (r.evolvedCount > ec) evoT.push(Math.round(r.t));
     r.M.aliveSum += r.enemies.length; r.M.frames++;
+    if (r.eshots.length > r.M.shotsMax) r.M.shotsMax = r.eshots.length;
+    if (frame % 30 === 0) { // Gegner nach Typ (ohne Bosse und Schwärme), Anteil der Fernkämpfer
+      const M = r.M; M.samples++;
+      for (const e of r.enemies) if (!e.dead && !e.boss && !e.swarm) { M.byType[e.type] = (M.byType[e.type] || 0) + 1; M.normS++; if (e.ranged) M.rangedS++; }
+    }
     // Frühphase: Gegner im Bild bei 10/30/60 s, Stufe bei 60 s, erster Treffer
     for (const T of [2, 10, 30, 60]) if (early['scr' + T] === undefined && r.t >= T) {
       const hw = Game.view.hw, hh = Game.view.hh;
@@ -361,7 +541,8 @@ for (let i = 0; i < n; i++) {
     }
     if (m > curMin) {
       const M = r.M;
-      mins.push({ m: curMin, lvl: r.level, hp: Math.round(r.p.hp), maxHp: r.stats.maxHp, taken: Math.round(M.taken), src: M.src, dps: Math.round(M.dmg / 60), raw: Math.round(M.raw / 60), bossDmg: Math.round(M.bossDmg), spawnHp: Math.round(M.spawnHp), spawnN: M.spawnN, kills: r.kills - M.kills0, alive: Math.round(M.aliveSum / Math.max(1, M.frames)), capped: M.capped, life: +(M.life / Math.max(1, M.lifeN)).toFixed(1), dd: Math.round(M.dd / Math.max(1, M.lifeN)), nW: r.weapons.length, evo: r.evolvedCount, gems: r.gems.length, gemV: Math.round(r.gems.reduce((a, g) => a + g.v, 0)), gemMax: Math.round(r.gems.reduce((a, g) => Math.max(a, g.v), 0)), gemMaxD: Math.round(r.gems.reduce((a, g) => g.v > a[0] ? [g.v, Math.hypot(g.x - r.p.x, g.y - r.p.y)] : a, [0, 0])[1]) });
+      mins.push({ m: curMin, lvl: r.level, hp: Math.round(r.p.hp), maxHp: r.stats.maxHp, taken: Math.round(M.taken), src: M.src, dps: Math.round(M.dmg / 60), raw: Math.round(M.raw / 60), bossDmg: Math.round(M.bossDmg), spawnHp: Math.round(M.spawnHp), spawnN: M.spawnN, kills: r.kills - M.kills0, alive: Math.round(M.aliveSum / Math.max(1, M.frames)), capped: M.capped, life: +(M.life / Math.max(1, M.lifeN)).toFixed(1), dd: Math.round(M.dd / Math.max(1, M.lifeN)), nW: r.weapons.length, evo: r.evolvedCount, gems: r.gems.length, gemV: Math.round(r.gems.reduce((a, g) => a + g.v, 0)), gemMax: Math.round(r.gems.reduce((a, g) => Math.max(a, g.v), 0)), gemMaxD: Math.round(r.gems.reduce((a, g) => g.v > a[0] ? [g.v, Math.hypot(g.x - r.p.x, g.y - r.p.y)] : a, [0, 0])[1]),
+        aliveByType: Object.fromEntries(Object.entries(M.byType).map(([k, v]) => [k, Math.round(v / Math.max(1, M.samples))])), rangedShare: +(M.rangedS / Math.max(1, M.normS)).toFixed(3), shotsMax: M.shotsMax });
       r.M = newM(); curMin = m;
     }
     if (Date.now() - t0 > 300000) break;
@@ -369,5 +550,6 @@ for (let i = 0; i < n; i++) {
   const wl = {}; for (const w of r.weapons) wl[w.id] = w.level + (w.evo ? '*' : '');
   let tot = 0; for (const k in r.dmgBy) tot += r.dmgBy[k];
   const dshare = {}; for (const k in r.dmgBy) dshare[k] = +(r.dmgBy[k] / tot).toFixed(2);
-  console.log(JSON.stringify({ char: charId, stage: STAGE, heat, preset, bot: weak ? 'weak' : 'strong', t: Math.round(r.t), won: !!r.won, lvl: r.level, kills: r.kills, bk, evoT, revT, weapons: wl, passives: r.passives.map(p => p.id + p.level).join(' '), dshare, ms: Date.now() - t0, hits: r.won ? undefined : r.hits, early: Object.assign(early, { firstHit: r.firstHit === null ? null : +r.firstHit.toFixed(1) }), bossAlive: r.bosses.filter(b => !b.dead).map(b => b.boss.id + ':' + Math.round(b.hp / b.maxHp * 100) + '%').join(','), mins }));
+  console.log(JSON.stringify({ char: charId, stage: STAGE, heat, preset, bot: weak ? 'weak' : 'strong', t: Math.round(r.t), won: !!r.won, lvl: r.level, kills: r.kills, bk, evoT, revT, weapons: wl, passives: r.passives.map(p => p.id + p.level).join(' '), dshare, ms: Date.now() - t0, hits: r.won ? undefined : r.hits, early: Object.assign(early, { firstHit: r.firstHit === null ? null : +r.firstHit.toFixed(1) }), bossAlive: r.bosses.filter(b => !b.dead).map(b => b.boss.id + ':' + Math.round(b.hp / b.maxHp * 100) + '%').join(','), perc: Object.assign({}, PSTAT), view: api.Game.view.hw + 'x' + api.Game.view.hh, mins }));
+}
 }
