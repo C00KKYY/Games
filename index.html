@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spiele-Prototypen</title>
+  <style>
+    :root { --bg:#f6f6f8; --card:#fff; --fg:#1b1b22; --muted:#666a75; --line:#e2e3e8; --accent:#5b4bff; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#121217; --card:#1c1c24; --fg:#ececf1; --muted:#9a9cab; --line:#2c2d38; --accent:#8f84ff; }
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+    main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
+    h1 { margin:0 0 4px; font-size:26px; }
+    h2 { margin:32px 0 12px; font-size:18px; }
+    p.sub { margin:0 0 8px; color:var(--muted); }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; }
+    .card img { width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+    .body { padding:12px 14px 14px; display:flex; flex-direction:column; gap:6px; flex:1; }
+    .meta { color:var(--muted); font-size:13px; }
+    .title { font-weight:650; font-size:16px; }
+    .actions { display:flex; gap:8px; margin-top:auto; padding-top:8px; }
+    .actions a { flex:1; text-align:center; padding:8px; border-radius:8px; text-decoration:none; font-weight:600; border:1px solid var(--line); color:var(--fg); }
+    .actions a.play { background:var(--accent); border-color:var(--accent); color:#fff; }
+    .empty { color:var(--muted); padding:24px; border:1px dashed var(--line); border-radius:12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Spiele-Prototypen</h1>
+  <p class="sub">Ein neues Spiel pro Tag. Bewerten im verlinkten Issue mit <code>Note: X/5</code> und <code>Status: ausbauen / verwerfen</code>.</p>
+  <div id="list" class="grid"></div>
+
+  <h2>Weitere Spiele</h2>
+  <div class="grid">
+    <div class="card"><div class="body">
+      <div class="title">Verkehrsmeister 3D</div>
+      <div class="meta">Verkehrs-Puzzle</div>
+      <div class="actions"><a class="play" href="verkehrsmeister/">Spielen</a></div>
+    </div></div>
+  </div>
+</main>
+<script>
+  const REPO = 'https://github.com/C00KKYY/Games';
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  fetch('prototypes/catalog.json', { cache: 'no-store' })
+    .then((r) => r.json())
+    .then((items) => {
+      const list = document.getElementById('list');
+      if (!items.length) { list.innerHTML = '<div class="empty">Noch keine Prototypen. Der erste kommt mit dem nächsten Lauf.</div>'; return; }
+      items.sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      list.innerHTML = items.map((g) => `
+        <div class="card">
+          ${g.screenshot ? `<img loading="lazy" src="${esc(g.path)}/${esc(g.screenshot)}" alt="">` : ''}
+          <div class="body">
+            <div class="title">${esc(g.name)}</div>
+            <div class="meta">${esc(g.date)} · ${esc(g.genre)}</div>
+            <div>${esc(g.pitch)}</div>
+            <div class="actions">
+              <a class="play" href="${esc(g.path)}/">Spielen</a>
+              ${g.issue ? `<a href="${REPO}/issues/${Number(g.issue)}">Bewerten</a>` : ''}
+            </div>
+          </div>
+        </div>`).join('');
+    })
+    .catch(() => { document.getElementById('list').innerHTML = '<div class="empty">Katalog konnte nicht geladen werden.</div>'; });
+</script>
+</body>
+</html>
