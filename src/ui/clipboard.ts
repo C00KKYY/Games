@@ -383,8 +383,10 @@ export function mountClipboard(ctx: UICtx): Component {
     if (reduceMotion) return;
     const el = ctx.compact.get() ? chip : card;
     if (typeof el.animate !== 'function') return;
-    const from = kind === 'new' ? 'translateX(-115%)' : 'translateX(-0.6rem)';
-    el.animate([{ transform: from, opacity: 0 }, { transform: 'translateX(0)', opacity: 1 }], { duration: kind === 'new' ? 420 : 260, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
+    // the goal widget stays on screen and readable through the whole animation (D4: visible 100 % of the time): a pop
+    // in place for a new goal, a short nudge for a new tutorial step – never off screen, never below 70 % opacity
+    if (kind === 'new') el.animate([{ transform: 'scale(.9)', opacity: 0.7 }, { transform: 'scale(1.05)', opacity: 1, offset: 0.55 }, { transform: 'scale(1)', opacity: 1 }], { duration: 420, easing: 'ease-out' });
+    else el.animate([{ transform: 'translateX(.35rem)', opacity: 0.75 }, { transform: 'translateX(0)', opacity: 1 }], { duration: 260, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
     if (kind === 'new' && ctx.compact.get()) chipFlash.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: 2400, easing: 'ease-in-out' });
   };
 

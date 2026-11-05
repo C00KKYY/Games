@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 const PORT = Number(process.env.PW_PORT ?? 4173);
 export default defineConfig({
   testDir: '.',
-  testMatch: 'selfreview.spec.ts',
+  testMatch: process.env.SR_SPEC ?? "selfreview.spec.ts",
   timeout: 3_600_000,
   workers: 1,
   reporter: [['list']],

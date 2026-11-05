@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { allSprites } from '../../tools/art-build';
-import { placePlaque, MERGE_S, STACK_MAX, type PlaqueSlot } from '../../src/render/juiceMath';
+import { placePlaque, escSlot, MERGE_S, STACK_MAX, type PlaqueSlot } from '../../src/render/juiceMath';
 
 // E (Brief §12.6) needs its feedback sprites in the one atlas (batched, no extra textures besides the number font)
 describe('E juice sprites', () => {
@@ -76,5 +76,37 @@ describe('E escapee marker sprite (USP 4)', () => {
     expect([a.w, a.h, a.ax, a.ay]).toEqual([n.w, n.h, n.ax, n.ay]);
     expect(a.body).toContain('#df6450');
     expect(a.body).toContain('#f8f0de');
+  });
+});
+
+// LOW verifier finding: with more escapees than marker slots the 0.25 s scan re-marked the unmarked one into slot 0 on
+// every scan (the marker hopped between agents and spammed 'escapeeMark')
+describe('E escapee marker slots (more escapees than slots)', () => {
+  /** juice.ts: event → steal allowed, scan → never steals; a mark resets the slot age */
+  const mark = (slots: { id: number; t: number }[], id: number, steal: boolean) => {
+    const i = escSlot(slots, id, steal);
+    if (i >= 0 && slots[i].id !== id) { slots[i].id = id; slots[i].t = 0; return 1; }
+    return 0;
+  };
+  it('3 escapees, 2 slots: the scan never moves a marker, so no mark is repeated', () => {
+    const slots = [{ id: -1, t: 0 }, { id: -1, t: 0 }];
+    let marks = 0;
+    for (const id of [11, 12, 13]) marks += mark(slots, id, true);         // three escape events
+    expect(marks).toBe(3);                                                  // the third took over the oldest slot
+    expect(slots.map(s => s.id).sort()).toEqual([12, 13]);
+    for (let scan = 0; scan < 40; scan++) {                                 // 10 s of scans
+      for (const s of slots) s.t += 0.25;
+      for (const id of [11, 12, 13]) marks += mark(slots, id, false);
+    }
+    expect(marks).toBe(3);
+    expect(slots.map(s => s.id).sort()).toEqual([12, 13]);
+  });
+  it('a freed slot is picked up by the scan; an already marked agent keeps its slot', () => {
+    const slots = [{ id: 12, t: 1 }, { id: 13, t: 0.5 }];
+    expect(escSlot(slots, 13, false)).toBe(1);
+    expect(escSlot(slots, 11, false)).toBe(-1);
+    expect(escSlot(slots, 11, true)).toBe(0);                               // event: the slot marked longest
+    slots[0].id = -1;                                                       // 12 caught
+    expect(escSlot(slots, 11, false)).toBe(0);
   });
 });

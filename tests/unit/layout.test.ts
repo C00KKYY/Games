@@ -142,7 +142,7 @@ describe('packRoom: structural sweep', () => {
   it('every door position along every side (sizes min..7)', () => {
     for (const t of BUILDABLE) for (let w = ROOMS[t].minW; w <= 7; w++) for (let h = ROOMS[t].minH; h <= 7; h++)
       for (const side of SIDES) for (let o = 0; o < (side === 'N' || side === 'S' ? w : h); o++) check(t, w, h, doorAt(w, h, side, o));
-  });
+  }, 20_000); // exhaustive (~4.6 s alone): vitest's 5 s default is too tight when the suite runs in parallel
   it('max size 12x12 and long thin rooms', () => {
     for (const t of BUILDABLE) for (const [w, h] of [[12, 12], [12, ROOMS[t].minH], [ROOMS[t].minW, 12]]) for (const side of SIDES) check(t, w, h, defaultDoor(t, 0, 0, w, h, side));
   });

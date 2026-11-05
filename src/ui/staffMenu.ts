@@ -116,7 +116,7 @@ export function mountStaffMenu(ctx: UICtx): Component {
   };
 
   return {
-    update(dt) { if (shell.tick(dt)) render(); },
+    update(dt) { if (shell.tick(dt)) { render(); shell.fit(); } },
     destroy() { shell.destroy(); },
   };
 }

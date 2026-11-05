@@ -13,6 +13,7 @@ import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { join, relative, extname } from 'node:path';
 import { setup, gotoGame, SDK_URL } from './helpers';
 import { instr, hook, type Win } from './accept-kit';
+import { INITIAL, INITIAL_MUSIC } from '../../src/audio/manifest';
 
 const DIST = join(process.cwd(), 'dist');
 const MB = 1_000_000; // decimal megabytes: the stricter reading of "8 MB" / "3 MB"
@@ -69,6 +70,17 @@ test.describe('A4 build budgets', () => {
 
   test('A4 initial download ≤ 3 MB: every byte requested before the first gameplayStart', async ({ page }) => {
     await page.addInitScript(() => { performance.setResourceTimingBufferSize(5000); });
+    // §8.4 probe: from the moment the audio runtime exists until phase 2 is queued, musicDay must be neither queued nor loaded
+    await page.addInitScript(() => {
+      const g = window as any;
+      g.__p2 = { early: false, seen: 0 };
+      const iv = setInterval(() => {
+        const a = g.__audio; if (!a) return;
+        const d = a.debug(); g.__p2.seen++;
+        if (d.phase2At < 0 && (a.mixer.loading.has('musicDay') || a.mixer.buffers.has('musicDay'))) g.__p2.early = true;
+        if (d.phase2At >= 0) clearInterval(iv);
+      }, 4);
+    });
     await setup(page);
     await page.goto('/');
     await page.waitForFunction(() => (window as unknown as Win).__sdkCalls?.some((c: any) => c.n === 'gameplayStart'), null, { timeout: 30_000 });
@@ -87,6 +99,25 @@ test.describe('A4 build budgets', () => {
     console.log(`[A4] gameplayStart at ${r.gs} ms; ${r.before.length + 1} of ${r.all + 1} requests started before it: ${(total / MB).toFixed(2)} MB (largest: ${top.join(', ')})`);
     expect(r.before.length).toBeGreaterThan(3);
     expect(total, 'A4: initial ≤ 3 MB').toBeLessThanOrEqual(3 * MB);
+    // Brief §8.4: before gameplayStart only the tutorial sounds + music loop 1 in low quality; the rest – the full day
+    // loop too – after it (phase 2 starts on the first gameplayStart). Waits until musicDay has been requested, so the
+    // check is never vacuous, and compares with the moment phase 2 was queued (not only with gameplayStart: on a slow
+    // machine even the boot bundle is requested after gameplayStart).
+    await page.waitForFunction(() => performance.getEntriesByType('resource').some(e => e.name.endsWith('/musicDay.mp3')), null, { timeout: 30_000 });
+    const au = await page.evaluate(() => {
+      const gs = (window as unknown as Win).__sdkCalls.find((c: any) => c.n === 'gameplayStart').at as number;
+      return { gs, phase2At: (window as unknown as Win).__audio.debug().phase2At as number, audio: (performance.getEntriesByType('resource') as PerformanceResourceTiming[]).filter(e => /\/audio\/[^/]+\.mp3$/.test(e.name)).map(e => ({ id: e.name.split('/').pop()!.slice(0, -4), start: Math.round(e.startTime) })) };
+    });
+    const p2 = await page.evaluate(() => (window as unknown as Win).__p2 as { early: boolean; seen: number });
+    expect(p2.seen, 'audio runtime probed before phase 2').toBeGreaterThan(0);
+    expect(p2.early, '§8.4: musicDay is not queued with the boot bundle').toBe(false);
+    const initial = new Set<string>([...INITIAL, ...INITIAL_MUSIC]);
+    const md = au.audio.find(a => a.id === 'musicDay')!;
+    console.log(`[A4] audio: gameplayStart ${au.gs} ms, phase 2 queued at ${Math.round(au.phase2At)} ms, musicDay requested at ${md.start} ms; before gameplayStart: ${au.audio.filter(a => a.start <= au.gs).map(a => a.id).join(', ') || '–'}`);
+    // phase 2 starts on gameplayStart, or after 3 s when the SDK never reports one (offline fallback, src/audio/audio.ts)
+    expect(au.phase2At, 'phase 2 starts after gameplayStart').toBeGreaterThanOrEqual(Math.min(au.gs, 3000));
+    expect(md.start, '§8.4: musicDay is requested with phase 2, not with the boot bundle').toBeGreaterThanOrEqual(Math.floor(au.phase2At));
+    expect(au.audio.filter(a => a.start <= au.gs && !initial.has(a.id)).map(a => a.id), '§8.4: nothing but the initial bundle before gameplayStart').toEqual([]);
   });
 });
 

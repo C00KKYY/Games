@@ -253,12 +253,14 @@ export function mountTutorial(ctx: UICtx): Component {
   let modal = false;
   let curAim: Aim | null = null;
   let elAim: { key: string; box: DOMRect } | null = null;  // element target, re-measured ≤ 10/s
+  let cardShown = false;                  // the Wash Hut card was scrolled into view in this opening of the Rooms menu
   let handPos: { x: number; y: number } | null = null, glideFrom: { x: number; y: number } | null = null, glide = 1, lastKey = '';
   let bubPos: { x: number; y: number } | null = null, bubWant = { x: 16, y: 80 }, bubAway = false;
-  /** full bubble · mini (dots + Skip beside the warden) · stack (dots over Skip, no warden) – measured sizes */
-  type BubMode = 'full' | 'mini' | 'stack';
-  const BUB_MODES: BubMode[] = ['full', 'mini', 'stack'];
-  const bubSizes: Record<BubMode, { w: number; h: number } | null> = { full: null, mini: null, stack: null };
+  /** full bubble · mini (dots + Skip beside the warden) · stack (dots over Skip, no warden) · skip (the Skip button
+   *  alone, may also sit beside the build bar) – measured sizes */
+  type BubMode = 'full' | 'mini' | 'stack' | 'skip';
+  const BUB_MODES: BubMode[] = ['full', 'mini', 'stack', 'skip'];
+  const bubSizes: Record<BubMode, { w: number; h: number } | null> = { full: null, mini: null, stack: null, skip: null };
   let bubMode: BubMode = 'full', bubSizesKey = '';
   let shownStep = -1;
   let ending = 0;                         // ms left of the fade-out after the tutorial ended
@@ -266,7 +268,7 @@ export function mountTutorial(ctx: UICtx): Component {
   let jitCur: (JitPick & { until: number }) | null = null;
   let doneAt = w.tutorial.done ? -1e9 : Infinity;
   let buildToolSeen = false;
-  let freeTop = 50, freeBottom = 600, clipBox: Box | null = null, ctlBox: Box | null = null, avoid: Box[] = [];
+  let freeTop = 50, freeBottom = 600, clipBox: Box | null = null, ctlBox: Box | null = null, avoid: Box[] = [], botBoxes: Box[] = [];
   let skipped = false;
   let ctlBusy = false;
   let clipOpen = false;                   // compact: the clipboard card is expanded over the world (it has its own Skip)
@@ -343,9 +345,19 @@ export function mountTutorial(ctx: UICtx): Component {
     if (!active()) return;
     const s = step(), tool = ctx.tool.get();
     let el: Element | null = null, key = '';
+    if (ctx.menu.get() !== 'rooms') cardShown = false;
     if (s === 'wash' && !w.rooms.some(r => r.type === 'wash')) {
       if (tool.kind === 'build' && tool.type === 'wash') { if (ctx.touch) { el = document.querySelector('.tl-confirm:not([hidden]) .tl-yes'); key = 'yes'; } }
-      else if (ctx.menu.get() === 'rooms') { el = document.querySelector('.bb-card[data-room="wash"]'); key = 'card'; }
+      else if (ctx.menu.get() === 'rooms') {
+        el = document.querySelector('.bb-card[data-room="wash"]'); key = 'card';
+        // a narrow sheet (phone, clipboard chip beside it) may hide the card in its scroll row: bring it in once per opening
+        const row = el?.closest<HTMLElement>('.bb-scroll');
+        if (el && row && !cardShown) {
+          const b = el.getBoundingClientRect(), rb = row.getBoundingClientRect();
+          if (b.left < rb.left - 0.5 || b.right > rb.right + 0.5) row.scrollLeft += b.right > rb.right ? b.right - rb.right + 8 : b.left - rb.left - 8;
+          else cardShown = true;   // in view: from now on the player scrolls as they like
+        }
+      }
       else if (!ghostOn) { el = document.querySelector('.bb-rooms'); key = 'rooms'; }
     } else if (s === 'upgrade') {
       const c = bestRoom('canteen'), sel = ctx.selection.get();
@@ -408,6 +420,7 @@ export function mountTutorial(ctx: UICtx): Component {
     const bots = [...document.querySelectorAll('[data-hud="bottom"]')].map(boxOf).filter((b): b is Box => !!b);
     freeTop = (tops.length ? Math.max(...tops.map(b => b.b)) : 0) + 6;
     freeBottom = (bots.length ? Math.min(...bots.map(b => b.t)) : vh) - 6;
+    botBoxes = bots.map(b => pad(b, 6));
     clipBox = boxOf(document.querySelector('.cb-card')) ?? boxOf(document.querySelector('.cb-chip'));
     // 6 px of slack: panels and toasts slide in by a few px, the box is measured mid-animation at worst
     avoid = [clipBox, ...AVOID_SEL.map(sel => boxOf(document.querySelector(`${sel}:not([hidden])`)))].filter((b): b is Box => !!b).map(b => pad(b, 6));
@@ -419,7 +432,7 @@ export function mountTutorial(ctx: UICtx): Component {
     const sel = ctx.selection.get();
     return `${toasts ? toasts.childElementCount : 0}|${document.querySelector('.pn:not([hidden])') ? 1 : 0}|${ctx.menu.get()}|${ctx.tool.get().kind}|${sel ? sel.kind + sel.id : ''}|${document.querySelector('.cb--open') ? 1 : 0}`;
   };
-  const applyBubMode = (m: BubMode) => { cls(bub, 'mini', m !== 'full'); cls(bub, 'stack', m === 'stack'); };
+  const applyBubMode = (m: BubMode) => { cls(bub, 'mini', m !== 'full'); cls(bub, 'stack', m === 'stack' || m === 'skip'); cls(bub, 'skiponly', m === 'skip'); };
   /** sizes of the three bubble forms (full every tick – its text changes; the text-free forms once per language / size) */
   function measureBubble() {
     const tmp = !bub.classList.contains('on') && !bub.classList.contains('bye');
@@ -427,9 +440,10 @@ export function mountTutorial(ctx: UICtx): Component {
     const read = () => { const r = bub.getBoundingClientRect(); return r.width > 0 ? { w: r.width, h: r.height } : null; };
     const key = `${ctx.lang()}|${innerWidth}x${innerHeight}`;
     applyBubMode('full'); bubSizes.full = read() ?? bubSizes.full;
-    if (key !== bubSizesKey || !bubSizes.mini || !bubSizes.stack) {
+    if (key !== bubSizesKey || !bubSizes.mini || !bubSizes.stack || !bubSizes.skip) {
       applyBubMode('mini'); bubSizes.mini = read();
       applyBubMode('stack'); bubSizes.stack = read();
+      applyBubMode('skip'); bubSizes.skip = read();
       bubSizesKey = key;
     }
     applyBubMode(bubMode);
@@ -452,15 +466,19 @@ export function mountTutorial(ctx: UICtx): Component {
    * Where the bubble goes: near the target, inside the free play area, and NEVER over the target, the clipboard, the
    * controls overlay, an open panel / menu / tool layer or a toast (hard rule). A dense grid of spots is searched, so a
    * free spot is found whenever one exists. No free spot at full size → the bubble shrinks to progress dots + Skip
-   * (beside the warden, then stacked without him); still none → it steps aside until a spot is free again.
+   * (beside the warden, then stacked without him), then to the Skip button alone, which may also use the strips beside
+   * the build bar (a phone with a menu sheet open: Brief §6.2 "Skip tutorial ist dauerhaft sichtbar"); still none → it
+   * steps aside until a spot is free again.
    */
   function placeBubble(a: Aim | null) {
     const vw = innerWidth;
     const hard = [...avoid, ...(ctlBox ? [pad(ctlBox, 4)] : []), ...(a ? [aimBox(a)] : []), ...focusBoxes()];
     const hand = a ? handBox(a) : null;
-    const search = (bw: number, bh: number, strict: boolean) => {
+    const search = (bw: number, bh: number, strict: boolean, low = false) => {
       if (bw <= 0 || bh <= 0) return null;
-      const x0 = 8, x1 = Math.max(x0, vw - 8 - bw), y0 = freeTop, y1 = Math.max(y0, freeBottom - bh);
+      // low: down to the screen edge, the build bar itself is an obstacle then
+      const x0 = 8, x1 = Math.max(x0, vw - 8 - bw), y0 = freeTop, y1 = Math.max(y0, (low ? innerHeight - 8 : freeBottom) - bh);
+      const obst = low ? [...hard, ...botBoxes] : hard;
       const cands: { x: number; y: number }[] = [{ x: bubWant.x, y: bubWant.y }];
       if (a) {
         const g = a.r + 30;
@@ -472,7 +490,7 @@ export function mountTutorial(ctx: UICtx): Component {
         const c = { x: Math.max(x0, Math.min(x1, c0.x)), y: Math.max(y0, Math.min(y1, c0.y)) };
         const box: Box = { l: c.x, t: c.y, r: c.x + bw, b: c.y + bh };
         let over = 0;
-        for (const o of hard) over += inter(box, o);
+        for (const o of obst) over += inter(box, o);
         if (strict && over > 0) continue;
         let s = over * 50;
         if (hand) s += inter(box, hand) * 2;
@@ -483,7 +501,7 @@ export function mountTutorial(ctx: UICtx): Component {
       return best;
     };
     let mode: BubMode = bubMode, spot: { x: number; y: number } | null = null;
-    for (const m of BUB_MODES) { const sz = bubSizes[m]; if (sz && (spot = search(sz.w, sz.h, true))) { mode = m; break; } }
+    for (const m of BUB_MODES) { const sz = bubSizes[m]; if (sz && (spot = search(sz.w, sz.h, true, m === 'skip'))) { mode = m; break; } }
     // not even the smallest form has a free spot (phone with a menu / sheet and a toast open): the bubble steps aside
     // until there is room again – then the clipboard card shows its own Skip (clipboard.css)
     bubAway = !spot;
@@ -661,7 +679,7 @@ export function mountTutorial(ctx: UICtx): Component {
   }
 
   // test hook (tests/e2e/m4-fixes-ui.spec.ts): the current target in screen px and where the layers went
-  (window as unknown as Record<string, unknown>).__tutorial = { aim: () => (curAim ? { ...curAim } : null), mini: () => bubMode !== 'full', away: () => bubAway, ctlSlot: () => ctlSlot };
+  (window as unknown as Record<string, unknown>).__tutorial = { aim: () => (curAim ? { ...curAim } : null), mini: () => bubMode !== 'full', mode: () => bubMode, away: () => bubAway, ctlSlot: () => ctlSlot };
 
   return {
     update(dt: number) {

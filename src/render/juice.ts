@@ -22,7 +22,7 @@ import { tex } from './atlas';
 import { TILE } from './world';
 import { P } from '../../art/palette';
 import { NEEDS, WAGES, type StaffRole } from '../content/balance';
-import { placePlaque } from './juiceMath';
+import { placePlaque, escSlot } from './juiceMath';
 
 const hex = (h: string) => parseInt(h.slice(1), 16);
 const C = {
@@ -694,9 +694,13 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
     escs.push({ id: -1, t: 0, edge, ring, inner, pulse, mark, all });
   }
   const showEsc = (q: Esc, on: boolean) => { for (const sp of q.all) sp.visible = on; };
-  const markEscapee = (id: number) => {
+  /** a fresh escape event may take over the slot marked longest when all are busy (`steal`); the 0.25 s scan never
+   *  does, so with more escapees than slots the markers stay put instead of hopping between agents every scan */
+  const markEscapee = (id: number, steal = true) => {
     if (escs.some(q => q.id === id)) return;
-    const q = escs.find(e => e.id < 0) ?? escs[0];
+    const i = escSlot(escs, id, steal);
+    if (i < 0) return;
+    const q = escs[i];
     q.id = id; q.t = 0;
     layoutEsc(q, 0);
     fx('escapeeMark');
@@ -729,7 +733,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
     if (escScan >= 0.25) {
       escScan = 0;
       for (const q of escs) if (q.id >= 0 && !w.agents.some(a => a.id === q.id && a.state === 'escaping')) unmarkEscapee(q.id);
-      for (const a of w.agents) if (a.state === 'escaping' && !(a.flags & 192)) markEscapee(a.id);
+      for (const a of w.agents) if (a.state === 'escaping' && !(a.flags & 192)) markEscapee(a.id, false);
     }
     for (const q of escs) if (q.id >= 0) layoutEsc(q, dt);
   };
