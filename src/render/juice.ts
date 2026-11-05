@@ -8,6 +8,8 @@
  * - unlock / star / objective: short (≤ 1.5 s) screen-space confetti bursts; star + milestone shake (settings.shake)
  * - taps (horn, stamp, crates, escapee, rangler): ring at the finger + squash of the target, failed taps a small coral ring
  * - need plaques over rascals (hungry / tired / dirty / bored), sparingly: the lowest needs only, at most 8
+ * - spoon-tunnel escapee (USP 4): a pulsing coral ring at its feet + a coral "!" plaque above it from 'tunnel' until
+ *   'caught' / 'escaped' (constant screen size, follows the smoothed agent position) – the player sees whom to tap
  * Fixed pools (no per-frame allocation), all sprites from the one atlas (+ one BitmapFont page), no DOM writes.
  * Test hooks: window.__fxLog [{kind, t, frame}] (cap 300), window.__fxFrame (index of the frame being prepared),
  * window.__fxInput {t, frame} (last pointer input).
@@ -20,6 +22,7 @@ import { tex } from './atlas';
 import { TILE } from './world';
 import { P } from '../../art/palette';
 import { NEEDS, WAGES, type StaffRole } from '../content/balance';
+import { placePlaque } from './juiceMath';
 
 const hex = (h: string) => parseInt(h.slice(1), 16);
 const C = {
@@ -31,6 +34,9 @@ const FONT = 'RrlNum';
 const LOG_CAP = 300;
 /** plaques / badges / need icons keep a constant on-screen height (STYLE_GUIDE §7: ≥ 14 px) */
 const PLAQUE_PX = 22, NEED_PX = 24, BADGE_PX = 34;
+/** escapee marker: "!" plaque at the need-icon size, ground ring diameter (screen px) */
+const ALERT_PX = 26, ESC_RING_PX = 44;
+const MAX_ESC = 2;
 const MAX_NEEDS = 8;
 const TAP_CMDS = new Set(['tapHorn', 'stamp', 'tapCrates', 'tapEscapee', 'tapRangler']);
 const NEED_TEX: Record<Need, string> = { hunger: 'needHunger', energy: 'needEnergy', hygiene: 'needHygiene', fun: 'needFun' };
@@ -116,7 +122,15 @@ class Pool {
   }
 }
 
-interface Float { c: Container; l: Sprite; n: Sprite; m: Sprite; r: Sprite; txt: BitmapText; on: boolean; t: number; life: number; x: number; y: number }
+interface Float {
+  c: Container; l: Sprite; n: Sprite; m: Sprite; r: Sprite; txt: BitmapText; on: boolean;
+  /** t: age (s); life: when it is gone (extended by merges); base: the original life (rise + fade length) */
+  t: number; life: number; base: number;
+  /** pt: pop age (restarted by a merge) */
+  pt: number;
+  /** x/y: base point (world), level: slot in the stack at that spot (lifted by level × 26 px) */
+  x: number; y: number; level: number; amount: number; src: string;
+}
 interface Badge { c: Container; b: Sprite; txt: BitmapText; on: boolean; t: number; life: number; x: number; y: number }
 interface RoomPop { items: Container[] | null; t: number; grow: boolean; signs: number[]; /** index of the first furniture sprite (walls come first) */ furn: number }
 interface PropSquash { s: Sprite; t: number; amp: number }
@@ -148,7 +162,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
   const T = (n: string) => tex(n);
   const tx = {
     ring: T('fxRing'), spark: T('sparkle'), star: T('fxStar'), hat: T('hatToss'), puff: T('puff'), conf: T('confetti'), coin: T('coin'),
-    scaffold: T('scaffold'), badge: T('lvlBadge'), plqL: T('plqL'), plqM: T('plqM'), plqR: T('plqR'),
+    scaffold: T('scaffold'), badge: T('lvlBadge'), plqL: T('plqL'), plqM: T('plqM'), plqR: T('plqR'), alert: T('alertMark'),
   };
   const needTex: Record<Need, Texture> = { hunger: T(NEED_TEX.hunger), energy: T(NEED_TEX.energy), hygiene: T(NEED_TEX.hygiene), fun: T(NEED_TEX.fun) };
 
@@ -224,36 +238,55 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
     const txt = new BitmapText({ text: '0', style: { fontFamily: FONT, fontSize: 19 } });
     txt.anchor.set(0, 0.5); txt.position.set(1, 0.5); txt.tint = C.ink;
     c.addChild(l, n, m, r, txt);
-    floats.push({ c, l, n, m, r, txt, on: false, t: 0, life: 1, x: 0, y: 0 });
+    floats.push({ c, l, n, m, r, txt, on: false, t: 0, life: 1, base: 1, pt: 0, x: 0, y: 0, level: 0, amount: 0, src: '' });
   }
   let floatNext = 0;
-  const floatText = (x: number, y: number, amount: number) => {
-    const v = Math.round(amount);
-    if (v === 0) return;
-    let f = floats.find(q => !q.on);
-    if (!f) { f = floats[floatNext]; floatNext = (floatNext + 1) % floats.length; }
-    const neg = v < 0;
+  const setFloatText = (f: Float) => {
+    const v = f.amount, neg = v < 0;
     f.txt.text = (neg ? '\u2212' : '+') + ctx.fmt(Math.abs(v));
     f.txt.tint = neg ? C.brick : C.ink;
     const tw = Math.ceil(f.txt.width) + 2;
     f.l.visible = !neg; f.n.visible = neg;
     f.m.width = tw; f.r.position.set(tw, 0);
     f.c.pivot.set(neg ? tw / 2 : (tw - 14) / 2, 0);
-    // stack on top of a plaque that just started at the same spot (e.g. refund + rebuild, two incomes at once)
-    let lift = 0;
-    for (const q of floats) if (q.on && q !== f && q.t < 0.6 && Math.abs(q.x - x) < 48 && Math.abs(q.y - (y - lift)) < 20) lift += 26 / zoom();
-    f.on = true; f.t = 0; f.life = neg ? 1.3 : 1.15; f.x = x; f.y = y - lift;
+  };
+  /**
+   * `src` groups plaques that may merge (same source + sign, started < 300 ms ago at the same spot: e.g. a night skip
+   * paying several incomes in one frame) – the merged plaque shows the sum and pops again. At most 3 stack at one spot.
+   */
+  const floatText = (x: number, y: number, amount: number, src = 'misc') => {
+    const v = Math.round(amount);
+    if (v === 0) return;
+    const act = placePlaque(floats, src, x, y, v);
+    let f: Float;
+    if (act.kind === 'merge') {
+      f = floats[act.index];
+      f.amount += v; f.pt = 0; f.life = Math.max(f.life, f.t + f.base * 0.8);
+      setFloatText(f); layoutFloat(f);
+      fx('coinsMerge');
+      return;
+    }
+    if (act.kind === 'replace') f = floats[act.index];
+    else {
+      const free = floats.find(q => !q.on);
+      if (free) f = free; else { f = floats[floatNext]; floatNext = (floatNext + 1) % floats.length; }
+    }
+    const neg = v < 0;
+    f.amount = v; f.src = src; f.level = act.level;
+    setFloatText(f);
+    f.on = true; f.t = 0; f.pt = 0; f.base = f.life = neg ? 1.3 : 1.15; f.x = x; f.y = y;
     f.c.visible = true;
     layoutFloat(f);
     fx(neg ? 'coinsSpent' : 'coinsFloat');
   };
   const layoutFloat = (f: Float) => {
-    const k = f.t / f.life;
     const z = zoom(), sc = PLAQUE_PX / 24 / z;
-    const pop = f.t < 0.18 ? 0.5 + 0.5 * Math.sin((f.t / 0.18) * Math.PI / 2) * 1.12 : f.t < 0.3 ? 1.06 - (f.t - 0.18) / 0.12 * 0.06 : 1;
+    const pop = f.pt < 0.18 ? 0.5 + 0.5 * Math.sin((f.pt / 0.18) * Math.PI / 2) * 1.12 : f.pt < 0.3 ? 1.06 - (f.pt - 0.18) / 0.12 * 0.06 : 1;
     f.c.scale.set(sc * pop);
-    f.c.position.set(f.x, f.y - (1 - Math.pow(1 - Math.min(1, k * 1.4), 2)) * 26 / z * 1.2);
-    f.c.alpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+    const rise = 1 - Math.pow(1 - Math.min(1, (f.t / f.base) * 1.4), 2);
+    f.c.position.set(f.x, f.y - f.level * 26 / z - rise * 26 / z * 1.2);
+    const fade = f.base * 0.3;
+    f.c.alpha = f.t < f.life - fade ? 1 : Math.max(0, (f.life - f.t) / fade);
   };
 
   // ------------------------------------------------------------------ level badges
@@ -478,7 +511,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
         const amount = Number(e.amount) || 0;
         if (typeof e.x === 'number' && typeof e.y === 'number') {
           const x = e.x * TILE, y = e.y * TILE - 34;
-          floatText(x, y, amount);
+          floatText(x, y, amount, `coins:${String(e.kind)}`);
           if (amount >= 40) { const s = toScreen(x, y); flyCoins(s.x, s.y, Math.max(2, Math.min(8, Math.round(amount / 40)))); }
         } else if (amount >= 40) {
           // objective rewards etc. come from the clipboard
@@ -541,6 +574,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       case 'happytime': if (e.reason === 'firstRelease') celebrate('first'); return;
       case 'admit': { const a = agentPt(e.id); if (a) { sparkles(wp, a.x, a.y - 10, 2, 6, C.mint, 0.5, 0.8); } return; }
       case 'caught': case 'calmed': {
+        if (e.type === 'caught' && typeof e.id === 'number') unmarkEscapee(e.id);
         const a = agentPt(e.id); if (!a) return;
         if (typeof e.id === 'number') view.agentView(e.id)?.squash();
         ring(wp, a.x, a.y, e.type === 'caught' ? C.gold : C.mint, 0.3, 1.5, 0.45);
@@ -555,7 +589,11 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
         if (a) { puffs(a.x, a.y + 12, 6, 10, 4, 0xffffff, 12); sparkles(wp, a.x, a.y - 10, 4, 10, C.cream, 0.6, 1); if (fee) floatText(a.x, a.y - 20, -fee); }
         fx('hire'); return;
       }
-      case 'tunnel': if (typeof e.x === 'number' && typeof e.y === 'number') { puffs(e.x * TILE, e.y * TILE, 8, 10, 5, C.wood, 14); fx('tunnel'); } return;
+      case 'tunnel':
+        if (typeof e.x === 'number' && typeof e.y === 'number') { puffs(e.x * TILE, e.y * TILE, 8, 10, 5, C.wood, 14); fx('tunnel'); }
+        if (typeof e.id === 'number') markEscapee(e.id);
+        return;
+      case 'escaped': if (typeof e.id === 'number') unmarkEscapee(e.id); return;
       case 'foodFight': { const c = roomCentre(Number(e.roomId)); if (c) { puffs(c.x, c.y, 8, c.r.w * TILE / 3, c.r.h * TILE / 3, C.creamD, 18); fx('foodFight'); } return; }
       case 'star': celebrate('star', hudPoint('.pill.stars')); return;
       case 'unlock': { const bb = hudPoint('[data-hud="bottom"]'); celebrate('unlock', { x: ctx.cam.viewW / 2, y: (bb ? bb.y : ctx.cam.viewH) - 60 }); return; }
@@ -640,6 +678,62 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
     }
   };
 
+  // ------------------------------------------------------------------ spoon-tunnel escapee marker (USP 4 readability)
+  // one ground ring (steady pulse, flattened like a shadow), one expanding pulse ring and the "!" plaque per slot;
+  // all atlas sprites in the need layer → batched with the need icons (no extra draw call)
+  interface Esc { id: number; t: number; edge: Sprite; ring: Sprite; inner: Sprite; pulse: Sprite; mark: Sprite; all: Sprite[] }
+  const escs: Esc[] = [];
+  const EDGE = hex(P.brick900);
+  for (let i = 0; i < MAX_ESC; i++) {
+    // ground ring = dark brick-900 edge + two coral strokes (reads on cobbles, grass and sand alike)
+    const edge = new Sprite(tx.ring), ring = new Sprite(tx.ring), inner = new Sprite(tx.ring), pulse = new Sprite(tx.ring), mark = new Sprite(tx.alert);
+    const all = [edge, ring, inner, pulse, mark];
+    for (const r of [edge, ring, inner, pulse]) r.anchor.set(0.5); // the "!" plaque keeps its atlas anchor (tail tip)
+    edge.tint = EDGE; ring.tint = C.coral; inner.tint = C.coral; pulse.tint = C.coral;
+    for (const sp of all) { sp.visible = false; needLayer.addChild(sp); }
+    escs.push({ id: -1, t: 0, edge, ring, inner, pulse, mark, all });
+  }
+  const showEsc = (q: Esc, on: boolean) => { for (const sp of q.all) sp.visible = on; };
+  const markEscapee = (id: number) => {
+    if (escs.some(q => q.id === id)) return;
+    const q = escs.find(e => e.id < 0) ?? escs[0];
+    q.id = id; q.t = 0;
+    layoutEsc(q, 0);
+    fx('escapeeMark');
+  };
+  const unmarkEscapee = (id: number) => { for (const q of escs) if (q.id === id) { q.id = -1; showEsc(q, false); } };
+  const layoutEsc = (q: Esc, dt: number) => {
+    const d = q.id >= 0 ? view.agentPos(q.id) : null;
+    if (!d) { showEsc(q, false); return; }
+    q.t += dt;
+    const z = zoom(), t = q.t, base = ESC_RING_PX / 42 / z, flat = 0.55;
+    // ground ring: ~44 px wide on screen at every zoom, breathing ±8 %
+    const rs = base * (1 + Math.sin(t * 7) * 0.08);
+    q.edge.scale.set(rs * 1.04, rs * flat * 1.06); q.edge.position.set(d.x, d.y + 2); q.edge.alpha = 0.7;
+    q.ring.scale.set(rs, rs * flat); q.ring.position.set(d.x, d.y + 1);
+    q.inner.scale.set(rs * 0.93, rs * flat * 0.93); q.inner.position.set(d.x, d.y + 1);
+    // pulse: grows from the ring to 1.9× and fades, every 0.8 s
+    const k = (t % 0.8) / 0.8, ps = base * (1 + k * 0.9);
+    q.pulse.scale.set(ps, ps * flat); q.pulse.position.set(d.x, d.y + 1); q.pulse.alpha = 0.9 * (1 - k);
+    // "!" plaque right above the head: pop-in, then a quick heartbeat + hop
+    const pop = t < 0.25 ? Math.sin((t / 0.25) * Math.PI / 2) * 1.15 : 1;
+    const beat = 1 + Math.max(0, Math.sin(t * 9)) * 0.12;
+    q.mark.scale.set((ALERT_PX / 34 / z) * pop * beat);
+    q.mark.position.set(d.x, d.y - 38 - Math.abs(Math.sin(t * 6)) * 3 / z);
+    showEsc(q, true);
+  };
+  let escScan = 0;
+  const updateEscapees = (dt: number) => {
+    // also covers a tunnel that started before this view existed (save loaded mid-event) or a missed end event
+    escScan += dt;
+    if (escScan >= 0.25) {
+      escScan = 0;
+      for (const q of escs) if (q.id >= 0 && !w.agents.some(a => a.id === q.id && a.state === 'escaping')) unmarkEscapee(q.id);
+      for (const a of w.agents) if (a.state === 'escaping' && !(a.flags & 192)) markEscapee(a.id);
+    }
+    for (const q of escs) if (q.id >= 0) layoutEsc(q, dt);
+  };
+
   // ------------------------------------------------------------------ frame
   const juice: Juice = {
     tap,
@@ -648,7 +742,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       seaPool.update(dt); wp.update(dt); sp.update(dt);
       for (const f of floats) {
         if (!f.on) continue;
-        f.t += dt;
+        f.t += dt; f.pt += dt;
         if (f.t >= f.life) { f.on = false; f.c.visible = false; continue; }
         layoutFloat(f);
       }
@@ -662,6 +756,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       for (const q of props) stepSquash(q, dt);
       updateScaffolds(dt);
       updateNeeds(dt);
+      updateEscapees(dt);
       if (shakeT < 0.4) {
         shakeT += dt;
         const k = Math.min(1, shakeT / 0.4), a = shakeAmp * (1 - k) * (1 - k);
@@ -679,6 +774,6 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       for (const s of scaffolds) s.destroy();
     },
   };
-  win.__juice = { stats: () => ({ world: wp.active, screen: sp.active, sea: seaPool.active, floats: floats.filter(f => f.on).length, needs: needSpr.filter(s => s.visible).length }), celebrate, juice };
+  win.__juice = { stats: () => ({ world: wp.active, screen: sp.active, sea: seaPool.active, floats: floats.filter(f => f.on).length, plaques: floats.filter(f => f.on).map(f => ({ x: f.x, y: f.y, level: f.level, amount: f.amount, src: f.src, t: f.t })), needs: needSpr.filter(s => s.visible).length, escapees: escs.filter(q => q.id >= 0).map(q => q.id) }), celebrate, juice };
   return juice;
 }

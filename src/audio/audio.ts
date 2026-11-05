@@ -1,19 +1,21 @@
 /**
  * Audio runtime (Brief §8.4, §11.1, §12.6, §12.8): mounts the WebAudio mixer (mixer.ts) into the app.
- * - loading: the INITIAL bundle + music loop 1 right away (fetch, never awaited → never blocks boot or gameplayStart),
+ * - loading: the INITIAL bundle + musicDayLo (16 kbps stand-in of music loop 1) + musicDay right away (fetch, never
+ *   awaited → never blocks boot or gameplayStart),
  *   the rest after the first gameplayStart (or 3 s). Only files that exist in public/audio are requested (build-time
  *   glob), so missing assets never produce a 404 or console error; decode failures are swallowed.
  * - unlock: the AudioContext is created/resumed inside the first user gesture (capture listeners on window, incl.
  *   click/touchend for iOS). Music and ambience start with that first tap, never before.
  * - mute: SDK muteAudio > settings.mute > volumes; hidden tab ducks master fast (no gameplayStop); ads use setMuted('ad').
- * - music/ambience follow the sim clock (day/evening/night) and the crowd, updated ≤ 4×/s.
+ * - music/ambience follow the sim clock (day/evening/night) and the crowd, updated ≤ 4×/s. Until musicDay is decoded the
+ *   first tap starts musicDayLo; once musicDay arrives it takes over at the same loop phase with a LO_XFADE cross-fade.
  * - every play() is logged to window.__audioLog [{id, t, ctxState, src, inputT, skip?}] (cap 200).
  */
 import type { UICtx, Component } from '../ui/ctx';
 import type { Platform } from '../platform/platform';
 import type { Settings } from '../save/serialize';
 import { hourOf, isNight } from '../sim/time';
-import { INITIAL, LOOPS, MUSIC, SFX, type SoundId } from './manifest';
+import { INITIAL, INITIAL_MUSIC, LOOPS, LO_OF, MUSIC, MUSIC_LO, SFX, type SoundId } from './manifest';
 import { Mixer, resolveId, type CtxLike, type BufferLike, type LoopPoints, type MuteReason } from './mixer';
 import { cueFor } from './events';
 
@@ -31,12 +33,14 @@ export interface Audio extends Component {
 // files present at build time (keys only – nothing is bundled or fetched by the glob itself)
 const PRESENT = new Set(Object.keys(import.meta.glob('../../public/audio/*.mp3')).map(k => k.slice(k.lastIndexOf('/') + 1, -4)));
 // dev only: ?audioAll requests every manifest id (e2e serves the files through a route)
-if (import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('audioAll')) for (const id of [...SFX, ...LOOPS, ...MUSIC]) PRESENT.add(id);
+if (import.meta.env.DEV && typeof location !== 'undefined' && new URLSearchParams(location.search).has('audioAll')) for (const id of [...SFX, ...LOOPS, ...MUSIC, ...MUSIC_LO]) PRESENT.add(id);
 const LOOP_JSON = Object.values(import.meta.glob('../../public/audio/loops.json', { eager: true, import: 'default' }))[0] as Record<string, LoopPoints> | undefined;
 
 /** loading order after gameplayStart: ambience beds first (they start with the first tap), then events, then night/evening */
 const LATER: SoundId[] = ['ambWaves', 'ambGulls', ...SFX.filter(s => !INITIAL.includes(s)), 'ambMurmur', 'musicEvening', 'ambClatter', 'ambCrickets'];
 const PHASE2_FALLBACK_MS = 3000;
+/** low-quality stand-in → full track cross-fade (s); track changes (day ↔ evening) use MUSIC_XFADE */
+const LO_XFADE = 1.5, MUSIC_XFADE = 3;
 const CONCURRENCY = 3;
 /** ambient crate-stacking clack at most every 4 s (several workshops stack constantly) */
 const STACK_GAP_MS = 4000;
@@ -97,7 +101,7 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     }
     pump();
   };
-  load([...INITIAL, 'musicDay']);
+  load([...INITIAL, ...INITIAL_MUSIC, 'musicDay']);
   let phase2 = false;
   const startPhase2 = () => {
     if (phase2) return;
@@ -175,9 +179,20 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     if (!mixer.unlocked) return;
     const h = hourOf(w.t), night = isNight(w.t), evening = night || h >= 18;
     // music: day ↔ evening crossfade; the evening track waits until it is loaded
-    let want = musicOverride ?? (evening ? 'musicEvening' : 'musicDay');
+    let want: string = musicOverride ?? (evening ? 'musicEvening' : 'musicDay');
     if (!mixer.buffers.has(want) && !musicOverride) want = mixer.buffers.has('musicDay') ? 'musicDay' : want;
-    for (const m of MUSIC) mixer.setLoop(m, m === want ? 1 : 0, 3);
+    // not decoded yet: its low-quality stand-in plays (also as the fallback while the evening track is loading)
+    const lo = LO_OF[want as keyof typeof LO_OF] ?? (musicOverride ? undefined : LO_OF.musicDay);
+    const useLo = !mixer.buffers.has(want) && !!lo && mixer.buffers.has(lo) ? lo : null;
+    if (useLo) want = useLo;
+    for (const l of MUSIC_LO) {
+      // hand-over: the full track starts at the stand-in's current loop phase, both fade over LO_XFADE
+      const full = MUSIC.find(m => LO_OF[m] === l);
+      const handover = full === want && mixer.loopPlaying(l) && !mixer.loopPlaying(full);
+      if (handover) mixer.setLoop(full, 1, LO_XFADE, mixer.loopPhase(l));
+      mixer.setLoop(l, l === want ? 1 : 0, l === want || handover || full === want ? LO_XFADE : MUSIC_XFADE);
+    }
+    for (const m of MUSIC) mixer.setLoop(m, m === want ? 1 : 0, MUSIC_XFADE);
     // ambience beds
     let residents = 0, eaters = 0, brawl = 0;
     for (const a of w.agents) {

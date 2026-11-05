@@ -33,10 +33,10 @@ export function decode(file: string, opts: { start?: number; dur?: number; filte
 }
 
 /** encode mono float to CBR MP3 (bit-exact flags → reproducible output). */
-export function encodeMp3(x: Float32Array, out: string, kbps: number): void {
+export function encodeMp3(x: Float32Array, out: string, kbps: number, outSr = SR): void {
   const buf = Buffer.from(x.buffer, x.byteOffset, x.byteLength);
   run(FFMPEG, ['-v', 'error', '-y', '-f', 'f32le', '-ar', String(SR), '-ac', '1', '-i', '-',
-    '-c:a', 'libmp3lame', '-b:a', `${kbps}k`, '-ar', String(SR), '-ac', '1',
+    '-c:a', 'libmp3lame', '-b:a', `${kbps}k`, '-ar', String(outSr), '-ac', '1',
     '-map_metadata', '-1', '-id3v2_version', '0', '-write_id3v1', '0',
     '-fflags', '+bitexact', '-flags:a', '+bitexact', out], buf);
 }

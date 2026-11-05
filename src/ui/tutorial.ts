@@ -9,13 +9,18 @@
  *      2 stamp   → follows Earl while he showers, then taps the Parole Gate (cmd.stamp in tools.ts)
  *      3 upgrade → the Canteen, then the first upgrade button of its room panel
  *  - Speech bubble of the badger warden: the step text from the base table (`tut.*`, ≤ 8 words incl. the optional wait
- *    line, D1), progress "1/4" and a permanent "Skip tutorial" button styled like the clipboard buttons.
+ *    line, D1), progress "1/4" and a permanent "Skip tutorial" button styled like the clipboard buttons (while it shows,
+ *    the clipboard hides its own Skip: one Skip on screen). It never covers the target, the room the step is about, the
+ *    clipboard, the controls overlay, an open panel / menu / tool layer or a toast; with no free spot it shrinks to dots +
+ *    Skip, and only as a last resort steps aside (then the clipboard's Skip is back).
  *  - Dimming: a veil with a soft cut-out around the target dims the rest of the UI and the world. It never takes
  *    pointer events, the sim keeps running.
- *  - Controls overlay: the first 20 s of a fresh game, bottom left, mouse or touch variant. Fades out; the help modal
+ *  - Controls overlay: the first 20 s of a fresh game, bottom left (row, 2 × 2 or one column – whichever fits beside
+ *    the ferry and the build bar; else left under the clipboard), mouse or touch variant. Fades out; the help modal
  *    (H key / "?" button in the top bar, both already exist) brings the full list back.
  *  - Just-in-time tips after the tutorial: ≤ 1 per 30 s, a small non-blocking chip under the clipboard that hides
- *    itself after a few seconds; tapping it shows the spot. Driven by world state (jitPick, pure and unit tested).
+ *    itself after a few seconds or as soon as its reason is gone (jitStillValid); tapping it shows the spot. Driven by
+ *    world state (jitPick / jitStillValid, pure and unit tested).
  *
  * Reads only ctx.w, writes only through ctx.cmd; sim events arrive through ctx.onEvent. Every text comes from ctx.t.
  */
@@ -116,6 +121,18 @@ export function jitPick(w: World, m: JitMemo, nowMs: number, opts: { buildTool: 
   }
   return null;
 }
+/**
+ * Is a tip that is on screen still true? A shown tip is dropped as soon as its world condition ends (horn tapped,
+ * escapee caught or gone, crates sold, queue cleared, room built …) instead of lingering for its full show time.
+ * `pick` narrows it to the room / agent the tip points at; `drag` depends on the build tool (true when unknown).
+ */
+export function jitStillValid(w: World, kind: JitKind, pick?: Pick<JitPick, 'roomId' | 'agentId'>, opts?: { buildTool?: boolean }): boolean {
+  if (kind === 'drag' && opts?.buildTool === undefined) return true;
+  if (kind === 'escape' && pick?.agentId !== undefined) return w.agents.some(a => a.id === pick.agentId && a.state === 'escaping');
+  if (kind === 'queue' && pick?.roomId !== undefined) return w.rooms.some(r => r.id === pick.roomId && r.built && r.queueUsers.length >= 3);
+  if (kind === 'crates' && pick?.roomId !== undefined) return w.rooms.some(r => r.id === pick.roomId && r.built && r.stack >= 4);
+  return jitConditions(w, !!opts?.buildTool).some(c => c.kind === kind);
+}
 export function jitShown(m: JitMemo, kind: JitKind, nowMs: number) { m.lastMs = nowMs; m.kindMs[kind] = nowMs; m.count[kind] = (m.count[kind] ?? 0) + 1; }
 
 // ------------------------------------------------------------------------------------------------ icons (inline, palette)
@@ -176,7 +193,10 @@ export function mountTutorial(ctx: UICtx): Component {
   const stage = h('div', 'tu', ctx.root);
   stage.dataset.overlay = '';
   if (ctx.touch) stage.classList.add('tu--touch');
-  const veil = h('div', 'tu-veil', stage);
+  // the veil is far larger than the screen (its soft hole follows the target): it gets its own text-free clip box, so
+  // the stage itself never overflows (a clipping box around text must not scroll – B1 layout audit)
+  const veilBox = h('div', 'tu-veil-box', stage);
+  const veil = h('div', 'tu-veil', veilBox);
   const ghost = h('button', 'tu-ghost', stage); ghost.type = 'button';
   const ghostIc = h('img', 'tu-ghost-ic', ghost); ghostIc.src = ctx.icon('shower'); ghostIc.alt = ''; ghostIc.draggable = false;
   const ghostLbl = h('span', 'tu-ghost-lbl', stage);
@@ -234,7 +254,12 @@ export function mountTutorial(ctx: UICtx): Component {
   let curAim: Aim | null = null;
   let elAim: { key: string; box: DOMRect } | null = null;  // element target, re-measured ≤ 10/s
   let handPos: { x: number; y: number } | null = null, glideFrom: { x: number; y: number } | null = null, glide = 1, lastKey = '';
-  let bubPos: { x: number; y: number } | null = null, bubWant = { x: 16, y: 80 }, bubSize = { w: 300, h: 100 };
+  let bubPos: { x: number; y: number } | null = null, bubWant = { x: 16, y: 80 }, bubAway = false;
+  /** full bubble · mini (dots + Skip beside the warden) · stack (dots over Skip, no warden) – measured sizes */
+  type BubMode = 'full' | 'mini' | 'stack';
+  const BUB_MODES: BubMode[] = ['full', 'mini', 'stack'];
+  const bubSizes: Record<BubMode, { w: number; h: number } | null> = { full: null, mini: null, stack: null };
+  let bubMode: BubMode = 'full', bubSizesKey = '';
   let shownStep = -1;
   let ending = 0;                         // ms left of the fade-out after the tutorial ended
   const jm = newJitMemo();
@@ -243,11 +268,13 @@ export function mountTutorial(ctx: UICtx): Component {
   let buildToolSeen = false;
   let freeTop = 50, freeBottom = 600, clipBox: Box | null = null, ctlBox: Box | null = null, avoid: Box[] = [];
   let skipped = false;
-  let ctlSide: 'l' | 'r' = 'l', ctlBusy = false;
+  let ctlBusy = false;
+  let clipOpen = false;                   // compact: the clipboard card is expanded over the world (it has its own Skip)
 
   const step = (): Step => TUTORIAL_STEPS[Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, w.tutorial.step))];
   const active = () => w.tutorial.active && !skipped;
-  const vis = (el: Element | null): el is HTMLElement => !!el && el.getClientRects().length > 0 && (typeof (el as HTMLElement).checkVisibility !== 'function' || (el as HTMLElement).checkVisibility({ opacityProperty: true, visibilityProperty: true }));
+  /** laid out and not visibility:hidden – a layer that is still fading in (opacity animation) already counts */
+  const shown = (el: Element | null): el is HTMLElement => !!el && el.getClientRects().length > 0 && (typeof (el as HTMLElement).checkVisibility !== 'function' || (el as HTMLElement).checkVisibility({ visibilityProperty: true }));
   const bestRoom = (type: RoomType) => w.rooms.filter(r => r.type === type).sort((a, b) => Number(b.built) - Number(a.built) || b.level - a.level || a.id - b.id)[0];
   const washCost = () => roomCost('wash', TUTORIAL_WASH.w, TUTORIAL_WASH.h);
   const ghostOk = () => !ghostFailed && step() === 'wash' && !w.rooms.some(r => r.type === 'wash') && !!w.unlocked.wash && w.coins >= washCost()
@@ -268,8 +295,12 @@ export function mountTutorial(ctx: UICtx): Component {
   ghost.addEventListener('pointerdown', e => e.stopPropagation());
   ghost.addEventListener('click', e => {
     e.stopPropagation();
+    // answer the tap at once (mixer.play ≤ 1 frame after the input, Brief §12.6): the spot and the price are checked
+    // first (cheap), the build command with its path-field rebuild follows
+    const sure = ghostOk();
+    if (sure) ctx.sound('build');
     const r = ctx.cmd.build(w, 'wash', TUTORIAL_WASH.x, TUTORIAL_WASH.y, TUTORIAL_WASH.w, TUTORIAL_WASH.h);
-    if (r.ok) ctx.sound('build');
+    if (r.ok) { if (!sure) ctx.sound('build'); }
     else { ghostFailed = true; ctx.feedback(r); }
     ghostOn = false; acc = TICK_MS;
   });
@@ -318,9 +349,9 @@ export function mountTutorial(ctx: UICtx): Component {
       else if (!ghostOn) { el = document.querySelector('.bb-rooms'); key = 'rooms'; }
     } else if (s === 'upgrade') {
       const c = bestRoom('canteen'), sel = ctx.selection.get();
-      if (c && sel?.kind === 'room' && sel.id === c.id) { el = [...document.querySelectorAll('.pn:not([hidden]) .pn-upbtn')].find(vis) ?? null; key = 'up'; }
+      if (c && sel?.kind === 'room' && sel.id === c.id) { el = [...document.querySelectorAll('.pn:not([hidden]) .pn-upbtn')].find(shown) ?? null; key = 'up'; }
     }
-    if (el && vis(el)) elAim = { key, box: el.getBoundingClientRect() };
+    if (el && shown(el)) elAim = { key, box: el.getBoundingClientRect() };
   }
   /** the aim of this frame: world targets are projected every frame, element targets use the last measurement */
   function aimNow(): Aim | null {
@@ -361,9 +392,16 @@ export function mountTutorial(ctx: UICtx): Component {
     return null;
   };
 
-  // ---------------------------------------------------------------- layout (≤ 10/s)
-  const boxOf = (el: Element | null): Box | null => { if (!vis(el)) return null; const b = el.getBoundingClientRect(); return b.width > 0 ? { l: b.left, t: b.top, r: b.right, b: b.bottom } : null; };
+  // ---------------------------------------------------------------- layout (≤ 10/s, plus once on every HUD change)
+  const boxOf = (el: Element | null): Box | null => { if (!shown(el)) return null; const b = el.getBoundingClientRect(); return b.width > 0 ? { l: b.left, t: b.top, r: b.right, b: b.bottom } : null; };
   const inter = (a: Box, b: Box) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+  const pad = (b: Box, p: number): Box => ({ l: b.l - p, t: b.t - p, r: b.r + p, b: b.b + p });
+  /** the target itself (what the bubble and the controls overlay must never cover) */
+  const aimBox = (a: Aim): Box => ({ l: a.x - a.r - 4, t: a.y - a.r - 4, r: a.x + a.r + 4, b: a.y + a.r + 4 });
+  /** the hand pointer, drawn from the target towards the lower right */
+  const handBox = (a: Aim): Box => ({ l: a.x - 8, t: a.y - 8, r: a.x + 64, b: a.y + 70 });
+  /** HUD layers the bubble keeps clear of (the open room panel, menus, tool chips/confirmations, toasts) */
+  const AVOID_SEL = ['.bb-menu', '.pn', '.tl-chip', '.tl-confirm', '.tl-label', '.tl-bubble', '.ov-toasts'];
   function layout() {
     const vh = innerHeight;
     const tops = [...document.querySelectorAll('[data-hud="top"]')].map(boxOf).filter((b): b is Box => !!b);
@@ -371,54 +409,130 @@ export function mountTutorial(ctx: UICtx): Component {
     freeTop = (tops.length ? Math.max(...tops.map(b => b.b)) : 0) + 6;
     freeBottom = (bots.length ? Math.min(...bots.map(b => b.t)) : vh) - 6;
     clipBox = boxOf(document.querySelector('.cb-card')) ?? boxOf(document.querySelector('.cb-chip'));
-    avoid = [clipBox, ctlBox, ...['.bb-menu', '.pn', '.tl-chip', '.tl-confirm', '.tl-label', '.tl-bubble'].map(sel => boxOf(document.querySelector(`${sel}:not([hidden])`)))].filter((b): b is Box => !!b);
-    const bb = bub.getBoundingClientRect();
-    if (bb.width > 0) bubSize = { w: bb.width, h: bb.height };
+    // 6 px of slack: panels and toasts slide in by a few px, the box is measured mid-animation at worst
+    avoid = [clipBox, ...AVOID_SEL.map(sel => boxOf(document.querySelector(`${sel}:not([hidden])`)))].filter((b): b is Box => !!b).map(b => pad(b, 6));
   }
-  /** where the bubble wants to be: next to the target, inside the free play area, away from other HUD */
+  /** cheap per-frame fingerprint of the HUD layers in `avoid` – a change re-measures at once (not up to 100 ms later) */
+  let hudSig = '';
+  const hudSignature = () => {
+    const toasts = document.querySelector('.ov-toasts');
+    const sel = ctx.selection.get();
+    return `${toasts ? toasts.childElementCount : 0}|${document.querySelector('.pn:not([hidden])') ? 1 : 0}|${ctx.menu.get()}|${ctx.tool.get().kind}|${sel ? sel.kind + sel.id : ''}|${document.querySelector('.cb--open') ? 1 : 0}`;
+  };
+  const applyBubMode = (m: BubMode) => { cls(bub, 'mini', m !== 'full'); cls(bub, 'stack', m === 'stack'); };
+  /** sizes of the three bubble forms (full every tick – its text changes; the text-free forms once per language / size) */
+  function measureBubble() {
+    const tmp = !bub.classList.contains('on') && !bub.classList.contains('bye');
+    if (tmp) bub.classList.add('measure');            // laid out but invisible while it is away
+    const read = () => { const r = bub.getBoundingClientRect(); return r.width > 0 ? { w: r.width, h: r.height } : null; };
+    const key = `${ctx.lang()}|${innerWidth}x${innerHeight}`;
+    applyBubMode('full'); bubSizes.full = read() ?? bubSizes.full;
+    if (key !== bubSizesKey || !bubSizes.mini || !bubSizes.stack) {
+      applyBubMode('mini'); bubSizes.mini = read();
+      applyBubMode('stack'); bubSizes.stack = read();
+      bubSizesKey = key;
+    }
+    applyBubMode(bubMode);
+    if (tmp) bub.classList.remove('measure');
+  }
+  /** the room the current step is about stays visible too: the Wash Hut spot / the hut Earl showers in / the canteen */
+  const roomBox = (x: number, y: number, rw: number, rh: number): Box => {
+    const p = ctx.cam.worldToScreen(x * TILE, (y - 1.2) * TILE), q = ctx.cam.worldToScreen((x + rw) * TILE, (y + rh) * TILE); // incl. back wall / roof
+    return { l: p.x, t: p.y, r: q.x, b: q.y };
+  };
+  function focusBoxes(): Box[] {
+    if (!active()) return [];
+    const s = step();
+    if (s === 'wash') { const r = w.rooms.find(x => x.type === 'wash'); return [r ? roomBox(r.x, r.y, r.w, r.h) : roomBox(TUTORIAL_WASH.x, TUTORIAL_WASH.y, TUTORIAL_WASH.w, TUTORIAL_WASH.h + 0.9)]; }
+    if (s === 'stamp') return w.rooms.filter(r => r.type === 'wash').slice(0, 2).map(r => roomBox(r.x, r.y, r.w, r.h));
+    if (s === 'upgrade') { const c = bestRoom('canteen'); return c && ctx.selection.get() === null ? [roomBox(c.x, c.y, c.w, c.h)] : []; }
+    return [];
+  }
+  /**
+   * Where the bubble goes: near the target, inside the free play area, and NEVER over the target, the clipboard, the
+   * controls overlay, an open panel / menu / tool layer or a toast (hard rule). A dense grid of spots is searched, so a
+   * free spot is found whenever one exists. No free spot at full size → the bubble shrinks to progress dots + Skip
+   * (beside the warden, then stacked without him); still none → it steps aside until a spot is free again.
+   */
   function placeBubble(a: Aim | null) {
-    const vw = innerWidth, { w: bw, h: bh } = bubSize;
-    const clampX = (x: number) => Math.max(8, Math.min(vw - 8 - bw, x));
-    const clampY = (y: number) => Math.max(freeTop, Math.min(freeBottom - bh, y));
-    const cands: { x: number; y: number }[] = [];
-    if (a) {
-      const g = a.r + 30;
-      cands.push({ x: a.x + g, y: a.y - bh / 2 }, { x: a.x - g - bw, y: a.y - bh / 2 }, { x: a.x - bw / 2, y: a.y - g - bh }, { x: a.x - bw / 2, y: a.y + g + 40 },
-        { x: a.x + g, y: a.y - g - bh }, { x: a.x - g - bw, y: a.y - g - bh });
-    }
-    cands.push({ x: vw / 2 - bw / 2, y: freeTop + 8 }, { x: vw - bw - 16, y: freeTop + 8 }, { x: vw / 2 - bw / 2, y: freeBottom - bh - 8 });
-    const target: Box | null = a ? { l: a.x - a.r - 8, t: a.y - a.r - 8, r: a.x + a.r + 64, b: a.y + a.r + 70 } : null; // target + hand
-    let best = bubWant, bestS = Infinity;
-    for (const c0 of cands) {
-      const c = { x: clampX(c0.x), y: clampY(c0.y) };
-      const box: Box = { l: c.x, t: c.y, r: c.x + bw, b: c.y + bh };
-      let s = 0;
-      if (target) s += inter(box, target) * 6;
-      for (const o of avoid) s += inter(box, o) * 3;
-      if (a) s += Math.hypot(c.x + bw / 2 - a.x, c.y + bh / 2 - a.y) * 4;
-      // keep still: moving costs a little (no jitter between equal spots)
-      s += Math.hypot(c.x - bubWant.x, c.y - bubWant.y) * 2;
-      if (s < bestS) { bestS = s; best = c; }
-    }
-    bubWant = best;
+    const vw = innerWidth;
+    const hard = [...avoid, ...(ctlBox ? [pad(ctlBox, 4)] : []), ...(a ? [aimBox(a)] : []), ...focusBoxes()];
+    const hand = a ? handBox(a) : null;
+    const search = (bw: number, bh: number, strict: boolean) => {
+      if (bw <= 0 || bh <= 0) return null;
+      const x0 = 8, x1 = Math.max(x0, vw - 8 - bw), y0 = freeTop, y1 = Math.max(y0, freeBottom - bh);
+      const cands: { x: number; y: number }[] = [{ x: bubWant.x, y: bubWant.y }];
+      if (a) {
+        const g = a.r + 30;
+        cands.push({ x: a.x + g, y: a.y - bh / 2 }, { x: a.x - g - bw, y: a.y - bh / 2 }, { x: a.x - bw / 2, y: a.y - g - bh }, { x: a.x - bw / 2, y: a.y + g + 40 });
+      }
+      for (let y = y0; y <= y1 + 15; y += 16) for (let x = x0; x <= x1 + 15; x += 16) cands.push({ x: Math.min(x, x1), y: Math.min(y, y1) });
+      let best: { x: number; y: number } | null = null, bestS = Infinity;
+      for (const c0 of cands) {
+        const c = { x: Math.max(x0, Math.min(x1, c0.x)), y: Math.max(y0, Math.min(y1, c0.y)) };
+        const box: Box = { l: c.x, t: c.y, r: c.x + bw, b: c.y + bh };
+        let over = 0;
+        for (const o of hard) over += inter(box, o);
+        if (strict && over > 0) continue;
+        let s = over * 50;
+        if (hand) s += inter(box, hand) * 2;
+        if (a) s += Math.hypot(c.x + bw / 2 - a.x, c.y + bh / 2 - a.y) * 4;
+        s += Math.hypot(c.x - bubWant.x, c.y - bubWant.y) * 2;   // keep still: no jitter between equal spots
+        if (s < bestS) { bestS = s; best = c; }
+      }
+      return best;
+    };
+    let mode: BubMode = bubMode, spot: { x: number; y: number } | null = null;
+    for (const m of BUB_MODES) { const sz = bubSizes[m]; if (sz && (spot = search(sz.w, sz.h, true))) { mode = m; break; } }
+    // not even the smallest form has a free spot (phone with a menu / sheet and a toast open): the bubble steps aside
+    // until there is room again – then the clipboard card shows its own Skip (clipboard.css)
+    bubAway = !spot;
+    if (mode !== bubMode) { bubMode = mode; applyBubMode(mode); }
+    if (spot) bubWant = spot;
   }
+  /**
+   * Controls overlay (Brief §6.2: bottom left, first 20 s). Tried in this order, one row, 2 × 2 or one column, the first spot that
+   * covers neither the target (ferry + hand), the clipboard nor the build bar wins: bottom-left corner beside the build
+   * bar, bottom left above it, left under the clipboard; only then the right side.
+   */
+  type CtlLayout = 'row' | 'grid' | 'col';
+  const CTL_LAYOUTS: CtlLayout[] = ['row', 'grid', 'col'];
+  const applyCtlLayout = (l: CtlLayout) => { cls(ctl, 'grid', l === 'grid'); cls(ctl, 'col', l === 'col'); };
+  let ctlSizes: Record<CtlLayout, { w: number; h: number }> | null = null, ctlSizesKey = '', ctlSlot = '';
   function placeControls() {
     // a menu, a tool or a panel takes the screen: the controls overlay steps aside (its 20 s keep running)
     ctlBusy = ctx.menu.get() !== null || ctx.tool.get().kind !== 'none' || ctx.selection.get() !== null || modal;
     if (ctlLeft <= 0 || ctlBusy) { ctlBox = null; return; }
-    cls(ctl, 'grid', ctx.compact.get());       // compact: 2 × 2 so it fits beside the build bar
-    const vw = innerWidth, cb = ctl.getBoundingClientRect();
+    const vw = innerWidth, vh = innerHeight;
+    const key = `${ctx.lang()}|${vw}x${vh}`;
+    if (!ctlSizes || ctlSizesKey !== key) {
+      const size = (l: CtlLayout) => { applyCtlLayout(l); const r = ctl.getBoundingClientRect(); return { w: r.width, h: r.height }; };
+      ctlSizes = { row: size('row'), grid: size('grid'), col: size('col') };
+      ctlSizesKey = key; ctlSlot = '';
+    }
     const bar = boxOf(document.querySelector('[data-hud="bottom"]'));
-    const cw = cb.width, ch = cb.height;
-    // beside the build bar when there is room, else above it; mirrored to the right when it would cover the target
-    const fits = (side: 'l' | 'r') => !bar || (side === 'l' ? 8 + cw <= bar.l - 8 : vw - 8 - cw >= bar.r + 8);
-    const at = (side: 'l' | 'r') => { const x = side === 'l' ? 8 : vw - 8 - cw; return { x, y: fits(side) ? innerHeight - 8 - ch : freeBottom - ch }; };
-    const covers = (p: { x: number; y: number }) => !!curAim && inter({ l: p.x, t: p.y, r: p.x + cw, b: p.y + ch }, { l: curAim.x - curAim.r, t: curAim.y - curAim.r, r: curAim.x + curAim.r + 56, b: curAim.y + curAim.r + 56 }) > 0;
-    // bottom left (Brief §6.2); it moves to the right only while it would cover the target, and stays there (no ping-pong)
-    if (covers(at(ctlSide))) { const o = ctlSide === 'l' ? 'r' : 'l'; if (!covers(at(o))) ctlSide = o; }
-    const { x, y } = at(ctlSide);
-    put(ctl, 'transform', `translate(${Math.round(x)}px,${Math.round(y)}px)`);
-    ctlBox = { l: x, t: y, r: x + cw, b: y + ch };
+    const aim = aimNow();   // this tick's target (curAim is last frame's: stale right after a step change)
+    const blocks = [clipBox, bar, ...(aim ? [aimBox(aim), handBox(aim)] : [])].filter((b): b is Box => !!b).map(b => pad(b, 4));
+    const slots: [string, (s: { w: number; h: number }) => { x: number; y: number }][] = [
+      ['bl', s => ({ x: 8, y: vh - 8 - s.h })],
+      ['bla', s => ({ x: 8, y: freeBottom - s.h })],
+      ['lc', () => ({ x: 8, y: (clipBox ? clipBox.b : freeTop) + 10 })],
+      ['br', s => ({ x: vw - 8 - s.w, y: vh - 8 - s.h })],
+      ['bra', s => ({ x: vw - 8 - s.w, y: freeBottom - s.h })],
+    ];
+    const opts: { id: string; l: CtlLayout; box: Box; over: number }[] = [];
+    for (const [id, at] of slots) for (const l of CTL_LAYOUTS) {
+      const s = ctlSizes[l], p = at(s);
+      const box: Box = { l: p.x, t: p.y, r: p.x + s.w, b: p.y + s.h };
+      const outside = box.l < 8 || box.r > vw - 8 || box.t < freeTop || box.b > vh - 8;
+      opts.push({ id: `${id}:${l}`, l, box, over: outside ? Infinity : blocks.reduce((n, b) => n + inter(box, b), 0) });
+    }
+    // the most bottom-left free spot (the targets of the first 20 s – ferry dock, Wash Hut spot – do not move)
+    const pick = opts.find(o => o.over === 0) ?? opts.reduce((m, o) => (o.over < m.over ? o : m), opts[0]);
+    ctlSlot = pick.id;
+    applyCtlLayout(pick.l);
+    put(ctl, 'transform', `translate(${Math.round(pick.box.l)}px,${Math.round(pick.box.t)}px)`);
+    ctlBox = pick.box;
   }
   function placeJit() {
     const below = clipBox ? clipBox.b + 8 : freeTop + 50;
@@ -469,17 +583,19 @@ export function mountTutorial(ctx: UICtx): Component {
   function tick() {
     modal = [...document.querySelectorAll<HTMLElement>('[aria-modal="true"]')].some(el => !el.closest('[hidden]') && el.getClientRects().length > 0);
     ghostOn = active() && ghostOk() && ctx.tool.get().kind === 'none' && ctx.menu.get() === null;
+    clipOpen = !!document.querySelector('.cb--open');
     measureElAim();
     layout();
+    renderText();      // before measuring: the controls overlay and the bubble are sized by their texts
     placeControls();
-    renderText();
+    measureBubble();
     // just-in-time tips
     if (w.tutorial.done && clock - doneAt >= JIT_AFTER_TUTORIAL_MS) {
-      if (jitCur && clock >= jitCur.until) jitCur = null;
+      const buildTool = buildToolSeen && ctx.tool.get().kind === 'build';
+      if (jitCur && (clock >= jitCur.until || !jitStillValid(w, jitCur.kind, jitCur, { buildTool }))) jitCur = null;
       const busy = modal || ctx.paused() || w.speed === 0 || !!document.querySelector('.cb--open, .cb--list');
       if (!jitCur && !busy) {
-        const tool = ctx.tool.get();
-        const pick = jitPick(w, jm, clock, { buildTool: buildToolSeen && tool.kind === 'build' });
+        const pick = jitPick(w, jm, clock, { buildTool });
         if (pick) { jitShown(jm, pick.kind, clock); jitCur = { ...pick, until: clock + JIT_SHOW_MS }; renderText(); }
       }
       if (jitCur && busy) jitCur.until = Math.min(jitCur.until, clock); // a modal / open clipboard list hides it
@@ -522,29 +638,40 @@ export function mountTutorial(ctx: UICtx): Component {
     }
     cls(ghost, 'on', g);
     cls(ghostLbl, 'on', g);
-    // bubble
-    const showBub = on || ending > 0;
+    // bubble: re-placed every frame (the target, the camera and the HUD move); it jumps instead of gliding, a glide
+    // would sweep over the target or a panel on its way. A long jump pops in with a short fade.
+    const wantBub = on && !clipOpen;
+    if (wantBub) placeBubble(a);   // no target (waiting): the bubble stays where it is while that spot stays free
+    const bubOn = wantBub && !bubAway;
+    const showBub = bubOn || ending > 0;
     if (ending > 0) ending -= dt * 1000;
     if (showBub) {
-      if (on && (a || !bubPos)) placeBubble(a);   // no target (waiting): the bubble stays where it is
-      const k = bubPos ? Math.min(1, dt * 7) : 1;
-      bubPos = bubPos ? { x: bubPos.x + (bubWant.x - bubPos.x) * k, y: bubPos.y + (bubWant.y - bubPos.y) * k } : { ...bubWant };
+      const jump = bubPos ? Math.hypot(bubWant.x - bubPos.x, bubWant.y - bubPos.y) : 0;
+      if (jump > 48 && !reduceMotion && typeof bubIn.animate === 'function') bubIn.animate([{ opacity: 0.3 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
+      bubPos = { ...bubWant };
       put(bub, 'transform', `translate(${Math.round(bubPos.x)}px,${Math.round(bubPos.y)}px)`);
     }
-    cls(bub, 'on', on);
+    cls(bub, 'on', bubOn);
     cls(bub, 'bye', !on && ending > 0);
+    // one Skip on screen: while the bubble shows its Skip, the clipboard card hides its own (clipboard.css)
+    cls(ctx.root, 'tu-bub-on', bubOn);
     // controls overlay
     if (ctlLeft > 0) ctlLeft -= dt * 1000;
     cls(ctl, 'on', ctlLeft > 0 && !ctlBusy);
   }
 
+  // test hook (tests/e2e/m4-fixes-ui.spec.ts): the current target in screen px and where the layers went
+  (window as unknown as Record<string, unknown>).__tutorial = { aim: () => (curAim ? { ...curAim } : null), mini: () => bubMode !== 'full', away: () => bubAway, ctlSlot: () => ctlSlot };
+
   return {
     update(dt: number) {
       clock += dt * 1000;
       acc += dt * 1000;
+      const sig = hudSignature();
+      if (sig !== hudSig) { hudSig = sig; acc = TICK_MS; }
       if (acc >= TICK_MS || ctx.lang() !== lastLang) { acc = 0; tick(); }
       frame(dt);
     },
-    destroy() { offEvent(); offTool(); stage.remove(); },
+    destroy() { offEvent(); offTool(); stage.remove(); ctx.root.classList.remove('tu-bub-on'); },
   };
 }

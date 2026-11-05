@@ -48,7 +48,8 @@ npx vitest run tests/unit/audio-assets.test.ts
 | SFX vs music | SFX RMS 6–10 dB above music | see above | median SFX RMS − median music RMS (music RMS over one loop period) |
 | Music / ambience | mono 64–80 kbps, −20 LUFS ±2, ≤ 0.9 MB per music loop | 64 kbps CBR (72 is not a valid MP3 bit rate – LAME would silently use 64), integrated loudness set to −21.0 LUFS (inside the window; leaves room for the SFX), closed on the encoded file (±0.1 LU); a peak limiter acts only if the decoded MP3 peak would pass −1 dBFS (musicEvening 1.7 dB, clatter 6 dB + 6.5 dB – its peak still ends at −0.4 dBFS because of MP3 overshoot on fork clinks, no clipping) | ffmpeg `ebur128` integrated loudness over two loop periods |
 | Seamless loops | no click at the loop point (RMS jump < 6 dB) | see next section | RMS of 20 ms before `loopEnd` vs 20 ms after `loopStart` in the decoded file; also the sample step across the seam relative to the typical step (`seamStepRatio`) |
-| Initial bundle | ≤ 12 sounds, ≤ 250 KB (§8.4) | `INITIAL` in the manifest | sum of file sizes |
+| Initial bundle | ≤ 12 sounds, ≤ 250 KB, **plus music loop 1 in low quality** (§8.4) | `INITIAL` (12 tutorial SFX) + `INITIAL_MUSIC` (`musicDayLo`) in the manifest | sum of file sizes; the test holds SFX **and** `musicDayLo` together to 250 KB (stricter than the brief, which lists the loop on top) |
+| Low-quality loop (`musicDayLo`) | "Musik-Loop 1 in niedriger Qualität" (§8.4) | same recipe on the same source as `musicDay` (identical loop-length search → identical period, same 0.25 s padding and loop-point scheme), MPEG-2 Layer III **16 kbps CBR at 22.05 kHz** mono: one 87.5 s period must stay < 200 KB, 24 kbps would already be ~265 KB. Loudness closed on its own encoded file → −21.0 LUFS like `musicDay` | own class `musicLo` in the report (not part of the music RMS median or the 64–80 kbps rule for the shipped loops): mono, 16–24 kbps, < 200 KB, −20 LUFS ±2 **and** within 0.5 LU of `musicDay`, period and `loopStart` within 2 ms of `musicDay`, seam RMS jump < 6 dB |
 
 ### Seamless loops and the MP3 encoder delay
 
@@ -73,9 +74,28 @@ npx vitest run tests/unit/audio-assets.test.ts
 - Music RMS median −20.6 dBFS → SFX sit **+7.0 dB** above the music.
 - Music & ambience: −21.0 / −21.1 LUFS; music loops 672–734 KB (periods 87.5 s, 91.1 s, 83.5 s).
 - Loop seams: max RMS jump 1.11 dB (limit 6 dB); seam step ratio ≤ 1.6 (no click).
-- Initial bundle: 12 files, 52 852 B (limit 250 KB). All audio: 2 879 815 B.
+- Initial bundle: 12 files, 52 852 B + `musicDayLo` 176 352 B = 229 204 B (limit 250 KB). All audio: 3 056 238 B.
+- `musicDayLo`: 16 kbps, 22.05 kHz mono, −21.0 LUFS (musicDay −21.0), period 87.52 s = musicDay, loopStart 0.25 s (encoder
+  delay 2210 samples at 44.1 kHz decode), seam RMS jump 0.63 dB. The seam sample step is larger than in the 64 kbps files
+  (`seamStepRatio` 10.6 against a very small typical step of the band-limited signal; absolute step 0.029 at a local peak of
+  0.17, i.e. at the 16 kbps codec noise level) – it only loops if musicDay never arrives within 87 s.
+- Rebuild check (2026-11-05, after adding `musicDayLo`): all 36 previous MP3 files byte-identical (sha1 before/after); loops.json
+  only gained the `musicDayLo` entry.
 - `npx vite build` into a scratch dir: whole dist 4 462 306 B (limit 8 MB), of which audio 2.88 MB.
 - The build is deterministic: two full runs produced byte-identical files (same sha1 for all 36).
+
+## Runtime (src/audio/)
+
+- **Loading:** `INITIAL` + `musicDayLo` + `musicDay` are requested at boot (never awaited); the rest after the first `gameplayStart`.
+- **First tap:** if `musicDay` is not decoded yet, `musicDayLo` starts. When `musicDay` arrives, the next audio tick starts it at
+  the stand-in's current loop phase (`Mixer.loopPhase`, both sources on the same AudioContext clock) and cross-fades over
+  1.5 s (`LO_XFADE`); the stand-in is stopped after its fade. Browser check (musicDay held back 7 s by a route): phase
+  difference at the hand-over 0.000 ms, gains day/lo 0.65/0.35 after 0.5 s, 0.96/0.04 after 1.6 s.
+- **Jingle priority:** `milestone` wins over `upgrade` and `objective` within `PRIORITY_MS` = 150 ms in both orders – a younger
+  upgrade/objective voice is cut with a ~10 ms fade (log entry `cut: 'milestone'`), later requests are skipped
+  (`skip: 'milestone'`). Coins, stamp and the release fanfare keep stacking (intended). Tutorial end in the browser:
+  upgrade (ui) cut after 11 ms, milestone plays, objective skipped 8 ms later.
+- **Failed commands** play `deny` (`ctx.feedback` in src/app.ts).
 
 ## Music (§8.1.3) – CC0 candidates for the G2 listening choice
 
@@ -120,6 +140,7 @@ Generated from `qa/audio/build.json` by the build (`npx tsx tools/audio/build.ts
 | `musicDay` | music | <https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/> | CC0-1.0 | `fma-holiznacc0/ocean-breeze-lofi-ukulele-peaceful-mp3.mp3` | cosy day: "Ocean Breeze (LoFi, Ukulele, Peaceful)"; segment 20.00–107.52s of the source; equal-power cross-fade 1.50s of the continuation into the head (seamless period); integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 87.767279s (encoder delay 1105 samples) |
 | `musicEvening` | music | <https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/> | CC0-1.0 | `fma-holiznacc0/ease-into-night-lofi-relax-chill.mp3` | calm evening: "Ease into Night (Lofi, Relax, Chill)"; segment 10.00–101.15s of the source; equal-power cross-fade 1.50s of the continuation into the head (seamless period); peak limiter 1.7 dB (aiming at a decoded MP3 peak ≤ −1 dBFS); integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 91.399932s (encoder delay 1105 samples) |
 | `musicInspection` | music | <https://freemusicarchive.org/music/holiznacc0/we-drove-all-night-game-soundtrack/extra-life-i-never-used/> | CC0-1.0 | `fma-holiznacc0/extra-life-i-never-used.mp3` | tense-but-fun inspection: "Extra Life I Never Used" (game soundtrack); segment 15.00–98.47s of the source; equal-power cross-fade 1.50s of the continuation into the head (seamless period); integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 83.715374s (encoder delay 1105 samples) |
+| `musicDayLo` | music | <https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/> | CC0-1.0 | `fma-holiznacc0/ocean-breeze-lofi-ukulele-peaceful-mp3.mp3` | low-quality stand-in of musicDay for the initial bundle (Brief §8.4), same source and period; segment 20.00–107.52s of the source; equal-power cross-fade 1.50s of the continuation into the head (seamless period); integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 16 kbps CBR at 22050 Hz (low-quality stand-in); loop points from re-decode: start 0.25s, end 87.767279s (encoder delay 2210 samples) |
 | `ambWaves` | loop | <https://opengameart.org/content/beach-ocean-waves> | CC0-1.0 | `beach-ocean-waves/wave_01_cc0-18363__jasinski__alkaibeach.flac`<br>`beach-ocean-waves/wave_03_cc0-18363__jasinski__alkaibeach.flac`<br>`beach-ocean-waves/wave_04_cc0-18363__jasinski__alkaibeach.flac`<br>`beach-ocean-waves/wave_02_cc0-18363__jasinski__alkaibeach.flac` | gentle beach wash: five recorded waves, faded and overlapped in a circular 13.2 s buffer (no gap, no audible repeat point); 5 recorded events mixed into a circular 13.2s buffer; integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 13.45s (encoder delay 1105 samples) |
 | `ambGulls` | loop | <https://opengameart.org/content/solo-seagull-sound-effects> | CC0-1.0 | `solo-seagull-sound-effects/Seagull Ambient 1.wav`<br>`solo-seagull-sound-effects/Seagull Ambient 4.wav`<br>`solo-seagull-sound-effects/Seagull Ambient 6.wav`<br>`solo-seagull-sound-effects/Seagull Ambient 5.wav`<br>`solo-seagull-sound-effects/Seagull Big Ambient.wav` | distant gulls, sparse calls spread over 23 s; 5 recorded events mixed into a circular 23s buffer; integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 23.25s (encoder delay 1105 samples) |
 | `ambMurmur` | loop | <https://opengameart.org/content/crowd-shoutingspeaking-ambience> | CC0-1.0 | `crowd-shoutingspeaking-ambience/crowd_shouting_0.ogg` | crowd babble low-passed at 900 Hz → indistinct murmur (no intelligible words); segment 3.00–21.00s of the source; equal-power cross-fade 2.50s of the continuation into the head (seamless period); filter highpass=f=120,lowpass=f=900,lowpass=f=900; integrated loudness → -21 LUFS; ±0.25s periodic padding, mono MP3 64 kbps CBR; loop points from re-decode: start 0.25s, end 18.25s (encoder delay 1105 samples) |

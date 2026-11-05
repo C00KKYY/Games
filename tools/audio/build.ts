@@ -11,13 +11,15 @@
  *         measured by decoding the MP3 again (ffmpeg honours the LAME gapless header like Chromium);
  *         loopStart/loopEnd point at the exact period. Because the padding is the loop itself, a
  *         decoder that ignores the encoder delay just shifts the window by ~25 ms – still seamless.
+ *  Lo:    MUSIC_LO stand-ins (musicDayLo) run the same loop recipe on the same source (→ same period) and are
+ *         encoded as MPEG-2 Layer III 16 kbps / 22.05 kHz mono for the initial bundle (Brief §8.4).
  *
  * Flags: --candidates  also (re)encode the music candidates into qa/audio/candidates/ (not shipped)
  *        --only=id,id  rebuild only these ids (loops.json/report keep the other entries)
  *        --docs        only regenerate licenses/AUDIO_CREDITS.md and the table in docs/AUDIO.md from qa/audio/build.json
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { SFX, LOOPS, MUSIC, type SoundId } from '../../src/audio/manifest';
+import { SFX, LOOPS, MUSIC, MUSIC_LO, type SoundId } from '../../src/audio/manifest';
 import { PACKS, RECIPES, MUSIC_CANDIDATES, type Src, type Recipe, type LoopRecipe, type SfxRecipe, type Pack } from './sources';
 import {
   SR, decode, encodeMp3, lufs, db, undb, peak, rms, gain, sec, trimSilence, fadeIn, fadeOut, decayTail,
@@ -207,14 +209,16 @@ function buildLoop(id: SoundId, r: LoopRecipe, info: BuildInfo, loops: Record<st
   // loudness + peak, closed on the encoded file: integrated LUFS over two decoded periods → target ±0.1;
   // if the decoded MP3 peak would pass −1 dBFS the transients are limited first (sparse beds like the clatter)
   const L = p.length, M = sec(0.25);
-  const kbps = r.kind === 'music' ? T.musicKbps : T.ambKbps;
+  const lo = (MUSIC_LO as readonly string[]).includes(id);
+  const kbps = lo ? T.loKbps : r.kind === 'music' ? T.musicKbps : T.ambKbps;
   const out = OUT + id + '.mp3';
+  const enc = (x: Float32Array) => (lo ? encodeMp3(x, out, kbps, T.loSampleRate) : encodeMp3(x, out, kbps));
   const padded = new Float32Array(L + 2 * M);
   let limited = 0;
   p = gain(p, undb(T.loopLufsTarget - lufs(tile(p, 2))));
   for (let it = 0; it < 8; it++) {
     padded.set(p.subarray(L - M), 0); padded.set(p, M); padded.set(p.subarray(0, M), M + L);
-    encodeMp3(padded, out, kbps);
+    enc(padded);
     const y = decode(out);
     const pk = db(peak(y)), I = lufsOf(y, M, L);
     if (pk > -1.2) { const t = tile(p, 3); p = limit(t, peak(p) * undb(-(pk + 1.6)), 3, 120).slice(L, 2 * L); limited += pk + 1.6; continue; }
@@ -229,7 +233,7 @@ function buildLoop(id: SoundId, r: LoopRecipe, info: BuildInfo, loops: Record<st
   const loopStart = (M + off) / SR;
   loops[id] = { loopStart: +loopStart.toFixed(6), loopEnd: +(loopStart + L / SR).toFixed(6) };
   Object.assign(info.loop!, { padSec: M / SR, offsetSamples: off, encoderDelaySamples: delay });
-  info.processing.push(`±0.25s periodic padding, mono MP3 ${kbps} kbps CBR`, `loop points from re-decode: start ${loops[id].loopStart}s, end ${loops[id].loopEnd}s (encoder delay ${delay} samples)`);
+  info.processing.push(`±0.25s periodic padding, mono MP3 ${kbps} kbps CBR${lo ? ` at ${T.loSampleRate} Hz (low-quality stand-in)` : ''}`, `loop points from re-decode: start ${loops[id].loopStart}s, end ${loops[id].loopEnd}s (encoder delay ${delay} samples)`);
 }
 
 // ------------------------------------------------------------------ candidates (not shipped)
@@ -292,7 +296,7 @@ function main(): void {
   const prev: Record<string, BuildInfo> = only && existsSync(QA + 'build.json') ? Object.fromEntries((JSON.parse(readFileSync(QA + 'build.json', 'utf8')).sounds as BuildInfo[]).map(i => [i.id, i])) : {};
   const infos: Record<string, BuildInfo> = { ...prev };
 
-  const ids: SoundId[] = [...MUSIC, ...LOOPS, ...SFX];
+  const ids: SoundId[] = [...MUSIC, ...MUSIC_LO, ...LOOPS, ...SFX];
   const pick = (id: SoundId): { r: Recipe; fallback: boolean } => {
     const r = RECIPES[id];
     if (available(r)) return { r, fallback: false };
@@ -305,7 +309,7 @@ function main(): void {
     sources: [...new Map(r.layers.map(l => [l.pack + l.file, l])).values()].map(l => { const p = PACKS[l.pack] as Pack; return { pack: l.pack, file: `${p.dir}/${l.file}`, page: l.page ?? p.page, license: p.license, author: p.author }; }),
   });
 
-  for (const id of [...MUSIC, ...LOOPS]) {
+  for (const id of [...MUSIC, ...MUSIC_LO, ...LOOPS]) {
     if (only && !only.includes(id)) continue;
     const { r, fallback } = pick(id);
     const info = mkInfo(id, r, fallback);

@@ -23,6 +23,15 @@
       10
     ],
     "musicMaxBytes": 900000,
+    "loKbps": 16,
+    "loSampleRate": 22050,
+    "loKbpsRange": [
+      16,
+      24
+    ],
+    "loMaxBytes": 200000,
+    "loLufsMatch": 0.5,
+    "loPeriodTolSec": 0.002,
     "initialMaxBytes": 250000,
     "initialMaxCount": 12,
     "seamMaxJumpDb": 6,
@@ -597,6 +606,28 @@
         "seamJumpDb": 0.01,
         "seamStepRatio": 0.3
       }
+    },
+    {
+      "id": "musicDayLo",
+      "kind": "musicLo",
+      "file": "public/audio/musicDayLo.mp3",
+      "bytes": 176352,
+      "sha1": "5ee0086687ff64fb2de274e5b9c7869cc24aee06",
+      "durationSec": 88.02,
+      "kbps": 16,
+      "channels": 1,
+      "sampleRate": 22050,
+      "codec": "mp3",
+      "peakDb": -6.03,
+      "rmsDb": -18.73,
+      "lufs": -21,
+      "loop": {
+        "loopStart": 0.25,
+        "loopEnd": 87.767279,
+        "periodSec": 87.52,
+        "seamJumpDb": 0.63,
+        "seamStepRatio": 10.58
+      }
     }
   ],
   "missing": [],
@@ -608,7 +639,8 @@
     "sfxOverMusicDb": 6.96,
     "initialCount": 12,
     "initialBytes": 52852,
-    "audioBytes": 2879815,
+    "initialMusicBytes": 176352,
+    "audioBytes": 3056238,
     "maxMusicBytes": 733726,
     "maxSeamJumpDb": 1.11
   }

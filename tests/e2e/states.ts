@@ -35,7 +35,7 @@ export const TUTORIAL_STATES: StateName[] = ['base', 'clipCard', 'rooms', 'staff
 export const STATE_PROBE: Partial<Record<StateName, string>> = {
   rooms: '.bb-menu--rooms', staff: '.bb-menu--staff', room: '.pn', rascal: '.pn', build: '.tl-label', settings: '.ov-modal',
   help: '.ov-modal', clipList: '.cb-list', stageList: '.tb-list', roomConfirm: '.pn-yes', demoBubble: '.tl-bubble',
-  touchConfirm: '.tl-confirm', resetConfirm: '[data-fid="reset-yes"]', tip: '.ov-tip.on', toast: '.ov-toast', clipCard: '.cb-skip, .cb-more',
+  touchConfirm: '.tl-confirm', resetConfirm: '[data-fid="reset-yes"]', tip: '.ov-tip.on', toast: '.ov-toast', clipCard: '.cb-card',
 };
 
 export const ctxEval = <T>(page: Page, fn: (ctx: any) => T) => page.evaluate(`(${fn.toString()})(window.__ctx)`) as Promise<T>;
@@ -182,8 +182,9 @@ export async function enter(page: Page, s: StateName): Promise<boolean> {
       if (s === 'resetConfirm') { await settleCss(page); await page.locator('.ov-modal [data-fid="reset"]').click(); }
       break;
     case 'clipCard':
-      // the expanded clipboard card (compact: the chip opens it; wide: it is always open) – in the tutorial with Skip
-      if (!(await visible(page, '.cb-skip, .cb-more'))) await page.locator('.cb-chip').click();
+      // the expanded clipboard card (compact: the chip opens it; wide: it is always open). In the tutorial its Skip shows
+      // only when the warden bubble (which carries the one Skip on screen) is not shown – compact expanded card
+      if (!(await visible(page, '.cb-card'))) await page.locator('.cb-chip').click();
       break;
     case 'clipList':
       // compact: the chip expands the card first

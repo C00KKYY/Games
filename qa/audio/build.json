@@ -97,6 +97,37 @@
       }
     },
     {
+      "id": "musicDayLo",
+      "kind": "music",
+      "why": "low-quality stand-in of musicDay for the initial bundle (Brief §8.4), same source and period",
+      "fallback": false,
+      "processing": [
+        "segment 20.00–107.52s of the source",
+        "equal-power cross-fade 1.50s of the continuation into the head (seamless period)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 16 kbps CBR at 22050 Hz (low-quality stand-in)",
+        "loop points from re-decode: start 0.25s, end 87.767279s (encoder delay 2210 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "holizna",
+          "file": "fma-holiznacc0/ocean-breeze-lofi-ukulele-peaceful-mp3.mp3",
+          "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/",
+          "license": "CC0-1.0",
+          "author": "HoliznaCC0"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 87.51727891156463,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 2210,
+        "xfadeSec": 1.5,
+        "similarity": 0.8163292739400586
+      }
+    },
+    {
       "id": "ambWaves",
       "kind": "loop",
       "why": "gentle beach wash: five recorded waves, faded and overlapped in a circular 13.2 s buffer (no gap, no audible repeat point)",

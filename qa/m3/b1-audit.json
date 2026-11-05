@@ -38,7 +38,7 @@
    "small": [],
    "running": [],
    "hudArea": 68916.167720625,
-   "textNodes": 16
+   "textNodes": 26
   },
   "1216x684": {
    "blocks": [
@@ -78,7 +78,7 @@
    "small": [],
    "running": [],
    "hudArea": 80160.870845625,
-   "textNodes": 23
+   "textNodes": 33
   },
   "1077x606": {
    "blocks": [
@@ -118,7 +118,7 @@
    "small": [],
    "running": [],
    "hudArea": 75102.573970625,
-   "textNodes": 22
+   "textNodes": 32
   },
   "821x462": {
    "blocks": [
@@ -158,7 +158,7 @@
    "small": [],
    "running": [],
    "hudArea": 45006.77294921875,
-   "textNodes": 13
+   "textNodes": 24
   },
   "1366x768": {
    "blocks": [
@@ -198,7 +198,7 @@
    "small": [],
    "running": [],
    "hudArea": 90619.03905507812,
-   "textNodes": 23
+   "textNodes": 33
   },
   "1920x1080": {
    "blocks": [
@@ -238,7 +238,7 @@
    "small": [],
    "running": [],
    "hudArea": 172379.41943359375,
-   "textNodes": 23
+   "textNodes": 33
   },
   "1536x864": {
    "blocks": [
@@ -278,7 +278,7 @@
    "small": [],
    "running": [],
    "hudArea": 114713.76858756124,
-   "textNodes": 23
+   "textNodes": 33
   },
   "1280x720": {
    "blocks": [
@@ -318,7 +318,7 @@
    "small": [],
    "running": [],
    "hudArea": 82489.870845625,
-   "textNodes": 23
+   "textNodes": 33
   },
   "800x450": {
    "blocks": [
@@ -358,7 +358,7 @@
    "small": [],
    "running": [],
    "hudArea": 44248.47607421875,
-   "textNodes": 13
+   "textNodes": 24
   },
   "1080x607": {
    "blocks": [
@@ -398,7 +398,7 @@
    "small": [],
    "running": [],
    "hudArea": 75211.745845625,
-   "textNodes": 22
+   "textNodes": 32
   },
   "844x390-touch": {
    "blocks": [
@@ -438,7 +438,7 @@
    "small": [],
    "running": [],
    "hudArea": 57997.36083984375,
-   "textNodes": 10
+   "textNodes": 21
   }
  },
  "en/gameplay": {
@@ -2730,7 +2730,7 @@
    "small": [],
    "running": [],
    "hudArea": 84458.870845625,
-   "textNodes": 52
+   "textNodes": 53
   },
   "1077x606": {
    "blocks": [
@@ -2770,7 +2770,7 @@
    "small": [],
    "running": [],
    "hudArea": 79400.573970625,
-   "textNodes": 44
+   "textNodes": 43
   },
   "821x462": {
    "blocks": [
@@ -2850,7 +2850,7 @@
    "small": [],
    "running": [],
    "hudArea": 95375.96483632813,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1920x1080": {
    "blocks": [
@@ -2890,7 +2890,7 @@
    "small": [],
    "running": [],
    "hudArea": 181019.41943359375,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1536x864": {
    "blocks": [
@@ -2930,7 +2930,7 @@
    "small": [],
    "running": [],
    "hudArea": 120733.98416373313,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1280x720": {
    "blocks": [
@@ -2970,7 +2970,7 @@
    "small": [],
    "running": [],
    "hudArea": 86787.870845625,
-   "textNodes": 52
+   "textNodes": 53
   },
   "800x450": {
    "blocks": [
@@ -3050,7 +3050,7 @@
    "small": [],
    "running": [],
    "hudArea": 79509.745845625,
-   "textNodes": 44
+   "textNodes": 43
   },
   "844x390-touch": {
    "blocks": [
@@ -3553,7 +3553,7 @@
       8,
       45.3,
       232,
-      205.3
+      168.2
      ]
     },
     {
@@ -3573,8 +3573,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 77055.30102140625,
-   "textNodes": 16
+   "hudArea": 68749.80102140625,
+   "textNodes": 26
   },
   "1216x684": {
    "blocks": [
@@ -3593,7 +3593,7 @@
       8,
       45.3,
       232,
-      205.3
+      168.2
      ]
     },
     {
@@ -3613,8 +3613,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 88300.00414640625,
-   "textNodes": 23
+   "hudArea": 79994.50414640625,
+   "textNodes": 33
   },
   "1077x606": {
    "blocks": [
@@ -3633,7 +3633,7 @@
       8,
       45.3,
       232,
-      205.3
+      168.2
      ]
     },
     {
@@ -3653,8 +3653,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 83241.70727140625,
-   "textNodes": 23
+   "hudArea": 74936.20727140625,
+   "textNodes": 33
   },
   "821x462": {
    "blocks": [
@@ -3694,7 +3694,7 @@
    "small": [],
    "running": [],
    "hudArea": 46324.6328125,
-   "textNodes": 13
+   "textNodes": 24
   },
   "1366x768": {
    "blocks": [
@@ -3713,7 +3713,7 @@
       8,
       47,
       241.5,
-      213
+      174.4
      ]
     },
     {
@@ -3733,8 +3733,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 99462.09569570313,
-   "textNodes": 23
+   "hudArea": 90440.71727773437,
+   "textNodes": 33
   },
   "1920x1080": {
    "blocks": [
@@ -3753,7 +3753,7 @@
       8,
       62,
       328,
-      290
+      237
      ]
     },
     {
@@ -3773,8 +3773,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 189024.04736328125,
-   "textNodes": 23
+   "hudArea": 172064.04736328125,
+   "textNodes": 33
   },
   "1536x864": {
    "blocks": [
@@ -3793,7 +3793,7 @@
       8,
       52,
       270.6,
-      239.5
+      196
      ]
     },
     {
@@ -3813,8 +3813,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 125913.97171256125,
-   "textNodes": 23
+   "hudArea": 114493.20828482686,
+   "textNodes": 33
   },
   "1280x720": {
    "blocks": [
@@ -3833,7 +3833,7 @@
       8,
       45.3,
       232,
-      205.3
+      168.2
      ]
     },
     {
@@ -3853,8 +3853,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 90629.00414640625,
-   "textNodes": 23
+   "hudArea": 82323.50414640625,
+   "textNodes": 33
   },
   "800x450": {
    "blocks": [
@@ -3894,7 +3894,7 @@
    "small": [],
    "running": [],
    "hudArea": 45566.3359375,
-   "textNodes": 13
+   "textNodes": 24
   },
   "1080x607": {
    "blocks": [
@@ -3913,7 +3913,7 @@
       8,
       45.3,
       232,
-      205.3
+      168.2
      ]
     },
     {
@@ -3933,8 +3933,8 @@
    "offscreen": [],
    "small": [],
    "running": [],
-   "hudArea": 83350.87914640625,
-   "textNodes": 23
+   "hudArea": 75045.37914640625,
+   "textNodes": 33
   },
   "844x390-touch": {
    "blocks": [
@@ -3974,7 +3974,7 @@
    "small": [],
    "running": [],
    "hudArea": 59471.24560546875,
-   "textNodes": 10
+   "textNodes": 21
   }
  },
  "de/gameplay": {
@@ -6266,7 +6266,7 @@
    "small": [],
    "running": [],
    "hudArea": 84292.50414640625,
-   "textNodes": 52
+   "textNodes": 53
   },
   "1077x606": {
    "blocks": [
@@ -6306,7 +6306,7 @@
    "small": [],
    "running": [],
    "hudArea": 79234.20727140625,
-   "textNodes": 44
+   "textNodes": 43
   },
   "821x462": {
    "blocks": [
@@ -6386,7 +6386,7 @@
    "small": [],
    "running": [],
    "hudArea": 95197.64305898438,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1920x1080": {
    "blocks": [
@@ -6426,7 +6426,7 @@
    "small": [],
    "running": [],
    "hudArea": 180704.04736328125,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1536x864": {
    "blocks": [
@@ -6466,7 +6466,7 @@
    "small": [],
    "running": [],
    "hudArea": 120513.42386099875,
-   "textNodes": 53
+   "textNodes": 55
   },
   "1280x720": {
    "blocks": [
@@ -6506,7 +6506,7 @@
    "small": [],
    "running": [],
    "hudArea": 86621.50414640625,
-   "textNodes": 53
+   "textNodes": 54
   },
   "800x450": {
    "blocks": [
@@ -6586,7 +6586,7 @@
    "small": [],
    "running": [],
    "hudArea": 79343.37914640625,
-   "textNodes": 44
+   "textNodes": 43
   },
   "844x390-touch": {
    "blocks": [

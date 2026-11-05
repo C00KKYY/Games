@@ -23,6 +23,10 @@
     "loopStart": 0.25,
     "loopEnd": 87.767279
   },
+  "musicDayLo": {
+    "loopStart": 0.25,
+    "loopEnd": 87.767279
+  },
   "musicEvening": {
     "loopStart": 0.25,
     "loopEnd": 91.399932

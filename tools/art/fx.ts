@@ -72,7 +72,13 @@ const capR = (): Sprite => ({ name: 'plqR', w: 12, h: H, ax: 0, ay: 12, pad: 0,
 const badge = (): Sprite => ({ name: 'lvlBadge', w: 34, h: 34, ax: 17, ay: 17,
   body: shape(ell(17, 17, 15, 15), T.gold, { s: 2.4, h: 1.2, lw: 2 }) + `<circle cx="17" cy="17" r="10.5" fill="${P.cream300}" stroke="${P.gold700}" stroke-width="1.4"/>` });
 
+/** escapee marker (spoon tunnel, Brief §3.12): coral-500 bubble, brick-900 outline (STYLE_GUIDE §2), cream "!" – shown at the need-icon size */
+const alertMark = (): Sprite => ({ name: 'alertMark', w: 32, h: 34, ax: 16, ay: 33,
+  body: shape('M16 1.5C24.3 1.5 30.5 7.6 30.5 15.2C30.5 22.6 24.6 28.4 17.6 28.9L16 33L14.4 28.9C7.4 28.4 1.5 22.6 1.5 15.2C1.5 7.6 7.7 1.5 16 1.5Z', T.coral, { s: 1.8, h: 1, lw: 2 })
+    + `<path d="M13.6 6.4H18.4L17.5 18.6H14.5Z" fill="${P.cream300}" stroke="${P.brick900}" stroke-width="1.2" stroke-linejoin="round"/>`
+    + `<circle cx="16" cy="23" r="2.6" fill="${P.cream300}" stroke="${P.brick900}" stroke-width="1.2"/>` });
+
 export function fxSprites(): Sprite[] {
   // own id range: each sprite is its own SVG document, so ids only need to be unique per sprite
-  return scopedIds(1e6, () => [ring(), sparkle(), star(), hat(), scaffold(), needHunger(), needEnergy(), needHygiene(), needFun(), capL(), mid(), capR(), badge()]);
+  return scopedIds(1e6, () => [ring(), sparkle(), star(), hat(), scaffold(), needHunger(), needEnergy(), needHygiene(), needFun(), capL(), mid(), capR(), badge(), alertMark()]);
 }

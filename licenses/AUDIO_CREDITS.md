@@ -38,6 +38,7 @@ Licence of each source was read from the "License(s)" field of its page (copies 
 - `musicDay.mp3` – HoliznaCC0: https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/ (CC0-1.0)
 - `musicEvening.mp3` – HoliznaCC0: https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/ (CC0-1.0)
 - `musicInspection.mp3` – HoliznaCC0: https://freemusicarchive.org/music/holiznacc0/we-drove-all-night-game-soundtrack/extra-life-i-never-used/ (CC0-1.0)
+- `musicDayLo.mp3` – HoliznaCC0: https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/ (CC0-1.0)
 - `ambWaves.mp3` – jasinski (submitted by qubodup): https://opengameart.org/content/beach-ocean-waves (CC0-1.0)
 - `ambGulls.mp3` – Rango Mango: https://opengameart.org/content/solo-seagull-sound-effects (CC0-1.0)
 - `ambMurmur.mp3` – StarNinjas: https://opengameart.org/content/crowd-shoutingspeaking-ambience (CC0-1.0)
