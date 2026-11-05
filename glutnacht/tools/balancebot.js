@@ -325,7 +325,7 @@ for (let i = 0; i < n; i++) {
   r.M = newM();
   const mins = [];
   const dt = 1 / 60; let frame = 0, curMin = 0, revT = null; const startRev = r.revivals;
-  const bk = {}; const t0 = Date.now(); let evoT = [];
+  const bk = {}; const t0 = Date.now(); let evoT = []; const early = {};
   while (!over && r.t < TMAX) {
     if (Game.state === 'levelup') {
       const o = weak ? chooseWeak(api, Game.lastLevelOptions) : chooseStrong(api, Game.lastLevelOptions);
@@ -340,6 +340,12 @@ for (let i = 0; i < n; i++) {
     Game.update(dt);
     if (r.evolvedCount > ec) evoT.push(Math.round(r.t));
     r.M.aliveSum += r.enemies.length; r.M.frames++;
+    // Frühphase: Gegner im Bild bei 10/30/60 s, Stufe bei 60 s, erster Treffer
+    for (const T of [2, 10, 30, 60]) if (early['scr' + T] === undefined && r.t >= T) {
+      const hw = Game.view.hw, hh = Game.view.hh;
+      early['scr' + T] = r.enemies.filter(e => !e.dead && Math.abs(e.x - r.p.x) < hw && Math.abs(e.y - r.p.y) < hh).length;
+      if (T === 60) { early.lvl60 = r.level; early.gold60 = r.gold; early.chest60 = r.chestsOpened + r.pendingChests; }
+    }
     for (const b of r.bosses) if (b.dead && !bk[b.boss.id]) bk[b.boss.id] = Math.round(r.t);
     if (revT === null && r.revivals < startRev) revT = Math.round(r.t);
     const m = Math.floor(r.t / 60);
@@ -363,5 +369,5 @@ for (let i = 0; i < n; i++) {
   const wl = {}; for (const w of r.weapons) wl[w.id] = w.level + (w.evo ? '*' : '');
   let tot = 0; for (const k in r.dmgBy) tot += r.dmgBy[k];
   const dshare = {}; for (const k in r.dmgBy) dshare[k] = +(r.dmgBy[k] / tot).toFixed(2);
-  console.log(JSON.stringify({ char: charId, stage: STAGE, heat, preset, bot: weak ? 'weak' : 'strong', t: Math.round(r.t), won: !!r.won, lvl: r.level, kills: r.kills, bk, evoT, revT, weapons: wl, passives: r.passives.map(p => p.id + p.level).join(' '), dshare, ms: Date.now() - t0, hits: r.won ? undefined : r.hits, bossAlive: r.bosses.filter(b => !b.dead).map(b => b.boss.id + ':' + Math.round(b.hp / b.maxHp * 100) + '%').join(','), mins }));
+  console.log(JSON.stringify({ char: charId, stage: STAGE, heat, preset, bot: weak ? 'weak' : 'strong', t: Math.round(r.t), won: !!r.won, lvl: r.level, kills: r.kills, bk, evoT, revT, weapons: wl, passives: r.passives.map(p => p.id + p.level).join(' '), dshare, ms: Date.now() - t0, hits: r.won ? undefined : r.hits, early: Object.assign(early, { firstHit: r.firstHit === null ? null : +r.firstHit.toFixed(1) }), bossAlive: r.bosses.filter(b => !b.dead).map(b => b.boss.id + ':' + Math.round(b.hp / b.maxHp * 100) + '%').join(','), mins }));
 }

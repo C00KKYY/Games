@@ -12,8 +12,13 @@ const ENEMY_COLORS = {
 };
 
 const PROP_CHUNK = 620;
+// Langsame Gegner sind in den ersten drei Minuten etwas schneller (sonst läuft man ihnen mühelos davon).
+const EARLY_SPEED = 0.2;
 
+// Stufe 1–10 billiger: mit den Gegnern der ersten Minute 4–5 Aufstiege, danach gleitend zur alten Kurve (ab Stufe 11).
+const XP_EARLY = [6, 11, 17, 24, 32, 42, 53, 66, 80, 95];
 function xpFor(level) {
+  if (level <= XP_EARLY.length) return XP_EARLY[level - 1];
   if (level < 20) return 5 + (level - 1) * 10;
   if (level < 40) return 200 + (level - 20) * 28;
   return 760 + (level - 40) * 40;
@@ -41,7 +46,7 @@ const Game = {
       weapons: [], passives: [],
       enemies: [], shots: [], eshots: [], gems: [], pickups: [], fx: [], parts: [], texts: [], tele: [],
       props: new Map(), propList: [], broken: new Set(),
-      spawnAcc: 0, eliteT: 55, bossIdx: 0, eventIdx: 0, bosses: [],
+      spawnAcc: 0, eliteT: 30, bossIdx: 0, eventIdx: 0, bosses: [],
       pendingLevels: 0, pendingChests: 0,
       rerolls: 0, skips: 0, banishes: 0, banished: new Set(), revivals: 0,
       dmgBy: {}, evolvedCount: 0, firstHit: null, won: false, endless: false, over: false,
@@ -58,7 +63,20 @@ const Game = {
     this.addWeapon(CHARS[charId].weapon);
     save.stats.runs++;
     this.state = 'play';
+    this.openingGroup();
     return r;
+  },
+
+  // Eine kleine Gruppe gleich zu Beginn im Bild, damit die erste Sekunde nicht leer ist.
+  openingGroup() {
+    const r = this.run, wv = this.wave(), n = 6;
+    const hw = this.view.hw, hh = this.view.hh, a0 = rand(0, TAU);
+    for (let i = 0; i < n; i++) {
+      // im Bild, aber nicht zu nah (Hochformat: eher oben und unten)
+      let a = a0 + i / n * TAU, k = rand(0.62, 0.82);
+      for (let j = 0; j < 12 && Math.hypot(Math.cos(a) * hw, Math.sin(a) * hh) * k < 230; j++) a = rand(0, TAU);
+      this.spawnEnemy(weightedPick(Object.entries(wv.pool)), r.p.x + Math.cos(a) * hw * k, r.p.y + Math.sin(a) * hh * k);
+    }
   },
 
   computeStats(r) {
@@ -214,12 +232,17 @@ const Game = {
     r.eliteT -= dt;
     if (r.eliteT <= 0) {
       r.eliteT = 60;
-      const pool = Object.entries(wv.pool).map(([k, v]) => [k, v * ENEMIES[k].hp]);
-      const pos = this.spawnPos();
+      // Der erste Elitegegner ist der schnellste Nahkämpfer der Welle: er kommt sicher heran, die Truhe vor Ablauf der ersten Minute.
+      const first = r.t < 60;
+      const pool = first ? [[Object.keys(wv.pool).filter(k => !ENEMIES[k].ranged).sort((a, b) => ENEMIES[b].speed - ENEMIES[a].speed)[0], 1]]
+        : Object.entries(wv.pool).map(([k, v]) => [k, v * ENEMIES[k].hp]);
+      // der erste erscheint sichtbar im Bild, ist schwächer und fast so schnell wie der Held
+      const a = rand(0, TAU), pos = first ? { x: r.p.x + Math.cos(a) * this.view.hw * 0.6, y: r.p.y + Math.sin(a) * this.view.hh * 0.6 } : this.spawnPos();
       const e = this.spawnEnemy(weightedPick(pool), pos.x, pos.y);
       e.elite = true;
-      e.hp = e.maxHp = Math.max(160, e.maxHp * 14);
-      e.r *= 1.55; e.xp *= 8; e.kb *= 0.3; e.dmg *= 1.4; e.speed *= 0.95;
+      e.hp = e.maxHp = first ? Math.max(90, e.maxHp * 3) : Math.max(160, e.maxHp * 14);
+      e.r *= 1.55; e.xp *= 8; e.kb *= 0.3; e.dmg *= 1.4;
+      e.speed = first ? Math.max(e.speed, r.stats.speed * 0.9) : e.speed * 0.95;
       Hooks.banner(tr('Ein Elitegegner taucht auf – er trägt eine Truhe!'), 'elite');
     }
 
@@ -271,7 +294,7 @@ const Game = {
     const hp = d.hp * this.hpMul(r.t) * (ma.hp || 1) * (mt.hp || 1);
     const e = {
       id: r.nextId++, type, x, y, r: d.r, hp, maxHp: hp,
-      speed: d.speed * heat.speed * (ma.speed || 1) * (mt.speed || 1) * rand(0.92, 1.08),
+      speed: d.speed * heat.speed * (ma.speed || 1) * (mt.speed || 1) * rand(0.92, 1.08) * (d.speed < 90 ? 1 + EARLY_SPEED * Math.max(0, 1 - r.t / 180) : 1),
       dmg: d.dmg * heat.dmg * r.stage.mult.dmg * (1 + r.t / 60 * 0.07),
       tint: (r.stage.tints && r.stage.tints[type]) || null,
       xp: d.xp * (ma.xp || 1) * (mt.xp || 1), kb: d.kb, kx: 0, ky: 0, flash: 0, slowT: 0, slowF: 1, freezeT: 0,

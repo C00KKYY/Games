@@ -11,7 +11,7 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 - **Laufen** ist alles, was du tust – angreifen passiert automatisch.
 - Besiegte Monster lassen **Edelsteine** fallen. Jede neue Stufe bietet **3 Karten** zur Wahl: neue Waffe, Waffenstufe oder Passiv. Bis zu 6 Waffen und 6 Passive.
 - **Entwicklungen:** Waffe auf Stufe 8 + der passende Passiv-Gegenstand → die nächste **Truhe** verwandelt sie in eine deutlich stärkere Form (z. B. Klinge + Herz → Blutklinge).
-- **Truhen** lassen Elitegegner (goldener Schein, etwa jede Minute) und Bosse fallen. Am Ende jedes Landes wartet ein Endboss.
+- **Truhen** lassen Elitegegner (goldener Schein, der erste nach 30 Sekunden, danach etwa jede Minute) und Bosse fallen. Am Ende jedes Landes wartet ein Endboss.
 - **Ereignisse:** Fledermausschwärme, „Umzingelt!“-Ringe, Geisterzüge, Kreuzfeuer – je nach Land andere.
 - **Kohlebecken** auf der Karte zerschlagen: Gold, Herzen, Magnete (ziehen alle Edelsteine und Münzen an), Bomben.
 
@@ -29,7 +29,20 @@ Die Weltkarte zeigt fünf Länder, jedes mit eigenen Gegnern, Bossen, Ereignisse
 
 - Ein befreites Land schaltet das nächste frei und dort die nächste **Nachtstufe** (bis 5): mehr Lebenspunkte, Tempo und Schaden der Gegner, mehr Gold.
 - **Sterne:** ★ befreit, ★★ auf Nachtstufe 1+, ★★★ auf Nachtstufe 3+ – insgesamt 15.
-- Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`).
+- **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen; das erste Ereignis folgt nach 50–55 Sekunden. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
+- Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`, die auch Stufe nach 60 s, ersten Treffer, Schaden je Minute und Gegner im Bild nach 2/10/30/60 s meldet).
+
+Siegquoten des starken Bots (alle 9 Helden reihum, Nachtstufe 0; „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`). Die Quoten schwanken stark; bei n = 24 beträgt der Zufallsfehler etwa ±10 Prozentpunkte:
+
+| Land | Schmiede | Ziel | Siege (n) | Tod im Median |
+|---|---|---|---|---|
+| Alter Friedhof | none | 65–75 % | 73 % (48) | 9,7 min (meist Endboss) |
+| Aschenwald | none / light | ~25 / ~40 % | 42 % / 21 % (je 24) | 8,9 / 10,1 min |
+| Eissee | light / mid | ~33 / ~50 % | 50 % / 33 % (je 24) | 13,6 / 14,7 min |
+| Burgruine | mid | ~33 % | 22 % (36) | 14,4 min |
+| Herz der Nacht | mid / max | ~17 / ~67 % | 33 % / 67 % (je 24) | 11,5 / 16,7 min |
+
+Erste Minute mit dem starken Bot: Stufe 6–10 nach 60 s (vorher 5–8), 10–13 Gegner im Bild nach 2 s (vorher 3–5), Truhe vor 60 s in 48 von 48 Läufen auf dem Friedhof (vorher 1 von 12).
 
 ## Zwischen den Läufen
 
