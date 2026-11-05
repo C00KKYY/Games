@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/3-pop-sounds
+Page title: 3 Pop Sounds | OpenGameArt.org
+Author line: wubitog (posted May 8, 2014)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/3pops.ogg
+  https://opengameart.org/sites/default/files/3pops.zip
+  https://opengameart.org/sites/default/files/audio_preview/3pops.ogg.mp3
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/3pops.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/3pops.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

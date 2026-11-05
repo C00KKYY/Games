@@ -30,7 +30,8 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
   const cam = new Camera();
   await Promise.all([loadAtlas(dpr, cam.maxZoom, p => setBoot(0.35 + p * 0.45)), document.fonts.load('700 20px Fredoka').catch(() => undefined)]);
   setBoot(0.8);
-  // the language comes from the SDK locale, so wait for init (or its timeout) before building the UI (Brief §9.2.6)
+  // the language comes from the SDK locale and the save may only be read after init, so wait for init (or its
+  // timeout) before building the world and the UI (Brief §9.2.4, §9.2.6). SDK init ran in parallel with the assets.
   await platform.ready;
   setBoot(0.9);
 
@@ -42,7 +43,8 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
     scene = { container: spike.container, frameStart: spike.frameStart, insets: () => hud.insets(), frame: (dt) => { spike.update(dt); hud.update(spike.hour); }, groundCull: spike.world.ground };
   } else {
     const a = await createApp(app, cam, platform, params);
-    scene = { container: a.container, frameStart: a.frameStart, insets: a.insets, frame: a.frame, groundCull: a.groundCull, input: a.input };
+    // getters: the app can replace its world (and with it the scene container) after a late SDK init (Brief §9.2.4)
+    scene = { get container() { return a.container; }, frameStart: a.frameStart, insets: a.insets, frame: a.frame, get groundCull() { return a.groundCull; }, input: a.input };
     (window as unknown as Record<string, unknown>).__game = { app, cam, a };
   }
 

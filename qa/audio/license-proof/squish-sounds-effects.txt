@@ -1,0 +1,19 @@
+Source page: https://opengameart.org/content/squish-sounds-effects
+Page title: Squish Sounds Effects | OpenGameArt.org
+Author line: EZduzziteh (posted November 27, 2025)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/squish_preview.mp3.ogg
+  https://opengameart.org/sites/default/files/squish_01_0.mp3
+  https://opengameart.org/sites/default/files/squish_02.mp3
+  https://opengameart.org/sites/default/files/squish_03.mp3
+  https://opengameart.org/sites/default/files/squish_04.mp3
+  https://opengameart.org/sites/default/files/squish_05.mp3
+  https://opengameart.org/sites/default/files/squish_06.mp3
+  https://opengameart.org/sites/default/files/squish_preview.mp3
+  https://opengameart.org/sites/default/files/squishpop.mp3
+  https://opengameart.org/sites/default/files/squishsplat_impact.mp3
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/squish_preview.mp3
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/squish_preview.mp3
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

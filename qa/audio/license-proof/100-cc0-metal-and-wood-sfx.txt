@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/100-cc0-metal-and-wood-sfx
+Page title: 100 CC0 metal and wood SFX | OpenGameArt.org
+Author line: rubberduck (posted July 4, 2018)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/100-CC0-wood-metal-SFX.zip
+  https://opengameart.org/sites/default/files/audio_preview/metal_wood_prev.ogg.mp3
+  https://opengameart.org/sites/default/files/metal_wood_prev.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/metal_wood_prev.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/metal_wood_prev.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

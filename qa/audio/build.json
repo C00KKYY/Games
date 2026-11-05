@@ -1,0 +1,1084 @@
+{
+  "generatedBy": "tools/audio/build.ts",
+  "sfxRmsTargetDb": -13.63,
+  "sounds": [
+    {
+      "id": "musicDay",
+      "kind": "music",
+      "why": "cosy day: \"Ocean Breeze (LoFi, Ukulele, Peaceful)\"",
+      "fallback": false,
+      "processing": [
+        "segment 20.00–107.52s of the source",
+        "equal-power cross-fade 1.50s of the continuation into the head (seamless period)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 87.767279s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "holizna",
+          "file": "fma-holiznacc0/ocean-breeze-lofi-ukulele-peaceful-mp3.mp3",
+          "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/",
+          "license": "CC0-1.0",
+          "author": "HoliznaCC0"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 87.51727891156463,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105,
+        "xfadeSec": 1.5,
+        "similarity": 0.8163292739400586
+      }
+    },
+    {
+      "id": "musicEvening",
+      "kind": "music",
+      "why": "calm evening: \"Ease into Night (Lofi, Relax, Chill)\"",
+      "fallback": false,
+      "processing": [
+        "segment 10.00–101.15s of the source",
+        "equal-power cross-fade 1.50s of the continuation into the head (seamless period)",
+        "peak limiter 1.7 dB (aiming at a decoded MP3 peak ≤ −1 dBFS)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 91.399932s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "holizna",
+          "file": "fma-holiznacc0/ease-into-night-lofi-relax-chill.mp3",
+          "page": "https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/",
+          "license": "CC0-1.0",
+          "author": "HoliznaCC0"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 91.14993197278912,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105,
+        "xfadeSec": 1.5,
+        "similarity": 0.901829125727563
+      }
+    },
+    {
+      "id": "musicInspection",
+      "kind": "music",
+      "why": "tense-but-fun inspection: \"Extra Life I Never Used\" (game soundtrack)",
+      "fallback": false,
+      "processing": [
+        "segment 15.00–98.47s of the source",
+        "equal-power cross-fade 1.50s of the continuation into the head (seamless period)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 83.715374s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "holizna",
+          "file": "fma-holiznacc0/extra-life-i-never-used.mp3",
+          "page": "https://freemusicarchive.org/music/holiznacc0/we-drove-all-night-game-soundtrack/extra-life-i-never-used/",
+          "license": "CC0-1.0",
+          "author": "HoliznaCC0"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 83.46537414965987,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105,
+        "xfadeSec": 1.5,
+        "similarity": 0.9922869338855796
+      }
+    },
+    {
+      "id": "ambWaves",
+      "kind": "loop",
+      "why": "gentle beach wash: five recorded waves, faded and overlapped in a circular 13.2 s buffer (no gap, no audible repeat point)",
+      "fallback": false,
+      "processing": [
+        "5 recorded events mixed into a circular 13.2s buffer",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 13.45s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "waves",
+          "file": "beach-ocean-waves/wave_01_cc0-18363__jasinski__alkaibeach.flac",
+          "page": "https://opengameart.org/content/beach-ocean-waves",
+          "license": "CC0-1.0",
+          "author": "jasinski (submitted by qubodup)"
+        },
+        {
+          "pack": "waves",
+          "file": "beach-ocean-waves/wave_03_cc0-18363__jasinski__alkaibeach.flac",
+          "page": "https://opengameart.org/content/beach-ocean-waves",
+          "license": "CC0-1.0",
+          "author": "jasinski (submitted by qubodup)"
+        },
+        {
+          "pack": "waves",
+          "file": "beach-ocean-waves/wave_04_cc0-18363__jasinski__alkaibeach.flac",
+          "page": "https://opengameart.org/content/beach-ocean-waves",
+          "license": "CC0-1.0",
+          "author": "jasinski (submitted by qubodup)"
+        },
+        {
+          "pack": "waves",
+          "file": "beach-ocean-waves/wave_02_cc0-18363__jasinski__alkaibeach.flac",
+          "page": "https://opengameart.org/content/beach-ocean-waves",
+          "license": "CC0-1.0",
+          "author": "jasinski (submitted by qubodup)"
+        }
+      ],
+      "loop": {
+        "mode": "circular mix",
+        "periodSec": 13.2,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105
+      }
+    },
+    {
+      "id": "ambGulls",
+      "kind": "loop",
+      "why": "distant gulls, sparse calls spread over 23 s",
+      "fallback": false,
+      "processing": [
+        "5 recorded events mixed into a circular 23s buffer",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 23.25s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "gulls",
+          "file": "solo-seagull-sound-effects/Seagull Ambient 1.wav",
+          "page": "https://opengameart.org/content/solo-seagull-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Rango Mango"
+        },
+        {
+          "pack": "gulls",
+          "file": "solo-seagull-sound-effects/Seagull Ambient 4.wav",
+          "page": "https://opengameart.org/content/solo-seagull-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Rango Mango"
+        },
+        {
+          "pack": "gulls",
+          "file": "solo-seagull-sound-effects/Seagull Ambient 6.wav",
+          "page": "https://opengameart.org/content/solo-seagull-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Rango Mango"
+        },
+        {
+          "pack": "gulls",
+          "file": "solo-seagull-sound-effects/Seagull Ambient 5.wav",
+          "page": "https://opengameart.org/content/solo-seagull-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Rango Mango"
+        },
+        {
+          "pack": "gulls",
+          "file": "solo-seagull-sound-effects/Seagull Big Ambient.wav",
+          "page": "https://opengameart.org/content/solo-seagull-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Rango Mango"
+        }
+      ],
+      "loop": {
+        "mode": "circular mix",
+        "periodSec": 23,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105
+      }
+    },
+    {
+      "id": "ambMurmur",
+      "kind": "loop",
+      "why": "crowd babble low-passed at 900 Hz → indistinct murmur (no intelligible words)",
+      "fallback": false,
+      "processing": [
+        "segment 3.00–21.00s of the source",
+        "equal-power cross-fade 2.50s of the continuation into the head (seamless period)",
+        "filter highpass=f=120,lowpass=f=900,lowpass=f=900",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 18.25s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "crowd",
+          "file": "crowd-shoutingspeaking-ambience/crowd_shouting_0.ogg",
+          "page": "https://opengameart.org/content/crowd-shoutingspeaking-ambience",
+          "license": "CC0-1.0",
+          "author": "StarNinjas"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 18,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105,
+        "xfadeSec": 2.5
+      }
+    },
+    {
+      "id": "ambClatter",
+      "kind": "loop",
+      "why": "canteen clatter: forks, cups and plates scattered over 14 s",
+      "fallback": false,
+      "processing": [
+        "12 recorded events mixed into a circular 14s buffer",
+        "transient limiter 6 dB",
+        "peak limiter 6.5 dB (aiming at a decoded MP3 peak ≤ −1 dBFS)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 14.25s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/fork_on_dish_01.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "rdSfx",
+          "file": "100-CC0-SFX_0/dishes_01.ogg",
+          "page": "https://opengameart.org/content/100-cc0-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        },
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/fork_on_dish_02.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/cup_on_table_01.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/pick_cutlery_01.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/fork_on_dish_03.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "rdSfx",
+          "file": "100-CC0-SFX_0/dishes_03.ogg",
+          "page": "https://opengameart.org/content/100-cc0-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        },
+        {
+          "pack": "rdSfx",
+          "file": "100-CC0-SFX_0/pot_01.ogg",
+          "page": "https://opengameart.org/content/100-cc0-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        },
+        {
+          "pack": "cutlery",
+          "file": "cutlery-sounds/drop_cutlery_01.ogg",
+          "page": "https://opengameart.org/content/cutlery-sounds",
+          "license": "CC0-1.0",
+          "author": "TinyWorlds"
+        },
+        {
+          "pack": "rdSfx",
+          "file": "100-CC0-SFX_0/dishes_04.ogg",
+          "page": "https://opengameart.org/content/100-cc0-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ],
+      "loop": {
+        "mode": "circular mix",
+        "periodSec": 14,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105
+      }
+    },
+    {
+      "id": "ambCrickets",
+      "kind": "loop",
+      "why": "night crickets, cross-faded into a 9.5 s seamless bed",
+      "fallback": false,
+      "processing": [
+        "segment 0.50–10.00s of the source",
+        "equal-power cross-fade 1.20s of the continuation into the head (seamless period)",
+        "integrated loudness → -21 LUFS",
+        "±0.25s periodic padding, mono MP3 64 kbps CBR",
+        "loop points from re-decode: start 0.25s, end 9.75s (encoder delay 1105 samples)"
+      ],
+      "sources": [
+        {
+          "pack": "crickets",
+          "file": "crickets-ambient-noise-loopable/crickets_1.mp3",
+          "page": "https://opengameart.org/content/crickets-ambient-noise-loopable",
+          "license": "CC0-1.0",
+          "author": "Wolfgang_"
+        }
+      ],
+      "loop": {
+        "mode": "segment + cross-fade",
+        "periodSec": 9.5,
+        "padSec": 0.25,
+        "offsetSamples": 0,
+        "encoderDelaySamples": 1105,
+        "xfadeSec": 1.2
+      }
+    },
+    {
+      "id": "click",
+      "kind": "sfx",
+      "why": "soft toggle click",
+      "fallback": false,
+      "processing": [
+        "RMS target -11.4 dBFS (natural crest 9.6 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 6.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/toggle_002.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "hover",
+      "kind": "sfx",
+      "why": "tiny select tick, the quietest UI cue (runtime plays it low)",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.7 dBFS (natural crest 12.5 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 15.0 dB on the attack",
+        "soft saturation k=0.8",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/select_007.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "panelOpen",
+      "kind": "sfx",
+      "why": "rising glide",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.4 dBFS (natural crest 12.0 dB)",
+        "silence trim at -30 dB",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/maximize_001.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "panelClose",
+      "kind": "sfx",
+      "why": "falling glide (pair of panelOpen)",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.4 dBFS (natural crest 12.0 dB)",
+        "silence trim at -40 dB",
+        "look-ahead limiter 4.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/minimize_001.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "deny",
+      "kind": "sfx",
+      "why": "wobbly low \"nuh-uh\", not harsh",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.1 dBFS (natural crest 13.3 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 2.8 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/error_006.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "buildStart",
+      "kind": "sfx",
+      "why": "single wooden mallet thunk",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.7 dBFS (natural crest 16.5 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 8.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_hammer_01.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "hammerLoop",
+      "kind": "sfx",
+      "why": "\"tok-tok-tok\": three recorded mallet hits, 0.22 s apart; replays as a hammering rhythm",
+      "fallback": false,
+      "processing": [
+        "RMS target -15.0 dBFS (natural crest 17.1 dB)",
+        "silence trim at -40 dB",
+        "look-ahead limiter 10.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_hammer_01.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "buildDone",
+      "kind": "sfx",
+      "why": "\"done\" pop + small chime",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.2 dBFS (natural crest 15.5 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 5.8 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "pops",
+          "file": "pop-sounds/pop3.ogg",
+          "page": "https://opengameart.org/content/pop-sounds",
+          "license": "CC0-1.0",
+          "author": "cogitollc"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/confirmation_001.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "demolish",
+      "kind": "sfx",
+      "why": "wood planks coming apart and clattering down (no debris crash)",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.2 dBFS (natural crest 15.5 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 7.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_misc_07.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        },
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_breaking_02.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "upgrade",
+      "kind": "sfx",
+      "why": "steel-drum upward leap (island flavour)",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.8 dBFS (natural crest 14.8 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 5.0 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kJingles",
+          "file": "jingleSounds_Kenney/OGG/jingles_STEEL/jingles_STEEL13.ogg",
+          "page": "https://opengameart.org/content/85-short-music-jingles",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "milestone",
+      "kind": "sfx",
+      "why": "steel-drum rising run – milestone fanfare",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.8 dBFS (natural crest 14.7 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 3.8 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kJingles",
+          "file": "jingleSounds_Kenney/OGG/jingles_STEEL/jingles_STEEL02.ogg",
+          "page": "https://opengameart.org/content/85-short-music-jingles",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "coin1",
+      "kind": "sfx",
+      "why": "coin pop 1: pop + glassy ting + a hint of real coins",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.7 dBFS (natural crest 14.5 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 0.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "pops",
+          "file": "pop-sounds/pop4.ogg",
+          "page": "https://opengameart.org/content/pop-sounds",
+          "license": "CC0-1.0",
+          "author": "cogitollc"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/glass_006.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        },
+        {
+          "pack": "rdRpg",
+          "file": "80-CC0-RPG-SFX_0/item_coins_01.ogg",
+          "page": "https://opengameart.org/content/80-cc0-rpg-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "coin2",
+      "kind": "sfx",
+      "why": "coin pop 2: pop + glassy ting + a hint of real coins",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.7 dBFS (natural crest 12.5 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 4.0 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "pops",
+          "file": "pop-sounds/pop9.ogg",
+          "page": "https://opengameart.org/content/pop-sounds",
+          "license": "CC0-1.0",
+          "author": "cogitollc"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/glass_003.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        },
+        {
+          "pack": "rdRpg",
+          "file": "80-CC0-RPG-SFX_0/item_coins_03.ogg",
+          "page": "https://opengameart.org/content/80-cc0-rpg-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "coin3",
+      "kind": "sfx",
+      "why": "coin pop 3: pop + glassy ting",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.3 dBFS (natural crest 11.6 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 1.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "pops",
+          "file": "pop-sounds/pop10.ogg",
+          "page": "https://opengameart.org/content/pop-sounds",
+          "license": "CC0-1.0",
+          "author": "cogitollc"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/glass_005.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "crateStack",
+      "kind": "sfx",
+      "why": "wooden crate set down on a stack",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.5 dBFS (natural crest 14.2 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 5.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_misc_06.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "cartRoll",
+      "kind": "sfx",
+      "why": "wooden cart rolling off (two passes of a rolling loop, faded)",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.7 dBFS (natural crest 14.5 dB)",
+        "cut to 1.9s",
+        "silence trim at -40 dB",
+        "look-ahead limiter 4.5 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdLoops",
+          "file": "sfx_loops/rolling.ogg",
+          "page": "https://opengameart.org/content/30-cc0-sfx-loops",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "hire",
+      "kind": "sfx",
+      "why": "short friendly steel-drum rise",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.5 dBFS (natural crest 14.1 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 4.5 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kJingles",
+          "file": "jingleSounds_Kenney/OGG/jingles_STEEL/jingles_STEEL10.ogg",
+          "page": "https://opengameart.org/content/85-short-music-jingles",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "objective",
+      "kind": "sfx",
+      "why": "ascending 4-note chime",
+      "fallback": false,
+      "processing": [
+        "RMS target -13.3 dBFS (natural crest 13.7 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 2.3 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/confirmation_002.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "ferryHorn",
+      "kind": "sfx",
+      "why": "friendly three-tone steam-ferry whistle \"tooot\" with a natural decay",
+      "fallback": false,
+      "processing": [
+        "RMS target -11.8 dBFS (natural crest 10.7 dB)",
+        "decay tail 0.45s",
+        "silence trim at -40 dB",
+        "look-ahead limiter 14.0 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "steam",
+          "file": "steam-whistle/steamwhistle_0.wav",
+          "page": "https://opengameart.org/content/steam-whistle",
+          "license": "CC0-1.0",
+          "author": "bart"
+        }
+      ]
+    },
+    {
+      "id": "stamp",
+      "kind": "sfx",
+      "why": "rubber stamp thump on paper",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.8 dBFS (natural crest 16.8 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 15.0 dB on the attack",
+        "soft saturation k=0.5",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kRpg",
+          "file": "RPGsounds_Kenney/OGG/bookPlace1.ogg",
+          "page": "https://opengameart.org/content/50-rpg-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    },
+    {
+      "id": "releaseFanfare",
+      "kind": "sfx",
+      "why": "trumpet fanfare lick with applause & cheering underneath",
+      "fallback": false,
+      "processing": [
+        "RMS target -15.4 dBFS (natural crest 17.9 dB)",
+        "decay tail 0.6s",
+        "silence trim at -24 dB",
+        "look-ahead limiter 7.0 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "fanfare",
+          "file": "classic-fanfare-lick/fanfare_3.ogg",
+          "page": "https://opengameart.org/content/classic-fanfare-lick",
+          "license": "CC0-1.0",
+          "author": "fvcalderan"
+        },
+        {
+          "pack": "applause",
+          "file": "applause-in-a-large-hall-or-church/applause-clapping-church-crowd-immersive.wav",
+          "page": "https://opengameart.org/content/applause-in-a-large-hall-or-church",
+          "license": "CC0-1.0",
+          "author": "eXpl0it3r"
+        }
+      ]
+    },
+    {
+      "id": "tunnelPop",
+      "kind": "sfx",
+      "why": "cork-like plop when a tunnel breaks through",
+      "fallback": false,
+      "processing": [
+        "RMS target -15.5 dBFS (natural crest 18.1 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 10.0 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "pop",
+          "file": "pop/pop_.wav",
+          "page": "https://opengameart.org/content/pop",
+          "license": "CC0-1.0",
+          "author": "0f9ran"
+        },
+        {
+          "pack": "pops3",
+          "file": "3pops/3pops/pop1.ogg",
+          "page": "https://opengameart.org/content/3-pop-sounds",
+          "license": "CC0-1.0",
+          "author": "wubitog"
+        }
+      ]
+    },
+    {
+      "id": "kazoo",
+      "kind": "sfx",
+      "why": "FALLBACK (kazoo recording unavailable): comedic \"wah-wah-wah-waaah\" muted trumpet",
+      "fallback": true,
+      "processing": [
+        "RMS target -11.4 dBFS (natural crest 7.4 dB)",
+        "decay tail 0.3s",
+        "silence trim at -40 dB",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "trumpet",
+          "file": "game-over-trumpet-sfx/losetrumpet.wav",
+          "page": "https://opengameart.org/content/game-over-trumpet-sfx",
+          "license": "CC0-1.0",
+          "author": "0new4y"
+        }
+      ]
+    },
+    {
+      "id": "netSwoosh",
+      "kind": "sfx",
+      "why": "butterfly-net swoosh (two light swishes)",
+      "fallback": false,
+      "processing": [
+        "RMS target -12.1 dBFS (natural crest 11.3 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 1.8 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "swishes",
+          "file": "swishes/swishes/swish-7.wav",
+          "page": "https://opengameart.org/content/swishes-sound-pack",
+          "license": "CC0-1.0",
+          "author": "artisticdude"
+        },
+        {
+          "pack": "swishes",
+          "file": "swishes/swishes/swish-3.wav",
+          "page": "https://opengameart.org/content/swishes-sound-pack",
+          "license": "CC0-1.0",
+          "author": "artisticdude"
+        }
+      ]
+    },
+    {
+      "id": "foodSplat",
+      "kind": "sfx",
+      "why": "custard-pie splat (wet squish + soft mud slap)",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.4 dBFS (natural crest 15.9 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 11.5 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "squish",
+          "file": "squish-sounds-effects/squish_04.mp3",
+          "page": "https://opengameart.org/content/squish-sounds-effects",
+          "license": "CC0-1.0",
+          "author": "EZduzziteh"
+        },
+        {
+          "pack": "rdMud",
+          "file": "25-CC0-mud-sfx/mud_08.ogg",
+          "page": "https://opengameart.org/content/25-cc0-mud-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "whistle",
+      "kind": "sfx",
+      "why": "FALLBACK (referee whistle unavailable): two short whistle blows \"fweet-fweet\"",
+      "fallback": true,
+      "processing": [
+        "RMS target -11.4 dBFS (natural crest 4.4 dB)",
+        "silence trim at -40 dB",
+        "decay envelope −11.0 dB over the body",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "whistleOga",
+          "file": "whistles/whistle_1.wav",
+          "page": "https://opengameart.org/content/whistles",
+          "license": "CC-BY-3.0",
+          "author": "dklon"
+        },
+        {
+          "pack": "whistleOga",
+          "file": "whistles/whistle_3.wav",
+          "page": "https://opengameart.org/content/whistles",
+          "license": "CC-BY-3.0",
+          "author": "dklon"
+        }
+      ]
+    },
+    {
+      "id": "inspectStamp",
+      "kind": "sfx",
+      "why": "heavier official stamp (book slam + desk thud)",
+      "fallback": false,
+      "processing": [
+        "RMS target -15.8 dBFS (natural crest 19.5 dB)",
+        "silence trim at -24 dB",
+        "look-ahead limiter 6.5 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "kRpg",
+          "file": "RPGsounds_Kenney/OGG/bookClose.ogg",
+          "page": "https://opengameart.org/content/50-rpg-sound-effects",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        },
+        {
+          "pack": "rdWood",
+          "file": "100-CC0-wood-metal-SFX/wood_slam_04.ogg",
+          "page": "https://opengameart.org/content/100-cc0-metal-and-wood-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        }
+      ]
+    },
+    {
+      "id": "ledgerRegister",
+      "kind": "sfx",
+      "why": "cash-register coin rattle + bright \"ka-ching\" chime",
+      "fallback": false,
+      "processing": [
+        "RMS target -14.7 dBFS (natural crest 16.6 dB)",
+        "silence trim at -30 dB",
+        "look-ahead limiter 8.5 dB on the attack",
+        "peak −3 dBFS",
+        "mono MP3 64 kbps CBR"
+      ],
+      "sources": [
+        {
+          "pack": "rdRpg",
+          "file": "80-CC0-RPG-SFX_0/item_coins_02.ogg",
+          "page": "https://opengameart.org/content/80-cc0-rpg-sfx",
+          "license": "CC0-1.0",
+          "author": "rubberduck"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/confirmation_003.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        },
+        {
+          "pack": "kInterface",
+          "file": "kenney_interfaceSounds/Audio/glass_004.ogg",
+          "page": "https://opengameart.org/content/interface-sounds",
+          "license": "CC0-1.0",
+          "author": "Kenney (kenney.nl)"
+        }
+      ]
+    }
+  ]
+}

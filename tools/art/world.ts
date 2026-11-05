@@ -1,6 +1,7 @@
 /** World sprites: tiles, walls, furniture, props. 1 tile = 32 units. */
 import { P } from '../../art/palette';
 import { T, shape, strokeP, rr, ell, contactShadow, rng, type Sprite, type Tone } from './kit';
+import { fxSprites } from './fx';
 
 const S = 32;
 const tile = (name: string, body: string): Sprite => ({ name, w: S, h: S, ax: 0, ay: 0, body, pad: 0 });
@@ -442,5 +443,6 @@ export function worldSprites(): Sprite[] {
     bunkBed(), benchTable(), bistroTable(), counter(1), counter(2), showerStall(), crate(), bollard(), lamp(), lightGlow(), firefly(),
     tree(0), tree(1), bush(), flowerBed(), bench(), rock(), ferry(), office(), gate(), gatePillar(), gateBeam(), booth(), stampDesk(), knitStation(), desk(), chalkboard(), guardDesk(), hoop(), yardBall(), cart(), sign(),
     puff(), steam(), leaf(), confetti(), coin(), gull(), cloudShadow(),
+    ...fxSprites(),
   ];
 }

@@ -33,6 +33,8 @@ export const T = {
 let uid = 0;
 const id = (p: string) => `${p}${(uid++).toString(36)}`;
 export const resetIds = () => { uid = 0; };
+/** run `fn` on its own id range so sprites added later do not renumber the ids of every sprite generated after them */
+export function scopedIds<T>(base: number, fn: () => T): T { const saved = uid; uid = base; try { return fn(); } finally { uid = saved; } }
 
 export interface ShadeOpts { s?: number; h?: number; lw?: number; noLine?: boolean; noHi?: boolean; shOpacity?: number; transform?: string }
 

@@ -1,0 +1,13 @@
+Source page: https://opengameart.org/content/steam-whistle
+Page title: Steam whistle | OpenGameArt.org
+Author line: bart (posted May 2, 2011)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/steamwhistle_0.wav.mp3
+  https://opengameart.org/sites/default/files/audio_preview/steamwhistle_0.wav.ogg
+  https://opengameart.org/sites/default/files/steam_whistle.wav
+  https://opengameart.org/sites/default/files/steamwhistle_0.wav
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/steamwhistle_0.wav
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/steamwhistle_0.wav
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/crickets-ambient-noise-loopable
+Page title: Crickets Ambient Noise - loopable | OpenGameArt.org
+Author line: Wolfgang_ (posted September 3, 2021)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/crickets-oneloop.mp3.ogg
+  https://opengameart.org/sites/default/files/crickets-oneloop.mp3
+  https://opengameart.org/sites/default/files/crickets_1.mp3
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/crickets-oneloop.mp3
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/crickets-oneloop.mp3
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

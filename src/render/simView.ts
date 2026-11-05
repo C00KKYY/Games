@@ -39,7 +39,10 @@ export class SimView {
   private version = -1;
   private glows: Sprite[] = [];
   private amb: Ambient;
-  private ferry: Sprite;
+  /** juice hooks: props that get a squash on world taps */
+  readonly ferry: Sprite;
+  readonly gate: Sprite;
+  readonly booth: Sprite;
   private crates: Sprite[] = [];
   private decor: { s: Sprite; x: number; y: number }[] = [];
 
@@ -49,8 +52,8 @@ export class SimView {
     wv.buildSea();
     for (const d of START_DECOR) this.decor.push({ s: wv.addProp(d.s, d.x, d.y), x: d.x, y: d.y });
     wv.addProp('office', OFFICE.x, OFFICE.y + OFFICE.h, (OFFICE.y + OFFICE.h) * TILE - 2);
-    wv.addProp('booth', BOOTH.x - 0.1, BOOTH.y + 1.1, (BOOTH.y + 1) * TILE);
-    wv.addProp('gate', GATE_X - 0.125, GATE_Y, GATE_Y * TILE);
+    this.booth = wv.addProp('booth', BOOTH.x - 0.1, BOOTH.y + 1.1, (BOOTH.y + 1) * TILE);
+    this.gate = wv.addProp('gate', GATE_X - 0.125, GATE_Y, GATE_Y * TILE);
     for (const [x, y] of [[DEPOT.x + 0.4, DEPOT.y + 0.6], [DEPOT.x + 0.9, DEPOT.y + 0.9], [DEPOT.x + 0.3, DEPOT.y + 1.05]]) this.crates.push(wv.addProp('crate', x, y));
     this.ferry = wv.addProp('ferry', FERRY_POS.x, FERRY_POS.y, FERRY_POS.y * TILE - 100);
     const lamps = START_DECOR.filter(d => d.s === 'lamp').map(d => ({ x: d.x * TILE, y: d.y * TILE - 46 }));
@@ -61,6 +64,11 @@ export class SimView {
   }
 
   get container(): Container { return this.world.root; }
+
+  /** juice hook: smoothed display position (world units, feet) of an agent, or null when it has no view yet */
+  agentPos(id: number): { x: number; y: number } | null { return this.agents.get(id) ?? null; }
+  /** juice hook: the character view of an agent (null for carts / unknown ids) */
+  agentView(id: number): AgentView | null { return this.agents.get(id)?.v ?? null; }
 
   private rebuildRooms() {
     const wv = this.world, w = this.w;

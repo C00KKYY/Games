@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/25-cc0-mud-sfx
+Page title: 25 CC0 mud sfx | OpenGameArt.org
+Author line: rubberduck (posted August 14, 2018)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/25-CC0-mud-sfx.zip
+  https://opengameart.org/sites/default/files/audio_preview/mud_sfx_prev.ogg.mp3
+  https://opengameart.org/sites/default/files/mud_sfx_prev.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/mud_sfx_prev.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/mud_sfx_prev.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

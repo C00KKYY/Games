@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/30-cc0-sfx-loops
+Page title: 30 CC0 SFX loops | OpenGameArt.org
+Author line: rubberduck (posted July 6, 2018)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/sfx_loops_prev.ogg.mp3
+  https://opengameart.org/sites/default/files/sfx_loops.zip
+  https://opengameart.org/sites/default/files/sfx_loops_prev.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/sfx_loops_prev.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/sfx_loops_prev.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

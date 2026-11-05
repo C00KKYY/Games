@@ -1,0 +1,17 @@
+Source page: https://opengameart.org/content/cutlery-sounds
+Page title: cutlery sounds | OpenGameArt.org
+Author line: TinyWorlds (posted October 8, 2012)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/pick_cutlery_01_0.ogg.mp3
+  https://opengameart.org/sites/default/files/cup_on_table_01.ogg
+  https://opengameart.org/sites/default/files/drop_cutlery_01.ogg
+  https://opengameart.org/sites/default/files/fork_on_dish_01.ogg
+  https://opengameart.org/sites/default/files/fork_on_dish_02.ogg
+  https://opengameart.org/sites/default/files/fork_on_dish_03.ogg
+  https://opengameart.org/sites/default/files/pick_cutlery_01.ogg
+  https://opengameart.org/sites/default/files/pick_cutlery_01_0.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/pick_cutlery_01_0.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/pick_cutlery_01_0.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

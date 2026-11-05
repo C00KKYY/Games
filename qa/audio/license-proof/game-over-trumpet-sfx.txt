@@ -1,0 +1,15 @@
+Source page: https://opengameart.org/content/game-over-trumpet-sfx
+Page title: Game Over Trumpet SFX | OpenGameArt.org
+Author line: 0new4y (posted June 27, 2024)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/losetrumpet.ogg.mp3
+  https://opengameart.org/sites/default/files/gameoveretrumpet.zip
+  https://opengameart.org/sites/default/files/losetrumpet.mp3
+  https://opengameart.org/sites/default/files/losetrumpet.ogg
+  https://opengameart.org/sites/default/files/losetrumpet.wav
+  https://opengameart.org/sites/default/files/losetrumpet_0.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/losetrumpet.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/losetrumpet.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

@@ -12,6 +12,7 @@
     "economy": "tsx tools/economy-sheet.ts",
     "art:build": "tsx tools/art-build.ts",
     "art:sheet": "tsx tools/art-sheet.ts",
+    "audio:build": "tsx tools/audio/build.ts && tsx tools/audio/measure.ts",
     "lint": "eslint src"
   },
   "dependencies": {

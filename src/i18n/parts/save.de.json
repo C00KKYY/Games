@@ -1,0 +1,6 @@
+{
+  "save.restored": "Spielstand wiederhergestellt",
+  "save.unavailable": "Fortschritt kann gerade nicht gespeichert werden",
+  "save.damagedOne": "Ein Speicherplatz war beschädigt – vorherigen Spielstand geladen",
+  "save.damagedAll": "Spielstand nicht lesbar – neues Gefängnis gestartet"
+}

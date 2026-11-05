@@ -1,0 +1,15 @@
+Source page: https://opengameart.org/content/beach-ocean-waves
+Page title: Beach Ocean Waves | OpenGameArt.org
+Author line: jasinski (Submitted by qubodup ) (posted July 4, 2012)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/jasinski-wave-prev.ogg.mp3
+  https://opengameart.org/sites/default/files/jasinski-wave-prev.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/jasinski-wave-prev.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/jasinski-wave-prev.ogg
+  https://opengameart.org/sites/default/files/wave_01_cc0-18363__jasinski__alkaibeach.flac
+  https://opengameart.org/sites/default/files/wave_02_cc0-18363__jasinski__alkaibeach.flac
+  https://opengameart.org/sites/default/files/wave_03_cc0-18363__jasinski__alkaibeach.flac
+  https://opengameart.org/sites/default/files/wave_04_cc0-18363__jasinski__alkaibeach.flac
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)
