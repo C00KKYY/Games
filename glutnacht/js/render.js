@@ -75,18 +75,22 @@ const Render = {
     this.prebuildBosses(stage);
   },
 
-  // Boss-Bilder (scharf, mit Krone; je Boss 2 Bilder × normal/Treffer/vereist) im Voraus bauen, eines alle 0,12 s,
-  // damit das Erscheinen eines Bosses nicht ruckelt. Der Bildzeit-Messer übergeht das Bild nach einem Bau.
+  // Boss-Bilder (scharf, mit Krone; je Boss 2 Bilder × normal/Treffer/vereist) im Voraus bauen, damit das Erscheinen
+  // eines Bosses nicht ruckelt. Gebaut wird nur, solange das Spiel nicht läuft (Menü, Karte, Geschichte, Level-up,
+  // Truhe, Pause), eines alle 0,12 s. Im laufenden Spiel nur als Rückfall, wenn der Boss in weniger als 25 s kommt.
+  // Der Bildzeit-Messer übergeht das Bild nach einem Bau.
   prebuildBosses(stage) {
     const q = this.pbQueue = [];
-    for (const b of stage.bosses || []) for (const v of [0, 1, 2]) for (const f of [0, 1]) q.push(() => Sprites.bossSprite(b.sprite, b.r, f, v, b.tint || null, Sprites.bossLevel(b)));
+    for (const b of (stage.bosses || []).slice().sort((x, y) => x.t - y.t)) for (const v of [0, 1, 2]) for (const f of [0, 1]) q.push({ t: b.t, fn: () => Sprites.bossSprite(b.sprite, b.r, f, v, b.tint || null, Sprites.bossLevel(b)) });
     this.pbT = 0;
   },
   prebuildStep() {
     const q = this.pbQueue;
     if (!q || !q.length || this.time - this.pbT < 0.12) return;
+    const r = Game.run;
+    if (Game.state === 'play' && r && !r.endless && q[0].t - r.t > 25) return;
     this.pbT = this.time;
-    q.shift()();
+    q.shift().fn();
     this.perf.last = 0;
   },
 

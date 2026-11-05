@@ -1721,16 +1721,18 @@ const Sprites = (() => {
   }
 
   // Höhere Auflösung für Standbilder (z. B. Titelbilder); leert den Zwischenspeicher
-  function setScale(s) { SC = s; cache.clear(); hiCache.clear(); }
+  function setScale(s) { SC = s; cache.clear(); hiCache.clear(); hiMaps.clear(); }
 
   // Hochauflösende Fassung eines Sprites (z. B. für das Titelbild): fn läuft mit Faktor k über der normalen
   // Auflösung und eigenem Zwischenspeicher, das Ergebnis wird unter key gemerkt. .size bleibt in Weltpixeln.
-  const hiCache = new Map();
+  // Der Zwischenspeicher je Faktor bleibt erhalten: Treffer- und Frostfassung eines Bosses nutzen das schon gebaute
+  // Grundbild, statt es (samt teurem Umriss) neu zu zeichnen
+  const hiCache = new Map(), hiMaps = new Map();
   function hires(key, k, fn) {
     let c = hiCache.get(key + '@' + k);
     if (c) return c;
     const oc = cache, os = SC;
-    cache = new Map(); SC = os * k;
+    cache = hiMaps.get(k) || new Map(); hiMaps.set(k, cache); SC = os * k;
     try { c = fn(); } finally { cache = oc; SC = os; }
     hiCache.set(key + '@' + k, c);
     return c;
