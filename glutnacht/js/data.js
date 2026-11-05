@@ -212,7 +212,7 @@ const STAGES = [
       { pool: { bat: 2, slime: 3, spitter: 1 }, rate: 2.1, cap: 42 },
       { pool: { bat: 3, slime: 2, skel: 2, spitter: 2 }, rate: 3, cap: 65 },
       { pool: { slime: 2, skel: 3, ghost: 2, spitter: 2 }, rate: 3.4, cap: 85 },
-      { pool: { skel: 3, ghost: 2, bat: 2, spitter: 1 }, rate: 3.4, cap: 95 },
+      { pool: { skel: 3, ghost: 2, bat: 2, spitter: 2 }, rate: 3.4, cap: 95 },
       { pool: { ghost: 2, ghoul: 2, skel: 2, spitter: 2, bell: 1 }, rate: 4, cap: 115 },
       { pool: { ghoul: 3, spitter: 2, bat: 3, bell: 1 }, rate: 4.8, cap: 135 },
       { pool: { ghoul: 2, wraith: 1, skel: 3, spitter: 2, bell: 1 }, rate: 5.4, cap: 155 },
@@ -246,7 +246,7 @@ const STAGES = [
     tints: { bat: '#ff7a3c', ghost: '#ffb070', wraith: '#ff5a1f', slime: '#ff9a3c', skel: '#4a2e20', ghoul: '#5a3a2a', brute: '#b8502a' }, mods: { all: { hp: 0.9, speed: 1.1 } },
     mult: { hp: 1.15, dmg: 1.15, rate: 1 },
     rangedFrom: 58,
-    rangedCd: 1.2, // Abklingzeit der Fernkämpfer ×1,2 (abgestimmt mit dem Balance-Bot)
+    rangedCd: 1.6, // Abklingzeit der Fernkämpfer ×1,6 (abgestimmt mit dem Balance-Bot)
     waves: [
       { pool: { bat: 4, slime: 1, cinder: 1 }, rate: 2.6, cap: 50 },
       { pool: { bat: 3, ghost: 2, slime: 1, cinder: 1 }, rate: 3.2, cap: 70 },
@@ -296,7 +296,7 @@ const STAGES = [
     mods: { all: { hp: 1.4, speed: 0.85, xp: 1.3 }, moth: { hp: 0.75 }, bell: { hp: 0.8 } },
     mult: { hp: 0.9, dmg: 1.15, rate: 1.1 },
     rangedFrom: 45,
-    rangedCd: 1.35,
+    rangedCd: 1.7,
     waves: [
       { pool: { slime: 3, ghost: 2, moth: 1 }, rate: 2.2, cap: 45 },
       { pool: { slime: 3, ghost: 2, skel: 1, moth: 1 }, rate: 2.6, cap: 60 },
@@ -342,6 +342,7 @@ const STAGES = [
     tints: { skel: '#c8a060', golem: '#a08a6a', brute: '#8a6a4a', ghoul: '#7a7a5a', slime: '#8a9a5a' }, mods: { skel: { hp: 1.25 }, spitter: { hp: 1.2 }, golem: { speed: 1.1 } },
     mult: { hp: 1.2, dmg: 1.1, rate: 1.1 },
     rangedFrom: 40,
+    rangedCd: 1.1,
     waves: [
       { pool: { skel: 3, slime: 2, spitter: 1 }, rate: 2.4, cap: 50 },
       { pool: { skel: 3, spitter: 2, bat: 2 }, rate: 3, cap: 70 },
@@ -423,7 +424,7 @@ const STAGES = [
       { id: 'nightmare', name: 'Der Nachtmahr', t: 210, sprite: 'wraith', tint: '#4a2cff', hp: 3200, speed: 84, dmg: 22, r: 42, xp: 150, skills: ['dash', 'fan', 'dash', 'nova'], cast: { fan: { prim: 'fan', n: 5, spread: 40, spd: 220 } } },
       { id: 'mooneater', name: 'Mondfresser', t: 450, sprite: 'golem', tint: '#2e2366', hp: 14000, speed: 52, dmg: 32, r: 58, xp: 350, skills: ['slam', 'eclipse', 'summon', 'eclipse'], cast: { eclipse: { prim: 'rain', v: 'track', k: 1 } }, summon: 'ghost' },
       { id: 'starless', name: 'Der Sternlose', t: 690, sprite: 'skel', tint: '#9a8cff', hp: 24000, speed: 66, dmg: 34, r: 48, xp: 450, skills: ['summon', 'starfall', 'nova', 'dash'], cast: { starfall: { prim: 'rain', v: 'stars', k: 9 } }, summon: 'skel' },
-      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 190000, speed: 72, dmg: 45, r: 64, xp: 1000, skills: ['dash', 'spiral', 'slam', 'lanes', 'summon', 'nova'], cast: { spiral: { prim: 'spiral', arms: 3 }, lanes: { prim: 'lanes', pat: 'x' } }, summon: 'skel', final: true },
+      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 230000, speed: 72, dmg: 45, r: 64, xp: 1000, skills: ['dash', 'spiral', 'slam', 'lanes', 'summon', 'nova'], cast: { spiral: { prim: 'spiral', arms: 3 }, lanes: { prim: 'lanes', pat: 'x' } }, summon: 'skel', final: true },
     ],
   },
 ];
