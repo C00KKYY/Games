@@ -1,5 +1,6 @@
 /** Agents: movement along distance fields, rascal needs, mood, activity choice and room use. */
 import { NEEDS, RATE, SENTENCE, levelMult, STAFF_SPEED_PER_LVL, CLEAN, type RoomType } from '../content/balance';
+import { energyRefillMult, mealRefillMult, hygieneRefillMult, yardFunMult, reformMult, moodFlatBonus, dirtPerUseMult, workshopMult } from './effects';
 import { Ground } from '../content/site1';
 import { TICKS_PER_HOUR, UNREACHABLE, type World, type Agent, type Room, type Need, type Trait, type Side } from './types';
 import { idx, nextStep, walkable } from './pathfield';
@@ -138,7 +139,7 @@ export function decayNeeds(w: World, a: Agent) {
 export function computeMood(w: World, a: Agent, auraAt: (x: number, y: number) => number): number {
   const N = a.needs, Wt = NEEDS.moodWeights;
   let m = N.hunger * Wt.hunger + N.energy * Wt.energy + N.hygiene * Wt.hygiene + N.fun * Wt.fun;
-  m += auraAt(a.x, a.y);
+  m += auraAt(a.x, a.y) + moodFlatBonus(w);
   if (a.traits.includes('grumpy')) m -= 10;
   if (a.state === 'waitingDock') m -= 10;
   if (a.act && a.state === 'using') { const r = roomById(w, a.act.roomId); if (r && r.clean < CLEAN.dirtyBelow) m -= 6; }
@@ -320,7 +321,7 @@ function arrive(w: World, a: Agent) {
   // Ø walk for the room panel (tenths of real seconds at 1x)
   r.walkTicksSum += Math.round((w.rtMs - a.stateMs) / 100); r.walkSamples++;
   if (r.walkSamples > 400) { r.walkTicksSum = Math.round(r.walkTicksSum / 2); r.walkSamples = 200; }
-  r.clean = Math.max(0, r.clean - (w.unlocked.janitorClean ? CLEAN.perUseAfterJanitorUnlock : CLEAN.perUse) * (w.tutorial.done ? 1 : 0));
+  r.clean = Math.max(0, r.clean - (w.unlocked.janitorClean ? CLEAN.perUseAfterJanitorUnlock : CLEAN.perUse) * (w.tutorial.done ? 1 : 0) * dirtPerUseMult(w));
   setState(w, a, 'using');
 }
 
@@ -342,19 +343,19 @@ function useTick(w: World, a: Agent, ctx: { mf: (a: Agent) => number; noiseBunks
   const mf = ctx.mf(a);
   const clever = a.traits.includes('clever') ? 1.4 : 1;
   switch (act.kind) {
-    case 'class': a.reform += RATE.reformClass * levelMult(r!.level) * staffFactor(w, r!, 'teacher') * mf * clever * PER_TICK; break;
+    case 'class': a.reform += RATE.reformClass * levelMult(r!.level) * staffFactor(w, r!, 'teacher') * mf * clever * PER_TICK * reformMult(w); break;
     case 'work': {
-      a.reform += RATE.reformWorkshop * mf * clever * PER_TICK;
+      a.reform += RATE.reformWorkshop * mf * clever * PER_TICK * reformMult(w);
       const foremen = staffIn(w, r!, 'foreman').length;
       const sup = act.slot < foremen * 4 ? 1 : RATE.workshopNoForemanFactor;
       const lazy = a.traits.includes('lazy') ? 0.7 : 1;
-      r!.stack += RATE.workshopCratesPerStation * levelMult(r!.level) * staffFactor(w, r!, 'foreman') * sup * mf * lazy * PER_TICK;
+      r!.stack += RATE.workshopCratesPerStation * levelMult(r!.level) * staffFactor(w, r!, 'foreman') * sup * mf * lazy * PER_TICK * workshopMult(w);
       break;
     }
-    case 'yard': a.needs.fun = Math.min(100, a.needs.fun + NEEDS.fun.refillPerHourInYard * PER_TICK); break;
+    case 'yard': a.needs.fun = Math.min(100, a.needs.fun + NEEDS.fun.refillPerHourInYard * PER_TICK * yardFunMult(w)); break;
     case 'sleep': {
       const noise = ctx.noiseBunks.has(r!.id) ? 0.8 : 1;
-      a.needs.energy = Math.min(100, a.needs.energy + NEEDS.energy.refillPerHourInBed * levelMult(r!.level) * noise * PER_TICK);
+      a.needs.energy = Math.min(100, a.needs.energy + NEEDS.energy.refillPerHourInBed * levelMult(r!.level) * noise * PER_TICK * energyRefillMult(w));
       break;
     }
   }
@@ -379,10 +380,10 @@ function canFix(w: World, type: RoomType): boolean {
 function finish(w: World, a: Agent) {
   const act = a.act!;
   const r = act.roomId ? roomById(w, act.roomId) : undefined;
-  if (act.kind === 'eat' && w.t >= act.untilT) a.needs.hunger = Math.min(100, a.needs.hunger + NEEDS.hunger.refill);
+  if (act.kind === 'eat' && w.t >= act.untilT) a.needs.hunger = Math.min(100, a.needs.hunger + NEEDS.hunger.refill * mealRefillMult(w));
   if (act.kind === 'shower' && w.t >= act.untilT) {
     const dirty = r && r.clean < CLEAN.dirtyBelow ? 0.6 : 1;
-    a.needs.hygiene = Math.min(100, a.needs.hygiene + NEEDS.hygiene.refill * dirty);
+    a.needs.hygiene = Math.min(100, a.needs.hygiene + NEEDS.hygiene.refill * dirty * hygieneRefillMult(w));
     // tutorial script: Earl is reformed right after his first shower (Brief §4.2)
     if (a.flags & AF.earl && !(a.flags & AF.celebrated)) { a.reform = a.sentence; a.flags |= AF.celebrated; }
   }

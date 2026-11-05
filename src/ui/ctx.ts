@@ -9,6 +9,7 @@ import type { Key, Lang } from '../i18n/i18n';
 import type { RoomType, StaffRole } from '../content/balance';
 import type { Container } from 'pixi.js';
 import type { Settings } from '../save/serialize';
+import type { Clock } from '../sim/clock';
 
 export type Selection = { kind: 'room'; id: number } | { kind: 'agent'; id: number } | null;
 export type Tool =
@@ -25,6 +26,15 @@ export class Store<T> {
   set(v: T) { const p = this.v; this.v = v; for (const f of this.fns) f(v, p); }
   on(fn: (v: T, prev: T) => void) { this.fns.push(fn); return () => { this.fns = this.fns.filter(f => f !== fn); }; }
 }
+
+/**
+ * M5 panels (docs/M5_DESIGN.md §12). Non-pausing (gameplay, like the build menu): projects, leads, mail, forecast.
+ * Pausing (Brief §11.1 → the component calls ctx.setPaused(true) on open and restores on close): inspection (result
+ * screen), transfer (incl. the perk menu). At most one M5 panel is open; opening one closes ctx.menu.
+ */
+export type M5Panel = 'projects' | 'leads' | 'mail' | 'forecast' | 'inspection' | 'transfer';
+/** a running catch-up resim (Brief §3.15: 60 s – 5 min → "Catching up…" mini-toast; silent below 60 s) */
+export interface CatchUpState { mode: 'silent' | 'catchup'; left: number; total: number }
 
 export interface TipContent { title: string; body?: string; hotkey?: string }
 
@@ -95,6 +105,15 @@ export interface UICtx {
    * CrazyGames, localStorage elsewhere), never save again this session, reload. Attached by the app.
    */
   resetProgress?(): void;
+  // ---- M5 (docs/M5_DESIGN.md §12)
+  /** wall clock (systemClock, or FakeClock via ?clock=<ms>&tz=<min> for tests) – UI uses it for "New mail tomorrow" countdowns */
+  clock: Clock;
+  /** which M5 panel is open (null = none) */
+  panel: Store<M5Panel | null>;
+  /** catch-up resim in progress (set by the app, read by returnPanel.ts for the mini-toast), null = none */
+  catchUp: Store<CatchUpState | null>;
+  /** performance.now() of the last successful save (0 = none yet) – saveIndicator.ts shows the check icon (Brief §5.6) */
+  saved: Store<number>;
 }
 
 export interface Component { update(dt: number): void; destroy?(): void }

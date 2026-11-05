@@ -7,9 +7,10 @@ import { idx } from './pathfield';
 import { inMeal, hourOf, tickMs } from './time';
 import { rngNext, rngInt } from './rng';
 import { staffOf } from './staff';
+import { guardRadiusBonus } from './effects';
 
 const D = DIRECTOR;
-const guardRadius = (w: World) => GUARD_RADIUS + (w.unlocked.projWhistle ? 2 : 0);
+export const guardRadius = (w: World) => GUARD_RADIUS + guardRadiusBonus(w);
 
 function tutorialEndMs(w: World) { return w.director.data.tutorialEndMs ?? (w.tutorial.done ? 0 : Infinity); }
 
@@ -55,6 +56,12 @@ export function escapeScore(w: World, a: Agent) {
 function canteenMood(w: World) {
   const c = roomsOf(w, 'canteen')[0]; if (!c || !c.usesToday) return 60;
   return c.moodSumToday / c.usesToday;
+}
+
+/** food fight tumult meter 0..1 for the UI (fills in DIRECTOR.foodFightFillSec), 0 when no food fight runs */
+export function foodFightMeter01(w: World): number {
+  if (w.director.active !== 'food') return 0;
+  return Math.max(0, Math.min(1, (w.rtMs - w.director.activeSinceMs) / (D.foodFightFillSec * 1000)));
 }
 
 // ------------------------------------------------------------------ spoon tunnel

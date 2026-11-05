@@ -3,6 +3,8 @@ import { WAGES, ECON, RATE, levelMult, STAFF_ROOM, type StaffRole } from '../con
 import { TICKS_PER_HOUR, AF, type World, type Agent, type Room } from './types';
 import { baseAgent, goTo, moveAgent, setState, SPEED } from './agents';
 import { roomById, emit, earn, spend, roomsOf, isWalled } from './world';
+import { cartSpeedMult, crateValueMult } from './effects';
+import { LEAD_CART_MIN_CRATES } from '../content/progress';
 import { hourOf, isNight } from './time';
 import { idx } from './pathfield';
 import { rngNext } from './rng';
@@ -104,13 +106,13 @@ export function cartAgent(w: World): Agent {
 export function cartTick(w: World) {
   const c = w.cart, a = cartAgent(w);
   const carter = staffOf(w, 'carter')[0];
-  const sp = CART_SPEED * (w.t < w.unpaidUntilT ? 0.7 : 1) * (w.unlocked.projSpeedyCarts ? 1.3 : 1);
+  const sp = CART_SPEED * (w.t < w.unpaidUntilT ? 0.7 : 1) * cartSpeedMult(w);
   const set = (s: typeof c.state) => { c.state = s; c.sinceMs = w.rtMs; };
   switch (c.state) {
     case 'depot': {
       a.moving = false;
       if (!carter) return;
-      const auto = w.unlocked.supLogistics ? 2 : RATE.cartCrates;
+      const auto = w.unlocked.supLogistics ? LEAD_CART_MIN_CRATES : RATE.cartCrates; // logistics lead (leads.ts keeps unlocked.supLogistics in sync)
       let best: Room | undefined;
       for (const r of roomsOf(w, 'workshop')) {
         if (!r.built || !r.reachable || Math.floor(r.stack) < 1) continue;
@@ -139,7 +141,7 @@ export function cartTick(w: World) {
       a.moving = false;
       if (w.rtMs - c.sinceMs < 1200) break;
       if (c.load > 0) {
-        earn(w, 'crates', c.load * ECON.crateValue * (w.unlocked.projAssembly ? 1.25 : 1), { x: a.x, y: a.y });
+        earn(w, 'crates', c.load * ECON.crateValue * crateValueMult(w), { x: a.x, y: a.y });
         w.stats.cratesSold += c.load; emit(w, 'crateSold', { n: c.load });
       }
       c.load = 0; set('return'); goTo(a, 'depot', w.poi.depot.x, w.poi.depot.y);

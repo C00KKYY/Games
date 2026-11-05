@@ -4,6 +4,7 @@ import { TICKS_PER_HOUR, AF, type World, type Agent } from './types';
 import { spawnRascal, goTo, setState, releaseSlot, rascals } from './agents';
 import { roomsOf, emit, earn, addRuf, starsOf } from './world';
 import { nextHourTick } from './time';
+import { ferrySeatBonus, releaseBountyMult } from './effects';
 
 const ferryTimes = [7, 15];
 export function scheduleNextFerry(w: World) {
@@ -20,7 +21,7 @@ export function freeBeds(w: World): { roomId: number; slot: number }[] {
 export const totalBeds = (w: World) => roomsOf(w, 'bunk').filter(r => r.built).reduce((s, r) => s + r.slots.length, 0);
 
 export function ferrySizeNow(w: World) {
-  const bonus = (w.unlocked.projBiggerFerry ? 2 : 0) + (w.unlocked.perkFerry ? 1 : 0);
+  const bonus = ferrySeatBonus(w);
   return Math.min(FERRY.max + bonus, FERRY.base + Math.floor(w.ruf / FERRY.perRuf) + bonus);
 }
 
@@ -110,7 +111,7 @@ export function release(w: World, a: Agent) {
   w.director.data.lastRelease = w.rtMs;
   const gate = roomsOf(w, 'gate')[0];
   const vip = !!(a.flags & AF.vip);
-  const bounty = releaseBounty(starsOf(w.ruf), vip) * gateBountyMult(gate?.level ?? 1) * (w.unlocked.projForm27b ? 1.15 : 1);
+  const bounty = releaseBounty(starsOf(w.ruf), vip) * gateBountyMult(gate?.level ?? 1) * releaseBountyMult(w);
   releaseSlot(w, a);
   a.bed = 0; a.bedSlot = -1; a.act = null;
   earn(w, 'release', bounty, { x: a.x, y: a.y });
