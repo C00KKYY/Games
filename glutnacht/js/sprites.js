@@ -32,6 +32,8 @@ const STYLE = {
     orange: ['#8a3010', '#ee7a26', '#ffd486'],
   },
   eye: { white: '#fffbf0', red: '#ff3b4e', green: '#a8ff4c', yellow: '#ffe14f', cyan: '#5ff2ff', warm: '#fff1c2' },
+  // Feindliche Gefahren (M9): rot mit hellem Kern und immer einem 2-px-Tintenring, den kein Effekt des Helden hat
+  hostile: { core: '#fff1c4', glow: '#ff3d5a', ink: '#120a18', rim: '#ff8a96', fillRGB: '255,61,90' },
 };
 
 const Sprites = (() => {
@@ -315,7 +317,10 @@ const Sprites = (() => {
       for (let i = -2; i <= 2; i++) fang(g, R * 0.08 + i * R * 0.13, -R * 0.15, R * 0.09, R * 0.11, '#f2e6c8');
     },
     spitter(g, R, f) {
-      const L = R_.leaf, O = R_.orange;
+      const L = R_.leaf, O = R_.orange, wind = f === 2;
+      // Bild 2 (Ausholen): aufgebläht, Maul weit offen mit grünem Glühen, zwei Funken
+      g.save();
+      if (wind) g.scale(1.12, 1.12);
       for (let i = 0; i < 5; i++) {
         const a = Math.PI * 0.6 + i * 0.45;
         g.fillStyle = sph(g, Math.cos(a) * R * 0.8, Math.sin(a) * R * 0.8 + R * 0.2, R * 0.45, L);
@@ -324,14 +329,159 @@ const Sprites = (() => {
       g.fillStyle = O[1];
       for (let i = 0; i < 6; i++) {
         const a = -Math.PI / 2 + (i - 2.5) * 0.4;
-        g.beginPath(); g.moveTo(Math.cos(a - 0.14) * R * 0.78, Math.sin(a - 0.14) * R * 0.78); g.lineTo(Math.cos(a) * R * 1.18, Math.sin(a) * R * 1.18); g.lineTo(Math.cos(a + 0.14) * R * 0.78, Math.sin(a + 0.14) * R * 0.78); g.fill();
+        g.beginPath(); g.moveTo(Math.cos(a - 0.14) * R * 0.78, Math.sin(a - 0.14) * R * 0.78); g.lineTo(Math.cos(a) * R * (wind ? 1.3 : 1.18), Math.sin(a) * R * (wind ? 1.3 : 1.18)); g.lineTo(Math.cos(a + 0.14) * R * 0.78, Math.sin(a + 0.14) * R * 0.78); g.fill();
       }
       g.fillStyle = sph(g, 0, 0, R * 0.9, O);
       circ(g, 0, 0, R * 0.85); g.fill();
-      g.fillStyle = '#3a0c0c'; ell(g, R * 0.1, R * 0.28, R * 0.4, R * (f ? 0.32 : 0.15)); g.fill();
-      if (f) { g.fillStyle = '#b6ff4f'; circ(g, R * 0.1, R * 0.32, R * 0.14); g.fill(); }
+      g.fillStyle = '#3a0c0c'; ell(g, R * 0.12, R * 0.28, R * (wind ? 0.48 : 0.4), R * (wind ? 0.4 : f ? 0.32 : 0.15)); g.fill();
+      if (wind) {
+        g.save(); g.shadowColor = '#b6ff4f'; g.shadowBlur = R * 0.8 * SC;
+        g.fillStyle = '#b6ff4f'; circ(g, R * 0.14, R * 0.3, R * 0.24); g.fill();
+        g.fillStyle = '#f2ffd0'; circ(g, R * 0.1, R * 0.26, R * 0.1); g.fill();
+        g.restore();
+      } else if (f) { g.fillStyle = '#b6ff4f'; circ(g, R * 0.1, R * 0.32, R * 0.14); g.fill(); }
       eye(g, -R * 0.22, -R * 0.28, R * 0.18, '#7a2a0c', 0.5, 0);
       eye(g, R * 0.36, -R * 0.28, R * 0.18, '#7a2a0c', 0.5, 0);
+      g.restore();
+      if (wind) { g.fillStyle = '#f2ffd0'; circ(g, R * 0.75, R * 0.05, R * 0.08); g.fill(); circ(g, R * 0.62, R * 0.62, R * 0.06); g.fill(); }
+    },
+    // Aschenkessel: gedrungener Eisenkessel mit gezacktem Rand auf drei verkohlten Stelzen, kalte violette Glut
+    cinder(g, R, f) {
+      const I = R_.iron, W = R_.wood, wind = f === 2;
+      // Stelzen (Bild 0/1: abwechselnde Beinpaare)
+      const step = f === 1 ? 1 : f === 0 ? -1 : 0;
+      g.strokeStyle = W[0]; g.lineWidth = R * 0.14; g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(-R * 0.55, R * 0.3); g.lineTo(-R * 0.82 + step * R * 0.08, R * 1.08 - Math.max(0, step) * R * 0.08);
+      g.moveTo(R * 0.55, R * 0.3); g.lineTo(R * 0.82 + step * R * 0.08, R * 1.08 - Math.max(0, step) * R * 0.08);
+      g.moveTo(0, R * 0.4); g.lineTo(-step * R * 0.08, R * 1.12 - Math.max(0, -step) * R * 0.08);
+      g.stroke();
+      g.strokeStyle = W[1]; g.lineWidth = R * 0.05;
+      g.beginPath(); g.moveTo(-R * 0.58, R * 0.38); g.lineTo(-R * 0.76, R * 0.9); g.moveTo(R * 0.52, R * 0.38); g.lineTo(R * 0.7, R * 0.9); g.stroke();
+      g.save();
+      if (wind) { g.translate(0, R * 0.1); g.rotate(-0.16); g.translate(0, -R * 0.1); } // Rand kippt nach vorn-oben
+      // Kessel
+      g.fillStyle = sph(g, -R * 0.1, -R * 0.1, R * 1.2, I, 0.45);
+      g.beginPath(); g.moveTo(-R * 1.0, -R * 0.38);
+      g.bezierCurveTo(-R * 1.05, R * 0.25, -R * 0.55, R * 0.58, 0, R * 0.58);
+      g.bezierCurveTo(R * 0.55, R * 0.58, R * 1.05, R * 0.25, R * 1.0, -R * 0.38);
+      g.closePath(); g.fill();
+      // Nietenband
+      g.fillStyle = 'rgba(18,10,24,0.35)'; g.fillRect(-R * 0.96, -R * 0.02, R * 1.92, R * 0.14);
+      for (let i = -3; i <= 3; i++) { g.fillStyle = sph(g, i * R * 0.27, R * 0.05, R * 0.06, I); circ(g, i * R * 0.27, R * 0.05, R * 0.055); g.fill(); }
+      // Öffnung mit Glut
+      g.fillStyle = '#1a0c22'; ell(g, 0, -R * 0.42, R * 0.92, R * 0.26); g.fill();
+      g.save(); g.shadowColor = '#c04cff'; g.shadowBlur = R * (wind ? 1.4 : 0.8) * SC;
+      g.fillStyle = sph(g, -R * 0.2, -R * 0.5, R * 0.8, ['#4a1468', '#c04cff', '#ffc8ff'], 0.4);
+      ell(g, 0, -R * 0.4, R * 0.78, R * 0.17); g.fill();
+      g.fillStyle = wind ? '#ffe0ff' : '#ff9cf2';
+      for (const [x, y, rr] of [[-0.45, -0.42, 0.1], [0.1, -0.46, 0.12], [0.5, -0.4, 0.09], [-0.1, -0.36, 0.07]]) { circ(g, x * R, y * R, rr * R * (wind ? 1.3 : 1)); g.fill(); }
+      g.restore();
+      // zwei gelbe Augen über dem Rand
+      glowEye(g, -R * 0.18, -R * 0.6, R * 0.1, STYLE.eye.yellow);
+      glowEye(g, R * 0.24, -R * 0.6, R * 0.1, STYLE.eye.yellow);
+      // gezackter Rand (vorne), Licht oben links
+      g.fillStyle = lin(g, -R, -R * 0.6, R, -R * 0.2, I);
+      g.beginPath(); g.moveTo(-R * 1.08, -R * 0.36);
+      const n = 9;
+      for (let i = 0; i <= n; i++) { const x = -R * 1.08 + i * R * 2.16 / n; g.lineTo(x, -R * (i % 2 ? 0.3 : 0.52)); }
+      g.lineTo(R * 1.08, -R * 0.2); g.quadraticCurveTo(0, -R * 0.08, -R * 1.08, -R * 0.2); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(-R * 0.9, -R * 0.3, R * 0.6, R * 0.05);
+      glint(g, -R * 0.62, R * 0.15, R * 0.09, 0.6);
+      g.restore();
+      if (wind) { // Funken steigen auf
+        g.fillStyle = '#ffc8ff';
+        for (const [x, y, rr] of [[-0.3, -0.95, 0.07], [0.2, -1.1, 0.06], [0.55, -0.85, 0.05], [-0.05, -1.3, 0.05]]) { circ(g, x * R, y * R, rr * R); g.fill(); }
+      }
+    },
+    // Nadelmotte: breite, runde, helle Vorderflügel mit Goldstaub und großen Augenflecken, dunkler pelziger Leib,
+    // gefiederte Fühler, langer dünner Rüssel nach vorne (rechts)
+    moth(g, R, f) {
+      const B = R_.bone, W = R_.wood, wind = f === 2;
+      const up = f === 0 ? 0.28 : f === 1 ? -0.22 : 0.05; // Flügelschlag
+      const spread = wind ? 1.14 : 1;
+      for (const s of [-1, 1]) {
+        // Hinterflügel
+        g.save(); g.translate(s * R * 0.12, R * 0.15); g.rotate(s * (0.5 - up * 0.4));
+        g.fillStyle = sph(g, s * R * 0.4, R * 0.25, R * 0.6, ['#7a6a52', '#c8b894', '#f4ead0']);
+        ell(g, s * R * 0.42 * spread, R * 0.28, R * 0.48 * spread, R * 0.36); g.fill();
+        g.restore();
+        // Vorderflügel
+        g.save(); g.translate(s * R * 0.1, -R * 0.1); g.rotate(s * (-0.35 - up));
+        g.fillStyle = sph(g, s * R * 0.5, -R * 0.2, R * 0.95 * spread, B);
+        ell(g, s * R * 0.62 * spread, -R * 0.12, R * 0.68 * spread, R * 0.5); g.fill();
+        // Goldstaub
+        g.fillStyle = 'rgba(238,176,38,0.55)';
+        for (const [x, y] of [[0.3, -0.35], [0.95, -0.05], [0.75, 0.22], [1.05, -0.32], [0.45, 0.12]]) { circ(g, s * x * R * spread, y * R, R * 0.045); g.fill(); }
+        // Augenfleck: Tintenring, rot-rosa Pupille
+        const ex = s * R * 0.7 * spread, ey = -R * 0.12;
+        g.fillStyle = STYLE.ink; circ(g, ex, ey, R * 0.26); g.fill();
+        g.fillStyle = '#f6e7c4'; circ(g, ex, ey, R * 0.19); g.fill();
+        if (wind) { g.save(); g.shadowColor = STYLE.eye.red; g.shadowBlur = R * 0.6 * SC; }
+        g.fillStyle = STYLE.eye.red; circ(g, ex, ey, R * 0.12); g.fill();
+        if (wind) g.restore();
+        g.fillStyle = '#ffffff'; circ(g, ex - R * 0.04, ey - R * 0.05, R * 0.04); g.fill();
+        g.restore();
+      }
+      // Rüssel nach vorne
+      inkLine(g, R * 0.05); g.strokeStyle = '#2a1608';
+      g.beginPath(); g.moveTo(R * 0.15, R * 0.05); g.quadraticCurveTo(R * 0.6, R * 0.2, R * (wind ? 1.25 : 1.05), R * 0.12); g.stroke();
+      // Fühler (gefiedert)
+      for (const s of [-1, 1]) {
+        const x0 = s * R * 0.08, y0 = -R * 0.45, x1 = s * R * 0.45, y1 = -R * 1.05;
+        g.strokeStyle = W[0]; g.lineWidth = R * 0.05;
+        g.beginPath(); g.moveTo(x0, y0); g.quadraticCurveTo(s * R * 0.12, -R * 0.95, x1, y1); g.stroke();
+        g.lineWidth = R * 0.03;
+        for (let k = 1; k < 5; k++) { const tt = k / 5, x = x0 + (x1 - x0) * tt, y = y0 + (y1 - y0) * tt; g.beginPath(); g.moveTo(x, y); g.lineTo(x + s * R * 0.12, y + R * 0.04); g.moveTo(x, y); g.lineTo(x - s * R * 0.08, y - R * 0.08); g.stroke(); }
+      }
+      // Leib: pelzig, dunkel
+      g.fillStyle = sph(g, 0, -R * 0.05, R * 0.5, ['#24140a', W[0], W[1]]);
+      for (const [x, y, rr] of [[0, -0.3, 0.26], [-0.14, -0.14, 0.14], [0.14, -0.12, 0.14], [0, 0.05, 0.24], [0, 0.35, 0.2], [0, 0.58, 0.14]]) { circ(g, x * R, y * R, rr * R); g.fill(); }
+      g.fillStyle = 'rgba(232,216,176,0.5)'; for (const y of [0.2, 0.42]) g.fillRect(-R * 0.16, y * R, R * 0.32, R * 0.05);
+      glowEye(g, R * 0.12, -R * 0.36, R * 0.07, STYLE.eye.red, false);
+    },
+    // Totenglocke: schwebende, gesprungene Bronzeglocke mit Seil- und Kettenrest, grinsender Schädel als Klöppel,
+    // grün glühende Risse (render.js zeichnet den Bodenschatten mit Abstand darunter – sie schwebt)
+    bell(g, R, f) {
+      const wind = f === 2, sway = f === 0 ? -4 : f === 1 ? 4 : 15;
+      const BR = ['#4a2606', '#b0741c', '#ffe08a'];
+      g.save(); g.translate(0, -R * 0.2); g.translate(0, -R * 0.95); g.rotate(sway * DEG_S); g.translate(0, R * 0.95);
+      // Seil und Kettenrest
+      g.strokeStyle = '#8a6a3a'; g.lineWidth = R * 0.1; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(0, -R * 0.95); g.quadraticCurveTo(R * 0.08, -R * 1.15, -R * 0.04, -R * 1.32); g.stroke();
+      g.strokeStyle = '#c8a870'; g.lineWidth = R * 0.03;
+      g.beginPath(); g.moveTo(-R * 0.04, -R * 1.32); g.lineTo(-R * 0.14, -R * 1.42); g.moveTo(-R * 0.04, -R * 1.32); g.lineTo(R * 0.06, -R * 1.44); g.stroke();
+      g.strokeStyle = R_.iron[1]; g.lineWidth = R * 0.06;
+      for (const y of [-0.98, -1.1]) { ell(g, 0, y * R, R * 0.07, R * 0.1); g.stroke(); }
+      // Klöppel: Schädel
+      g.fillStyle = sph(g, R * 0.02, R * 0.72, R * 0.26, R_.bone);
+      circ(g, R * 0.02, R * 0.7, R * 0.22); g.fill();
+      g.fillRect(-R * 0.1, R * 0.8, R * 0.24, R * 0.12);
+      g.fillStyle = STYLE.ink; circ(g, -R * 0.06, R * 0.68, R * 0.06); g.fill(); circ(g, R * 0.1, R * 0.68, R * 0.06); g.fill();
+      inkLine(g, R * 0.03); g.beginPath(); g.moveTo(-R * 0.08, R * 0.84); g.quadraticCurveTo(R * 0.02, R * 0.9, R * 0.12, R * 0.84); g.stroke();
+      for (let i = -1; i <= 1; i++) { g.beginPath(); g.moveTo(R * (0.02 + i * 0.05), R * 0.82); g.lineTo(R * (0.02 + i * 0.05), R * 0.9); g.stroke(); }
+      // Glocke
+      g.fillStyle = sph(g, -R * 0.15, -R * 0.35, R * 1.3, BR, 0.42);
+      g.beginPath(); g.moveTo(-R * 0.3, -R * 0.95);
+      g.quadraticCurveTo(-R * 0.62, -R * 0.9, -R * 0.66, -R * 0.3);
+      g.quadraticCurveTo(-R * 0.72, R * 0.25, -R * 1.0, R * 0.55);
+      g.quadraticCurveTo(0, R * 0.72, R * 1.0, R * 0.55);
+      g.quadraticCurveTo(R * 0.72, R * 0.25, R * 0.66, -R * 0.3);
+      g.quadraticCurveTo(R * 0.62, -R * 0.9, R * 0.3, -R * 0.95);
+      g.quadraticCurveTo(0, -R * 1.05, -R * 0.3, -R * 0.95);
+      g.closePath(); g.fill();
+      // orange Schattierung rechts unten, Lippe
+      g.fillStyle = 'rgba(238,122,38,0.28)'; ell(g, R * 0.45, R * 0.2, R * 0.35, R * 0.45, -0.3); g.fill();
+      g.fillStyle = lin(g, -R, R * 0.4, R, R * 0.7, BR); g.beginPath(); g.moveTo(-R * 1.02, R * 0.52); g.quadraticCurveTo(0, R * 0.7, R * 1.02, R * 0.52); g.quadraticCurveTo(0, R * 0.86, -R * 1.02, R * 0.52); g.fill();
+      g.fillStyle = 'rgba(18,10,24,0.3)'; g.fillRect(-R * 0.62, -R * 0.42, R * 1.24, R * 0.08);
+      // Risse mit grünem Glühen
+      g.save(); g.shadowColor = STYLE.eye.green; g.shadowBlur = R * (wind ? 0.9 : 0.5) * SC;
+      g.strokeStyle = wind ? '#e4ffb0' : STYLE.eye.green; g.lineWidth = R * 0.07; g.lineJoin = 'round'; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(R * 0.1, -R * 0.85); g.lineTo(-R * 0.08, -R * 0.55); g.lineTo(R * 0.12, -R * 0.3); g.lineTo(-R * 0.05, R * 0.05); g.lineTo(R * 0.15, R * 0.35);
+      g.moveTo(-R * 0.4, R * 0.0); g.lineTo(-R * 0.55, R * 0.25); g.lineTo(-R * 0.48, R * 0.5);
+      g.stroke(); g.restore();
+      glint(g, -R * 0.35, -R * 0.6, R * 0.12, 0.85);
+      g.restore();
     },
     wraith(g, R, f) {
       const sway = f ? 0.15 : -0.15, C = R_.crimson;
@@ -416,6 +566,7 @@ const Sprites = (() => {
   };
 
   const BASE_R = { night: 30 };
+  const DEG_S = Math.PI / 180;
 
   function tintVariant(src, color, alpha) {
     const c = document.createElement('canvas');
@@ -430,7 +581,7 @@ const Sprites = (() => {
   }
 
   // Krone der Bosse (Boss-Aussehen = Gegner-Sprite + Tönung + Größe + Krone); Oberkante des Kopfes je Typ in R
-  const CROWN_AT = { slime: [0.05, -0.98], skel: [0, -1.12], wraith: [0.02, -1.0], golem: [0.02, -0.95], brute: [0, -0.86], ghoul: [0.05, -0.84], bat: [0, -0.62], ghost: [0, -1.04], spitter: [0, -1.1] };
+  const CROWN_AT = { slime: [0.05, -0.98], skel: [0, -1.12], wraith: [0.02, -1.0], golem: [0.02, -0.95], brute: [0, -0.86], ghoul: [0.05, -0.84], bat: [0, -0.62], ghost: [0, -1.04], spitter: [0, -1.1], cinder: [0, -0.62], moth: [0, -0.62], bell: [0, -1.3] };
   function crown(g, type, R, f, lvl) {
     const at = CROWN_AT[type];
     if (!at) return;

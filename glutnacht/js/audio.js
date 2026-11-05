@@ -47,7 +47,8 @@ const Sfx = (() => {
   // Musikstücke auf etwa −20 LUFS gebracht (gemessen: Menü −24,6, Kampf −13,5, Boss −19,0, Sieg −17,7, Niederlage −13,1)
   const TRACK_VOL = { menu: 1.7, battle: 0.47, boss: 0.89, victory: 0.77, gameover: 0.45 };
   // Mindestabstand in ms (wie bisher)
-  const GATE = { hit: 35, kill: 28, gem: 30, coin: 50, shoot: 70, knife: 45, slash: 60, zap: 50, throw: 80, flask: 90, break: 60, hurt: 120 };
+  const GATE = { hit: 35, kill: 28, gem: 30, coin: 50, shoot: 70, knife: 45, slash: 60, zap: 50, throw: 80, flask: 90, break: 60, hurt: 120,
+    ewind: 90, efire: 80, eimpact: 120 };
   // Zufällige Verstimmung in Cent, damit schnelle Wiederholungen nicht mechanisch klingen
   const DETUNE = { hit: 40, kill: 40, shoot: 20, knife: 30, slash: 25, throw: 25, zap: 30, break: 30, flask: 20, coin: 10, hurt: 25, dash: 20, summon: 30 };
   // Edelstein-Kombo: pentatonisch steigend, höchstens +12 Halbtöne
@@ -262,6 +263,10 @@ const Sfx = (() => {
     gem(combo, pan) { return voice('gem', { rate: Math.pow(2, GEM_STEPS[Math.min(GEM_STEPS.length - 1, Math.floor((combo || 0) / 2))] / 12), pan }); },
     chest() { return voice('chest_open') && voice('chest', { delay: 0.12 }); },
     bossdown() { return voice('bomb') && voice('boss', { rate: 0.75, delay: 0.05 }); },
+    // Gegner-Fernkampf (M9): vorhandene Aufnahmen, leiser als die eigenen Klänge, nach Ort im Stereobild
+    ewind(a, pan) { return voice('zap', { vol: VOL.zap * 0.6, rate: cents(-300), pan }); },
+    efire(a, pan) { return voice('throw', { vol: VOL.throw * 0.75, pan }); },
+    eimpact(a, pan) { return voice('slam', { vol: VOL.slam * 0.6, pan }); },
   };
 
   // ---------- Synthesizer (Ersatz, wenn eine Aufnahme fehlt) ----------
@@ -343,6 +348,9 @@ const Sfx = (() => {
     summon() { tone({ type: 'sawtooth', f: 110, f2: 220, dur: 0.5, vol: 0.08, lp: 900 }); },
     dash() { noise({ f: 300, f2: 1400, q: 1, dur: 0.35, vol: 0.12 }); },
     slam() { noise({ f: 150, dur: 0.5, vol: 0.3, ftype: 'lowpass' }); tone({ type: 'sine', f: 90, f2: 40, dur: 0.4, vol: 0.25 }); },
+    ewind() { tone({ type: 'square', f: 300, f2: 520, dur: 0.18, vol: 0.03 }); },
+    efire() { noise({ f: 600, f2: 1600, q: 2, dur: 0.1, vol: 0.04 }); },
+    eimpact() { noise({ f: 150, dur: 0.3, vol: 0.14, ftype: 'lowpass' }); },
     bossdown() { this.bomb(); notes(392, [0, 4, 7, 12, 16, 19, 24], 0.08, { type: 'triangle', dur: 0.4, vol: 0.1, delay: 0.3 }); },
     revive() { notes(440, [0, 7, 12, 19, 24], 0.08, { type: 'triangle', dur: 0.5, vol: 0.12 }); },
     click() { tone({ type: 'triangle', f: 700, dur: 0.05, vol: 0.06 }); },
@@ -598,7 +606,7 @@ const Sfx = (() => {
   }
   const EVENTS = ['hit', 'kill', 'gem', 'coin', 'levelup', 'chestpick', 'chest', 'evolve', 'item', 'hurt', 'death', 'boss', 'bossdown', 'alarm',
     'shoot', 'knife', 'slash', 'zap', 'throw', 'flask', 'nova', 'orbit', 'heal', 'magnet', 'bomb', 'break', 'summon', 'dash', 'slam', 'revive',
-    'click', 'buy', 'deny', 'achievement', 'victory'];
+    'ewind', 'efire', 'eimpact', 'click', 'buy', 'deny', 'achievement', 'victory'];
 
   return {
     init, preload, onData, play, sting, applySettings, setPlatformMute, releasePlatform, startMusic, stopMusic, setIntensity,

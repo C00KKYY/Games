@@ -9,7 +9,14 @@ const Hooks = {
 const ENEMY_COLORS = {
   bat: '#8a5cff', slime: '#46e07f', skel: '#efe8d2', ghost: '#a8ecff', ghoul: '#9c7a52',
   spitter: '#ff9a3c', wraith: '#ff4f7b', brute: '#d0453f', golem: '#8c9cb8', night: '#6b4cff',
+  cinder: '#c04cff', moth: '#e8d8b0', bell: '#d0a040',
 };
+
+// Fernkampf (M9): Obergrenzen für Gegnergeschosse, Warnzeichen und Pfützen. Eine Salve, die nicht mehr passt,
+// wird gar nicht erst angekündigt (ein Warnzeichen lügt nie); nur eine laufende Boss-Spirale lässt einzelne
+// Schüsse über der harten Grenze aus.
+const ESHOT_CAP = 120, ESHOT_CAP_BOSS = 160, TELE_CAP = 32, HAZ_CAP = 8;
+const DEG = Math.PI / 180;
 
 const PROP_CHUNK = 620;
 // Langsame Gegner sind in den ersten drei Minuten etwas schneller (sonst läuft man ihnen mühelos davon).
@@ -41,7 +48,7 @@ const Game = {
       char: charId, heat: heat || 0, stage, length: stage.minutes * 60,
       // Bosse nach Zeit sortiert, damit sie der Reihe nach erscheinen
       bossList: stage.bosses.slice().sort((a, b) => a.t - b.t), clear: null, t: 0, kills: 0, gold: 0, level: 1, xp: 0, xpNext: xpFor(1),
-      p: { x: 0, y: 0, r: 12, hp: 100, dirX: 1, dirY: 0, face: 1, moving: false, iframe: 0, flash: 0, walk: 0 },
+      p: { x: 0, y: 0, r: 12, hp: 100, dirX: 1, dirY: 0, face: 1, moving: false, iframe: 0, flash: 0, walk: 0, vx: 0, vy: 0, slowT: 0 },
       stats: null,
       weapons: [], passives: [],
       enemies: [], shots: [], eshots: [], gems: [], pickups: [], fx: [], parts: [], texts: [], tele: [],
@@ -52,6 +59,8 @@ const Game = {
       dmgBy: {}, evolvedCount: 0, firstHit: null, won: false, endless: false, over: false,
       nextId: 1, achT: 0, newAch: [], bossKills: 0, chestsOpened: 0,
       gemCombo: 0, gemComboT: 0, endlessBossT: 0,
+      // Fernkampf: Pfützen, Salven-Regie (gleichzeitiges Ausholen), lebende Fernkämpfer, Elite-Zähler
+      haz: [], vol: { active: 0, bells: 0, lastStart: -9 }, rangedAlive: 0, eliteN: 0, lastHitSrc: null,
     };
     this.run = r;
     r.stats = this.computeStats(r);
@@ -75,7 +84,7 @@ const Game = {
       // im Bild, aber nicht zu nah (Hochformat: eher oben und unten)
       let a = a0 + i / n * TAU, k = rand(0.62, 0.82);
       for (let j = 0; j < 12 && Math.hypot(Math.cos(a) * hw, Math.sin(a) * hh) * k < 230; j++) a = rand(0, TAU);
-      this.spawnEnemy(weightedPick(Object.entries(wv.pool)), r.p.x + Math.cos(a) * hw * k, r.p.y + Math.sin(a) * hh * k);
+      this.spawnEnemy(weightedPick(Object.entries(wv.pool).filter(([t]) => !ENEMIES[t].ranged)), r.p.x + Math.cos(a) * hw * k, r.p.y + Math.sin(a) * hh * k);
     }
   },
 
@@ -151,12 +160,16 @@ const Game = {
     const ix = this.input.x, iy = this.input.y;
     const il = Math.hypot(ix, iy);
     p.moving = il > 0.05;
+    p.vx = p.vy = 0;
+    if (p.slowT > 0) p.slowT -= dt;
     if (p.moving) {
-      const k = Math.min(1, il);
+      // Schleimpfütze (Boss): 0,55-faches Tempo, solange der Held darin steht
+      const k = Math.min(1, il) * (p.slowT > 0 ? 0.55 : 1);
       p.dirX = ix / il; p.dirY = iy / il;
       r.moved = true;
-      p.x += p.dirX * s.speed * k * dt;
-      p.y += p.dirY * s.speed * k * dt;
+      p.vx = p.dirX * s.speed * k; p.vy = p.dirY * s.speed * k;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
       p.walk += dt * 10 * k;
       if (Math.abs(p.dirX) > 0.1) p.face = p.dirX > 0 ? 1 : -1;
     }
@@ -224,7 +237,7 @@ const Game = {
       r.spawnAcc -= 1;
       if (alive >= cap) { r.spawnAcc = 0; break; }
       const pos = this.spawnPos();
-      this.spawnEnemy(weightedPick(Object.entries(wv.pool)), pos.x, pos.y);
+      this.spawnEnemy(this.pickType(wv), pos.x, pos.y);
       alive++;
     }
 
@@ -234,7 +247,11 @@ const Game = {
       r.eliteT = 60;
       // Der erste Elitegegner ist der schnellste Nahkämpfer der Welle: er kommt sicher heran, die Truhe vor Ablauf der ersten Minute.
       const first = r.t < 60;
+      r.eliteN++;
+      // ab Minute 3 ist jeder zweite Elitegegner ein Fernkämpfer der Welle (falls die Welle welche hat)
+      const rk = r.t >= 180 && r.eliteN % 2 === 0 ? Object.keys(wv.pool).filter(k => ENEMIES[k].ranged) : [];
       const pool = first ? [[Object.keys(wv.pool).filter(k => !ENEMIES[k].ranged).sort((a, b) => ENEMIES[b].speed - ENEMIES[a].speed)[0], 1]]
+        : rk.length ? rk.map(k => [k, wv.pool[k]])
         : Object.entries(wv.pool).map(([k, v]) => [k, v * ENEMIES[k].hp]);
       // der erste erscheint sichtbar im Bild, ist schwächer und fast so schnell wie der Held
       const a = rand(0, TAU), pos = first ? { x: r.p.x + Math.cos(a) * this.view.hw * 0.6, y: r.p.y + Math.sin(a) * this.view.hh * 0.6 } : this.spawnPos();
@@ -272,6 +289,56 @@ const Game = {
 
   viewRadius() { return Math.hypot(this.view.hw, this.view.hh); },
 
+  // Abstand vom Helden bis zum Bildrand in Richtung a
+  edgeDist(a) {
+    const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
+    return Math.min(c > 1e-6 ? this.view.hw / c : 1e9, s > 1e-6 ? this.view.hh / s : 1e9);
+  },
+  // im Bild (um inset Weltpixel eingerückt)?
+  inViewRect(x, y, inset) {
+    const p = this.run.p;
+    return Math.abs(x - p.x) < this.view.hw - inset && Math.abs(y - p.y) < this.view.hh - inset;
+  },
+  clampView(x, y, inset) {
+    const p = this.run.p, hw = this.view.hw - inset, hh = this.view.hh - inset;
+    return { x: clamp(x, p.x - hw, p.x + hw), y: clamp(y, p.y - hh, p.y + hh) };
+  },
+
+  // Gegnertyp für den normalen Nachschub: Fernkämpfer erst ab rangedFrom und höchstens rangedCap gleichzeitig
+  pickType(wv) {
+    const r = this.run;
+    let ent = Object.entries(wv.pool);
+    if (r.t < (r.stage.rangedFrom || 0)) ent = ent.filter(([k]) => !ENEMIES[k].ranged);
+    let k = weightedPick(ent);
+    if (ENEMIES[k].ranged && r.rangedAlive >= this.rangedCap()) {
+      const melee = ent.filter(([t]) => !ENEMIES[t].ranged);
+      if (melee.length) k = weightedPick(melee);
+    }
+    return k;
+  },
+  rangedCap() {
+    const r = this.run;
+    return Math.round(Math.min(3 + 1.0 * Math.floor(r.t / 60), 14) * HEAT[r.heat].rate);
+  },
+  // Abklingzeit der Fernkämpfer: kürzer mit Spielzeit und Nachtstufe (nicht das Ausholen, nicht die Warnzeichen)
+  cdMul() {
+    const r = this.run;
+    return Math.max(0.75, 1 - 0.025 * Math.floor(r.t / 60)) * (1 - 0.04 * r.heat) * (r.stage.rangedCd || 1);
+  },
+  // Geschosstempo mit Nachtstufe, nach oben begrenzt
+  eSpeed(base, cap) { return Math.min(cap, base * HEAT[this.run.heat].speed); },
+
+  // Salven-Regie: wie viele Gegner gleichzeitig ausholen dürfen und wie dicht hintereinander
+  canWind(e) {
+    const r = this.run, v = r.vol, m = Math.floor(r.t / 60);
+    let max = m < 2 ? 3 : m < 6 ? 5 : 7;
+    const gap = m < 2 ? 0.3 : m < 6 ? 0.2 : 0.14;
+    if (r.heat >= 3) max++;
+    if (v.active >= max || r.t - v.lastStart < gap) return false;
+    if (e.rk === 'ring' && v.bells >= 2) return false;
+    return true;
+  },
+
   spawnPos() {
     const p = this.run.p, hw = this.view.hw + 50, hh = this.view.hh + 50;
     // Zufälliger Punkt auf dem Rand des erweiterten Sichtfelds, bevorzugt in Laufrichtung.
@@ -299,7 +366,8 @@ const Game = {
       tint: (r.stage.tints && r.stage.tints[type]) || null,
       xp: d.xp * (ma.xp || 1) * (mt.xp || 1), kb: d.kb, kx: 0, ky: 0, flash: 0, slowT: 0, slowF: 1, freezeT: 0,
       elite: false, boss: null, swarm: false, dead: false, hitT: {}, anim: Math.random() * 10,
-      shootT: rand(1.5, 3), ranged: !!d.ranged,
+      shootT: rand(1.5, 3), ranged: !!d.ranged, rk: d.ranged || null, windT: 0, windMax: 0, windStart: -1,
+      side: Math.random() < 0.5 ? -1 : 1, flitT: rand(0, 1.2), flitD: 0, fadeT: 0, teles: null, pend: null,
     };
     r.enemies.push(e);
     return e;
@@ -339,13 +407,39 @@ const Game = {
         e.swarm = true; e.sdx = ca; e.sdy = sa; e.speed *= 1.35;
         e.life = (vr * 2 + 500) / e.speed;
       }
+    } else if (ev.kind === 'arc') {
+      // Schützen erscheinen im Bild, verteilt über 120° in Laufrichtung, und schießen frühestens nach 1,6 s
+      const types = this.evTypes(ev), n = types.length;
+      const mv = p.moving ? Math.atan2(p.dirY, p.dirX) : rand(0, TAU);
+      for (let i = 0; i < n; i++) {
+        const a = mv + (n > 1 ? i / (n - 1) - 0.5 : 0) * 120 * DEG, R = 0.8 * this.edgeDist(a);
+        const e = this.spawnEnemy(types[i], p.x + Math.cos(a) * R, p.y + Math.sin(a) * R);
+        e.shootT = rand(1.6, 2.4); e.fadeT = 0.4;
+        this.burst(e.x, e.y, '#120a18', 8, 90); this.burst(e.x, e.y, '#ff3d5a', 6, 120);
+      }
     } else {
-      const R = vr * 0.85;
-      for (let i = 0; i < ev.n; i++) {
-        const a = i / ev.n * TAU;
-        this.spawnEnemy(ev.type, p.x + Math.cos(a) * R, p.y + Math.sin(a) * R);
+      const types = this.evTypes(ev), n = types.length;
+      // gemischte Ringe (mit Schützen) stehen knapp im Bild, sonst wie bisher etwas außerhalb
+      for (let i = 0; i < n; i++) {
+        const a = i / n * TAU, R = ev.mix ? 0.95 * this.edgeDist(a) : vr * 0.85;
+        const e = this.spawnEnemy(types[i], p.x + Math.cos(a) * R, p.y + Math.sin(a) * R);
+        if (e.ranged) e.shootT = rand(1.6, 2.6);
       }
     }
+  },
+  // Gegnertypen eines Ereignisses: type × n oder mix {typ: anzahl} (gemischt verteilt)
+  evTypes(ev) {
+    if (!ev.mix) return new Array(ev.n).fill(ev.type);
+    const out = [], left = Object.assign({}, ev.mix);
+    let total = 0;
+    for (const k in left) total += left[k];
+    // gleichmäßig verteilen: immer den Typ mit dem größten Rest-Anteil
+    for (let i = 0; i < total; i++) {
+      let best = null, bs = -1;
+      for (const k in left) { const sc = left[k] / ev.mix[k]; if (left[k] > 0 && sc > bs) { bs = sc; best = k; } }
+      out.push(best); left[best]--;
+    }
+    return out;
   },
 
   // ---------- Gegner ----------
@@ -354,9 +448,18 @@ const Game = {
     const near = this.qbufs[0];
     const reloc = this.viewRadius() * 1.5 + 100;
     const decay = Math.exp(-9 * dt);
+    // Salven-Regie: wer holt gerade aus (Bosse beim Zaubern zählen mit), wie viele Fernkämpfer leben
+    let act = 0, bells = 0, ra = 0;
+    for (const e of r.enemies) {
+      if (e.dead) continue;
+      if (e.windT > 0 || (e.boss && e.mode === 'cast')) { act++; if (e.rk === 'ring') bells++; }
+      if (e.ranged && !e.boss) ra++;
+    }
+    r.vol.active = act; r.vol.bells = bells; r.rangedAlive = ra;
     for (const e of r.enemies) {
       if (e.dead) continue;
       e.anim += dt;
+      if (e.fadeT > 0) e.fadeT -= dt;
       if (e.flash > 0) e.flash -= dt;
       if (e.slowT > 0) { e.slowT -= dt; if (e.slowT <= 0) e.slowF = 1; }
       let mx = 0, my = 0;
@@ -370,24 +473,19 @@ const Game = {
         const v = this.bossAI(e, dx, dy, d, dt);
         mx = v.x; my = v.y;
       } else {
-        let sp = e.speed * e.slowF;
-        if (e.ranged) {
-          let dir = 1;
-          if (d < 190) dir = -0.6; else if (d < 260) dir = 0.15;
-          mx = dx / d * sp * dir - dy / d * sp * 0.35;
-          my = dy / d * sp * dir + dx / d * sp * 0.35;
-          if (!(e.freezeT > 0)) {
-            e.shootT -= dt;
-            if (e.shootT <= 0 && d < 380) {
-              e.shootT = rand(3.2, 4.2);
-              this.enemyShot(e.x, e.y, dx / d, dy / d, 160, e.dmg, 7);
-            }
-          }
+        const sp = e.speed * e.slowF;
+        if (e.rk) {
+          const v = this.rangedAI(e, dx, dy, d, dt);
+          mx = v.x; my = v.y;
         } else {
           mx = dx / d * sp; my = dy / d * sp;
         }
       }
-      if (e.freezeT > 0) { e.freezeT -= dt; mx = 0; my = 0; }
+      if (e.freezeT > 0) {
+        e.freezeT -= dt; mx = 0; my = 0;
+        // Einfrieren bricht das Ausholen ab
+        if (e.windT > 0 && !e.boss) { this.endWind(e); e.shootT = 1.0; }
+      }
 
       // Abstoßung zwischen Gegnern
       if (!e.swarm) {
@@ -421,13 +519,152 @@ const Game = {
         } else {
           const pos = this.spawnPos();
           e.x = pos.x; e.y = pos.y;
+          if (e.windT > 0) this.endWind(e);
         }
       }
 
       // Kontakt mit Spieler
       const rr = e.r + p.r - 3;
-      if (d < rr) this.hurtPlayer(e.dmg);
+      if (d < rr) this.hurtPlayer(e.dmg, e.boss ? 'boss' : e.elite ? 'elite' : e.swarm ? 'swarm' : 'contact');
     }
+  },
+
+  // ---------- Fernkämpfer ----------
+  // Bewegung: Wunschabstand D (Band, aber im Bild), darunter zurückweichen, darüber herankommen, dazwischen seitlich.
+  // Schießen: Abklingzeit, dann Ausholen mit Warnzeichen (nur im Bild und wenn die Salven-Regie es erlaubt).
+  rangedAI(e, dx, dy, d, dt) {
+    const r = this.run, def = ENEMIES[e.type], sp = e.speed * e.slowF, out = this._rv || (this._rv = { x: 0, y: 0 });
+    out.x = 0; out.y = 0;
+    const ux = dx / d, uy = dy / d;
+    // verzögerte zweite (dritte) Ringe der Glocke
+    if (e.pend) this.pendStep(e, dt);
+    if (e.windT > 0) {
+      if (!(e.freezeT > 0)) {
+        e.windT -= dt * e.slowF;
+        if (e.windT <= 0) this.releaseWind(e);
+      }
+      return out; // beim Ausholen stehen sie still
+    }
+    const kEdge = e.rk === 'needle' ? 0.85 : 0.8;
+    const D = Math.min(def.band[1] - 30, kEdge * this.edgeDist(Math.atan2(-dy, -dx)));
+    const retreat = e.elite ? 0 : def.retreat;
+    let dir = 0;
+    if (d < D - 40) dir = -retreat; else if (d > D + 40) dir = 1;
+    if (Math.random() < dt * 0.25) e.side = -e.side;
+    let st = def.strafe * e.side;
+    if (e.rk === 'needle') { // Motte: alle 1,2 s ein kurzer Seitensprung
+      e.flitT -= dt;
+      if (e.flitT <= 0) { e.flitT = 1.2; e.flitD = 0.25; e.side = Math.random() < 0.5 ? -1 : 1; }
+      if (e.flitD > 0) { e.flitD -= dt; st = 1.4 * e.side; }
+    }
+    out.x = ux * sp * dir - uy * sp * st; out.y = uy * sp * dir + ux * sp * st;
+    if (e.freezeT > 0) return out;
+    e.shootT -= dt * e.slowF;
+    if (e.shootT <= 0) {
+      if (d < def.band[1] + 120 && this.inViewRect(e.x, e.y, 24) && this.canWind(e) && this.capOK(e)) this.startWind(e);
+      else e.shootT = 0.3;
+    }
+    return out;
+  },
+
+  // Passt die ganze Salve noch unter die Obergrenzen?
+  capOK(e) {
+    const r = this.run, el = e.elite;
+    const n = { spit: el ? 5 : r.t >= 240 ? 3 : 1, needle: el ? 3 : 1, ring: el ? 36 : 20, mortar: 0 }[e.rk] || 0;
+    const nt = { spit: 1, needle: el ? 3 : 1, ring: 1, mortar: el ? 3 : 1 }[e.rk] || 1;
+    return r.eshots.length + n <= ESHOT_CAP && r.tele.length + nt <= TELE_CAP;
+  },
+
+  // Ziel mit Vorhalt: Spielerposition + Tempo × lead × Flugzeit
+  leadAim(x, y, lead, spd) {
+    const p = this.run.p;
+    if (!lead) return Math.atan2(p.y - y, p.x - x);
+    const tt = Math.hypot(p.x - x, p.y - y) / spd;
+    return Math.atan2(p.y + p.vy * lead * tt - y, p.x + p.vx * lead * tt - x);
+  },
+
+  startWind(e) {
+    const r = this.run, def = ENEMIES[e.type];
+    e.windT = e.windMax = def.wind; e.windStart = r.t;
+    r.vol.active++; r.vol.lastStart = r.t; if (e.rk === 'ring') r.vol.bells++;
+    Hooks.sfx('ewind', 0, e.x);
+    const el = e.elite, base = { follow: e, own: e, ws: r.t, x: e.x, y: e.y, t: 0, life: def.wind };
+    e.teles = [];
+    if (e.rk === 'spit') {
+      // Keil (Fächer-Umriss) zum Helden, folgt ihm bis 0,15 s vor dem Schuss
+      const n = el ? 5 : r.t >= 240 ? 3 : 1, step = (el ? 14 : 16) * DEG, spd = this.eSpeed(170, 210);
+      const offs = []; for (let i = 0; i < n; i++) offs.push((i - (n - 1) / 2) * step);
+      const dmg = e.dmg * (n > 1 && !el ? 0.8 : el ? 0.8 : 1);
+      const tl = Object.assign({ kind: 'charge', wedge: 90, a: this.leadAim(e.x, e.y, 0, spd), lockAt: def.wind - 0.15, lead: 0, spd, offs, sr: e.r * 0.6,
+        shots: offs.map(o => ({ a: 0, o, spd, r: 7, dmg, life: 3.5 })) }, base);
+      this.aimShots(tl);
+      e.teles.push(tl);
+    } else if (e.rk === 'needle') {
+      // Ziellinie: 0,6 s folgt sie (50 % Vorhalt), dann 0,3 s gesperrt
+      const spd = this.eSpeed(460, 520);
+      for (const o of el ? [-10 * DEG, 0, 10 * DEG] : [0]) {
+        e.teles.push(Object.assign({ kind: 'aim', len: 700, lockAt: 0.6, lead: 0.5, spd, o, a: this.leadAim(e.x, e.y, 0.5, spd) + o, hr: 6, dmg: e.dmg * 0.8 }, base));
+      }
+    } else if (e.rk === 'ring') {
+      // Ladekreis mit den Austrittspunkten beider Ringe (Ring B um einen halben Schritt gedreht, 0,3 s später)
+      const n = el ? 12 : 10, rings = el ? 3 : 2, off = rand(0, TAU), step = TAU / n, spd = this.eSpeed(110, 210), shots = [];
+      for (let k = 0; k < rings; k++) for (let i = 0; i < n; i++) shots.push({ a: off + (i + (k === 1 ? 0.5 : k === 2 ? 0.25 : 0)) * step, spd, r: 8, dmg: e.dmg * 0.6, life: 4.0, d: k * 0.3 });
+      e.teles.push(Object.assign({ kind: 'charge', ring: true, sr: e.r + 18, shots }, base));
+    } else if (e.rk === 'mortar') {
+      // nur das Ausholen (Bild 2); die Markierung erscheint beim Abschuss und steht 1,1 s
+    }
+    for (const tl of e.teles) r.tele.push(tl);
+  },
+
+  // Winkel der angekündigten Geschosse aus dem Grundwinkel a + Versatz
+  aimShots(tl) { if (tl.shots) for (const sh of tl.shots) sh.a = tl.a + sh.o; },
+
+  endWind(e) {
+    e.windT = 0; e.windStart = -1;
+    if (e.teles) { for (const tl of e.teles) tl.dead = true; e.teles = null; }
+  },
+
+  releaseWind(e) {
+    const r = this.run, p = r.p, teles = e.teles || [];
+    Hooks.sfx('efire', 0, e.x);
+    e.shootT = rand(ENEMIES[e.type].cd[0], ENEMIES[e.type].cd[1]) * this.cdMul();
+    if (e.rk === 'spit' || e.rk === 'ring') {
+      const tl = teles[0];
+      if (tl) {
+        const later = [];
+        for (const sh of tl.shots) {
+          const sx = e.x + Math.cos(sh.a) * tl.sr, sy = e.y + Math.sin(sh.a) * tl.sr;
+          if (sh.d) later.push({ t: sh.d, sh }); else this.enemyShot(sx, sy, Math.cos(sh.a), Math.sin(sh.a), sh.spd, sh.dmg, sh.r, { life: sh.life, src: e.rk === 'ring' ? 'ring' : 'shot' });
+        }
+        if (later.length) e.pend = later;
+      }
+    } else if (e.rk === 'needle') {
+      for (const tl of teles) this.enemyShot(e.x + Math.cos(tl.a) * e.r, e.y + Math.sin(tl.a) * e.r, Math.cos(tl.a), Math.sin(tl.a), tl.spd, tl.dmg, tl.hr, { life: 1.6, kind: 'needle', src: 'needle' });
+    } else if (e.rk === 'mortar') {
+      // Ziel: wo der Held in 0,6 × Flugzeit sein wird, etwas gestreut, im Bild
+      const fl = 1.1, sa = rand(0, TAU), sc = rand(0, 30);
+      const T = this.clampView(p.x + p.vx * 0.6 * fl + Math.cos(sa) * sc, p.y + p.vy * 0.6 * fl + Math.sin(sa) * sc, 20);
+      const pts = e.elite ? [0, 1, 2].map(i => { const a = -Math.PI / 2 + i * TAU / 3; return this.clampView(T.x + Math.cos(a) * 40.4, T.y + Math.sin(a) * 40.4, 20); }) : [T];
+      for (const q of pts) {
+        r.tele.push({ kind: 'circle', x: q.x, y: q.y, rad: 40, t: 0, life: fl, dmg: e.dmg * 1.0, src: 'mortar', onImpact: 'ember', pdmg: e.dmg * 0.45,
+          coal: { sx: e.x, sy: e.y - e.r * 0.7 }, small: true });
+      }
+    }
+    this.endWind(e);
+  },
+
+  // verzögerte Geschosse (zweiter/dritter Glockenring)
+  pendStep(e, dt) {
+    const pd = e.pend;
+    for (let i = pd.length - 1; i >= 0; i--) {
+      const q = pd[i];
+      q.t -= dt;
+      if (q.t > 0) continue;
+      const sh = q.sh, sr = e.r + 18;
+      if (this.run.eshots.length < ESHOT_CAP_BOSS) this.enemyShot(e.x + Math.cos(sh.a) * sr, e.y + Math.sin(sh.a) * sr, Math.cos(sh.a), Math.sin(sh.a), sh.spd, sh.dmg, sh.r, { life: sh.life, src: 'ring' });
+      pd.splice(i, 1);
+    }
+    if (!pd.length) e.pend = null;
   },
 
   bossAI(e, dx, dy, d, dt) {
@@ -442,6 +679,12 @@ const Game = {
         if (sk === 'summon' && r.enemies.length > this.wave().cap) sk = 'dash';
         e.skillIdx++;
         e.skillT = e.boss.final ? 2.6 : 3.6;
+        // Fernangriffe nur im Bild, nicht zu nah und nur, wenn die ganze Salve unter die Obergrenzen passt
+        const cp = this.castParams(e, sk);
+        if (cp) {
+          if (this.canCast(e, d, cp)) { this.startCast(e, sk, cp); return out; }
+          sk = 'dash';
+        }
         if (sk === 'dash') {
           e.mode = 'windup'; e.modeT = 0.75; e.dashA = Math.atan2(dy, dx);
           r.tele.push({ kind: 'line', x: e.x, y: e.y, a: e.dashA, len: 520, w: e.r * 1.6, t: 0, life: 0.75, follow: e });
@@ -454,19 +697,13 @@ const Game = {
           }
           this.burst(e.x, e.y, '#c9b8ff', 26, 220);
           Hooks.sfx('summon');
-        } else if (sk === 'nova') {
-          const n = e.boss.final ? 22 : 16;
-          const off = rand(0, TAU);
-          for (let i = 0; i < n; i++) {
-            const a = off + i / n * TAU;
-            this.enemyShot(e.x, e.y, Math.cos(a), Math.sin(a), 165, e.dmg * 0.6, 9);
-          }
-          Hooks.sfx('summon');
         } else if (sk === 'slam') {
           const p = r.p;
-          r.tele.push({ kind: 'circle', x: p.x, y: p.y, rad: 100, t: 0, life: 1.05, dmg: e.dmg * 1.2 });
+          r.tele.push({ kind: 'circle', x: p.x, y: p.y, rad: 100, t: 0, life: 1.05, dmg: e.dmg * 1.2, src: 'area' });
         }
       }
+    } else if (e.mode === 'cast') {
+      this.castStep(e, dx, dy, d, dt, out);
     } else if (e.mode === 'windup') {
       e.modeT -= dt;
       if (e.modeT <= 0) { e.mode = 'dash'; e.modeT = 0.6; Hooks.sfx('dash'); }
@@ -479,13 +716,164 @@ const Game = {
     return out;
   },
 
-  enemyShot(x, y, dx, dy, speed, dmg, rad) {
-    this.run.eshots.push({ x, y, vx: dx * speed, vy: dy * speed, dmg, r: rad, life: 3.5 });
+  // ---------- Boss-Fernangriffe: fünf Grundformen (Fächer, Lanzen, Regen, Spirale, Bahnen) und die Nova ----------
+  // Parameter je Boss in def.cast[skill] (prim = Grundform); 'nova' braucht keinen Eintrag.
+  castParams(e, sk) {
+    if (sk === 'nova') return { prim: 'nova', n: e.boss.final ? 22 : 16 };
+    const c = e.boss.cast && e.boss.cast[sk];
+    return c || null;
+  },
+  castShots(e, cp) {
+    if (cp.prim === 'nova' || cp.prim === 'fan') return cp.n;
+    if (cp.prim === 'lances') return 3;
+    if (cp.prim === 'spiral') return cp.arms * Math.ceil(2.4 / 0.14);
+    return 0;
+  },
+  canCast(e, d, cp) {
+    const r = this.run;
+    if (!this.inViewRect(e.x, e.y, 30) || d <= 140) return false;
+    const nt = cp.prim === 'rain' ? (cp.k || 1) : cp.prim === 'lanes' ? 3 : cp.prim === 'lances' ? 3 : 1;
+    return r.eshots.length + this.castShots(e, cp) <= ESHOT_CAP_BOSS && r.tele.length + nt <= TELE_CAP;
+  },
+  startCast(e, sk, cp) {
+    const r = this.run, p = r.p, prim = cp.prim;
+    const wind = { nova: 0.6, fan: 0.6, lances: 0.85, spiral: 0.6, rain: 0, lanes: 0 }[prim];
+    const c = e.cast = { k: sk, prim, p: cp, t: 0, wind, dur: 0, q: null, fired: 0 };
+    e.mode = 'cast';
+    e.windT = e.windMax = wind; e.windStart = r.t;
+    e.teles = [];
+    const base = { follow: e, own: e, ws: r.t, x: e.x, y: e.y, t: 0, life: wind };
+    if (wind) Hooks.sfx('ewind', 0, e.x);
+    if (prim === 'nova') {
+      // Ladekreis mit den Austrittspunkten (Versatz beim Laden festgelegt)
+      const off = rand(0, TAU), spd = this.eSpeed(165, 210), shots = [];
+      for (let i = 0; i < cp.n; i++) shots.push({ a: off + i / cp.n * TAU, spd, r: 9, dmg: e.dmg * 0.6, life: 3.5 });
+      e.teles.push(Object.assign({ kind: 'charge', ring: true, boss: true, sr: e.r + 10, shots }, base));
+    } else if (prim === 'fan') {
+      const spd = Math.min(Math.max(210, cp.spd), cp.spd * HEAT[r.heat].speed), offs = [];
+      for (let i = 0; i < cp.n; i++) offs.push((cp.n > 1 ? i / (cp.n - 1) - 0.5 : 0) * cp.spread * DEG);
+      const tl = Object.assign({ kind: 'charge', wedge: 140, boss: true, a: this.leadAim(e.x, e.y, 0, spd), lockAt: wind - 0.15, lead: 0, spd, sr: e.r * 0.7,
+        shots: offs.map(o => ({ a: 0, o, spd, r: 8, dmg: e.dmg * 0.6, life: 3.5 })) }, base);
+      this.aimShots(tl);
+      e.teles.push(tl);
+    } else if (prim === 'lances') {
+      const spd = this.eSpeed(520, 560);
+      for (const o of [-22 * DEG, 0, 22 * DEG]) e.teles.push(Object.assign({ kind: 'aim', len: 900, lockAt: 0.5, lead: 0.5, spd, o, a: this.leadAim(e.x, e.y, 0.5, spd) + o, hr: 9, dmg: e.dmg * 0.8, boss: true }, base));
+    } else if (prim === 'spiral') {
+      const off = rand(0, TAU), spd = this.eSpeed(135, 210), shots = [];
+      for (let i = 0; i < cp.arms; i++) shots.push({ a: off + i / cp.arms * TAU, spd, r: 8, dmg: e.dmg * 0.5, life: 3.5 });
+      c.off = off; c.spd = spd; c.dur = 2.4; c.next = 0;
+      e.teles.push(Object.assign({ kind: 'charge', ring: true, boss: true, arms: true, sr: e.r + 10, shots }, base));
+    } else if (prim === 'rain') {
+      c.q = this.rainPlan(e, cp);
+      c.dur = c.q.reduce((m, q) => Math.max(m, q.at), 0) + 0.05;
+    } else if (prim === 'lanes') {
+      const L = [];
+      if (cp.pat === 'x') {
+        const a0 = rand(0, Math.PI);
+        for (const a of [a0, a0 + Math.PI / 2]) L.push({ x: p.x - Math.cos(a) * 500, y: p.y - Math.sin(a) * 500, a, len: 1000, w: 44, life: 1.1, dmg: e.dmg * 1.0 });
+      } else {
+        const a0 = Math.atan2(p.y - e.y, p.x - e.x);
+        for (const o of [-30, 0, 30]) L.push({ x: e.x, y: e.y, a: a0 + o * DEG, len: 800, w: 50, life: 1.0, dmg: e.dmg * 1.1 });
+      }
+      for (const l of L) r.tele.push(Object.assign({ kind: 'lane', t: 0 }, l));
+      Hooks.sfx('ewind', 0, e.x);
+      c.dur = 1.1;
+    }
+    for (const tl of e.teles) r.tele.push(tl);
   },
 
-  hurtPlayer(dmg) {
+  // Plan der Markierungen eines Regens: Zeitpunkt at, Lage beim Erscheinen bestimmt (place)
+  rainPlan(e, cp) {
+    const q = [], v = cp.v;
+    if (v === 'scatter') for (let i = 0; i < cp.k; i++) q.push({ at: i * 0.15, i });
+    else if (v === 'flank' || v === 'walk' || v === 'track') q.push({ at: 0, i: 0 });
+    else if (v === 'stars') for (let i = 0; i < 9; i++) q.push({ at: i * 0.2, i });
+    return q;
+  },
+  rainPlace(e, cp, i) {
+    const r = this.run, p = r.p, v = cp.v, out = [];
+    const mk = (x, y, rad, life, dmg, extra) => {
+      const c = this.clampView(x, y, 20);
+      out.push(Object.assign({ kind: 'circle', x: c.x, y: c.y, rad, t: 0, life, dmg, src: 'area', small: rad < 70 }, extra || {}));
+    };
+    if (v === 'scatter') {
+      if (i === 0) mk(p.x, p.y, cp.rad, 1.0, e.dmg);
+      else { const a = rand(0, TAU), dd = rand(90, 240); mk(p.x + Math.cos(a) * dd, p.y + Math.sin(a) * dd, cp.rad, 1.0, e.dmg); }
+    } else if (v === 'flank') {
+      const a = p.moving ? Math.atan2(p.vy, p.vx) + Math.PI / 2 : rand(0, TAU);
+      for (const k of [0, 1, -1]) mk(p.x + Math.cos(a) * 70 * k, p.y + Math.sin(a) * 70 * k, 48, 1.0, e.dmg * 0.8, { onImpact: 'slow' });
+    } else if (v === 'walk') {
+      const a = Math.atan2(p.y - e.y, p.x - e.x);
+      for (let k = 0; k < 7; k++) { const dd = 120 + k * 70; mk(e.x + Math.cos(a) * dd, e.y + Math.sin(a) * dd, 36, 0.75 + 0.12 * k, e.dmg * 0.9); }
+    } else if (v === 'stars') {
+      if (i % 2 === 0) mk(p.x + p.vx * 0.8 + rand(-20, 20), p.y + p.vy * 0.8 + rand(-20, 20), 32, 0.8, e.dmg * 0.7);
+      else { const a = rand(0, TAU), dd = rand(0, 260); mk(p.x + Math.cos(a) * dd, p.y + Math.sin(a) * dd, 32, 0.8, e.dmg * 0.7); }
+    } else if (v === 'track') {
+      mk(p.x, p.y, 80, 1.6, e.dmg * 1.4, { track: { spd: r.stats.speed * 0.85, until: 0.9 }, small: false });
+    }
+    return out;
+  },
+
+  castStep(e, dx, dy, d, dt, out) {
+    const r = this.run, c = e.cast, cp = c.p;
+    if (c.prim !== 'spiral') { const sp = e.speed * 0.3 * (e.slowF < 1 ? 0.8 : 1); out.x = dx / d * sp; out.y = dy / d * sp; }
+    const k = c.t < c.wind ? (e.slowF || 1) : 1;
+    c.t += dt * k;
+    if (c.wind && e.windT > 0) {
+      e.windT = Math.max(0, c.wind - c.t);
+      if (e.windT <= 0) this.castRelease(e);
+    }
+    const tt = c.t - c.wind;
+    if (c.prim === 'rain') {
+      for (const q of c.q) if (!q.done && tt >= q.at) {
+        q.done = true;
+        for (const m of this.rainPlace(e, cp, q.i)) if (r.tele.length < TELE_CAP) r.tele.push(m);
+        Hooks.sfx('ewind', 0, e.x);
+      }
+    } else if (c.prim === 'spiral' && tt >= 0) {
+      while (c.next <= tt && c.next < c.dur) {
+        const rot = c.off + 120 * DEG * c.next;
+        for (let i = 0; i < cp.arms; i++) {
+          if (r.eshots.length >= ESHOT_CAP_BOSS) continue; // laufende Spirale: über der harten Grenze einzelne Schüsse auslassen
+          const a = rot + i / cp.arms * TAU;
+          this.enemyShot(e.x + Math.cos(a) * (e.r + 10), e.y + Math.sin(a) * (e.r + 10), Math.cos(a), Math.sin(a), c.spd, e.dmg * 0.5, 8, { src: 'bossShot' });
+        }
+        if (c.next === 0) Hooks.sfx('efire', 0, e.x);
+        c.next += 0.14;
+      }
+    }
+    if (c.t >= c.wind + c.dur) {
+      e.mode = 'chase';
+      e.skillT = e.boss.final ? 2.6 : 3.6; // ab dem Ende des Angriffs gezählt
+      e.cast = null;
+      this.endWind(e);
+    }
+  },
+  castRelease(e) {
+    const c = e.cast, teles = e.teles || [];
+    if (c.prim === 'nova' || c.prim === 'fan') {
+      const tl = teles[0];
+      if (tl) for (const sh of tl.shots) this.enemyShot(e.x + Math.cos(sh.a) * tl.sr, e.y + Math.sin(sh.a) * tl.sr, Math.cos(sh.a), Math.sin(sh.a), sh.spd, sh.dmg, sh.r, { src: 'bossShot' });
+      Hooks.sfx(c.prim === 'nova' ? 'summon' : 'efire', 0, e.x);
+    } else if (c.prim === 'lances') {
+      for (const tl of teles) this.enemyShot(e.x + Math.cos(tl.a) * e.r * 0.8, e.y + Math.sin(tl.a) * e.r * 0.8, Math.cos(tl.a), Math.sin(tl.a), tl.spd, tl.dmg, tl.hr, { life: 1.6, kind: 'lance', src: 'bossShot' });
+      Hooks.sfx('efire', 0, e.x);
+    }
+    this.endWind(e);
+    e.windT = 0;
+  },
+
+  enemyShot(x, y, dx, dy, speed, dmg, rad, o) {
+    o = o || {};
+    this.run.eshots.push({ x, y, vx: dx * speed, vy: dy * speed, dmg, r: rad, life: o.life || 3.5, kind: o.kind || 'orb', src: o.src || 'shot' });
+  },
+
+  // src: Quelle des Treffers (contact, shot, needle, mortar, puddle, ring, bossShot, area, lane …), nur gemerkt
+  hurtPlayer(dmg, src) {
     const r = this.run, p = r.p;
     if (p.iframe > 0 || r.over || this.state !== 'play') return;
+    r.lastHitSrc = src || null;
     const taken = Math.max(1, dmg - r.stats.armor);
     p.hp -= taken;
     p.iframe = 0.5;
@@ -554,6 +942,7 @@ const Game = {
   kill(e) {
     const r = this.run, save = Store.data;
     e.dead = true;
+    if (e.windT > 0 || e.teles) this.endWind(e);
     r.kills++;
     save.stats.kills++;
     const col = ENEMY_COLORS[e.type] || '#fff';
@@ -666,7 +1055,7 @@ const Game = {
       s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
       let alive = s.life > 0;
       if (alive && dist2(s.x, s.y, p.x, p.y) < (s.r + p.r) * (s.r + p.r)) {
-        this.hurtPlayer(s.dmg);
+        this.hurtPlayer(s.dmg, s.src || 'shot');
         alive = false;
       }
       if (!alive) { es[i] = es[es.length - 1]; es.pop(); }
@@ -699,21 +1088,87 @@ const Game = {
       }
       if (f.t >= f.life) { fx[i] = fx[fx.length - 1]; fx.pop(); }
     }
-    // Boss-Warnungen
+    // Warnzeichen (Boss und Fernkämpfer). Am Ausholen hängende (own) leben genau so lange wie das Ausholen.
     for (let i = r.tele.length - 1; i >= 0; i--) {
       const t = r.tele[i];
-      t.t += dt;
-      if (t.follow && t.kind === 'line') { t.x = t.follow.x; t.y = t.follow.y; }
-      if (t.t >= t.life) {
-        if (t.kind === 'circle') {
-          if (dist2(p.x, p.y, t.x, t.y) < (t.rad + p.r) * (t.rad + p.r)) this.hurtPlayer(t.dmg);
-          r.fx.push({ kind: 'boom', x: t.x, y: t.y, rad: t.rad, t: 0, life: 0.45, color: '#ff8a5c' });
-          Hooks.shake(8);
-          Hooks.sfx('slam');
-        }
-        r.tele[i] = r.tele[r.tele.length - 1]; r.tele.pop();
+      let gone = !!t.dead;
+      if (t.own) {
+        const o = t.own;
+        if (o.dead || o.windStart !== t.ws || !(o.windT > 0)) gone = true;
+        else { t.life = o.windMax; t.t = o.windMax - o.windT; }
+      } else t.t += dt;
+      if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }
+      if (!gone && t.lockAt !== undefined && t.t < t.lockAt && t.follow) {
+        // Ziel nachführen bis zum Sperren
+        t.a = this.leadAim(t.x, t.y, t.lead, t.spd) + (t.o || 0);
+        this.aimShots(t);
+      }
+      if (t.track && t.t < t.track.until) {
+        // Finsternis: folgt dem Helden mit 85 % seines Tempos, bleibt im Bild
+        const dx = p.x - t.x, dy = p.y - t.y, d = Math.hypot(dx, dy), st = Math.min(d, t.track.spd * dt);
+        if (d > 0.01) { t.x += dx / d * st; t.y += dy / d * st; }
+        const c = this.clampView(t.x, t.y, 20); t.x = c.x; t.y = c.y;
+      }
+      if (!gone && !t.own && t.t >= t.life) {
+        gone = true;
+        if (t.kind === 'circle') this.circleImpact(t);
+        else if (t.kind === 'lane') this.laneImpact(t);
+      }
+      if (gone) { r.tele[i] = r.tele[r.tele.length - 1]; r.tele.pop(); }
+    }
+    // Pfützen: Glut schadet, Schleim bremst
+    const hz = r.haz;
+    for (let i = hz.length - 1; i >= 0; i--) {
+      const h = hz[i];
+      h.t += dt;
+      if (h.t >= h.life) { hz[i] = hz[hz.length - 1]; hz.pop(); continue; }
+      const rr = h.rad + p.r - 4;
+      if (dist2(p.x, p.y, h.x, h.y) < rr * rr) {
+        if (h.kind === 'ember') this.hurtPlayer(h.dmg, 'puddle');
+        else p.slowT = 0.15;
       }
     }
+  },
+
+  circleImpact(t) {
+    const r = this.run, p = r.p;
+    if (dist2(p.x, p.y, t.x, t.y) < (t.rad + p.r) * (t.rad + p.r)) this.hurtPlayer(t.dmg, t.src || 'area');
+    if (t.small) {
+      r.fx.push({ kind: 'boom', x: t.x, y: t.y, rad: t.rad, t: 0, life: 0.35, color: '#ff3d5a' });
+      this.burst(t.x, t.y, '#120a18', 6, 120); this.burst(t.x, t.y, '#ff8a96', 6, 160);
+      Hooks.shake(3);
+      Hooks.sfx('eimpact', 0, t.x);
+    } else {
+      r.fx.push({ kind: 'boom', x: t.x, y: t.y, rad: t.rad, t: 0, life: 0.45, color: '#ff8a5c' });
+      Hooks.shake(8);
+      Hooks.sfx('slam');
+    }
+    if (t.onImpact === 'ember') this.addHaz({ kind: 'ember', x: t.x, y: t.y, rad: 32, life: 2.6, dmg: t.pdmg || t.dmg * 0.4 });
+    else if (t.onImpact === 'slow') this.addHaz({ kind: 'slow', x: t.x, y: t.y, rad: t.rad, life: 3.0, dmg: 0 });
+  },
+
+  laneImpact(t) {
+    const r = this.run, p = r.p, ca = Math.cos(t.a), sa = Math.sin(t.a);
+    const rx = p.x - t.x, ry = p.y - t.y, along = rx * ca + ry * sa, perp = Math.abs(-rx * sa + ry * ca);
+    if (along > -p.r && along < t.len + p.r && perp < t.w / 2 + p.r) this.hurtPlayer(t.dmg, 'lane');
+    for (let k = 0; k < 14; k++) {
+      const d = k / 13 * t.len;
+      this.part(t.x + ca * d, t.y + sa * d, k % 2 ? '#ff3d5a' : '#120a18', rand(-50, 50), rand(-50, 50), 0.45, rand(3, 6));
+    }
+    Hooks.shake(5);
+    Hooks.sfx('eimpact', 0, t.x + ca * t.len / 2);
+  },
+
+  addHaz(h) {
+    const hz = this.run.haz;
+    if (hz.length >= HAZ_CAP) {
+      // die älteste verblasst, statt plötzlich zu verschwinden
+      let old = null;
+      for (const o of hz) if (o.life - o.t > 0.3 && (!old || o.t > old.t)) old = o;
+      if (old) old.life = old.t + 0.3;
+    }
+    h.t = 0;
+    hz.push(h);
   },
 
   // ---------- Aufsammeln ----------

@@ -35,8 +35,10 @@ function build(SCALE) {
   const en = [];
   for (const t of [...Object.keys(ENEMIES), 'night']) {
     en.push(S(Sprites.enemy(t, 0, 0, null), t + ' 0'), S(Sprites.enemy(t, 1, 0, null), t + ' 1'), S(Sprites.enemy(t, 0, 1, null), t + ' hit'), S(Sprites.enemy(t, 0, 2, null), t + ' eis'));
+    // Fernkämpfer: Bild 2 = Ausholen (M9)
+    if (ENEMIES[t] && ENEMIES[t].ranged) en.push(S(Sprites.enemy(t, 2, 0, null), t + ' 2 (holt aus)'));
   }
-  sec('Gegner (Bild 0/1, Treffer, vereist)', en, 90);
+  sec('Gegner (Bild 0/1, Treffer, vereist; Fernkämpfer auch Bild 2 = Ausholen)', en, 90);
   const tints = [];
   for (const st of STAGES) for (const [t, col] of Object.entries(st.tints || {})) tints.push(S(Sprites.enemy(t, 0, 0, col), st.id.slice(0, 5) + ' ' + t));
   sec('Gegner mit Landtönung', tints, 70);
