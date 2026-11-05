@@ -61,13 +61,16 @@
   - Speichern (`src/save/`): 2 Slots über SDK-Data bzw. localStorage, Einstellungen im Spielstand, „Spielstand zurücksetzen“.
   - Review-Fixes (7 UI-, 5 Juice/Audio-Punkte) und Abnahme: `tests/e2e/m4-onboarding.spec.ts`, `m4-accept.spec.ts`, `m4-save.spec.ts`, `m4-fixes-ui.spec.ts` (A2–A4, A6, D1–D4, D6, D8–D10, E, G1–G3, C4). D8 erste Entlassung bei 28,5 s, D9 Skip bei 3 s, A4 4,73 MB/94 Dateien, initial 1,10 MB.
   - Selbst-Review der ersten 10 Minuten (4 Läufe EN/DE × 1280/907): `docs/QA_REPORT.md`, Bilder `qa/m4/`. Werkzeuge `tools/selfreview/`.
+  - Prüfer-Befunde nach der Abnahme behoben (QA_REPORT.md „Stand M4“): Skip bleibt im Tutorial auch bei offenem Menü auf Handy-Größen sichtbar (Skip-Knopf als letzte Blasen-Form). Bau-Menüs verdecken den Klemmbrett-Chip nicht mehr (D4). `musicDay` lädt erst nach `gameplayStart` (§8.4). Das Klemmbrett springt bei neuem Ziel an Ort und Stelle auf, statt aus dem Bild zu gleiten. Der Fluchtmarker springt nicht mehr bei ≥ 3 Ausbrechern. OFL-Texte der Schriften stehen in THIRD_PARTY_NOTICES.
   - G2-Material `qa/g2/`: Playtest-Zip mit ANLEITUNG.txt und Musik-Hörproben, Single-File-Build (läuft per Doppelklick von file://, geprüft mit `tools/selfreview/singlefile.spec.ts`), 60-s-Video, `MUSIK.md`. Beides markiert als „nur Playtest, nicht einreichen“.
 
 ## Offen
 - **G2:** Musikwahl und eigener Playtest des Auftraggebers stehen aus. Die Rückmeldungen kommen in QA_REPORT.md und werden vor P0b/P1 abgearbeitet.
-- Befunde aus dem Selbst-Review (QA_REPORT.md): zweite Entlassung erst bei ~5:20, Leerlauf 1:05–3:00 und 3:33–6:18. Kein Randhinweis bei einem Ausbrecher außerhalb des Bildes. Toasts überlappen beim Nachtsprung. ~23 s Warten im Tutorial-Schritt 3. Viel ungenutztes Geld ab Minute 6.
+- Befunde aus dem Selbst-Review (QA_REPORT.md): zweite Entlassung erst bei ~5:20, Leerlauf 1:05–3:00 und 3:33–6:18. Kein Randhinweis bei einem Ausbrecher außerhalb des Bildes. ~23 s Warten im Tutorial-Schritt 3. Viel ungenutztes Geld ab Minute 6.
 - C4: Ein echter Browser-Freeze (CDP `frozen`) wirkt im Headless-Chromium nicht. Prüfung mit sichtbarem Browser (Xvfb) in M7.
-- M8-Lizenzpass: OFL-Texte der Schriften fehlen in THIRD_PARTY_NOTICES, über die CC-BY-3.0-Pfeife ist noch zu entscheiden.
+- M8-Lizenzpass: `CREDITS.txt` (§15.5) fehlt noch, über die CC-BY-3.0-Pfeife ist noch zu entscheiden. Die OFL-Texte der Schriften stehen seit M4 in THIRD_PARTY_NOTICES.
+- Ad-Mute im FULL-Build (adStarted → stumm, adFinished/adError → laut) wird mit dem FULL-Build gebaut und getestet (P2). Der BASIC-Build ruft keine Ad-API auf.
+- Abweichung 15 (Steuerungs-Overlay bei kompakten Größen links unter dem Klemmbrett) bei G2 bestätigen lassen.
 - Aufräumen außerhalb des Projekts (von Hand, Sicherheitsprüfung verweigert): `/dist` und `/layers.log` im Wurzelverzeichnis.
 - B1-Screens Projekttafel, Rückkehr-Panel, Inspektionsergebnis, Versetzung (kommen mit M5/M6).
 - Kosmetik: Scroll-Hinweis in Einstellungen/Hilfe fehlt; „Folgen“-Button im Rascal-Panel bei 907×510 DE ragt 5 px unter die Kante; Platzierungs-Icons in `tools.ts` noch als Inline-SVG.
@@ -98,11 +101,12 @@
 - Bei 800×450 verdeckt das Raum-Panel als Bottom-Sheet fast die ganze Welt.
 
 ## Letzte Testergebnisse
-- Stand Abnahme M4 (2026-11-05): `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 16 Dateien, 194/194 grün · `npx playwright test --workers=1`: 103 Tests, **102 bestanden, 0 fehlgeschlagen, 1 übersprungen** (ausstehende B1-Screens M5/M6), 41,8 min · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
-- Selbst-Review: 4 × 600 s ohne pageerror, console.error oder Warnung · Single-File-Build von file://: 2/2 (offline und mit SDK-Mock)
-- Nach dem Asset-Umbau für den Single-File-Build (`src/platform/assets.ts`): tsc und eslint sauber, `vitest` 194/194, `m0-infra` 5/5 gegen den neuen `dist`. Die volle Playwright-Suite lief danach nicht erneut.
+- Stand nach den Prüfer-Befunden M4 (2026-11-05): `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 16 Dateien, **196/196** grün · `npx playwright test --workers=1` (Produktions-Build): 107 Tests, **106 bestanden, 0 fehlgeschlagen, 1 übersprungen** (ausstehende B1-Screens M5/M6), 40,4 min · A2 496 ms, D2 315 ms, D3 2,8 s, D8 28,5 s, D9 Entlassung 26,5 s, A4 4,73 MB/94 Dateien, initial 1,10 MB, A6 601 s/676 s ohne Fehler · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
+- Single-File-Build von file://: 2/2 (offline und mit SDK-Mock) · G2-Video neu aufgenommen (1800 Frames, 0 Fehler) · Selbst-Review: 4 × 600 s ohne pageerror, console.error oder Warnung (vor diesen Fixes)
+
+**M4 abgeschlossen.** Offen bleiben nur Punkte außerhalb von M4: FULL-Ad-Mute (P2), C4 im sichtbaren Browser (M7), Lizenzpass mit `CREDITS.txt` (M8) und die G2-Rückmeldung.
 
 ## Nächste 3 Schritte
 1. M5 (freigegeben mit „mach fertig“): Projekttafel, Rückkehr-Panel, Inspektion. Dabei die Pacing-Befunde aus dem Selbst-Review (zweite Entlassung, Leerlauf 1–3 min) angehen.
 2. G2-Rückmeldung einarbeiten, sobald sie kommt: Musikwahl (`qa/g2/MUSIK.md`, `npm run audio:build`) und Notizen aus dem Playtest.
-3. Kleine UX-Befunde: Randhinweis für Ausbrecher, Toast-Abstand beim Nachtsprung, Wartezeit im Tutorial-Schritt 3.
+3. Kleine UX-Befunde: Randhinweis für Ausbrecher, Wartezeit im Tutorial-Schritt 3, Scroll-Hinweis im Räume-Menü bei 907×510.

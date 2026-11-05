@@ -1322,7 +1322,7 @@
    "small": [],
    "running": [],
    "hudArea": 56107.42333984375,
-   "textNodes": 44
+   "textNodes": 41
   }
  },
  "en/staff-menu": {
@@ -1764,7 +1764,7 @@
    "small": [],
    "running": [],
    "hudArea": 56107.42333984375,
-   "textNodes": 38
+   "textNodes": 34
   }
  },
  "en/room-panel": {
@@ -4858,7 +4858,7 @@
    "small": [],
    "running": [],
    "hudArea": 56313.55810546875,
-   "textNodes": 44
+   "textNodes": 41
   }
  },
  "de/staff-menu": {
@@ -5300,7 +5300,7 @@
    "small": [],
    "running": [],
    "hudArea": 56313.55810546875,
-   "textNodes": 38
+   "textNodes": 33
   }
  },
  "de/room-panel": {

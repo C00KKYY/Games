@@ -52,23 +52,23 @@ Spec-Dateien unter `tests/e2e/` bzw. `tests/unit/`. Zahlen aus dem letzten volle
 | Test | Prüfung (Brief) | Ergebnis | Beleg |
 |---|---|---|---|
 | A1 / A1b | Ladebildschirm bei 100/300 ms, auch mit verzögertem/abgebrochenem SDK | grün | `m0-infra.spec.ts` |
-| A2 | `gameplayStart` ≤ 5 s nach dem Laden | grün (@@A2@@) | `m4-onboarding.spec.ts` „A2 … D3“ |
+| A2 | `gameplayStart` ≤ 5 s nach dem Laden | grün (496 ms) | `m4-onboarding.spec.ts` „A2 … D3“ |
 | A3 | 0 Klicks bis zur ersten Spieleraktion | grün (0 Eingaben vor der ersten Aktion) | `m4-onboarding.spec.ts` „A2 … D3“ |
-| A4 | ≤ 8 MB, initial ≤ 3 MB, < 1500 Dateien, grep auf fremde URLs | grün (@@A4@@) | `m4-accept.spec.ts` „A4 dist …“, „A4 initial …“ |
+| A4 | ≤ 8 MB, initial ≤ 3 MB, < 1500 Dateien, grep auf fremde URLs | grün (dist 4,73 MB / 94 Dateien, 0 fremde URLs außer dem SDK-Tag, initial 1,10 MB) | `m4-accept.spec.ts` „A4 dist …“, „A4 initial …“ |
 | A4 / §8.4 | vor `gameplayStart` nur Tutorial-Sounds + Musik-Loop 1 in niedriger Qualität; `musicDay` erst danach | grün (neu) | `m4-accept.spec.ts` „A4 initial …“ |
 | A5 / A5b | SDK-Init hängt / 8 s verzögert mit Spielstand | grün | `m4-save.spec.ts` |
-| A6 | 0 console errors / pageerrors in 10 min Bot-Sitzung | grün (@@A6@@) | `m4-accept.spec.ts` „A6 …“ |
+| A6 | 0 console errors / pageerrors in 10 min Bot-Sitzung | grün (601 s Echtzeit, 676 s Spielzeit, 0 Fehler, 0 Warnungen) | `m4-accept.spec.ts` „A6 …“ |
 | A7 | nur localhost-Requests | grün | `m0-infra.spec.ts` |
 | D1 | ≤ 8 Wörter pro Schritt, Skip vorhanden und wirksam | grün | `m4-onboarding.spec.ts` (Tutorial-Pfad, D9), `tests/unit/tutorial-ui.test.ts` |
-| D2 | erste Aktion ≤ 5 s nach `gameplayStart` | grün (@@D2@@) | `m4-onboarding.spec.ts` „A2 … D3“ |
-| D3 | erstes Feedback ≤ 15 s | grün (@@D3@@) | `m4-onboarding.spec.ts` „A2 … D3“ |
+| D2 | erste Aktion ≤ 5 s nach `gameplayStart` | grün (315 ms) | `m4-onboarding.spec.ts` „A2 … D3“ |
+| D3 | erstes Feedback ≤ 15 s | grün (2,8 s) | `m4-onboarding.spec.ts` „A2 … D3“ |
 | D4 | Ziel-Widget 100 % sichtbar (Tutorial: Schritt mit n/4) | grün: Tutorial-Pfad 1280 EN und 844×390 DE, Skip-Pfad, **neu** jede Frame mit offenem Räume-/Personal-Menü bei 844×390, 667×375, 800×450 (Touch und Maus); die Probe misst das Widget jetzt auch während seiner Animation (kein `finish()` mehr, Deckkraft ≥ 0,6) | `m4-onboarding.spec.ts` (Pfad, D9, „menu open @ …“) |
 | D5 | Label/Icon + Tooltip je Button, jede Taste im Hilfe-Overlay | grün | `m3-ui.spec.ts`, `tests/unit/hotkeys.test.ts` |
 | D6 | keine blockierenden Pop-ups in 60 s | grün | `m4-onboarding.spec.ts` (Tutorial-Pfad) |
 | D7 | i18n-Keys EN = DE | grün | `tests/unit/i18n.test.ts` |
-| D8 | erste Entlassung ≤ 90 s | grün (@@D8@@) | `m4-onboarding.spec.ts` (Tutorial-Pfad) |
-| D9 | Skip bei 3 s: Entlassung ≤ 120 s, Klemmbrett sofort | grün (@@D9@@) | `m4-onboarding.spec.ts` „D9 …“ |
-| D10 | USP 1–3 bis 2:00, USP 4 bis 3:30 | grün (@@D10@@) | `m4-onboarding.spec.ts` (Tutorial-Pfad) |
+| D8 | erste Entlassung ≤ 90 s | grün (28,5 s) | `m4-onboarding.spec.ts` (Tutorial-Pfad) |
+| D9 | Skip bei 3 s: Entlassung ≤ 120 s, Klemmbrett sofort | grün (Wash-Hut-Ziel im selben Frame, Entlassung ohne Eingabe bei 26,5 s) | `m4-onboarding.spec.ts` „D9 …“ |
+| D10 | USP 1–3 bis 2:00, USP 4 bis 3:30 | grün (USP 1 28,5 s, USP 2 Bau 2,5 s, USP 3 Steg 1,3 s, USP 4 Tunnel 180 s) | `m4-onboarding.spec.ts` (Tutorial-Pfad) |
 | E | Feedback im selben Frame, `mixer.play` ≤ 1 Frame, Coins/Tweens, Bau, Laufanimation, Feier | grün | `m4-onboarding.spec.ts` (Tutorial-Pfad), `tests/unit/juice.test.ts` |
 | G | Mute über SDK / Ad-Grund / verstecktes Tab, Mute im Spielstand, Pegel, klickfreie Loops | grün | `m4-accept.spec.ts` (G …), `tests/unit/audio-assets.test.ts`, `tests/unit/audio-runtime.test.ts` |
 | G (FULL) | adStarted → stumm, adFinished/adError → laut | **offen** (nicht anwendbar): Der BASIC-Build ruft keine Ad-API auf (geprüft); die Ad-Verdrahtung entsteht mit dem FULL-Build (P2, §11.2) und wird dort getestet | – |
@@ -76,7 +76,7 @@ Spec-Dateien unter `tests/e2e/` bzw. `tests/unit/`. Zahlen aus dem letzten volle
 | H4 | Hash nach Speichern/Laden vor dem ersten Tick, Offline-Deckel, Zeitsprünge | grün | `tests/unit/save.test.ts`, `tests/unit/save-store.test.ts` |
 | §6.2 Skip | „Skip tutorial ist dauerhaft sichtbar“: in jeder Tutorial-Frame ein klickbarer Skip | grün (neu) | `m4-fixes-ui.spec.ts` (Ebenen-Sampler, 4 Größen), `m4-onboarding.spec.ts` „menu open @ …“ |
 
-Gesamt: @@TOTAL@@
+Gesamt: `tsc --noEmit` und `eslint src tests` sauber · `vitest run` 16 Dateien, **196/196** · `playwright test --workers=1` 107 Tests: **106 bestanden, 0 fehlgeschlagen, 1 übersprungen** (B1-Screens M5/M6, als `pending` annotiert), 40,4 min. **Offen** ist nur der FULL-Ad-Mute (gehört zum FULL-Build). Kein M4-Abnahmetest schlägt fehl.
 
 ### Prüfer-Befunde nach M4 und was daraus wurde
 - **MITTEL, behoben:** Bei 844×390 (auch 667×375 und 800×450 Touch) war im Tutorial bei offenem Räume-/Personal-Menü kein Skip
@@ -180,6 +180,6 @@ billig, 3 = mindestens ein Element wirkt wie ein Platzhalter)
    Entlassung über das Klassenzimmer, oder ein kleiner Zwischenauftrag.
 2. Löffeltunnel: Pfeil am Bildrand oder Tipp-Chip, solange der Ausbrecher nicht im Bild ist.
 3. Räume-Menü bei 907×510: deutlicherer Scroll-Hinweis (z. B. ein Pfeil zusätzlich zum Verlauf), im G2-Playtest beobachten.
-4. Toasts beim Nachtsprung nicht überlappen lassen. Tagesbilanz kürzer fassen oder Abstand halten.
+4. ~~Toasts beim Nachtsprung nicht überlappen lassen.~~ Nachgeprüft: keine Überlappung, nur Ein- und Ausblenden (siehe „Stand M4“). Die Tagesbilanz kürzer zu fassen bleibt eine Stilfrage.
 5. Tutorial-Schritt 3: Wartezeit verkürzen oder mit einer Mini-Aufgabe füllen (z. B. „Tippe auf Earl“).
 6. Viel ungenutztes Geld ab Minute 6: Kosten oder Ziele der Ausbauten prüfen, sobald die Projekttafel (M5) da ist.
