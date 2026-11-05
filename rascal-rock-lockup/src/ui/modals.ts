@@ -157,11 +157,13 @@ export function mountModals(ctx: UICtx): Component & { open(name: Name): void; c
     renderReset();
 
     const cr = section(body, 'settings.credits');
-    for (const k of ['overlays.credits.made', 'overlays.credits.fonts', 'overlays.credits.libs', 'overlays.credits.thanks'] as Key[]) h('p', 'ov-p', cr, t(k));
+    for (const k of ['overlays.credits.made', 'overlays.credits.sounds', 'overlays.credits.music', 'overlays.credits.whistle', 'overlays.credits.fonts', 'overlays.credits.libs', 'overlays.credits.thanks'] as Key[]) h('p', 'ov-p', cr, t(k));
     h('p', 'ov-version', body, t('overlays.version', { v: version, build: typeof __BUILD__ === 'string' ? __BUILD__ : 'BASIC' }));
   };
 
   const resetSave = () => {
+    // the app clears the platform's own storage (SDK data module on CrazyGames) – localStorage alone would miss it
+    if (ctx.resetProgress) { ctx.resetProgress(); return; }
     try {
       const keys: string[] = [...SLOT_KEYS];
       for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith(SAVE_PREFIX)) keys.push(k); }

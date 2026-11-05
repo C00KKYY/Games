@@ -6,7 +6,7 @@
  * Mute precedence: any hard reason (SDK muteAudio, hidden tab, ad) > settings.mute > volumes. A hard reason can only
  * be lifted by its own source – the in-game toggle never re-enables sound the SDK muted.
  */
-import { ALIAS, LOOPS, MUSIC, SFX, type SoundId } from './manifest';
+import { ALIAS, LOOPS, MUSIC, MUSIC_LO, SFX, type SoundId } from './manifest';
 
 // ------------------------------------------------------------------ minimal structural WebAudio types
 export interface ParamLike {
@@ -41,7 +41,8 @@ export type Bus = 'music' | 'sfx' | 'ambience';
 export interface Volumes { music: number; sfx: number; ambience: number; mute: boolean }
 export type MuteReason = 'sdk' | 'hidden' | 'ad' | (string & {});
 export interface LoopPoints { loopStart: number; loopEnd: number }
-export interface LogEntry { id: string; t: number; ctxState: string; src: string; inputT: number; inputH: number; skip?: string }
+/** skip: why no voice started; cut: a started voice was stopped again (e.g. 'milestone' priority) */
+export interface LogEntry { id: string; t: number; ctxState: string; src: string; inputT: number; inputH: number; skip?: string; cut?: string }
 export interface PlayOpts { vol?: number; rate?: number; src?: string }
 
 // ------------------------------------------------------------------ tuning
@@ -56,15 +57,23 @@ const FREQUENT = new Set<string>(['click', 'hover', 'panelOpen', 'panelClose', '
 export const COINS: readonly SoundId[] = ['coin1', 'coin2', 'coin3'];
 /** base trims per bus (assets are levelled in the build: music/ambience −20 LUFS, SFX 6–10 dB above, Brief §8.3) */
 const BUS_TRIM: Record<Bus, number> = { music: 0.8, sfx: 1, ambience: 0.9 };
+/**
+ * jingle priority (tutorial end fires upgrade + milestone + objective within ~120 ms): a 'milestone' voice wins –
+ * an upgrade/objective voice started less than PRIORITY_MS before it is cut (short fade), and upgrade/objective
+ * requests within PRIORITY_MS after it are skipped. Coins, stamps and the release fanfare keep stacking (intended).
+ */
+export const PRIORITY_MS = 150;
+export const PRIORITY: Record<string, readonly string[]> = { milestone: ['upgrade', 'objective'] };
+const YIELDS = new Map<string, string>(Object.entries(PRIORITY).flatMap(([w, ls]) => ls.map(l => [l, w] as [string, string])));
 /** concurrent one-shot voice cap */
 export const MAX_VOICES = 24;
 /** a play() for an id whose buffer is still decoding is honoured if the buffer arrives within this time */
 export const PENDING_MS = 300;
 const LOG_CAP = 200;
 
-const MUSIC_SET = new Set<string>(MUSIC);
+const MUSIC_SET = new Set<string>([...MUSIC, ...MUSIC_LO]);
 const LOOP_SET = new Set<string>(LOOPS);
-const ALL = new Set<string>([...SFX, ...LOOPS, ...MUSIC]);
+const ALL = new Set<string>([...SFX, ...LOOPS, ...MUSIC, ...MUSIC_LO]);
 
 export function busOf(id: string): Bus {
   if (MUSIC_SET.has(id)) return 'music';
@@ -80,7 +89,12 @@ export function resolveId(name: string): string | null {
 }
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
-interface LoopState { src: SourceLike | null; gain: GainLike | null; target: number; fade: number; zeroSince: number }
+interface LoopState {
+  src: SourceLike | null; gain: GainLike | null; target: number; fade: number; zeroSince: number;
+  /** ctx time the source started and the buffer offset it started at (→ current loop phase) */
+  t0: number; off0: number;
+}
+interface Voice { id: string; at: number; src: SourceLike; gain: GainLike; entry: LogEntry | null }
 
 export interface MixerOpts {
   /** creates the real AudioContext – only ever called from unlock() (i.e. inside a user gesture) */
@@ -111,6 +125,10 @@ export class Mixer {
   inputH = -1;
   voices = 0;
   private last = new Map<string, number>();
+  /** recently started one-shots (for priority cuts), pruned to PRIORITY_MS */
+  private recentVoices: Voice[] = [];
+  /** o.now() when a priority id (milestone) last started a voice */
+  private wonAt = new Map<string, number>();
   private pending: { id: string; opts: PlayOpts; at: number }[] = [];
   private unlockFns: (() => void)[] = [];
   private random: () => number;
@@ -208,6 +226,8 @@ export class Mixer {
     const prev = this.last.get(group) ?? -1e9;
     const gap = RATE_MS[group] ?? DEDUPE_MS;
     if (t - prev < Math.max(gap, DEDUPE_MS)) { entry.skip = t - prev < DEDUPE_MS ? 'dedupe' : 'rate'; return false; }
+    const winner = YIELDS.get(id);
+    if (winner && t - (this.wonAt.get(winner) ?? -1e9) < PRIORITY_MS) { entry.skip = winner; return false; }
     this.last.set(group, t);
     if (!this.ctx || !this.unlocked) { entry.skip = 'locked'; return false; }
     if (this.muted()) { entry.skip = 'muted'; return false; }
@@ -226,10 +246,10 @@ export class Mixer {
       return false;
     }
     if (this.voices >= MAX_VOICES) { entry.skip = 'voices'; return false; }
-    return this.voice(real, opts);
+    return this.voice(real, opts, entry);
   }
 
-  private voice(id: string, opts: PlayOpts): boolean {
+  private voice(id: string, opts: PlayOpts, entry: LogEntry | null = null): boolean {
     const c = this.ctx, buf = this.buffers.get(id), bus = this.buses[busOf(id)];
     if (!c || !buf || !bus || this.muted()) return false;
     try {
@@ -244,15 +264,48 @@ export class Mixer {
       this.voices++;
       s.onended = () => { this.voices = Math.max(0, this.voices - 1); try { s.disconnect(); g.disconnect(); } catch { /* ignore */ } };
       s.start(0);
+      this.prioritise(id, { id, at: this.o.now(), src: s, gain: g, entry });
       return true;
     } catch { return false; }
   }
 
+  /** remember the voice; a priority id cuts the young voices that yield to it (both arrival orders) */
+  private prioritise(id: string, v: Voice) {
+    const t = v.at;
+    this.recentVoices = this.recentVoices.filter(r => t - r.at < PRIORITY_MS);
+    const losers = PRIORITY[id];
+    if (losers) {
+      this.wonAt.set(id, t);
+      for (const r of this.recentVoices) {
+        if (!losers.includes(r.id)) continue;
+        this.cut(r);
+        if (r.entry) r.entry.cut = id;
+      }
+      this.recentVoices = this.recentVoices.filter(r => !losers.includes(r.id));
+    }
+    if (YIELDS.has(id)) this.recentVoices.push(v);
+  }
+  /** stop a one-shot with a ~10 ms fade (no click) */
+  private cut(v: Voice) {
+    const c = this.ctx;
+    try {
+      const ct = c ? c.currentTime : 0;
+      v.gain.gain.cancelScheduledValues(ct);
+      v.gain.gain.setValueAtTime(v.gain.gain.value, ct);
+      v.gain.gain.setTargetAtTime(0, ct, 0.004);
+      v.src.stop(ct + 0.03);
+    } catch { try { v.src.stop(); } catch { /* ignore */ } }
+  }
+
   // ---------------------------------------------------------------- loops (music, ambience, hammerLoop)
-  /** set a loop's target volume (0..1) with a fade of `fade` seconds; starts/stops sources as needed (after unlock) */
-  setLoop(id: string, target: number, fade = 1.5) {
+  /**
+   * set a loop's target volume (0..1) with a fade of `fade` seconds; starts/stops sources as needed (after unlock).
+   * `phase` (seconds into the loop period) is used only when a new source starts – e.g. musicDay picking up exactly
+   * where its low-quality stand-in is (loopPhase('musicDayLo')).
+   */
+  setLoop(id: string, target: number, fade = 1.5, phase: number | null = null) {
     let L = this.loops.get(id);
-    if (!L) { L = { src: null, gain: null, target: 0, fade, zeroSince: this.o.now() }; this.loops.set(id, L); }
+    if (!L) { L = { src: null, gain: null, target: 0, fade, zeroSince: this.o.now(), t0: 0, off0: 0 }; this.loops.set(id, L); }
     const v = clamp01(target);
     const changed = Math.abs(v - L.target) > 1e-3;
     L.fade = fade;
@@ -267,12 +320,16 @@ export class Mixer {
         const s = c.createBufferSource();
         s.buffer = buf; s.loop = true;
         const p = this.loopPts[id];
-        if (p && p.loopEnd > p.loopStart && p.loopEnd <= buf.duration + 1e-3) { s.loopStart = p.loopStart; s.loopEnd = p.loopEnd; }
+        const okPts = !!p && p.loopEnd > p.loopStart && p.loopEnd <= buf.duration + 1e-3;
+        if (okPts) { s.loopStart = p.loopStart; s.loopEnd = p.loopEnd; }
         const g = c.createGain();
         g.gain.value = 0;
         s.connect(g); g.connect(bus);
-        s.start(0, p ? Math.min(p.loopStart, Math.max(0, buf.duration - 0.01)) : 0);
-        L.src = s; L.gain = g;
+        const base = p ? Math.min(p.loopStart, Math.max(0, buf.duration - 0.01)) : 0;
+        const period = okPts ? p.loopEnd - p.loopStart : buf.duration;
+        const off = phase !== null && Number.isFinite(phase) && period > 0 ? base + (((phase % period) + period) % period) : base;
+        s.start(0, Math.min(off, Math.max(0, buf.duration - 0.01)));
+        L.src = s; L.gain = g; L.t0 = c.currentTime; L.off0 = off;
         this.ramp(g.gain, v, fade / 3, false);
       } catch { L.src = null; L.gain = null; }
     } else if (L.src && L.gain && changed) {
@@ -292,4 +349,15 @@ export class Mixer {
   /** true when the id (or its rate-limit group) was last requested within `ms` */
   recent(id: string, ms: number) { return this.o.now() - (this.last.get(id) ?? -1e9) < ms; }
   loopPlaying(id: string) { const L = this.loops.get(id); return !!(L && L.src && L.target > 0); }
+  /** seconds into the loop period of a running loop source (from the shared ctx clock), null when it is not running */
+  loopPhase(id: string): number | null {
+    const L = this.loops.get(id), c = this.ctx, buf = this.buffers.get(id);
+    if (!L || !L.src || !c || !buf) return null;
+    const p = this.loopPts[id];
+    const ok = !!p && p.loopEnd > p.loopStart && p.loopEnd <= buf.duration + 1e-3;
+    const ls = ok ? p.loopStart : 0, period = ok ? p.loopEnd - p.loopStart : buf.duration;
+    if (!(period > 0)) return null;
+    const pos = L.off0 + Math.max(0, c.currentTime - L.t0);
+    return pos < ls ? 0 : (pos - ls) % period;
+  }
 }

@@ -12,7 +12,8 @@
   const calls = (window.__sdkCalls = []);
   const t0 = performance.now();
   let inited = false;
-  const rec = (n, a) => calls.push({ n, a, t: Math.round(performance.now() - t0), inited });
+  // t: ms since the mock was evaluated; at: ms since navigation start (performance time origin, A2)
+  const rec = (n, a) => calls.push({ n, a, t: Math.round(performance.now() - t0), at: Math.round(performance.now()), inited });
   const PKEY = '__sdkMockData';
   let persisted = null;
   if (cfg.persist) { try { persisted = JSON.parse(sessionStorage.getItem(PKEY) || 'null'); } catch { persisted = null; } }

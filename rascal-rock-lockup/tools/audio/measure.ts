@@ -8,7 +8,7 @@
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs';
-import { SFX, LOOPS, MUSIC, INITIAL, type SoundId } from '../../src/audio/manifest';
+import { SFX, LOOPS, MUSIC, MUSIC_LO, INITIAL, INITIAL_MUSIC, type SoundId } from '../../src/audio/manifest';
 import { decode, lufs, probe, peak, rms, db, sec, SR } from './dsp';
 import { T } from './thresholds';
 
@@ -16,7 +16,7 @@ const ROOT = new URL('../..', import.meta.url).pathname;
 const DIR = ROOT + 'public/audio/';
 
 export interface Level {
-  id: SoundId; kind: 'sfx' | 'loop' | 'music'; file: string; bytes: number; sha1: string;
+  id: SoundId; kind: 'sfx' | 'loop' | 'music' | 'musicLo'; file: string; bytes: number; sha1: string;
   durationSec: number; kbps: number; channels: number; sampleRate: number; codec: string;
   peakDb: number; rmsDb: number; lufs?: number;
   loop?: { loopStart: number; loopEnd: number; periodSec: number; seamJumpDb: number; seamStepRatio: number };
@@ -25,7 +25,7 @@ export interface Report {
   generatedBy: string; thresholds: typeof T; sounds: Level[]; missing: SoundId[];
   summary: {
     sfxRmsMedianDb: number; sfxRmsMinDb: number; sfxRmsMaxDb: number; musicRmsMedianDb: number; sfxOverMusicDb: number;
-    initialCount: number; initialBytes: number; audioBytes: number; maxMusicBytes: number; maxSeamJumpDb: number;
+    initialCount: number; initialBytes: number; initialMusicBytes: number; audioBytes: number; maxMusicBytes: number; maxSeamJumpDb: number;
   };
 }
 
@@ -35,7 +35,7 @@ const median = (a: number[]) => { const s = [...a].sort((x, y) => x - y); const 
 export function measure(): Report {
   const loops: Record<string, { loopStart: number; loopEnd: number }> = existsSync(DIR + 'loops.json') ? JSON.parse(readFileSync(DIR + 'loops.json', 'utf8')) : {};
   const sounds: Level[] = []; const missing: SoundId[] = [];
-  const all: [SoundId, Level['kind']][] = [...SFX.map(i => [i, 'sfx'] as [SoundId, 'sfx']), ...LOOPS.map(i => [i, 'loop'] as [SoundId, 'loop']), ...MUSIC.map(i => [i, 'music'] as [SoundId, 'music'])];
+  const all: [SoundId, Level['kind']][] = [...SFX.map(i => [i, 'sfx'] as [SoundId, 'sfx']), ...LOOPS.map(i => [i, 'loop'] as [SoundId, 'loop']), ...MUSIC.map(i => [i, 'music'] as [SoundId, 'music']), ...MUSIC_LO.map(i => [i, 'musicLo'] as [SoundId, 'musicLo'])];
   for (const [id, kind] of all) {
     const file = DIR + id + '.mp3';
     if (!existsSync(file)) { missing.push(id); continue; }
@@ -76,7 +76,8 @@ export function measure(): Report {
     summary: {
       sfxRmsMedianDb: r2(sfxMed), sfxRmsMinDb: r2(Math.min(...sfx.map(s => s.rmsDb))), sfxRmsMaxDb: r2(Math.max(...sfx.map(s => s.rmsDb))),
       musicRmsMedianDb: r2(musMed), sfxOverMusicDb: r2(sfxMed - musMed),
-      initialCount: initial.length, initialBytes: initial.reduce((n, s) => n + s.bytes, 0), audioBytes,
+      initialCount: initial.length, initialBytes: initial.reduce((n, s) => n + s.bytes, 0),
+      initialMusicBytes: sounds.filter(s => INITIAL_MUSIC.includes(s.id)).reduce((n, s) => n + s.bytes, 0), audioBytes,
       maxMusicBytes: Math.max(0, ...music.map(s => s.bytes)),
       maxSeamJumpDb: Math.max(0, ...sounds.filter(s => s.loop).map(s => s.loop!.seamJumpDb)),
     },
@@ -90,5 +91,5 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
   writeFileSync(ROOT + 'qa/audio/levels.json', JSON.stringify(rep, null, 2) + '\n');
   const s = rep.summary;
   console.log(`levels.json: ${rep.sounds.length} files, missing ${rep.missing.length}; SFX RMS median ${s.sfxRmsMedianDb} (${s.sfxRmsMinDb}…${s.sfxRmsMaxDb}) dBFS, music RMS median ${s.musicRmsMedianDb} → +${s.sfxOverMusicDb} dB; initial ${s.initialCount} files ${s.initialBytes} B; audio total ${s.audioBytes} B; max seam jump ${s.maxSeamJumpDb} dB`);
-  for (const l of rep.sounds) console.log(`${l.id.padEnd(16)} ${l.kind.padEnd(5)} ${String(l.bytes).padStart(7)} B ${l.durationSec.toFixed(2).padStart(6)}s ${l.kbps}k pk ${l.peakDb.toFixed(1).padStart(5)} rms ${l.rmsDb.toFixed(1).padStart(6)}${l.lufs !== undefined ? ` LUFS ${l.lufs.toFixed(1)}` : ''}${l.loop ? ` seam ${l.loop.seamJumpDb} dB step×${l.loop.seamStepRatio}` : ''}`);
+  for (const l of rep.sounds) console.log(`${l.id.padEnd(16)} ${l.kind.padEnd(7)} ${String(l.bytes).padStart(7)} B ${l.durationSec.toFixed(2).padStart(6)}s ${l.kbps}k pk ${l.peakDb.toFixed(1).padStart(5)} rms ${l.rmsDb.toFixed(1).padStart(6)}${l.lufs !== undefined ? ` LUFS ${l.lufs.toFixed(1)}` : ''}${l.loop ? ` seam ${l.loop.seamJumpDb} dB step×${l.loop.seamStepRatio}` : ''}`);
 }

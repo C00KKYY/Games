@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Mixer, DEDUPE_MS, RATE_MS, PITCH_VARY, busOf, resolveId, type CtxLike, type GainLike, type ParamLike, type SourceLike } from '../../src/audio/mixer';
+import { Mixer, DEDUPE_MS, RATE_MS, PITCH_VARY, PRIORITY_MS, busOf, resolveId, type CtxLike, type GainLike, type ParamLike, type SourceLike } from '../../src/audio/mixer';
 import { cueFor } from '../../src/audio/events';
-import { INITIAL, SFX, LOOPS, MUSIC, ALIAS } from '../../src/audio/manifest';
+import { INITIAL, INITIAL_MUSIC, SFX, LOOPS, MUSIC, MUSIC_LO, ALIAS } from '../../src/audio/manifest';
 import type { SimEvent } from '../../src/sim/types';
 
 // ------------------------------------------------------------------ fake WebAudio
@@ -53,6 +53,8 @@ describe('audio runtime: manifest + routing', () => {
     for (const id of SFX) expect(busOf(id)).toBe('sfx');
     for (const id of LOOPS) expect(busOf(id)).toBe('ambience');
     for (const id of MUSIC) expect(busOf(id)).toBe('music');
+    for (const id of MUSIC_LO) expect(busOf(id)).toBe('music');
+    for (const id of INITIAL_MUSIC) expect(resolveId(id)).toBe(id);
   });
   it('master → destination, buses → master, voices → bus of their id', () => {
     const m = mk();
@@ -234,7 +236,64 @@ describe('audio runtime: dedupe, rate limit, pitch', () => {
   });
 });
 
+describe('audio runtime: jingle priority (tutorial end: upgrade + milestone + objective)', () => {
+  const setup = () => { const m = mk(); m.unlock(); for (const id of ['upgrade', 'milestone', 'objective', 'stamp', 'coin1', 'releaseFanfare']) m.setBuffer(id, buf()); return m; };
+  const voiceOf = (id: string) => fc.sources.filter(s => s.buffer && m0.buffers.get(id) === s.buffer);
+  let m0: Mixer;
+  it('milestone first: upgrade/objective requested within 150 ms after it are skipped, later ones play', () => {
+    const m = m0 = setup();
+    expect(m.play('milestone')).toBe(true);
+    t += 40; expect(m.play('upgrade')).toBe(false); expect(m.log.at(-1)!.skip).toBe('milestone');
+    t += 80; expect(m.play('objective')).toBe(false); expect(m.log.at(-1)!.skip).toBe('milestone');
+    t += PRIORITY_MS; expect(m.play('upgrade')).toBe(true);
+    expect(voiceOf('milestone').every(s => !s.stopped)).toBe(true);
+  });
+  it('milestone second: a just-started upgrade/objective voice (< 150 ms) is cut with a short fade, the log marks it', () => {
+    const m = m0 = setup();
+    // the real tutorial-end order: upgrade, objective, then milestone within ~120 ms
+    expect(m.play('upgrade')).toBe(true);
+    t += 60; expect(m.play('objective')).toBe(true);
+    t += 60; expect(m.play('milestone')).toBe(true);
+    const [up, obj, mile] = fc.sources;
+    expect(up.stopped && obj.stopped).toBe(true);
+    expect(mile.stopped).toBe(false);
+    expect((up.out[0] as FGain).gain.target).toBe(0);
+    const cut = m.log.filter(e => e.cut === 'milestone').map(e => e.id);
+    expect(cut.sort()).toEqual(['objective', 'upgrade']);
+  });
+  it('an older upgrade (≥ 150 ms) keeps playing; unrelated sounds always stack (stamp + coin + fanfare)', () => {
+    const m = m0 = setup();
+    m.play('upgrade');
+    t += PRIORITY_MS + 1;
+    m.play('stamp'); m.play('coin'); m.play('releaseFanfare'); m.play('milestone');
+    expect(fc.sources.length).toBe(5);
+    expect(fc.sources.some(s => s.stopped)).toBe(false);
+    expect(m.log.some(e => e.cut || (e.skip && e.skip !== 'dedupe'))).toBe(false);
+  });
+});
+
 describe('audio runtime: loops', () => {
+  it('a loop started with a phase picks up at loopStart + phase; loopPhase follows the ctx clock and wraps', () => {
+    const m = mk(); m.unlock();
+    const pts = { loopStart: 0.25, loopEnd: 10.25 };
+    m.setBuffer('musicDayLo', buf(10.5), pts); m.setBuffer('musicDay', buf(10.5), pts);
+    fc.currentTime = 2;
+    m.setLoop('musicDayLo', 1, 1.5);
+    expect(fc.sources[0].offset).toBe(0.25);
+    fc.currentTime = 5.5;
+    expect(m.loopPhase('musicDayLo')).toBeCloseTo(3.5, 6);
+    fc.currentTime = 14; // 12 s played → wrapped once (period 10)
+    expect(m.loopPhase('musicDayLo')).toBeCloseTo(2, 6);
+    m.setLoop('musicDay', 1, 1.5, m.loopPhase('musicDayLo'));
+    expect(fc.sources[1].offset).toBeCloseTo(2.25, 6);
+    expect(m.loopPhase('musicDay')).toBeCloseTo(2, 6);
+    expect(m.loopPhase('musicEvening')).toBeNull();
+    m.setLoop('musicDayLo', 0, 1.5);
+    t += 1500 + 700; m.reapLoops();
+    expect(fc.sources[0].stopped).toBe(true);
+    expect(m.loopPhase('musicDayLo')).toBeNull();
+  });
+
   it('crossfade day → evening and reap the silent loop', () => {
     const m = mk(); m.unlock();
     m.setBuffer('musicDay', buf(60)); m.setBuffer('musicEvening', buf(60));

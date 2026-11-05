@@ -70,7 +70,12 @@ export async function startGame(platform: Platform, setBoot: (p: number) => void
   if (params.has('capture')) {
     app.ticker.stop();
     (window as unknown as Record<string, unknown>).__step = (n = 1) => { for (let i = 0; i < n; i++) frame(1 / 30); app.render(); };
-  } else app.ticker.add(tk => frame(Math.min(0.1, tk.deltaMS / 1000)));
+  } else {
+    app.ticker.add(tk => frame(Math.min(0.1, tk.deltaMS / 1000)));
+    // a hidden tab renders nothing (Brief §12.4 C4). Browsers stop rAF for hidden tabs anyway; this also holds where
+    // they only throttle it or where the page is just reported hidden. No gameplayStop – the SDK session goes on.
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') app.ticker.stop(); else app.ticker.start(); });
+  }
   setBoot(1);
   document.getElementById('boot')?.classList.add('gone');
   platform.gameplayStart();

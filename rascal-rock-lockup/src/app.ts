@@ -115,7 +115,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     openModal(name) { late.modals?.open(name); },
     closeModal() { late.modals?.close(); },
     feedback(r: CommandResult, message?: string) {
-      if (r.ok) return;
+      if (r.ok) return; ctx.sound('deny');
       const key = (r.reason && REASON_KEY[r.reason]) || 'place.overlap'; // unknown reason → generic "something is in the way"
       ctx.toast(message ?? t(key), { kind: 'bad', ms: 1800 });
     },
@@ -171,6 +171,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       late.modals = mountModals(ctx);
       const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx), mountTutorial(ctx), mountJuice(ctx, view), late.audio!];
       (window as unknown as Record<string, unknown>).__sim = w;
+      (window as unknown as Record<string, unknown>).__view = view; // test hook (E): agent views (walk phase, facing)
       return { w, view, overlay, stepper: new Stepper(w), bot, comps, offs };
     } finally { track = null; }
   };
@@ -240,7 +241,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     try { for (const k of SLOT_KEYS) localStorage.removeItem(k); } catch { /* blocked storage */ }
     location.reload();
   };
-  (ctx as UICtx & { resetProgress?: () => void }).resetProgress = resetProgress;
+  ctx.resetProgress = resetProgress;
   (window as unknown as Record<string, unknown>).__save = {
     store, autosave,
     flush: () => autosave.flush(performance.now()),
@@ -260,7 +261,14 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     const top = Math.max(0, ...[...root.querySelectorAll<HTMLElement>('[data-hud="top"]')].map(e => e.getBoundingClientRect().bottom)) + 2;
     const bottoms = [...root.querySelectorAll<HTMLElement>('[data-hud="bottom"]')].map(e => e.getBoundingClientRect().top);
     const bottom = bottoms.length ? window.innerHeight - Math.min(...bottoms) + 2 : 0;
-    return { top, bottom, left: 0, right: 0 };
+    // wide layouts: the Warden's Clipboard card stands permanently top-left – frame the island right of it, so the first
+    // rooms (the tutorial's one-tap Wash Hut spot, the ferry) never start under the card. Compact layouts show a chip.
+    let left = 0;
+    if (!compact.get()) {
+      const card = root.querySelector<HTMLElement>('.cb-card')?.getBoundingClientRect();
+      if (card && card.width > 0 && card.left < window.innerWidth / 3) left = Math.round(card.right + 8);
+    }
+    return { top, bottom, left, right: 0 };
   };
 
   return {

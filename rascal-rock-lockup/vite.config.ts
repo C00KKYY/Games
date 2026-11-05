@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import license from 'rollup-plugin-license';
 import { viteSingleFile } from 'vite-plugin-singlefile';
@@ -19,7 +20,12 @@ export default defineConfig({
       thirdParty: {
         includePrivate: false,
         allow: { test: (dep) => ALLOWED.test(String(dep.license)), failOnUnlicensed: true, failOnViolation: true },
-        output: { file: 'licenses/THIRD_PARTY_NOTICES.txt' },
+        // same format as the plugin's default template (dist/index.js: d.text() joined by blank-line '---' blocks),
+        // followed by the credits of the shipped third-party audio (CC0 / CC BY, Brief §15.5)
+        output: {
+          file: 'licenses/THIRD_PARTY_NOTICES.txt',
+          template: (deps) => deps.map((d) => d.text()).join('\n\n---\n\n') + '\n\n---\n\n' + readFileSync('licenses/AUDIO_CREDITS.md', 'utf8'),
+        },
       },
     }),
     ...(single ? [viteSingleFile()] : []),

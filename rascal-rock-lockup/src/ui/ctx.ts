@@ -90,6 +90,11 @@ export interface UICtx {
    * differs from the language it last rendered (check in update()).
    */
   setLang(l: Lang): void;
+  /**
+   * "Reset progress" (settings modal): wipe both save slots in whatever storage the platform uses (SDK data module on
+   * CrazyGames, localStorage elsewhere), never save again this session, reload. Attached by the app.
+   */
+  resetProgress?(): void;
 }
 
 export interface Component { update(dt: number): void; destroy?(): void }

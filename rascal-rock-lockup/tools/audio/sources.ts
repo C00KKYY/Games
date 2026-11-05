@@ -109,6 +109,8 @@ export type Recipe = SfxRecipe | LoopRecipe;
 const ki = (f: string, o: Partial<Src> = {}): Src => ({ pack: 'kInterface', file: `Audio/${f}.ogg`, ...o });
 const kj = (f: string, o: Partial<Src> = {}): Src => ({ pack: 'kJingles', file: `OGG/jingles_${f.replace(/\d+$/, '')}/jingles_${f}.ogg`, ...o });
 
+const MUSIC_DAY: Omit<LoopRecipe, 'why'> = { kind: 'music', mode: 'segment', start: 20, len: 90, lenRange: [80, 96], xfade: 1.5, layers: [{ pack: 'holizna', file: 'ocean-breeze-lofi-ukulele-peaceful-mp3.mp3', page: FMA + 'public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/' }] };
+
 export const RECIPES: Record<SoundId, Recipe> = {
   // ---------- UI ----------
   click: { kind: 'sfx', layers: [ki('toggle_002')], why: 'soft toggle click' },
@@ -197,7 +199,9 @@ export const RECIPES: Record<SoundId, Recipe> = {
     why: 'night crickets, cross-faded into a 9.5 s seamless bed',
   },
   // ---------- music (CC0, HoliznaCC0 – default choice per mood; candidates in qa/audio/candidates) ----------
-  musicDay: { kind: 'music', mode: 'segment', start: 20, len: 90, lenRange: [80, 96], xfade: 1.5, layers: [{ pack: 'holizna', file: 'ocean-breeze-lofi-ukulele-peaceful-mp3.mp3', page: FMA + 'public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/' }], why: 'cosy day: "Ocean Breeze (LoFi, Ukulele, Peaceful)"' },
+  musicDay: { ...MUSIC_DAY, why: 'cosy day: "Ocean Breeze (LoFi, Ukulele, Peaceful)"' },
+  // same source + recipe as musicDay (identical loop-length search → identical period); encoded as the 16 kbps stand-in
+  musicDayLo: { ...MUSIC_DAY, why: 'low-quality stand-in of musicDay for the initial bundle (Brief §8.4), same source and period' },
   musicEvening: { kind: 'music', mode: 'segment', start: 10, len: 90, lenRange: [80, 96], xfade: 1.5, layers: [{ pack: 'holizna', file: 'ease-into-night-lofi-relax-chill.mp3', page: FMA + 'public-domain-lofi/ease-into-night-lofi-relax-chill/' }], why: 'calm evening: "Ease into Night (Lofi, Relax, Chill)"' },
   musicInspection: { kind: 'music', mode: 'segment', start: 15, len: 90, lenRange: [80, 96], xfade: 1.5, layers: [{ pack: 'holizna', file: 'extra-life-i-never-used.mp3', page: FMA + 'we-drove-all-night-game-soundtrack/extra-life-i-never-used/' }], why: 'tense-but-fun inspection: "Extra Life I Never Used" (game soundtrack)' },
 };

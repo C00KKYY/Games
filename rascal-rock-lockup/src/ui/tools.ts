@@ -234,9 +234,14 @@ export function mountTools(ctx: UICtx): Component {
   }
   function doBuild(r: Rect, keep: boolean) {
     if (tool.kind !== 'build') return;
+    // answer the input at once (mixer.play ≤ 1 frame after it, Brief §12.6): a placement the ghost already showed as
+    // valid and affordable is voiced before the build command, whose path-field rebuild can take a frame on slow devices
+    const ev = evals.get(`${tool.type},${r.x},${r.y},${r.w},${r.h},0`);
+    const sure = ev?.reason === 'ok' && w.coins >= roomCost(tool.type, r.w, r.h);
+    if (sure) ctx.sound('build');
     const res = ctx.cmd.build(w, tool.type, r.x, r.y, r.w, r.h);
     if (!res.ok) { fail(res); return; }
-    ctx.sound('build');
+    if (!sure) ctx.sound('build');
     evals.clear();
     if (keep) { pending = null; dirtyPixi = true; urgent = true; }
     else ctx.tool.set({ kind: 'none' });

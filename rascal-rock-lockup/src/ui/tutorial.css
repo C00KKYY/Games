@@ -3,7 +3,9 @@
 .hud .tu { position: fixed; inset: 0; z-index: 5; pointer-events: none; overflow: hidden; }
 .tu > * { position: absolute; left: 0; top: 0; }
 
-/* veil with a soft hole around the target: dims, never blocks */
+/* veil with a soft hole around the target: dims, never blocks; clipped by its own full-screen box */
+.tu > .tu-veil-box { right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
+.tu-veil-box > .tu-veil { position: absolute; left: 0; top: 0; }
 .tu-veil { width: 0; height: 0; --r: 60px; opacity: 0; transition: opacity .35s ease; will-change: transform; pointer-events: none;
   background: radial-gradient(circle at 50% 50%, rgba(31,43,62,0) 0, rgba(31,43,62,0) var(--r), rgba(31,43,62,.36) calc(var(--r) + 30px)); }
 .tu-veil.on { opacity: 1; }
@@ -60,12 +62,26 @@
   box-shadow: inset 0 -2px 0 var(--cream700); white-space: nowrap; }
 .tu-skip:hover { transform: scale(1.04); } .tu-skip:active { transform: scale(.96); }
 .tu--touch .tu-skip { min-height: 44px; min-width: 44px; }
+/* no free spot for the full bubble (small screens with an open panel / menu): only progress dots + Skip, never over
+   the target – first beside a small warden, then stacked without him (fits the strip left of a phone's room sheet) */
+.tu-bub.measure { display: block; visibility: hidden; }
+.tu-bub.mini .tu-text, .tu-bub.mini .tu-sub { display: none; }
+.tu-bub.mini .tu-warden { width: 2.6rem; }
+.tu-bub.mini .tu-say { margin-bottom: .4rem; }
+.tu-bub.mini .tu-row { margin-top: 0; }
+.tu-bub.stack .tu-warden { display: none; }
+.tu-bub.stack .tu-say { margin-bottom: 0; padding: .35rem .45rem; }
+.tu-bub.stack .tu-say::after { display: none; }
+.tu-bub.stack .tu-row { flex-direction: column; align-items: stretch; gap: .3rem; }
+.tu-bub.stack .tu-prog { justify-content: center; }
+.tu-bub.stack .tu-skip { white-space: normal; max-width: 8.5rem; justify-content: center; text-align: center; line-height: 1.15; padding: .2rem .6rem; }
 
 /* controls overlay (first 20 s) */
 .tu-ctl { display: flex; gap: .7rem; padding: .35rem .6rem; background: var(--cream300); border: 2px solid var(--wood500); border-radius: var(--r);
   box-shadow: var(--shadow); opacity: 0; visibility: hidden; transition: opacity .6s ease, visibility 0s linear .6s; }
 .tu-ctl.on { opacity: 1; visibility: visible; transition: opacity .4s ease; }
 .tu-ctl.grid { display: grid; grid-template-columns: auto auto; gap: .3rem .8rem; }
+.tu-ctl.col { display: grid; grid-template-columns: auto; gap: .3rem; }
 .tu-ctl-it { display: flex; align-items: center; gap: .35rem; }
 .tu-ctl-ic svg { display: block; width: 1.75rem; height: 1.75rem; }
 .tu-ctl-tx { display: flex; flex-direction: column; line-height: 1.2; }

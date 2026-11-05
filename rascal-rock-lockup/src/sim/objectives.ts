@@ -54,7 +54,8 @@ export function endTutorial(w: World, skipped = false) {
   if (tu.done) return;
   tu.active = false; tu.done = true; tu.skipped = skipped;
   w.director.data.tutorialEndMs = w.rtMs;
-  w.unlocked.workshop = true;
+  // the Knitting Nook unlock gets the same celebration as every other unlock (it was silent before)
+  if (!w.unlocked.workshop) { w.unlocked.workshop = true; emit(w, 'unlock', { what: 'workshop' }); }
   emit(w, 'tutorialDone', { skipped });
 }
 
