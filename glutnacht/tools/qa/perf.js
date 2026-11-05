@@ -1,10 +1,13 @@
 // Leistungsprobe: viele Gegner und Partikel, Bildzeiten per requestAnimationFrame.
 // (Performance probe: many enemies and particles, frame times via requestAnimationFrame.)
 //   node tools/qa/perf.js [cpuDrossel=6] [gegner=300] [--target=datei.html] [--quality=auto|0|1|2] [--stage=graveyard]
-//              [--viewport=907x510] [--shot=datei.png] [--weapons=start|all]
+//              [--viewport=907x510] [--shot=datei.png] [--weapons=start|all] [--cap=30]
 // Ablauf: frisches Profil, SPIELEN, unverwundbarer Held (Startwaffe; --weapons=all: alle acht auf Stufe 8), Gegner auf Ziel-Anzahl halten
 // (unsterblich, damit die Zahl stabil bleibt), Partikel per Game.burst auf ~700 halten, dann 6 s messen.
-// quality: auto = automatische Rückstufung erlaubt (Standard), 0/1/2 = Stufe fest (0 = volles Licht).
+// quality: auto = automatische Rückstufung erlaubt (Standard), 0…5 = Stufe fest (0 = volles Licht).
+// cap: Anzeige auf N fps begrenzt (wie Stromsparmodus auf iPhone/Chrome: requestAnimationFrame liefert nur jedes
+// zweite Bild). Erwartung: Die automatische Stufe bleibt oben, weil eine niedrigere Stufe hier nichts bringt.
+//   z. B. node tools/qa/perf.js 1 40 --cap=30   (wenig Last, nur die Obergrenze)
 'use strict';
 const { chromium } = require('playwright');
 const path = require('path');
@@ -18,12 +21,23 @@ const Q = opt('quality') || 'auto';
 const STAGE = opt('stage') || 'graveyard';
 const [VW, VH] = (opt('viewport') || '907x510').split('x').map(Number);
 const ALLW = opt('weapons') === 'all';
+const CAP = +(opt('cap') || 0);
 
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: VW, height: VH }, deviceScaleFactor: 1, locale: 'en-US' });
   const page = await ctx.newPage();
   const errs = [];
+  if (CAP) {
+    await page.addInitScript(cap => {
+      const raf = window.requestAnimationFrame.bind(window), step = 1000 / cap;
+      let next = 0, open = -1; // open: Zeitstempel des zuletzt durchgelassenen Bildes (gilt für alle Rückrufe darin)
+      window.requestAnimationFrame = cb => raf(function f(t) {
+        if (t !== open) { if (t + 2 < next) return raf(f); open = t; next = Math.max(next + step, t); }
+        cb(t);
+      });
+    }, CAP);
+  }
   page.on('pageerror', e => errs.push(e.message));
   page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
   await page.goto('file://' + TARGET);
@@ -82,7 +96,7 @@ const ALLW = opt('weapons') === 'all';
         let onScreen = 0;
         for (const e of r.enemies) if (!e.dead && Render.inView(e.x, e.y, 0)) onScreen++;
         const P = window.__prof, nf = t.length;
-        res({ updMs: +(P.upd / nf).toFixed(1), drawMs: +(P.draw / nf).toFixed(1), frames: t.length, fps: +(t.length / ((now - t0) / 1000)).toFixed(1), medMs: +q(0.5).toFixed(1), p95Ms: +q(0.95).toFixed(1), maxMs: +s[s.length - 1].toFixed(1),
+        res({ qLog: (Render.perf && Render.perf.log || []).slice(-12).join(' '), canvasW: Render.cv.width, updMs: +(P.upd / nf).toFixed(1), drawMs: +(P.draw / nf).toFixed(1), frames: t.length, fps: +(t.length / ((now - t0) / 1000)).toFixed(1), medMs: +q(0.5).toFixed(1), p95Ms: +q(0.95).toFixed(1), maxMs: +s[s.length - 1].toFixed(1),
           enemies: r.enemies.length, onScreen, parts: r.parts.length, quality: Render.quality, state: Game.state });
       }
     };
@@ -90,6 +104,6 @@ const ALLW = opt('weapons') === 'all';
   }));
   const shot = opt('shot');
   if (shot) await page.screenshot({ path: path.resolve(shot) });
-  console.log(JSON.stringify({ cpu: CPU, target: path.relative(ROOT, TARGET), quality: Q, weapons: ALLW ? 'all' : 'start', viewport: VW + 'x' + VH, ...res, errors: errs }));
+  console.log(JSON.stringify({ cpu: CPU, cap: CAP || undefined, target: path.relative(ROOT, TARGET), quality: Q, weapons: ALLW ? 'all' : 'start', viewport: VW + 'x' + VH, ...res, errors: errs }));
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

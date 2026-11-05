@@ -355,7 +355,7 @@ const STAGES = [
     id: 'nightheart', name: 'Herz der Nacht', minutes: 15,
     intro: 'Hinter dir brennt jede Glut, die du entfacht hast. Vor dir wartet nur noch die Nacht.',
     outro: 'Die Nacht zerbricht, und zum ersten Mal seit Ewigkeiten wird es Morgen.',
-    ground: { base: '#4e4076', speckle: ['#6a52a4', '#261c40', '#6b4cff'], grass: '#8a76c4' },
+    ground: { base: '#5a4c86', speckle: ['#7660b2', '#2c2248', '#6b4cff'], grass: '#9682d0' },
     decor: ['cross', 'grave', 'bones', 'bones', 'rock', 'rock', 'flower'], decorTint: '#3a2a6a',
     tints: { bat: '#6b4cff', slime: '#6b4cff', skel: '#8a7cff', ghost: '#9a8cff', ghoul: '#5a3cc0', wraith: '#7a4cff', brute: '#5a3cc0', golem: '#4a3a9a' }, mods: { all: { hp: 1.15, speed: 1.05 } },
     mult: { hp: 1.1, dmg: 1, rate: 1.05 },

@@ -1,9 +1,11 @@
 	
 
-	Castle Kit (2.0)
+	Particle Pack + Smoke Particles (used in Glutnacht / Ember Night)
 
 	Created/distributed by Kenney (www.kenney.nl)
-	Creation date: 27-03-2024 13:37
+	Note: the packs as mirrored ship without their own licence file. This is
+	Kenney's standard CC0 licence text, taken from Castle Kit (2.0) in the same
+	mirror (github.com/shorepine/kenney); Kenney releases all packs under CC0.
 	
 			------------------------------
 

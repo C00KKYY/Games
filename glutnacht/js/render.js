@@ -14,18 +14,20 @@ const PLAYER_DRAW_SCALE = 1.25;
 const MIN_ZOOM = 0.8;
 
 // Darstellungsstufen: Auflösung des Spiel-Canvas (rs) und der Lichtkarte (lm, Anteil der CSS-Pixel).
-// Fällt die Bildrate im Spiel unter 50 fps, wird automatisch zurückgeschaltet (siehe autoQuality).
-// sprites: Partikel als Kenney-Funken (sonst gebündelte Quadrate); shadows: Schatten unter Gegnern
+// Fällt die Bildrate im Spiel unter 42 fps, wird probeweise zurückgeschaltet (siehe autoQuality).
+// sprites: Partikel als Kenney-Funken (sonst gebündelte Quadrate); shadows: Schatten unter Gegnern.
+// Die Lichtkarte ist weich, daher genügt ihr wenig Auflösung; die teuren Schritte (Canvas-Auflösung) kommen zuletzt.
 const QUALITY = [
-  { rs: 1, lm: 0.5, gemLights: true, sprites: true, shadows: true },
-  { rs: 0.8, lm: 0.4, gemLights: true, sprites: true, shadows: true },
-  { rs: 0.6, lm: 0.3, gemLights: false, sprites: true, shadows: true },
-  { rs: 0.42, lm: 0.25, gemLights: false, sprites: false, shadows: false },
-  { rs: 0.34, lm: 0.2, gemLights: false, sprites: false, shadows: false },
+  { rs: 1, lm: 0.4, gemLights: true, sprites: true, shadows: true },
+  { rs: 1, lm: 0.3, gemLights: false, sprites: true, shadows: false },
+  { rs: 0.8, lm: 0.28, gemLights: false, sprites: true, shadows: false },
+  { rs: 0.68, lm: 0.25, gemLights: false, sprites: false, shadows: false },
+  { rs: 0.52, lm: 0.22, gemLights: false, sprites: false, shadows: false },
+  { rs: 0.38, lm: 0.2, gemLights: false, sprites: false, shadows: false }, // letzter Ausweg (unscharf)
 ];
 // Umgebungslicht je Land: die Lichtkarte wird mit dieser Farbe gefüllt und mit der Szene multipliziert
 // (#ffffff = unverändert). Lichtquellen (Glut des Helden, Kohlebecken, Geschosse …) hellen sie auf.
-const AMBIENT = { graveyard: '#66769e', ashwood: '#84666e', frostlake: '#647ca4', ruins: '#74708c', nightheart: '#6a5a9e' };
+const AMBIENT = { graveyard: '#66769e', ashwood: '#8a6c74', frostlake: '#647ca4', ruins: '#74708c', nightheart: '#8e7ec8' };
 const AMBIENT_DEFAULT = '#7880a6';
 
 const Render = {
@@ -34,7 +36,7 @@ const Render = {
   cam: { x: 0, y: 0 }, camOffset: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
   pattern: null, hurtVig: null, spr: {}, list: [], embers: [],
   // Licht und Effekte (nur Darstellung)
-  quality: 0, qAuto: true, perf: { last: 0, acc: 0, ft: [], upBlock: 0, downs: 0 },
+  quality: 0, qAuto: true, perf: { last: 0, acc: 0, ft: [], upBlock: 0, downs: 0, probe: null, capMs: 0, log: [] },
   lm: null, lmG: null, lmVig: null, lmS: 0.5, ambient: AMBIENT_DEFAULT,
   corpses: [], vfx: [], trails: [], tags: [], lvlFx: null, runRef: null,
 
@@ -141,8 +143,14 @@ const Render = {
   },
 
   // Bildrate im laufenden Spiel messen (je 1,5 s, ohne die langsamsten 10 % der Bilder, damit einzelne Hänger
-  // nichts auslösen): unter 50 fps eine Stufe zurück, über 58 fps nach einer Sperrzeit wieder eine Stufe hoch
-  // (die Sperre wächst mit jeder Rückstufung, damit nichts pendelt)
+  // nichts auslösen). Unter 42 fps eine Stufe zurück – aber nur auf Probe: Bringt die niedrigere Stufe im nächsten
+  // Messfenster keine spürbar kürzere Bildzeit, liegt es nicht an der Grafik, sondern an einer Obergrenze der
+  // Anzeige (Stromsparmodus mit 30 Hz, 30-Hz-Bildschirm, gedrosselter Tab). Dann wird die Stufe zurückgenommen
+  // und dieser Takt als Obergrenze gemerkt (capMs); zurückgeschaltet wird erst wieder, wenn es deutlich langsamer
+  // als diese Obergrenze wird. Die reine Rechenzeit in JS taugt dafür nicht als Maß: Das Rastern des Canvas läuft
+  // außerhalb von JS (im Profil als „(program)“) und ist bei vielen Figuren der größte Posten.
+  // Hochgeschaltet wird nach einer Sperrzeit, wenn die Bildzeit wieder am Ziel liegt (die Sperre wächst mit jeder
+  // Rückstufung, damit nichts pendelt).
   autoQuality(active) {
     const P = this.perf, now = performance.now();
     if (!active || !this.qAuto || (typeof document !== 'undefined' && document.hidden)) { P.last = 0; return; }
@@ -154,13 +162,27 @@ const Render = {
     for (let i = 0; i < n; i++) sum += ft[i];
     const avg = sum / n;
     P.acc = 0; ft.length = 0;
-    if (avg > 1000 / 50 && this.quality < QUALITY.length - 1) {
+    const last = QUALITY.length - 1, q0 = this.quality;
+    // Obergrenze vergessen, sobald es klar schneller läuft (z. B. Stromsparmodus beendet)
+    if (P.capMs && avg < P.capMs * 0.8) P.capMs = 0;
+    const slowMs = Math.max(1000 / 42, P.capMs * 1.15), goodMs = P.capMs ? P.capMs * 1.05 : 1000 / 56;
+    const pr = P.probe;
+    P.probe = null;
+    if (pr && this.quality > pr.q && avg > pr.avg * 0.9) {
+      // Probe ohne Gewinn: Stufe zurücknehmen, Takt als Obergrenze merken
+      this.quality = pr.q; P.downs = pr.downs; P.upBlock = pr.upBlock;
+      P.capMs = Math.max(P.capMs, pr.avg);
+    } else if (avg > slowMs && this.quality < last) {
       // weit darunter (< 24 fps): zwei Stufen auf einmal
-      this.quality = Math.min(QUALITY.length - 1, this.quality + (avg > 1000 / 24 ? 2 : 1));
-      P.downs++; P.upBlock = now + 15000 * P.downs; this.resize();
-    } else if (avg < 1000 / 58 && this.quality > 0 && now > P.upBlock) {
-      this.quality--; P.upBlock = now + 15000; this.resize();
+      P.probe = { q: this.quality, avg, downs: P.downs, upBlock: P.upBlock };
+      this.quality = Math.min(last, this.quality + (avg > 1000 / 24 ? 2 : 1));
+      P.downs++; P.upBlock = now + 15000 * P.downs;
+    } else if (avg < goodMs && this.quality > 0 && now > P.upBlock) {
+      this.quality--; P.upBlock = now + 15000;
     }
+    if (P.log.length > 60) P.log.shift();
+    P.log.push(Math.round(avg * 10) / 10 + 'ms:q' + q0 + (this.quality !== q0 ? '>' + this.quality : '') + (P.capMs ? ' cap' + Math.round(P.capMs) : ''));
+    if (this.quality !== q0) this.resize();
   },
 
   // Lichtkarte in geringer Auflösung; der Randabfall (Vignette) steckt schon darin
