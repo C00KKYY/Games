@@ -52,7 +52,8 @@
   UI.init();
   Input.init(canvas);
 
-  Hooks.sfx = (n, a) => Sfx.play(n, a);
+  // Optional mit Weltposition x: leicht nach links/rechts im Stereobild (relativ zur Kamera)
+  Hooks.sfx = (n, a, x) => Sfx.play(n, a, x === undefined || !Game.view.hw ? 0 : clamp((x - Render.cam.x) / Game.view.hw, -1, 1) * 0.6);
   Hooks.shake = a => Render.addShake(a);
   // Stufenaufstieg: Lichtstoß um den Helden, 150 ms stehendes Bild (Treffer-Stopp), dann die Karten
   let lvlT = 0;
@@ -83,15 +84,9 @@
   });
   window.addEventListener('blur', () => UI.pause());
 
-  // Audio darf erst nach einer Nutzeraktion starten.
-  const unlock = () => {
-    Sfx.init();
-    if (Store.data.settings.music) Sfx.startMusic();
-    window.removeEventListener('pointerdown', unlock);
-    window.removeEventListener('keydown', unlock);
-  };
-  window.addEventListener('pointerdown', unlock);
-  window.addEventListener('keydown', unlock);
+  // Audio darf erst nach einer Nutzeraktion starten (iOS: touchend/click; Sfx hört zu, bis der Kontext läuft).
+  // Beim ersten Freischalten die Musik starten – außer auf dem Ergebnis-Bildschirm (dort schweigt sie).
+  Sfx.unlock(() => { if (Store.data.settings.music && Game.state !== 'over') Sfx.startMusic(); });
 
   // 4. Menü zeigen (blendet den Ladebildschirm aus), Ladephase bei der Plattform beenden
   booted = true;

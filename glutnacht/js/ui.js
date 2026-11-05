@@ -229,7 +229,7 @@ const UI = {
       '<div class="langrow"><span>' + tr('Sprache') + '</span>' + this.langSwitch() + '</div>' +
       tg('sfx', 'Klangeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
       '<div class="controls"><b>' + tr('Steuerung') + '</b><br>' + tr('Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.') + '<br>' +
-      tr('Angreifen passiert automatisch.') + '<br>' + tr('Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R') + '</div>' +
+      tr('Angreifen passiert automatisch.') + '<br>' + tr('Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R') + '<br>' + tr('Ton an/aus: M') + '</div>' +
       '<div class="actions"><button class="btn small danger" data-act="reset">' + tr(this.confirm === 'reset' ? 'Wirklich ALLES löschen?' : 'Spielstand löschen') + '</button>' +
       '<button class="btn primary" data-act="optsback">' + tr('Zurück') + '</button></div></div>';
   },
@@ -536,6 +536,7 @@ const UI = {
 
   onKey(k, e) {
     if (e.repeat) return; // gehaltene Taste darf nicht durch mehrere Level-ups klicken
+    if (k === 'm') { this.toggleSound(); return; }
     if (k === 'escape' || k === 'p') {
       if (Game.state === 'play') { this.pause(); return; }
       if (Game.state === 'paused' && (this.cur === 'pause' || this.cur === 'opts')) { this.cur === 'opts' ? this.show('pause') : this.resume(); return; }
@@ -590,6 +591,7 @@ const UI = {
       this.el.toasts.innerHTML = '';
       this.show('over', sum);
       Sfx.stopMusic();
+      if (!sum.won) Sfx.sting('gameover'); // Sieg: der Abschluss lief schon bei UI.victory()
     }, sum.won ? 300 : 1100);
   },
 
@@ -605,6 +607,24 @@ const UI = {
     b.className = 'show ' + (kind || '');
     clearTimeout(this.bannerT);
     this.bannerT = setTimeout(() => { b.className = ''; }, dur * 1000);
+  },
+
+  // Taste M: Klang und Musik gemeinsam aus/an (die Plattform-Stummschaltung hat weiter Vorrang)
+  toggleSound() {
+    const st = Store.data.settings, on = !(st.sfx || st.music);
+    st.sfx = st.music = on;
+    Store.save();
+    Sfx.applySettings();
+    if (on && Game.state !== 'over') Sfx.startMusic(); else if (!on) Sfx.stopMusic();
+    if (on) Sfx.play('click');
+    const d = document.createElement('div');
+    d.className = 'toast';
+    d.innerHTML = '<div><b>' + tr(on ? 'Ton an' : 'Ton aus') + '</b></div>';
+    this.el.toasts.appendChild(d);
+    while (this.el.toasts.children.length > 3) this.el.toasts.firstChild.remove();
+    setTimeout(() => d.classList.add('out'), 1400);
+    setTimeout(() => d.remove(), 2000);
+    if (this.cur === 'opts') this.show('opts');
   },
 
   achievement(a) {

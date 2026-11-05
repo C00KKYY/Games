@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ember Night: Probehören</title>
+<style>
+:root { --bg: #120b1e; --panel: #1d1430; --line: #34264f; --text: #eee6ff; --dim: #a597c4; --hot: #ffb13b; --ok: #7fe0a0; --bad: #ff7a7a; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, sans-serif; }
+h1 { font-size: 20px; margin: 0 0 4px; }
+h2 { font-size: 15px; margin: 22px 0 8px; color: var(--hot); }
+p { margin: 4px 0 10px; color: var(--dim); max-width: 70ch; }
+button { font: inherit; color: var(--text); background: #2c2046; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+button:hover { border-color: var(--hot); }
+button.on { background: #5a3b12; border-color: var(--hot); }
+button.big { font-size: 16px; padding: 10px 18px; background: #6b2f12; border-color: var(--hot); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+table { border-collapse: collapse; width: 100%; max-width: 980px; }
+td, th { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+th { color: var(--dim); font-weight: 600; font-size: 12px; }
+td.n { font-weight: 700; white-space: nowrap; }
+td.f { color: var(--dim); font-size: 12px; }
+input[type=range] { width: 110px; vertical-align: middle; }
+.v { display: inline-block; width: 3.2em; text-align: right; font-variant-numeric: tabular-nums; }
+#state, #log { font: 12px/1.45 ui-monospace, monospace; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px; white-space: pre-wrap; max-width: 980px; }
+#log .err { color: var(--bad); }
+#log .ok { color: var(--ok); }
+textarea { width: 100%; max-width: 980px; height: 90px; background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; font: 12px ui-monospace, monospace; }
+@media (max-width: 600px) { td.f { display: none; } input[type=range] { width: 70px; } }
+</style>
+</head>
+<body>
+<h1>Ember Night: Probehören</h1>
+<p>Spielt jedes Klangereignis und jedes Musikstück genau so, wie das Spiel es tut (js/audio.js mit den eingebetteten Aufnahmen aus assets/audio.js): mit Zufallsverstimmung, Lautstärke-Streuung, Hall, Kopien-Grenze und Überblendung. Funktioniert direkt von der Festplatte (file://). Abgelehnte Klänge: Ersatz aus der Voruntersuchung wählen, nach <code>assets/audio/</code> kopieren, <code>node tools/build-audio.js</code> ausführen.</p>
+<div class="row"><button class="big" id="start">▶ Ton starten</button> <span id="startinfo"></span></div>
+
+<h2>Mischung</h2>
+<div class="row">
+  <button id="t-sfx" class="on">Klangeffekte</button>
+  <button id="t-music" class="on">Musik</button>
+  <button id="t-mute">Plattform stumm (muteAudio)</button>
+  <button id="all">Alle Ereignisse nacheinander</button>
+</div>
+
+<h2>Musik</h2>
+<p>Intensität wie im Spiel: 0 Menü · 1 Kampf gedämpft (Tiefpass 900 Hz, Minute 0–4) · 2 Kampf offen (ab Minute 4) · 3 Boss. Wechsel blenden über 1,5 s über.</p>
+<div class="row">
+  <button data-int="0">0 Menü</button><button data-int="1">1 Kampf gedämpft</button><button data-int="2">2 Kampf offen</button><button data-int="3">3 Boss</button>
+  <button id="stopm">Musik ausblenden</button>
+  <button data-sting="victory">Sieg-Abschluss</button><button data-sting="gameover">Niederlage-Abschluss</button>
+</div>
+<div class="row">Musiklautstärke je Stück:</div>
+<div class="row" id="tvol"></div>
+<div id="state">–</div>
+
+<h2>Klangeffekte (<span id="cnt"></span> Ereignisse)</h2>
+<div class="row">Edelstein-Kombo: <input type="range" id="combo" min="0" max="24" value="0"> <span class="v" id="combov">0</span>
+  <button id="ladder">Kombo-Leiter 0 → 12</button></div>
+<table>
+  <thead><tr><th>Ereignis</th><th>Datei(en)</th><th>Spiel</th><th>5× schnell</th><th>Synth (alt)</th><th>Lautstärke</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<h2>Lautstärke-Tabelle (zum Übernehmen in js/audio.js, VOL)</h2>
+<textarea id="voljson" readonly></textarea>
+
+<h2>Protokoll</h2>
+<div id="log"></div>
+
+<script>
+// Fehler sammeln, bevor irgendetwas anderes lädt
+window.auditionErrors = [];
+window.addEventListener('error', e => { window.auditionErrors.push(String(e.message)); logLine('Fehler: ' + e.message, 'err'); });
+window.addEventListener('unhandledrejection', e => { window.auditionErrors.push(String(e.reason)); logLine('Fehler: ' + e.reason, 'err'); });
+function logLine(t, cls) {
+  const el = document.getElementById('log');
+  if (!el) return;
+  const d = document.createElement('div');
+  if (cls) d.className = cls;
+  d.textContent = new Date().toLocaleTimeString() + '  ' + t;
+  el.prepend(d);
+}
+</script>
+<script src="../../js/util.js"></script>
+<script src="../../assets/audio.js"></script>
+<script src="../../js/audio.js"></script>
+<script>
+'use strict';
+Store.data = defaultSave(); // nur Einstellungen; nichts wird gespeichert
+Store.save = () => {};
+
+const FILES = {
+  chest: 'sfx/chest_open.mp3 + sfx/chest.mp3 (0,12 s später)',
+  bossdown: 'sfx/bomb.mp3 + sfx/boss.mp3 (Tempo 0,75)',
+  victory: 'music/victory.mp3 (Abschluss)',
+  gem: 'sfx/gem.mp3 (Tonhöhe je Kombo, max. +12 Halbtöne)',
+};
+const $ = id => document.getElementById(id);
+const rows = $('rows');
+$('cnt').textContent = Sfx.EVENTS.length;
+
+for (const ev of Sfx.EVENTS) {
+  const tr = document.createElement('tr');
+  const volKey = ev === 'bossdown' ? null : ev === 'victory' ? null : ev;
+  tr.innerHTML = '<td class="n">' + ev + '</td><td class="f">' + (FILES[ev] || 'sfx/' + ev + '.mp3') + '</td>' +
+    '<td><button data-play="' + ev + '">▶</button></td><td><button data-burst="' + ev + '">5×</button></td>' +
+    '<td><button data-synth="' + ev + '">♪</button></td>' +
+    '<td>' + (volKey && Sfx.VOL[volKey] !== undefined ? '<input type="range" min="0" max="2" step="0.01" value="' + Sfx.VOL[volKey] + '" data-vol="' + volKey + '"> <span class="v">' + Sfx.VOL[volKey].toFixed(2) + '</span>' : '') +
+    (ev === 'chest' ? ' <small>(chest)</small>' : '') + '</td>';
+  rows.appendChild(tr);
+}
+// chest_open hat einen eigenen Regler
+{
+  const tr = document.createElement('tr');
+  tr.innerHTML = '<td class="n">chest_open</td><td class="f">sfx/chest_open.mp3 (Teil von chest)</td><td></td><td></td><td></td>' +
+    '<td><input type="range" min="0" max="2" step="0.01" value="' + Sfx.VOL.chest_open + '" data-vol="chest_open"> <span class="v">' + Sfx.VOL.chest_open.toFixed(2) + '</span></td>';
+  rows.appendChild(tr);
+}
+const tv = $('tvol');
+for (const k of Object.keys(Sfx.TRACK_VOL)) {
+  tv.insertAdjacentHTML('beforeend', '<span style="margin-right:16px;white-space:nowrap">' + k + ' <input type="range" min="0" max="2.5" step="0.01" value="' + Sfx.TRACK_VOL[k] + '" data-tvol="' + k + '"> <span class="v">' + Sfx.TRACK_VOL[k].toFixed(2) + '</span></span>');
+}
+function showVol() { $('voljson').value = 'VOL = ' + JSON.stringify(Sfx.VOL) + '\nTRACK_VOL = ' + JSON.stringify(Sfx.TRACK_VOL); }
+showVol();
+
+let intensity = 0;
+function started() { return Sfx.ctx && Sfx.ctx.state === 'running'; }
+function need() { if (!started()) { logLine('Erst „Ton starten“ klicken.', 'err'); return false; } return true; }
+
+$('start').addEventListener('click', async () => {
+  Sfx.init();
+  await Sfx.preload();
+  if (Sfx.ctx && Sfx.ctx.state !== 'running') await Sfx.ctx.resume();
+  Sfx.setIntensity(intensity);
+  Sfx.startMusic();
+  const d = Sfx.debug();
+  $('startinfo').textContent = 'AudioContext: ' + d.state + ', ' + d.sfx + ' Effekte dekodiert';
+  logLine('Ton gestartet (' + d.sfx + ' Effekte)', 'ok');
+});
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  if (b.dataset.play) { if (!need()) return; const ev = b.dataset.play; Sfx.play(ev, ev === 'gem' ? +$('combo').value : undefined); logLine('play ' + ev); }
+  if (b.dataset.burst) {
+    if (!need()) return;
+    const ev = b.dataset.burst;
+    for (let i = 0; i < 5; i++) setTimeout(() => Sfx.play(ev, ev === 'gem' ? i * 2 : undefined, (i - 2) / 2), i * 130);
+    logLine('5× ' + ev + ' (Abstand 130 ms, Stereo links → rechts)');
+  }
+  if (b.dataset.synth) {
+    if (!need()) return;
+    const fn = Sfx.SOUNDS[b.dataset.synth];
+    if (fn) { fn.call(Sfx.SOUNDS, +$('combo').value); logLine('Synth ' + b.dataset.synth); }
+  }
+  if (b.dataset.int !== undefined) { intensity = +b.dataset.int; if (!need()) return; Sfx.startMusic(); Sfx.setIntensity(intensity); logLine('Intensität ' + intensity); }
+  if (b.dataset.sting) { if (!need()) return; Sfx.sting(b.dataset.sting); logLine('Abschluss ' + b.dataset.sting); }
+});
+$('stopm').addEventListener('click', () => { Sfx.stopMusic(); logLine('Musik ausgeblendet'); });
+$('ladder').addEventListener('click', () => {
+  if (!need()) return;
+  for (let c = 0; c <= 12; c++) setTimeout(() => Sfx.play('gem', c * 2), c * 160);
+});
+$('combo').addEventListener('input', e => { $('combov').textContent = e.target.value; });
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.vol) { Sfx.VOL[t.dataset.vol] = +t.value; t.nextElementSibling.textContent = (+t.value).toFixed(2); showVol(); }
+  if (t.dataset.tvol) { Sfx.TRACK_VOL[t.dataset.tvol] = +t.value; t.nextElementSibling.textContent = (+t.value).toFixed(2); showVol(); }
+});
+for (const k of ['sfx', 'music']) {
+  $('t-' + k).addEventListener('click', e => {
+    const s = Store.data.settings;
+    s[k] = !s[k];
+    e.target.classList.toggle('on', s[k]);
+    Sfx.applySettings();
+    if (k === 'music') { if (s.music) { Sfx.startMusic(); Sfx.setIntensity(intensity); } else Sfx.stopMusic(); }
+  });
+}
+let pm = false;
+$('t-mute').addEventListener('click', e => { pm = !pm; Sfx.setPlatformMute(pm); e.target.classList.toggle('on', pm); logLine('Plattform stumm: ' + pm); });
+
+// Alle Ereignisse nacheinander; liefert je Ereignis, ob eine Aufnahme (statt Synth) gespielt wurde
+window.runAll = async function (gap) {
+  gap = gap || 700;
+  const res = {};
+  for (const ev of Sfx.EVENTS) {
+    const before = Sfx.debug().stats;
+    Sfx.play(ev, ev === 'gem' ? 6 : undefined);
+    await new Promise(r => setTimeout(r, ev === 'victory' ? 900 : gap));
+    const after = Sfx.debug().stats;
+    res[ev] = { sampled: after.sampled - before.sampled, synth: after.synth - before.synth, errors: after.errors - before.errors };
+    logLine(ev + ': ' + (res[ev].sampled ? 'Aufnahme' : res[ev].synth ? 'Synth' : 'stumm'), res[ev].sampled ? 'ok' : 'err');
+  }
+  return res;
+};
+$('all').addEventListener('click', () => { if (need()) runAll(); });
+
+setInterval(() => {
+  const d = Sfx.debug();
+  $('state').textContent = 'Kontext: ' + d.state + '   stumm: ' + d.muted + '   Stimmen: ' + d.voices + '   Musik: ' + (d.cur || '–') +
+    (d.cur === 'battle' ? ' (Tiefpass ' + d.lowpass + ' Hz)' : '') + '\nDekodiert: ' +
+    (Object.entries(d.durations).map(([k, v]) => k + ' ' + v.toFixed(3) + ' s').join(', ') || '–') +
+    '\nSchleifen (loopStart–loopEnd): ' + (Object.entries(d.loops).map(([k, v]) => k + ' ' + v[0].toFixed(3) + '–' + v[1].toFixed(3)).join(', ') || '–') +
+    '\nZähler: ' + JSON.stringify(d.stats);
+}, 250);
+</script>
+</body>
+</html>

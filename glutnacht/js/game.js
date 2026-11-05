@@ -523,7 +523,7 @@ const Game = {
       e.ky += dy / d * kbForce * e.kb;
     }
     this.text(e.x + rand(-6, 6), e.y - e.r - 4, Math.round(dmg), crit ? '#ffd23f' : '#ffffff', crit ? 1.35 : 1);
-    Hooks.sfx('hit');
+    Hooks.sfx('hit', 0, e.x);
     if (e.hp <= 0) this.kill(e);
     return dmg;
   },
@@ -559,7 +559,7 @@ const Game = {
       }
       return;
     }
-    Hooks.sfx('kill');
+    Hooks.sfx('kill', 0, e.x);
     this.dropGem(e.x, e.y, e.xp);
     if (e.elite) {
       this.drop(e.x, e.y, 'chest');

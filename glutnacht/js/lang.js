@@ -151,6 +151,9 @@ const LANG_EN = {
   'Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.': 'Move: WASD / arrow keys, or touch or click anywhere and drag.',
   'Angreifen passiert automatisch.': 'Attacks are automatic.',
   'Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R': 'Pause: Esc / P · Pick a card: 1–4 · Reroll: R',
+  'Ton an/aus: M': 'Sound on/off: M',
+  'Ton an': 'Sound on',
+  'Ton aus': 'Sound off',
   'Wirklich ALLES löschen?': 'Really delete EVERYTHING?',
   'Spielstand löschen': 'Delete save data',
 
