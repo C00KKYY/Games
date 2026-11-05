@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/whistles
+Page title: Whistles | OpenGameArt.org
+Author line: dklon (posted December 13, 2020)
+License(s) field: CC-BY 3.0
+Licence link(s) on page: http://creativecommons.org/licenses/by/3.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/whistles.mp3.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/whistles.mp3
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/whistles.mp3
+  https://opengameart.org/sites/default/files/whistles.mp3
+  https://opengameart.org/sites/default/files/whistles.zip
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

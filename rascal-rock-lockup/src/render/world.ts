@@ -21,6 +21,8 @@ export class WorldView {
   fx = new Container();
   lights = new Container();
   labels = new Container();
+  /** feedback layer above everything in world space (juice: floating coins, rings, confetti, need plaques) – not night-tinted */
+  top = new Container();
   /** the part of the world that gets the night tint */
   tinted = new Container();
   private chunks: Container[] = [];
@@ -29,7 +31,8 @@ export class WorldView {
   constructor() {
     this.objects.sortableChildren = true;
     this.tinted.addChild(this.sea, this.island, this.ground, this.rim, this.dock, this.shore, this.shadows, this.objects, this.fx);
-    this.root.addChild(this.tinted, this.lights, this.labels);
+    this.root.addChild(this.tinted, this.lights, this.labels, this.top);
+    this.top.eventMode = 'none';
     this.lights.blendMode = 'add';
   }
 

@@ -1,0 +1,14 @@
+Source page: https://opengameart.org/content/pop
+Page title: pop! | OpenGameArt.org
+Author line: 0f9ran (posted August 24, 2022)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/pop__0.mp3.ogg
+  https://opengameart.org/sites/default/files/pop_.mp3
+  https://opengameart.org/sites/default/files/pop_.ogg
+  https://opengameart.org/sites/default/files/pop_.wav
+  https://opengameart.org/sites/default/files/pop__0.mp3
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/pop__0.mp3
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/pop__0.mp3
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

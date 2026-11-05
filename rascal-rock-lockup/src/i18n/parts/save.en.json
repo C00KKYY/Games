@@ -1,0 +1,6 @@
+{
+  "save.restored": "Progress restored",
+  "save.unavailable": "Progress can't be saved right now",
+  "save.damagedOne": "A save slot was damaged – loaded your previous save",
+  "save.damagedAll": "Your save couldn't be read – starting a fresh lockup"
+}

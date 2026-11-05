@@ -1,0 +1,8 @@
+Source page: https://opengameart.org/content/ui-pack
+Page title: UI Pack | OpenGameArt.org
+Author line: Kenney (posted June 13, 2024)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/kenney_ui-pack.zip
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

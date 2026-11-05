@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/50-rpg-sound-effects
+Page title: 50 RPG sound effects | OpenGameArt.org
+Author line: Kenney (posted March 17, 2014)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/RPGsounds_Kenney.zip
+  https://opengameart.org/sites/default/files/audio_preview/rpgPreview.ogg.mp3
+  https://opengameart.org/sites/default/files/rpgPreview.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/rpgPreview.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/rpgPreview.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

@@ -1,0 +1,32 @@
+Source page: https://opengameart.org/content/solo-seagull-sound-effects
+Page title: Solo Seagull Sound Effects | OpenGameArt.org
+Author line: Rango Mango (posted January 4, 2019)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/Seaguall%20Hit%201.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%201.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%202.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%203.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%204.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%205.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%206.wav
+  https://opengameart.org/sites/default/files/Seagull%20Ambient%207.wav
+  https://opengameart.org/sites/default/files/Seagull%20Big%20Ambient%202.wav
+  https://opengameart.org/sites/default/files/Seagull%20Big%20Ambient.wav
+  https://opengameart.org/sites/default/files/Seagull%20Big%20Hit%202.wav
+  https://opengameart.org/sites/default/files/Seagull%20Big%20Hit.wav
+  https://opengameart.org/sites/default/files/Seagull%20Death%201.wav
+  https://opengameart.org/sites/default/files/Seagull%20Death%202.wav
+  https://opengameart.org/sites/default/files/Seagull%20Death%203.wav
+  https://opengameart.org/sites/default/files/Seagull%20Death%204.wav
+  https://opengameart.org/sites/default/files/Seagull%20Hit%202.wav
+  https://opengameart.org/sites/default/files/Seagull%20Hit%203.wav
+  https://opengameart.org/sites/default/files/Seagull%20Hit%204.wav
+  https://opengameart.org/sites/default/files/Seagull%20Hit%205.wav
+  https://opengameart.org/sites/default/files/Seagull%20Hit%205_0.wav
+  https://opengameart.org/sites/default/files/audio_preview/preview_13.ogg.mp3
+  https://opengameart.org/sites/default/files/preview_13.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/preview_13.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/preview_13.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

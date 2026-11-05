@@ -13,7 +13,7 @@ export const SLOT_KEYS = ['rrl_save_a', 'rrl_save_b'] as const;
 export interface Settings { music: number; sfx: number; ambience: number; mute: boolean; lang: 'en' | 'de' | null; shake: boolean }
 export const DEFAULT_SETTINGS: Settings = { music: 0.7, sfx: 0.85, ambience: 0.6, mute: false, lang: null, shake: true };
 
-interface SaveDoc { v: number; seq: number; savedAt: number; settings: Settings; world: Record<string, unknown> }
+export interface SaveDoc { v: number; seq: number; savedAt: number; settings: Settings; world: Record<string, unknown> }
 
 // ---------------------------------------------------------------- typed array RLE
 export function rle(a: ArrayLike<number>): number[] {
@@ -74,7 +74,12 @@ export function decode(s: string | null): SaveDoc | null {
   let json: string | null = null;
   try { json = LZString.decompressFromBase64(s.slice(i + 1)); } catch { return null; }
   if (!json || crc32(json) !== crc) return null;
-  try { return migrate(JSON.parse(json) as SaveDoc); } catch { return null; }
+  try {
+    const doc = JSON.parse(json) as SaveDoc;
+    // a save from a newer build (rolled-back release) or without a world is not readable here
+    if (!doc || typeof doc !== 'object' || typeof doc.v !== 'number' || doc.v > SAVE_VERSION || !doc.world || typeof doc.world !== 'object') return null;
+    return migrate(doc);
+  } catch { return null; }
 }
 
 /** load the newest valid slot */

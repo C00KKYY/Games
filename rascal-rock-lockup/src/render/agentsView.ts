@@ -46,6 +46,8 @@ export class AgentView {
   private idleT = 0;
   private idleCd = 4 + Math.random() * 8;
   seed = Math.random() * 10;
+  /** juice: happy hops (count left, phase) and a squash impulse (tap feedback), both decay on their own */
+  private hopN = 0; private hopT = 0; private squashT = 1;
 
   constructor(public look: Look) {
     this.c.addChild(this.inner);
@@ -104,8 +106,25 @@ export class AgentView {
     this.layout(0, 0);
   }
 
+  /** happy jump(s) – release celebration */
+  hop(n = 2) { this.hopN = n; this.hopT = 0; }
+  /** quick squash & stretch – tap feedback (same frame) */
+  squash() { this.squashT = 0; this.applyJuice(); }
+  private applyJuice() {
+    // hop: 0.32 s parabola per jump, 11 u high
+    let hy = 0;
+    if (this.hopN > 0) { const k = this.hopT / 0.32; hy = -4 * k * (1 - k) * 11; }
+    this.inner.y = hy;
+    // squash: 0.3 s damped spring on the outer container (inner.scale.x carries the facing)
+    if (this.squashT < 0.3) { const k = this.squashT / 0.3, a = Math.cos(k * Math.PI * 3) * (1 - k) * 0.22; this.c.scale.set(1 + a, 1 - a); }
+    else if (this.c.scale.x !== 1 || this.c.scale.y !== 1) this.c.scale.set(1, 1);
+  }
+
   /** dt in seconds; speed in units/s */
   update(dt: number, speed: number) {
+    if (this.hopN > 0) { this.hopT += dt; if (this.hopT >= 0.32) { this.hopT -= 0.32; this.hopN--; } }
+    if (this.squashT < 0.3) this.squashT += dt;
+    this.applyJuice();
     this.moving = speed > 1;
     if (this.moving) { this.phase += dt * Math.min(16, 5 + speed * 0.22); this.idle = 'none'; this.idleT = 0; }
     else {

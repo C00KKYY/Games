@@ -1,0 +1,21 @@
+Source page: https://opengameart.org/content/pop-sounds
+Page title: Pop sounds | OpenGameArt.org
+Author line: cogitollc (posted July 14, 2022)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/pop0.ogg.mp3
+  https://opengameart.org/sites/default/files/pop0.ogg
+  https://opengameart.org/sites/default/files/pop1.ogg
+  https://opengameart.org/sites/default/files/pop10.ogg
+  https://opengameart.org/sites/default/files/pop2.ogg
+  https://opengameart.org/sites/default/files/pop3.ogg
+  https://opengameart.org/sites/default/files/pop4.ogg
+  https://opengameart.org/sites/default/files/pop5.ogg
+  https://opengameart.org/sites/default/files/pop6.ogg
+  https://opengameart.org/sites/default/files/pop7.ogg
+  https://opengameart.org/sites/default/files/pop8.ogg
+  https://opengameart.org/sites/default/files/pop9.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/pop0.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/pop0.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

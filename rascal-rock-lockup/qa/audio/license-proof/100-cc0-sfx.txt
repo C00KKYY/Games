@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/100-cc0-sfx
+Page title: 100 CC0 SFX | OpenGameArt.org
+Author line: rubberduck (posted June 29, 2018)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/100-CC0-SFX_0.zip
+  https://opengameart.org/sites/default/files/audio_preview/sfx_prev_0.ogg.mp3
+  https://opengameart.org/sites/default/files/sfx_prev_0.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/sfx_prev_0.ogg
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/sfx_prev_0.ogg
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)

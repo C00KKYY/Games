@@ -1,0 +1,34 @@
+{
+  "ambClatter": {
+    "loopStart": 0.25,
+    "loopEnd": 14.25
+  },
+  "ambCrickets": {
+    "loopStart": 0.25,
+    "loopEnd": 9.75
+  },
+  "ambGulls": {
+    "loopStart": 0.25,
+    "loopEnd": 23.25
+  },
+  "ambMurmur": {
+    "loopStart": 0.25,
+    "loopEnd": 18.25
+  },
+  "ambWaves": {
+    "loopStart": 0.25,
+    "loopEnd": 13.45
+  },
+  "musicDay": {
+    "loopStart": 0.25,
+    "loopEnd": 87.767279
+  },
+  "musicEvening": {
+    "loopStart": 0.25,
+    "loopEnd": 91.399932
+  },
+  "musicInspection": {
+    "loopStart": 0.25,
+    "loopEnd": 83.715374
+  }
+}

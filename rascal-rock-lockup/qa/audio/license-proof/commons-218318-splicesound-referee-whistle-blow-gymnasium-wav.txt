@@ -1,0 +1,8 @@
+Source page: https://commons.wikimedia.org/wiki/File:218318_splicesound_referee-whistle-blow-gymnasium.wav
+File: 218318 splicesound referee-whistle-blow-gymnasium.wav
+LicenseShortName: CC0
+LicenseUrl: http://creativecommons.org/publicdomain/zero/1.0/deed.en
+Artist: SpliceSound
+Credit: https://freesound.org/people/SpliceSound/sounds/218318/
+Original URL: https://upload.wikimedia.org/wikipedia/commons/7/7d/218318_splicesound_referee-whistle-blow-gymnasium.wav
+Retrieved metadata: 2026-11-05 (Commons API). FILE DOWNLOAD BLOCKED (HTTP 429 from upload.wikimedia.org for this network) – not used yet, build falls back.

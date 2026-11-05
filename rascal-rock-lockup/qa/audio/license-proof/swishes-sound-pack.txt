@@ -1,0 +1,12 @@
+Source page: https://opengameart.org/content/swishes-sound-pack
+Page title: Swishes Sound Pack | OpenGameArt.org
+Author line: artisticdude (posted January 5, 2011)
+License(s) field: CC0
+Licence link(s) on page: http://creativecommons.org/publicdomain/zero/1.0/
+Files offered:
+  https://opengameart.org/sites/default/files/audio_preview/swishprev.mp3.ogg
+  https://opengameart.org/sites/default/files/styles/audio_with_background/public/audio_preview/swishprev.mp3
+  https://opengameart.org/sites/default/files/styles/medium/public/audio_preview/swishprev.mp3
+  https://opengameart.org/sites/default/files/swishes.zip
+  https://opengameart.org/sites/default/files/swishprev.mp3
+Retrieved: 2026-11-05 by tools for Rascal Rock Lockup (page saved as data, nothing executed)
