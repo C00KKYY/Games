@@ -985,7 +985,7 @@ const Render = {
       if (this.hintA > 0) this.drawMoveHint(s.x, y, this.hintA);
       // Hinweis „Waffen greifen von selbst an“ (Symbol der Startwaffe + kurzer Text), die ersten 8 s
       const atkA = r.t < 8 ? Math.min(1, (8 - r.t) / 1.2, r.t / 0.6) : 0;
-      if (atkA > 0) this.drawAttackHint(r, s.x, y + (this.hintA > 0 ? (Input.touch ? 50 : 40) : 0), atkA);
+      if (atkA > 0) this.drawAttackHint(r, s.x, y + (this.hintA > 0 ? (Input.touch ? 64 : 50) : 0), atkA);
       else if (r.moved && r.level === 1 && r.t > 8) {
         const txt = tr('Sammle die blauen Edelsteine!');
         ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.25;

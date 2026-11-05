@@ -195,6 +195,12 @@ const Promo = {
     // Held
     const hero = Sprites.player('aron', 0, false), hz = hs * hero.size / 52; // hs bezieht sich auf den alten 52er-Kasten
     g.drawImage(hero, hx - hz / 2, hy - hz / 2, hz, hz);
+    // Glut in der Hand leuchtet (wie im Spiel: Flamme additiv über der Hand)
+    { const u = hz / hero.size, ex = hx + 9.6 * u, ey = hy - 3.8 * u, fs = 22 * u;
+      g.globalCompositeOperation = 'lighter';
+      g.drawImage(Render.spr.flame, ex - fs / 2, ey - fs * 0.6, fs, fs);
+      g.drawImage(Render.spr.flame, ex - fs / 4, ey - fs * 0.3, fs / 2, fs / 2);
+      g.globalCompositeOperation = 'source-over'; }
 
     // Rand abdunkeln
     const vg = g.createRadialGradient(hx, hy, U * 0.3, hx, hy, Math.hypot(CW, CH) * 0.7);

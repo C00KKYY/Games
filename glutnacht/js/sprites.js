@@ -649,8 +649,6 @@ const Sprites = (() => {
       g.fillStyle = '#fff2b0'; ell(g, 0, -23, 2.4, 3.2); g.fill();
       g.restore();
     }
-    // Schulterstück (Aron)
-    if (kind === 'aron') { g.fillStyle = sph(g, 5, -4, 6, R_.iron, 0.4); g.beginPath(); g.arc(5.6, -2.2, 5, Math.PI * 1.05, Math.PI * 2.1); g.closePath(); g.fill(); g.fillStyle = R_.gold[1]; circ(g, 5.6, -4.4, 0.9); g.fill(); }
     // Hand mit der Glut
     g.fillStyle = sph(g, 8.8, -1.2, 3.2, C); circ(g, 8.6, -1.4, 3); g.fill();
     g.save(); g.shadowColor = '#ff9a3c'; g.shadowBlur = 7 * SC;
@@ -1337,7 +1335,7 @@ const Sprites = (() => {
     const g = c.getContext('2d');
     g.imageSmoothingQuality = 'high';
     g.drawImage(src, sx, sy, crop * f, crop * f, 0, 0, c.width, c.height);
-    if (locked) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(30,24,46,0.94)'; g.fillRect(0, 0, c.width, c.height); }
+    if (locked) { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(56,46,84,0.95)'; g.fillRect(0, 0, c.width, c.height); }
     u = c.toDataURL();
     cache.set(key, u);
     return u;
@@ -1349,7 +1347,7 @@ const Sprites = (() => {
   const VORO = {
     ruins: { n: 11, jit: 0.85, holes: 0.12, stone: '#9a917c', cover: 0.55, vary: 0.22, bevel: 0.30, bw: 6, dome: 0.16, mw: 2.0, mortar: '#211c16', moss: '#4a6a32', mossP: 0.18 },
     frostlake: { n: 5, jit: 0.9, holes: 0, stone: '#8ec0e8', cover: 0.32, vary: 0.16, bevel: 0.22, bw: 9, dome: 0.10, mw: 1.1, mortar: '#f2fbff', halo: '#16304e', hw: 3.2, sheen: 0.16 },
-    ashwood: { n: 7, jit: 0.9, holes: 0, stone: '#4a3632', cover: 0.35, vary: 0.18, bevel: 0.18, bw: 7, dome: 0.12, mw: 1.8, mortar: '#120a08', glow: '#ff6a1e', glowP: 0.26, gw: 6 },
+    ashwood: { n: 7, jit: 0.9, holes: 0, stone: '#8e6a58', cover: 0.3, vary: 0.18, bevel: 0.2, bw: 7, dome: 0.08, mw: 1.8, mortar: '#120a08', glow: '#ff6a1e', glowP: 0.26, gw: 6 },
     nightheart: { n: 6, jit: 0.75, holes: 0, stone: '#5a46a8', cover: 0.38, vary: 0.2, bevel: 0.30, bw: 6, dome: 0.0, mw: 1.6, mortar: '#140c2e', glow: '#9a7cff', glowP: 0.28, gw: 6, sheen: 0.22 },
   };
   function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
