@@ -19,17 +19,36 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 
 Die Weltkarte zeigt fünf Länder, jedes mit eigenen Gegnern, Bossen, Ereignissen, Boden und kurzer Geschichte:
 
-| Land | Dauer | Eigenart | Endboss |
-|---|---|---|---|
-| Alter Friedhof | 10 min | Einstieg | Blutgraf |
-| Aschenwald | 15 min | schnelle Schwärme | Kohlenherz |
-| Eissee | 15 min | langsam, aber zäh | Der Ertrunkene König |
-| Burgruine | 15 min | Spucker, Kreuzfeuer | Steinkoloss |
-| Herz der Nacht | 15 min | alles zusammen | Die Nacht |
+| Land | Dauer | Eigenart | Fernkämpfer (ab) | Endboss |
+|---|---|---|---|---|
+| Alter Friedhof | 10 min | Einstieg | Spucker (0:40), Totenglocke (Minute 4) | Blutgraf |
+| Aschenwald | 15 min | schnelle Schwärme | Aschenkessel (0:58), Nadelmotte (Minute 3) | Kohlenherz |
+| Eissee | 15 min | langsam, aber zäh | Nadelmotte (0:45), Spucker, Totenglocke (Minute 5) | Der Ertrunkene König |
+| Burgruine | 15 min | Spucker, Kreuzfeuer | Spucker (0:40), Aschenkessel, Nadelmotte | Steinkoloss |
+| Herz der Nacht | 15 min | alles zusammen | alle vier (ab 0:40) | Die Nacht |
+
+### Fernkämpfer
+
+Vier Gegner schießen, jeder mit eigenem Ausweich-Kniff. Jeder Angriff wird angekündigt: Der Schütze holt sichtbar aus
+(mindestens 0,45 s, mit Keil, Ziellinie oder Ladekreis), Flächen sind mindestens 0,75 s vorher markiert. Gegnergeschosse
+sind rot mit hellem Kern und dunklem Ring (kein eigenes Geschoss hat diesen Ring); kommt etwas von außerhalb des Bildes,
+warnt ein roter Pfeil am Rand. Geschossen wird nur aus dem Bild heraus.
+
+| Gegner | Angriff | Ausweichen |
+|---|---|---|
+| Spucker | zielt mit einem Keil, spuckt eine Kugel (ab Minute 4 einen Fächer aus drei) | seitlich weg |
+| Aschenkessel | wirft eine Kohle im Bogen auf einen markierten Kreis, dort bleibt kurz eine Glutpfütze | den Kreis verlassen, Pfütze meiden |
+| Nadelmotte | Ziellinie mit Vorhalt, 0,3 s vor dem Schuss gesperrt, dann eine sehr schnelle Nadel | beim Sperren die Richtung wechseln |
+| Totenglocke | Ladekreis zeigt die Austrittspunkte, dann zwei versetzte Ringe aus je zehn Kugeln | durch die Lücken des Gitters |
+
+Ab Minute 3 ist jeder zweite Elitegegner ein Fernkämpfer (Fächer aus fünf, drei Kohlen, drei Nadeln, drei Ringe aus zwölf).
+Jeder Boss hat mindestens einen angekündigten Fernangriff (Endbosse zwei): Fächer, Lanzen (drei Ziellinien), Regen aus
+Kreisen (gestreut, in einer Reihe, als Sternensturz oder als nachführende Finsternis, beim Schleimkönig mit bremsender
+Schleimpfütze), Spirale oder Bahnen über das ganze Bild; die Nova lädt jetzt 0,6 s mit sichtbaren Austrittspunkten.
 
 - Ein befreites Land schaltet das nächste frei und dort die nächste **Nachtstufe** (bis 5): mehr Lebenspunkte, Tempo und Schaden der Gegner, mehr Gold.
 - **Sterne:** ★ befreit, ★★ auf Nachtstufe 1+, ★★★ auf Nachtstufe 3+ – insgesamt 15.
-- **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen; das erste Ereignis folgt nach 50–55 Sekunden. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
+- **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen. Nach 40–58 Sekunden (je Land) gehen die ersten Fernkämpfer sichtbar im Bild in Stellung, kurz danach folgt das erste große Ereignis. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
 - Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`, die auch Stufe nach 60 s, ersten Treffer, Schaden je Minute und Gegner im Bild nach 2/10/30/60 s meldet).
 
 Siegquoten des starken Bots (alle 9 Helden reihum, Nachtstufe 0; „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`). Die Quoten schwanken stark; bei n = 24 beträgt der Zufallsfehler etwa ±10 Prozentpunkte:
@@ -89,6 +108,8 @@ Erste Minute mit dem starken Bot: Stufe 6–10 nach 60 s (vorher 5–8), 10–13
 - Leistung: fällt die Bildrate im Spiel unter 42 fps, schaltet die Darstellung probeweise eine Stufe herunter (6 Stufen: zuerst Lichtkarte, Edelstein-Lichter und Gegnerschatten, dann Auflösung des Canvas, Partikel als einfache Quadrate). Bringt eine billige Stufe (ohne Auflösungsschritt) keine 10 % Gewinn, wird gleich die nächste Stufe mit kleinerem Canvas probiert; erst wenn auch die nichts bringt – etwa weil die Anzeige im Stromsparmodus auf 30 fps begrenzt ist –, geht es zurück auf die Stufe vor der Probe, und dieser Takt wird als Obergrenze gemerkt. `Render.setQuality(stufe, true)` hält eine Stufe fest; `Render.perf.log` zeigt die letzten Messungen. `node tools/qa/perf.js` misst die Bildrate mit 300 Gegnern und ~700 Partikeln, `--cap=30` prüft die 30-fps-Obergrenze.
 - Die Spiellogik (`js/game.js`, `js/weapons.js`) kennt kein DOM; Darstellung, Klang und Oberfläche hängen sich über `Hooks` an.
 - Kollisionen über ein räumliches Hash-Raster, flüssig mit mehreren hundert Gegnern.
+- Fernkampf (M9): Gegnergeschosse, Warnzeichen (`run.tele`: Kreise, Bahnen, Ziellinien, Ladekreise) und Pfützen (`run.haz`) haben feste Obergrenzen (120 Geschosse, bei Bossen 160; 32 Warnzeichen; 8 Pfützen). Eine Salve, die nicht mehr passt, wird gar nicht erst angekündigt. Eine Salven-Regie begrenzt, wie viele Schützen gleichzeitig ausholen (3 in den ersten zwei Minuten, später 5 und 7), und `rangedFrom` je Land, ab wann Fernkämpfer im Nachschub kommen. `hurtPlayer(dmg, src)` merkt sich die Quelle jedes Treffers.
+- Balance-Bot (`tools/balancebot.js`): Er weicht Nahkämpfern wie bisher aus, nimmt aber alles Fernkämpferische wie ein geübter Mensch wahr – erst wenn es im Bild war, mit 0,20–0,35 s Reaktionszeit, mit Aussetzern (je voller das Bild, desto öfter zu spät oder gar nicht gesehen) und kleinen Schätzfehlern, und nur die 10 nächsten Geschosse und 6 nächsten Flächen auf einmal. Nahkampf-Bauten jagen Schützen. `tools/dodgetest.js` prüft die Trefferquoten je Geschossart in einer Arena (Kalibrierung im Kopf von `balancebot.js`).
 - Spielstand in `localStorage` (`glutnacht.v1`).
 
 ```
