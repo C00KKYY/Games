@@ -1,30 +1,46 @@
 	
 
-	Particle Pack + Smoke Particles (used in Glutnacht / Ember Night)
+	Particle Pack (1.1)
 
 	Created/distributed by Kenney (www.kenney.nl)
-	Note: the packs as mirrored ship without their own licence file. This is
-	Kenney's standard CC0 licence text, taken from Castle Kit (2.0) in the same
-	mirror (github.com/shorepine/kenney); Kenney releases all packs under CC0.
-	
+
+	Additional credit for creating filter templates:
+	Indigo Ray, Craig Nisbet, Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501
+
 			------------------------------
 
 	License: (Creative Commons Zero, CC0)
 	http://creativecommons.org/publicdomain/zero/1.0/
 
-	You can use this content for personal, educational, and commercial purposes.
-
-	Support by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)
+	This content is free to use in personal, educational and commercial projects.
+	Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
 
 			------------------------------
 
-	• Website : www.kenney.nl
-	• Donate  : www.kenney.nl/donate
+	Donate:   http://support.kenney.nl
+	Patreon:  http://patreon.com/kenney/
 
-	• Patreon : patreon.com/kenney
+	Follow on Twitter for updates:
+	http://twitter.com/KenneyNL
+
 	
-	Follow on social media for updates:
 
-	• Twitter:   twitter.com/KenneyNL
-	• Instagram: instagram.com/kenney_nl
-	• Mastodon:  mastodon.gamedev.place/@kenney
+	Smoke Particles (1.0)
+
+	Created/distributed by Kenney (www.kenney.nl)
+
+			------------------------------
+
+	License: (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+	This content is free to use in personal, educational and commercial projects.
+	Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
+
+			------------------------------
+
+	Donate:   http://support.kenney.nl
+	Patreon:  http://patreon.com/kenney/
+
+	Follow on Twitter for updates:
+	http://twitter.com/KenneyNL

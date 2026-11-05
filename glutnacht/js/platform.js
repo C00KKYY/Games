@@ -14,6 +14,10 @@ const Platform = {
   pendingAttach: false, // SDK kam während eines Laufs – Speicherort erst im Menü wechseln
 
   async init() {
+    try { await this.initSdk(); } finally { Sfx.releasePlatform(); } // Ton erst, wenn die Stummschaltung bekannt ist
+  },
+
+  async initSdk() {
     // Im CrazyGames-Build lädt das Skript asynchron: auf dessen onload/onerror warten
     if (window.__cgSdk) { try { await window.__cgSdk; } catch (e) { /* Skript fehlt – ohne SDK weiter */ } }
     const sdk = window.CrazyGames && window.CrazyGames.SDK;

@@ -154,6 +154,10 @@ const LANG_EN = {
   'Ton an/aus: M': 'Sound on/off: M',
   'Ton an': 'Sound on',
   'Ton aus': 'Sound off',
+  'Waffen greifen von selbst an': 'Your weapons attack on their own',
+  'Ton von der Plattform stummgeschaltet': 'Muted by the platform',
+  'Ton an (Klang und Musik sind in den Einstellungen aus)': 'Sound on (effects and music are off in Settings)',
+  'Alles stumm (Taste M)': 'Mute all (M key)',
   'Wirklich ALLES löschen?': 'Really delete EVERYTHING?',
   'Spielstand löschen': 'Delete save data',
 

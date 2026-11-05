@@ -18,6 +18,8 @@ const Input = {
         // lange Bildschirme (Schmiede, Erfolge) bleiben mit den Pfeiltasten scrollbar
         if (UI.cur && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) UI.el.screen.scrollBy(0, e.code === 'ArrowUp' ? -60 : 60);
       }
+      // Tastenkürzel des Browsers (Strg/Cmd/Alt + Taste) nicht als Spieltaste werten
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       UI.onKey(k, e);
     });
     window.addEventListener('keyup', e => { if (e.key === 'Meta') this.keys.clear(); else this.keys.delete(e.code); });

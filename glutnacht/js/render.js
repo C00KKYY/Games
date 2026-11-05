@@ -72,6 +72,22 @@ const Render = {
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
     this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
+    this.prebuildBosses(stage);
+  },
+
+  // Boss-Bilder (scharf, mit Krone; je Boss 2 Bilder × normal/Treffer/vereist) im Voraus bauen, eines alle 0,12 s,
+  // damit das Erscheinen eines Bosses nicht ruckelt. Der Bildzeit-Messer übergeht das Bild nach einem Bau.
+  prebuildBosses(stage) {
+    const q = this.pbQueue = [];
+    for (const b of stage.bosses || []) for (const v of [0, 1, 2]) for (const f of [0, 1]) q.push(() => Sprites.bossSprite(b.sprite, b.r, f, v, b.tint || null, Sprites.bossLevel(b)));
+    this.pbT = 0;
+  },
+  prebuildStep() {
+    const q = this.pbQueue;
+    if (!q || !q.length || this.time - this.pbT < 0.12) return;
+    this.pbT = this.time;
+    q.shift()();
+    this.perf.last = 0;
   },
 
   glowSprite(size, c0, c1) {
@@ -244,6 +260,7 @@ const Render = {
     if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
     if (r !== this.runRef) { this.runRef = r; this.corpses.length = 0; this.vfx.length = 0; this.lvlFx = null; }
     this.autoQuality(inRun && Game.state === 'play');
+    this.prebuildStep();
     // Effekt-Zeit läuft nur im Spiel (und im kurzen Stopp beim Stufenaufstieg), nicht unter Dialogen
     const L = this.lvlFx;
     this.fxDt = Game.state === 'play' || (L && L.stop > 0) ? dt : 0;
@@ -287,7 +304,7 @@ const Render = {
       for (let cy = Math.floor(y0 / C); cy <= Math.floor(y1 / C); cy++) {
         if (hash2(cx, cy, 3) > 0.2) continue;
         const kind = this.decor[Math.floor(hash2(cx, cy, 4) * this.decor.length)];
-        const s = Sprites.deco(kind, this.decorTint);
+        const s = Sprites.deco(kind, this.decorTint, this.stageId);
         const x = (cx + 0.1 + hash2(cx, cy, 5) * 0.8) * C, y = (cy + 0.1 + hash2(cx, cy, 6) * 0.8) * C;
         ctx.drawImage(s, x - s.size / 2, y - s.size / 2, s.size, s.size);
       }
@@ -756,7 +773,7 @@ const Render = {
     if (!r) return;
     const p = r.p;
     if (this.corpses.length < 90 || e.elite || e.boss) {
-      this.corpses.push({ type: e.type, tint: e.tint, x: e.x, y: e.y, r: e.r, sc: e.r / Sprites.baseR(e.type), t: 0,
+      this.corpses.push({ type: e.type, tint: e.tint, bl: e.boss ? Sprites.bossLevel(e.boss) : 0, x: e.x, y: e.y, r: e.r, sc: e.r / Sprites.baseR(e.type), t: 0,
         life: e.boss ? 0.5 : 0.24, flip: e.swarm ? e.sdx < 0 : p.x < e.x, col: ENEMY_COLORS[e.type] || '#ffffff' });
     }
     if (e.boss || e.elite) this.vfx.push({ x: e.x, y: e.y, rad: e.boss ? e.r * 2.6 : e.r * 2.2, t: 0, life: e.boss ? 0.9 : 0.55, boss: !!e.boss });
@@ -771,7 +788,7 @@ const Render = {
       const k = c.t / c.life;
       if (k >= 1) { cs[i] = cs[cs.length - 1]; cs.pop(); continue; }
       if (!this.inView(c.x, c.y, c.r + 30)) continue;
-      const spr = Sprites.enemy(c.type, 0, 1, c.tint), size = spr.size * c.sc;
+      const spr = c.bl ? Sprites.bossSprite(c.type, c.r, 0, 1, c.tint, c.bl) : Sprites.enemy(c.type, 0, 1, c.tint), size = spr.size * c.sc;
       const sx = k < 0.25 ? 1 - k * 0.6 : 0.85 + (k - 0.25) * 1.1, sy = k < 0.25 ? 1 + k * 0.8 : 1.2 - (k - 0.25) * 1.3;
       ctx.globalAlpha = 1 - k * k;
       ctx.setTransform(k0 * sx * (c.flip ? -1 : 1), 0, 0, k0 * sy, B.x + k0 * c.x, B.y + k0 * (c.y + size * 0.35 * (1 - sy)));
@@ -851,8 +868,8 @@ const Render = {
     const variant = e.flash > 0 ? 1 : (e.slowT > 0 || e.freezeT > 0) ? 2 : 0;
     // Sprite am Gegner merken, solange Bild und Variante gleich bleiben (spart hunderte Nachschlagungen je Bild)
     if (e._rf !== frame || e._rv !== variant || !e._rs) {
-      const bk = e.boss ? Math.min(3, Math.ceil(e.r / Sprites.baseR(e.type))) : 1; // Bosse: scharf statt hochskaliert (einmalig ~30 ms je Bild)
-      e._rs = bk > 1 ? Sprites.hires('boss' + e.type + frame + variant + (e.tint || ''), bk, () => Sprites.enemy(e.type, frame, variant, e.tint)) : Sprites.enemy(e.type, frame, variant, e.tint);
+      // Bosse: scharf statt hochskaliert, mit Krone; beim Laden des Landes vorbereitet (prebuildBosses)
+      e._rs = e.boss ? Sprites.bossSprite(e.type, e.r, frame, variant, e.tint, Sprites.bossLevel(e.boss)) : Sprites.enemy(e.type, frame, variant, e.tint);
       e._rf = frame; e._rv = variant; e._rsc = e.r / Sprites.baseR(e.type);
     }
     const spr = e._rs, sc = e._rsc;
@@ -903,7 +920,7 @@ const Render = {
     const ch = CHARS[r.char];
     const frame = p.moving ? 1 + (Math.floor(p.walk) % 2) : 0;
     const blink = p.iframe > 0 && Math.floor(this.time * 20) % 2 === 0;
-    const spr = Sprites.player(ch.color, frame, p.flash > 0);
+    const spr = Sprites.player(r.char, frame, p.flash > 0);
     ctx.save();
     const PS = PLAYER_DRAW_SCALE;
     ctx.translate(p.x, p.y + (p.moving ? Math.abs(Math.sin(p.walk * Math.PI / 2)) * -2 : 0));
@@ -966,7 +983,10 @@ const Render = {
       const s = this.toScreen(p.x, p.y), y = s.y + 31 * this.zoom + (Input.touch ? 54 : 40); // unter der Lebensleiste
       this.hintA = clamp(this.hintA + (r.moved ? -3 : 3) * dt, 0, 1);
       if (this.hintA > 0) this.drawMoveHint(s.x, y, this.hintA);
-      else if (r.moved && r.level === 1 && r.t > 6) {
+      // Hinweis „Waffen greifen von selbst an“ (Symbol der Startwaffe + kurzer Text), die ersten 8 s
+      const atkA = r.t < 8 ? Math.min(1, (8 - r.t) / 1.2, r.t / 0.6) : 0;
+      if (atkA > 0) this.drawAttackHint(r, s.x, y + (this.hintA > 0 ? (Input.touch ? 50 : 40) : 0), atkA);
+      else if (r.moved && r.level === 1 && r.t > 8) {
         const txt = tr('Sammle die blauen Edelsteine!');
         ctx.globalAlpha = 0.75 + Math.sin(this.time * 5) * 0.25;
         ctx.font = '19px "Lilita One", Impact, sans-serif';
@@ -979,6 +999,25 @@ const Render = {
       }
     } else this.hintA = 0;
     Input.drawJoystick(ctx);
+  },
+
+  drawAttackHint(r, cx, cy, a) {
+    const ctx = this.ctx, w0 = r.weapons[0], ic = Sprites.item(w0 ? w0.id : 'whip');
+    const txt = tr('Waffen greifen von selbst an');
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.font = '16px "Lilita One", Impact, sans-serif';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const tw = ctx.measureText(txt).width, w = tw + 44, x = cx - w / 2;
+    ctx.fillStyle = 'rgba(10,6,25,0.62)';
+    roundRect(ctx, x, cy - 15, w, 30, 15); ctx.fill();
+    const sw = 1 + Math.sin(this.time * 6) * 0.12; // Waffe holt aus
+    ctx.save(); ctx.translate(x + 19, cy); ctx.rotate(Math.sin(this.time * 6) * 0.35); ctx.drawImage(ic, -12 * sw, -12 * sw, 24 * sw, 24 * sw); ctx.restore();
+    ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.strokeText(txt, x + 36, cy + 1);
+    ctx.fillStyle = '#ffe9c4';
+    ctx.fillText(txt, x + 36, cy + 1);
+    ctx.restore();
   },
 
   // Bewegungshinweis ohne Text: WASD- und Pfeiltasten (Tastatur) oder Daumen im Ring (Touch)
@@ -1057,11 +1096,23 @@ const Render = {
     if (A <= 0) return;
     const ctx = this.ctx, W = this.W, H = this.H, t = this.time, d = this.dpr;
     const land = W >= H * 1.15;
-    const hh = land ? clamp(H * 0.26, 70, 220) : clamp(H * 0.14, 70, 150); // sichtbare Heldenhöhe in px
-    const hx = land ? Math.max(hh * 0.9, W * 0.13) : W * 0.5;
+    let hh = land ? clamp(H * 0.26, 70, 220) : clamp(H * 0.14, 70, 150); // sichtbare Heldenhöhe in px
+    let hx = land ? Math.max(hh * 0.9, W * 0.13) : W * 0.5;
     const gy = land ? H * 0.88 : H - Math.max(18, H * 0.04);
     const fl = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 13.7) * 0.02;
-    const s = hh / 40; // Spieler-Sprite: rund 40 sichtbare Einheiten hoch, Füße bei +17,4, Glut in der Hand bei (9,6 | −3,8)
+    let s = hh / 40; // Spieler-Sprite: rund 40 sichtbare Einheiten hoch, Füße bei +17,4, Glut in der Hand bei (9,6 | −3,8)
+    // Nicht mit dem Menü (DOM) überlappen: Held links daneben, notfalls kleiner (sichtbar etwa −17 … +13 Einheiten breit)
+    const rects = this.keyArtRects();
+    if (land) {
+      for (let it = 0; it < 3; it++) {
+        const top = gy - 40 * s - 6;
+        let L = W;
+        for (const q of rects) if (q.bottom > top && q.top < gy) L = Math.min(L, q.left);
+        if (hx + 13 * s <= L - 8) break;
+        if (L - 8 - 13 * s >= 17 * s + 2) { hx = L - 8 - 13 * s; break; }
+        s = Math.max(40 / 40, (L - 12) / 30); hh = s * 40; hx = 17 * s + 2;
+      }
+    }
 
     // Glut-Schein um den Helden und auf dem Boden
     ctx.globalCompositeOperation = 'lighter';
@@ -1084,7 +1135,14 @@ const Render = {
       const box = hh * rel * 1.55; // Spritekasten (Figur ist etwas kleiner)
       const esz = Sprites.enemySize(type), sc = box / esz * Sprites.ENEMY_VIS; // Bildpixel je Radius-Einheit
       const bob = Math.sin(t * (type === 'bat' || type === 'wraith' ? 3 : 1.6) + i * 1.7) * hh * (type === 'bat' || type === 'wraith' ? 0.05 : 0.012);
-      const x = fx * W, y = fy * H - box * 0.36 + bob;
+      let x = fx * W, ka = 1;
+      const y = fy * H - box * 0.36 + bob, hw = box * 0.42;
+      // Monster, die ins Menü ragen, zur Seite schieben (höchstens bis zur Hälfte aus dem Bild), sonst abblenden
+      for (const q of rects) {
+        if (y + hw < q.top || y - hw > q.bottom || x + hw < q.left || x - hw > q.right) continue;
+        const nx = fx >= 0.5 ? q.right + hw + 4 : q.left - hw - 4;
+        if (fx >= 0.5 ? nx < W + hw * 0.1 : nx > -hw * 0.1) x = nx; else ka = 0.3;
+      }
       const k = clamp(Math.ceil(box * d / esz / 2), 1, 6);
       const base = Sprites.hires('ka-' + type + frame, k, () => Sprites.enemy(type, frame, 0, null));
       const rim = Sprites.hires('ka-rim-' + type + frame, k, () => Sprites.tintVariant(base, '#ff9a4a', 1));
@@ -1094,9 +1152,9 @@ const Render = {
       ctx.translate(x, y);
       if (faceL) ctx.scale(-1, 1);
       const lx = dirx * (faceL ? -1 : 1);
-      ctx.globalAlpha = A * 0.75;
+      ctx.globalAlpha = A * 0.75 * ka;
       ctx.drawImage(rim, -box / 2 + lx * off, -box / 2 - off * 0.6, box, box);
-      ctx.globalAlpha = A;
+      ctx.globalAlpha = A * ka;
       ctx.drawImage(sil, -box / 2, -box / 2, box, box);
       const e = this.KEYART_EYES[type];
       if (e) {
@@ -1104,7 +1162,7 @@ const Render = {
         const blink = (Math.sin(t * 0.9 + i * 2.3) > 0.97) ? 0.15 : 1;
         const ey2 = e[0] * R * sc, gx = e[1] * R * sc, er = Math.max(2, e[2] * R * sc), ex0 = (e[4] || 0) * R * sc;
         const gl = this.eyeGlow(e[3]);
-        ctx.globalAlpha = A * blink;
+        ctx.globalAlpha = A * blink * ka;
         for (const sx of [-1, 1]) ctx.drawImage(gl, ex0 + sx * gx - er * 2, ey2 - er * 2, er * 4, er * 4);
         ctx.globalCompositeOperation = 'source-over';
       }
@@ -1112,10 +1170,10 @@ const Render = {
     });
 
     // Held (schaut nach rechts zur Horde) mit Glut in der Hand
-    const ch = CHARS[Store.data.lastChar] || CHARS.aron;
-    const p0 = Sprites.player(ch.color, 0, false);
+    const cid = CHARS[Store.data.lastChar] ? Store.data.lastChar : 'aron';
+    const p0 = Sprites.player(cid, 0, false);
     const hb = p0.size, k = clamp(Math.ceil(hb * s * d / p0.width), 1, 8);
-    const hero = Sprites.hires('ka-hero' + ch.color, k, () => Sprites.player(ch.color, 0, false));
+    const hero = Sprites.hires('ka-hero' + cid, k, () => Sprites.player(cid, 0, false));
     ctx.globalAlpha = A * 0.5;
     ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(hx, gy, 12 * s, 3.5 * s, 0, 0, TAU); ctx.fill();
@@ -1129,6 +1187,19 @@ const Render = {
     ctx.drawImage(this.spr.flame, ex - fs / 4, ey - fs * 0.3 + by, fs / 2, fs / 2);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+  },
+
+  // Umrisse der Menü-Elemente (CSS-Pixel), alle 0,4 s neu gelesen, solange das Titelbild sichtbar ist
+  keyArtRects() {
+    if (typeof document === 'undefined') return [];
+    if (this._karT && this.time - this._karT < 0.4) return this._kar;
+    this._karT = this.time;
+    const out = [];
+    document.querySelectorAll('#screen .menu .logo, #screen .menu .tag, #screen .menu > .btn, #screen .menu .row .btn, #screen .menu .goldbox, #screen .menu .statsline, #screen .menu .tip').forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) out.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom });
+    });
+    return (this._kar = out);
   },
 
   eyeGlow(col) {

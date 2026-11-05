@@ -42,7 +42,7 @@ const UI = {
     this.selChar = Store.data.lastChar;
   },
 
-  icon(id, cls) { return '<img class="' + (cls || 'ic') + '" src="' + Sprites.iconURL(id) + '" alt="">'; },
+  icon(id, cls, size) { return '<img class="' + (cls || 'ic') + '" src="' + Sprites.iconURL(id, size) + '" alt="">'; },
 
   show(name, data) {
     this.releaseBoot();
@@ -114,14 +114,14 @@ const UI = {
     for (const id in CHARS) {
       const c = CHARS[id], locked = s.chars.indexOf(id) < 0;
       h += '<button class="char' + (locked ? ' locked' : '') + (id === this.selChar ? ' sel' : '') + '" data-act="char" data-id="' + id + '">' +
-        '<img class="portrait" src="' + Sprites.playerURL(locked ? '#2a2638' : c.color, 64) + '" alt="">' +
+        '<img class="portrait" src="' + Sprites.playerURL(id, 64, locked) + '" alt="">' +
         (locked ? this.icon('lock', 'lockic') : '<img class="wpn" src="' + Sprites.iconURL(c.weapon, 32) + '" alt="">') +
         (locked ? '<small class="cu">' + tr((ACHIEVEMENTS.find(x => x.id === c.unlock) || {}).text || '') + '</small>' : '<div class="cn">' + c.name + '</div>') + '</button>';
     }
     h += '</div>';
     const c = CHARS[this.selChar];
     const w = WEAPONS[c.weapon];
-    h += '<div class="chardetail"><img class="bigportrait" src="' + Sprites.playerURL(c.color, 96) + '" alt="">' +
+    h += '<div class="chardetail"><img class="bigportrait" src="' + Sprites.playerURL(this.selChar, 96) + '" alt="">' +
       '<div><div class="cdname">' + c.name + ' <span>' + tr(c.title) + '</span></div>' +
       '<div class="cdline">' + this.icon(c.weapon) + '<div><b>' + tr(w.name) + '</b><br><small>' + tr(w.desc) + '</small></div></div>' +
       '<div class="cdbonus">' + tr(c.text) + '</div></div></div>';
@@ -227,7 +227,7 @@ const UI = {
     const tg = (k, label) => '<button class="toggle' + (st[k] ? ' on' : '') + '" data-act="toggle" data-k="' + k + '"><span>' + tr(label) + '</span><i></i></button>';
     return '<div class="panel"><h2>' + tr('Einstellungen') + '</h2>' +
       '<div class="langrow"><span>' + tr('Sprache') + '</span>' + this.langSwitch() + '</div>' +
-      tg('sfx', 'Klangeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
+      tg('mute', 'Alles stumm (Taste M)') + tg('sfx', 'Klangeffekte') + tg('music', 'Musik') + tg('dmgNums', 'Schadenszahlen') + tg('shake', 'Bildschirmwackeln') +
       '<div class="controls"><b>' + tr('Steuerung') + '</b><br>' + tr('Laufen: WASD / Pfeiltasten oder irgendwo auf den Bildschirm tippen oder klicken und ziehen.') + '<br>' +
       tr('Angreifen passiert automatisch.') + '<br>' + tr('Pause: Esc / P · Karten wählen: 1–4 · Neu würfeln: R') + '<br>' + tr('Ton an/aus: M') + '</div>' +
       '<div class="actions"><button class="btn small danger" data-act="reset">' + tr(this.confirm === 'reset' ? 'Wirklich ALLES löschen?' : 'Spielstand löschen') + '</button>' +
@@ -263,7 +263,7 @@ const UI = {
     opts.forEach((o, i) => {
       const t = this.optionText(o);
       h += '<button class="card' + (o.isNew ? ' new' : '') + (t.ready ? ' ready' : '') + (this.banMode && !o.isNew ? ' noban' : '') + '" data-act="pick" data-i="' + i + '" style="--d:' + (i * 70) + 'ms">' +
-        '<div class="ctag">' + t.tag + '</div>' + this.icon(t.icon, 'cicon') +
+        '<div class="ctag">' + t.tag + '</div>' + this.icon(t.icon, 'cicon', 96) +
         '<div class="cname">' + t.name + '</div><div class="cdesc">' + t.desc + '</div>' +
         (t.hint ? '<div class="chint">' + t.hint + '</div>' : '') + '<kbd>' + (i + 1) + '</kbd></button>';
     });
@@ -610,16 +610,22 @@ const UI = {
   },
 
   // Taste M: Klang und Musik gemeinsam aus/an (die Plattform-Stummschaltung hat weiter Vorrang)
+  // Taste M: Gesamt-Stummschaltung; die Schalter für Klang und Musik bleiben, wie sie sind
   toggleSound() {
-    const st = Store.data.settings, on = !(st.sfx || st.music);
-    st.sfx = st.music = on;
-    Store.save();
-    Sfx.applySettings();
-    if (on && Game.state !== 'over') Sfx.startMusic(); else if (!on) Sfx.stopMusic();
-    if (on) Sfx.play('click');
+    const st = Store.data.settings;
+    let msg;
+    if (Sfx.platformMuted) msg = 'Ton von der Plattform stummgeschaltet';
+    else {
+      st.mute = !st.mute;
+      Store.save();
+      Sfx.applySettings();
+      if (!st.mute) Sfx.play('click');
+      msg = st.mute ? 'Ton aus' : !st.sfx && !st.music ? 'Ton an (Klang und Musik sind in den Einstellungen aus)' : 'Ton an';
+      if (this.cur === 'opts') this.show('opts');
+    }
     const d = document.createElement('div');
     d.className = 'toast';
-    d.innerHTML = '<div><b>' + tr(on ? 'Ton an' : 'Ton aus') + '</b></div>';
+    d.innerHTML = '<div><b>' + tr(msg) + '</b></div>';
     this.el.toasts.appendChild(d);
     while (this.el.toasts.children.length > 3) this.el.toasts.firstChild.remove();
     setTimeout(() => d.classList.add('out'), 1400);

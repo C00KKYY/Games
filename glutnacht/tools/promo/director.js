@@ -193,8 +193,8 @@ const Promo = {
     g.globalCompositeOperation = 'source-over';
 
     // Held
-    const hero = Sprites.player(CHARS.aron.color, 0, false);
-    g.drawImage(hero, hx - hs / 2, hy - hs / 2, hs, hs);
+    const hero = Sprites.player('aron', 0, false), hz = hs * hero.size / 52; // hs bezieht sich auf den alten 52er-Kasten
+    g.drawImage(hero, hx - hz / 2, hy - hz / 2, hz, hz);
 
     // Rand abdunkeln
     const vg = g.createRadialGradient(hx, hy, U * 0.3, hx, hy, Math.hypot(CW, CH) * 0.7);
@@ -291,7 +291,7 @@ const Promo = {
   },
 
   heroImg(t) {
-    return '<img class="hero pe" data-t="' + t + '" data-bob="1" src="' + Sprites.playerURL(CHARS.aron.color, 128) + '" alt="">';
+    return '<img class="hero pe" data-t="' + t + '" data-bob="1" src="' + Sprites.playerURL('aron', 128) + '" alt="">';
   },
 
   // Checkliste: Einträge [Text, erledigt?], erscheinen nacheinander ab t0

@@ -261,7 +261,7 @@ img { -webkit-user-drag: none; }
 @keyframes cardIn { from { opacity: 0; transform: translateY(30px) scale(0.9); } to { opacity: 1; transform: none; } }
 .ctag { font-family: var(--head); font-size: 14px; color: var(--cyan); letter-spacing: 0.5px; }
 .card.new .ctag { color: var(--good); }
-.cicon { width: 58px; height: 58px; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
+.cicon { width: 80px; height: 80px; margin: -4px 0; filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5)); }
 .cname { font-family: var(--head); font-size: 21px; }
 .cdesc { font-size: 14px; color: #e3d8ff; }
 .chint { font-size: 11px; color: var(--gold); background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 3px 7px; margin-top: auto; }
@@ -351,8 +351,8 @@ img { -webkit-user-drag: none; }
   .cards { grid-template-columns: 1fr; gap: 8px; }
   .stages { grid-template-columns: repeat(3, 1fr); }
   .stage { min-height: 92px; }
-  .card { flex-direction: row; flex-wrap: wrap; min-height: 0; text-align: left; padding: 10px 12px 10px 76px; align-items: center; column-gap: 8px; row-gap: 2px; }
-  .card .cicon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 50px; height: 50px; }
+  .card { flex-direction: row; flex-wrap: wrap; min-height: 0; text-align: left; padding: 10px 12px 10px 84px; align-items: center; column-gap: 8px; row-gap: 2px; }
+  .card .cicon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 62px; height: 62px; margin: 0; }
   .card .ctag { order: 2; font-size: 12px; }
   .card .cname { order: 1; font-size: 19px; }
   .card .cdesc { order: 3; width: 100%; }
@@ -381,7 +381,7 @@ img { -webkit-user-drag: none; }
   .lvsub { margin: 2px 0 8px; font-size: 14px; }
   .cards { grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; }
   .card { min-height: 0; padding: 10px 8px 8px; gap: 3px; }
-  .cicon { width: 40px; height: 40px; }
+  .cicon { width: 54px; height: 54px; margin: -6px 0 -4px; }
   .cname { font-size: 18px; }
   .cdesc { font-size: 13px; }
   .lvactions { margin-top: 8px; }
@@ -409,4 +409,27 @@ img { -webkit-user-drag: none; }
   .chint { font-size: 10.5px; padding: 2px 6px; }
   #banner { top: 20%; font-size: clamp(24px, 5vw, 38px); }
   #banner small { font-size: 13px; margin-top: 4px; }
+}
+
+/* Pause auf Handys und kleinen Fenstern (quer und hoch): volle Ausrüstung (6 + 6) kompakt – Symbol, Name, Stufe, ohne Erklärzeilen */
+@media (max-height: 560px), (max-width: 560px) {
+  .pause .build { gap: 10px; }
+  .pause .bcol { display: grid; grid-template-columns: 1fr 1fr; column-gap: 8px; align-content: start; }
+  .pause .bcol h3 { grid-column: 1 / -1; margin: 0 0 2px; font-size: 15px; }
+  .pause .brow { margin-bottom: 3px; align-items: center; font-size: 13px; gap: 6px; min-width: 0; }
+  .pause .brow .ic { width: 26px; height: 26px; }
+  .pause .brow small { display: none; }
+  .pause .brow > div { min-width: 0; line-height: 1.1; }
+  .pause .brow b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pause .lv { white-space: nowrap; }
+  .pause .lv.evo { padding: 0; background: none; }
+}
+@media (max-width: 560px) {
+  .pause .statgrid { grid-template-columns: repeat(2, 1fr); gap: 4px; }
+  .pause .statgrid div { font-size: 11.5px; padding: 3px 8px; }
+  .pause .statgrid b { white-space: nowrap; }
+}
+/* Kapitel-Banner auf kurzen Handys quer: mit Abstand unter dem Timer */
+@media (max-height: 400px) {
+  #banner { top: calc(84px + env(safe-area-inset-top, 0px)); }
 }

@@ -272,7 +272,7 @@ const STAGES = [
     id: 'frostlake', name: 'Eissee', minutes: 15,
     intro: 'Unter dem Eis schläft etwas, das nie erwachen darf. Seine Diener sind langsam, aber zäh.',
     outro: 'Um deine Glut schmilzt das Eis, und der See atmet wieder.',
-    ground: { base: '#4a6686', speckle: ['#78a2cc', '#2c425c'], grass: '#c4e2f6' },
+    ground: { base: '#3e5c84', speckle: ['#6e9ccc', '#1c3458'], grass: '#d8f0ff' },
     decor: ['rock', 'rock', 'rock', 'cross', 'grave', 'bones'], decorTint: '#cfe8ff',
     tints: { slime: '#dff3ff', ghost: '#ffffff', skel: '#dff3ff', ghoul: '#cfe3f0', wraith: '#d6e4ff', brute: '#cfe3f0', golem: '#dff3ff', bat: '#dff3ff' }, mods: { all: { hp: 1.4, speed: 0.85, xp: 1.3 } },
     mult: { hp: 0.8, dmg: 1, rate: 1.1 },

@@ -105,6 +105,8 @@ const SHOTS = [100, 200, 300, 500, 800, 1200, 1600, 2000, 2500, 3000, 4000, 5000
         if (document.querySelector('#screen [data-act="play"]')) mark('menuInDom');
         if (window.Glutnacht && window.Glutnacht.ready !== false) { mark('glutnachtReady'); clearInterval(iv); }
       }, 10);
+      // Ton frei (nicht mehr stumm): erst, wenn das SDK seine Stummschaltung gemeldet hat
+      const ia = setInterval(() => { if (typeof Sfx !== 'undefined' && !Sfx.muted) { mark('audioOpen'); clearInterval(ia); } }, 10);
     }, c.local || null);
     const t0 = Date.now();
     await page.goto('http://game.test/index.html', { waitUntil: 'commit' });
@@ -167,6 +169,8 @@ const SHOTS = [100, 200, 300, 500, 800, 1200, 1600, 2000, 2500, 3000, 4000, 5000
       checks.splashBy300 = !!(firstNonFlat && firstNonFlat.t <= 300);
       if (c.dl >= 300) checks.fcpBeforeSdk = r.marks['first-contentful-paint'] !== undefined && (at('sdk script executed') === undefined || r.marks['first-contentful-paint'] < at('sdk script executed'));
     }
+    // Ton bleibt still, bis init() fertig ist (Stummschaltung bekannt); hängt das SDK, bleibt er still
+    checks.audioHeld = c.initMs < 0 || c.dl < 0 ? r.marks.audioOpen === undefined : r.marks.audioOpen === undefined || r.marks.audioOpen >= at('init resolved');
     if (v === 'T') { checks.loadingOnce = nStart === 1; checks.backendAtBoot = r.backend; }
     if (c.expectLang) checks.lang = r.lang === c.expectLang;
     if (v === 'LATEMENU') checks.adoptedCloud = r.backend && r.gold === 777 && r.goldShown === '777';
@@ -180,7 +184,7 @@ const SHOTS = [100, 200, 300, 500, 800, 1200, 1600, 2000, 2500, 3000, 4000, 5000
     res[v] = r;
     console.log((r.ok ? 'OK   ' : 'FAIL ') + v.padEnd(10) + c.desc.padEnd(48) +
       ' menu=' + menuMs + 'ms fcp=' + r.marks['first-contentful-paint'] + 'ms splash<=' + r.firstNonFlatMs + 'ms lang=' + r.lang +
-      ' loading=' + nStart + '/' + nStop + ' ' + JSON.stringify(Object.fromEntries(Object.entries(checks).filter(([, x]) => !x))) + (errors.length ? ' ' + errors.join(' | ') : ''));
+      ' loading=' + nStart + '/' + nStop + ' audio=' + r.marks.audioOpen + 'ms ' + JSON.stringify(Object.fromEntries(Object.entries(checks).filter(([, x]) => !x))) + (errors.length ? ' ' + errors.join(' | ') : ''));
     await ctx.close();
   }
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(res, null, 1));

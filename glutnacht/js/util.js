@@ -122,7 +122,7 @@ function defaultSave() {
     stageHeat: {}, // Gebiet -> gewählte Nachtstufe
     storySeen: {},
     lastChar: 'aron',
-    settings: { sfx: true, music: true, dmgNums: true, shake: true, lang: null },
+    settings: { sfx: true, music: true, mute: false, dmgNums: true, shake: true, lang: null },
   };
 }
 

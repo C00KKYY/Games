@@ -120,7 +120,7 @@ fs.mkdirSync(dir, { recursive: true });
       // Spritekasten wie in der Grundmessung (46 Welteinheiten) und sichtbare Figur (Alpha-Umriss), beide in CSS-px
       playerOnScreenPx: 46 * (typeof PLAYER_DRAW_SCALE === 'number' ? PLAYER_DRAW_SCALE : 1) * Render.zoom,
       playerVisiblePx: (() => {
-        const c = Sprites.player(CHARS[Game.run.char].color, 0, false), g = c.getContext('2d');
+        const c = Sprites.player(Game.run.char, 0, false), g = c.getContext('2d');
         const d = g.getImageData(0, 0, c.width, c.height).data; let y0 = -1, y1 = -1;
         for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 40) { if (y0 < 0) y0 = y; y1 = y; break; }
         return (y1 - y0 + 1) / c.width * c.size * (typeof PLAYER_DRAW_SCALE === 'number' ? PLAYER_DRAW_SCALE : 1) * Render.zoom;

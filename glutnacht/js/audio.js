@@ -191,8 +191,15 @@ const Sfx = (() => {
 
   // ---------- Einstellungen und Stummschaltung ----------
   let platformMuted = false; // z. B. CrazyGames-Einstellung "muteAudio" – hat Vorrang
+  // CrazyGames-Build: still, bis das SDK seine Stummschaltung gemeldet hat (oder ohne SDK weitergeht);
+  // Notausgang nach 10 s, falls das SDK-Skript nie ankommt
+  let platformHold = typeof window !== 'undefined' && !!window.__cgSdk;
+  if (platformHold) setTimeout(() => releasePlatform(), 10000);
   let suspendT = 0;
-  function muted() { return platformMuted || FORCE_MUTE; }
+  // Stumm: Plattform, ?muteAudio=true, Warten auf das SDK oder die eigene Gesamt-Stummschaltung (Taste M);
+  // Klang und Musik behalten dabei ihre eigenen Schalter
+  function muted() { return platformMuted || FORCE_MUTE || platformHold || !!(Store.data && Store.data.settings.mute); }
+  function releasePlatform() { if (!platformHold) return; platformHold = false; applySettings(); }
 
   function setPlatformMute(m) {
     platformMuted = !!m;
@@ -594,8 +601,8 @@ const Sfx = (() => {
     'click', 'buy', 'deny', 'achievement', 'victory'];
 
   return {
-    init, preload, onData, play, sting, applySettings, setPlatformMute, startMusic, stopMusic, setIntensity,
+    init, preload, onData, play, sting, applySettings, setPlatformMute, releasePlatform, startMusic, stopMusic, setIntensity,
     unlock: armUnlock, loadTrack, debug, level, EVENTS, VOL, TRACK_VOL, SOUNDS,
-    get ctx() { return ctx; }, get muted() { return muted(); },
+    get ctx() { return ctx; }, get muted() { return muted(); }, get platformMuted() { return platformMuted || FORCE_MUTE; },
   };
 })();
