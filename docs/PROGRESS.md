@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Aktueller Meilenstein:** M2 abgeschlossen (inkl. Review) → M3 UI & Bauen
+**Aktueller Meilenstein:** M3 abgeschlossen (inkl. Review und Abnahmetests) → M4 Feel/Juice, Audio, Speichern, Tutorial-UI
 **Gates:** G1 **freigegeben** (2026-11-04) · G2 offen · G3 offen
 
 ## Erledigt
@@ -47,7 +47,16 @@
   - Regressionstests in `tests/unit/regressions.test.ts`.
 - App-Modus ist Standard (`?spike` für die G1-Szene). Die Insel rendert wieder: Statische Szenen-Imports, weil Pixi seine Graphics-/Masken-Pipes als Modul-Seiteneffekt registriert.
 
+- **M3 UI & Bauen:**
+  - Echtes HUD aus sechs Komponenten (`src/ui/`): Topbar mit Fluss-Leiste aus `flow.ts` (stufenweises Einklappen nach Messung, „Wo hakt es?“), Klemmbrett mit Tutorial-Schritt und Ziel-Liste, Bauleiste mit Raum- und Personalmenü, Raum-/Rascal-Panels (Desktop-Karte, Kompakt-Bottom-Sheet), Tooltips/Toasts/Modals (Einstellungen, Hilfe), Bauwerkzeuge mit Geist (`src/render/ghost.ts`), Kanten-Drag, Abriss-Blase und Touch-✓/✕.
+  - Esc-Reihenfolge: Modal > Stufen-Liste > Ziel-Liste > Werkzeug/Menü > Auswahl, ein Schritt pro Druck.
+  - Fehlermeldungen je Grund statt allgemeinem Text; ein zentraler Einstellungs-Toast; Sprache zur Laufzeit umschaltbar.
+  - Cross-Component-Review (1 schwer, 4 mittel, 11 leicht) behoben, danach zwei adversariale Prüfer (Test-Ehrlichkeit mit Mutationstests, Produktverhalten); deren Befunde ebenfalls behoben.
+  - Abnahme M3: B1–B7, D5, D7 grün (Details QA_REPORT.md). B1-Screens für M5/M6 ausstehend.
+
 ## Offen
+- B1-Screens Projekttafel, Rückkehr-Panel, Inspektionsergebnis, Versetzung (kommen mit M5/M6).
+- Kosmetik: Scroll-Hinweis in Einstellungen/Hilfe fehlt; „Folgen“-Button im Rascal-Panel bei 907×510 DE ragt 5 px unter die Kante; Platzierungs-Icons in `tools.ts` noch als Inline-SVG.
 - Taktungsregel §4.3 in 6/27 Seeds verletzt (Spar-Phase vor dem Klassenzimmer, siehe BALANCE.md §0). Der Bereich 10–15 min hängt an der Projekttafel (M5).
 - Casual-Tempo bei 6–7 min eher an der unteren Toleranzgrenze.
 
@@ -61,12 +70,13 @@
 7. Ein Teil der Küste und die Insel-Silhouette sind ein einmalig erzeugtes Pixi-`Graphics`-Polygon (statische Geometrie, kein Canvas-2D pro Frame).
 
 ## Bekannte Bugs / Schwächen
-- Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Topbar-Fluss-Leiste zu klein und zu leer (Blindvergleich). Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
+- Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
+- Bei 800×450 verdeckt das Raum-Panel als Bottom-Sheet fast die ganze Welt.
 
 ## Letzte Testergebnisse
-- `npm test`: 103/103 grün (H0, Pfadfindung, Layout, Kapazität, Sim-Smoke, C1a, C2, H4, i18n, Art, Review-Regressionen) · tsc sauber · `npm run balance -- --minutes 10` auf Basis 11/500/1000: alle Zeilen ✅, Taktung 6/27 offen
+- `npm test`: 112/112 grün · `npx playwright test`: 65 bestanden, 1 übersprungen (ausstehende B1-Screens) · tsc und eslint sauber · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
 
 ## Nächste 3 Schritte
-1. M3: Bau-Werkzeuge (Rechteck ziehen, Geist mit Grund-Icon, Kanten-Drag), echtes HUD mit Fluss-Leiste aus `flow.ts`, Panels, Tooltips, Kompakt-HUD, Tastatur/Touch → B1–B7, D5, D7.
-2. Integration + Abnahmetests M3, Browser-Check 800×450 und 1280×720.
-3. M4 Feel/Juice + Audio, dann G2.
+1. M4: Tutorial-UI und Welt-Taps (Horn, Stempel, Kisten), Juice (Floating-Coins, Bau-Animation, Freischaltungs-Feier), Audio (ZzFX-SFX, Musik, Mute über SDK), Speichern/Laden mit Einstellungen.
+2. Abnahme M4 (D1–D4, D6, D8–D10, E, G, A3/A5/A5b/A6) und Selbst-Review der ersten 10 Minuten.
+3. G2: Material zusammenstellen und auf Freigabe warten.
