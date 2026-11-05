@@ -9,6 +9,12 @@ import { defaultRoomFor } from './staff';
 import { releaseSlot, setState, teleportNear } from './agents';
 import { waitAtDock } from './ferry';
 import { PATH_Y, GATE_X } from '../content/site1';
+import { buildCostMult } from './effects';
+
+/** price of a new room incl. the build-cost perk (UI labels must use this, not roomCost) */
+export const priceBuild = (w: World, type: RoomType, ww: number, hh: number) => Math.ceil(roomCost(type, ww, hh) * buildCostMult(w) - 1e-9);
+/** price of an edge-drag resize (only added tiles cost) incl. the build-cost perk */
+export const priceResize = (w: World, r: { type: RoomType; w: number; h: number }, ww: number, hh: number) => Math.ceil(Math.max(0, ROOMS[r.type].perTile * (ww * hh - r.w * r.h)) * buildCostMult(w) - 1e-9);
 
 const SIDES: Side[] = ['S', 'N', 'E', 'W'];
 
@@ -96,7 +102,7 @@ export function build(w: World, type: RoomType, x: number, y: number, ww: number
   if (!w.unlocked[type]) return { ok: false, reason: 'locked' };
   const v = validatePlacement(w, type, x, y, ww, hh);
   if (v.reason !== 'ok') return { ok: false, reason: v.reason };
-  const cost = roomCost(type, ww, hh);
+  const cost = priceBuild(w, type, ww, hh);
   if (!spend(w, 'build', cost)) return { ok: false, reason: 'coins', cost };
   const r = makeRoom(w, type, x, y, ww, hh, v.door!, false);
   r.buildEndMs = w.rtMs + buildMs(ww, hh);
@@ -140,7 +146,7 @@ export function resize(w: World, roomId: number, x: number, y: number, ww: numbe
   if (r.x === x && r.y === y && r.w === ww && r.h === hh) return { ok: false, reason: 'unchanged' };
   const v = validatePlacement(w, r.type, x, y, ww, hh, r.id);
   if (v.reason !== 'ok') return { ok: false, reason: v.reason };
-  const diff = Math.max(0, ROOMS[r.type].perTile * (ww * hh - r.w * r.h));
+  const diff = priceResize(w, r, ww, hh);
   if (!spend(w, 'build', diff)) return { ok: false, reason: 'coins', cost: diff };
   Object.assign(r, { x, y, w: ww, h: hh, door: v.door! });
   repack(r);
@@ -220,7 +226,7 @@ export function demolish(w: World, roomId: number): CommandResult {
   const r = roomById(w, roomId); if (!r || !isWalled(r)) return { ok: false, reason: 'noRoom' };
   if (w.rooms.filter(x => x.type === r.type).length <= 1 && (r.type === 'bunk' || r.type === 'canteen')) return { ok: false, reason: 'lastOfType' };
   const lastBuild = w.director.data.lastBuildId === r.id && (!r.built || w.rtMs - r.buildEndMs <= 10000);
-  const base = roomCost(r.type, r.w, r.h);
+  const base = priceBuild(w, r.type, r.w, r.h); // the build-cost perk lowers refunds too (no buy/demolish profit)
   const refund = lastBuild ? (w.director.data.lastBuildCost ?? base) : base * 0.5;
   for (const a of w.agents) if (a.act?.roomId === r.id) { releaseSlot(w, a); a.act = null; if (a.state !== 'leaving' && a.state !== 'atGate' && a.state !== 'toGate' && a.state !== 'waitingDock') setState(w, a, 'idle'); }
   w.rooms.splice(w.rooms.indexOf(r), 1);   // remove first, then re-assign beds (review finding)

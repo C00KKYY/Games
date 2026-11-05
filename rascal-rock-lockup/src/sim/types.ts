@@ -177,6 +177,156 @@ export interface Ferry {
 
 export interface Cart { state: 'depot' | 'toWorkshop' | 'loading' | 'toDock' | 'selling' | 'return'; load: number; roomId: number; id: number; sinceMs: number; tapMs: Record<number, number> }
 
+// ------------------------------------------------------------------ M5 progression & retention (docs/M5_DESIGN.md)
+export type ProjectId =
+  | 'mattresses' | 'recipeBook' | 'form27b' | 'whistle' | 'bubbleBath' | 'assembly'
+  | 'speedyCarts' | 'nightSchool' | 'tetherball' | 'suggestionBox' | 'squeakyMops' | 'biggerFerry';
+export type LeadId = 'intake' | 'logistics';
+export type PerkId = 'startCapital' | 'workshop' | 'offlineCap' | 'ferry' | 'buildCost' | 'mail';
+export type GradeCat = 'comfort' | 'safety' | 'reform' | 'profit';
+export type Grade = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+
+/** Project Board (Brief §3.13, M5_DESIGN §2): one project at a time, real-time timer (1x rtMs) that continues offline */
+export interface ProjectsState {
+  /** finished projects of the current site (reset by a transfer) */
+  done: Partial<Record<ProjectId, boolean>>;
+  /** the running project, or null; `leftMs` counts down by tickMs per tick and by the away time when returning */
+  running: { id: ProjectId; leftMs: number; totalMs: number } | null;
+}
+
+/** Department leads (Brief §3.11, M5_DESIGN §3) */
+export interface LeadsState {
+  /** slot k holds a hired lead or null; site 1 has 2 slots (slot 1 from 3★, slot 2 from 4★) */
+  slots: (LeadId | null)[];
+  /** rtMs of the hire (for the "From now on, Olli handles it" moment) */
+  hiredMs: Partial<Record<LeadId, number>>;
+}
+
+/** hand-grip taps for the hire dialog ("You tapped 34 times today") – `today` resets at local midnight (wall.ts) */
+export interface TapCounts { horn: number; crates: number; hornTotal: number; cratesTotal: number }
+
+/** one game hour of inspection measurements (rolling window of the last 2 game days = 48 buckets) */
+export interface HourBucket {
+  /** game hour index (Math.floor(t / TICKS_PER_HOUR)) */
+  h: number;
+  moodSum: number; moodN: number;
+  escaped: number; unsolved: number; released: number;
+  /** gross income of the hour (all earn kinds except 'offline', 'mail', 'objective', 'loan') and wages paid */
+  income: number; wages: number;
+  /** total beds at the end of the hour */
+  beds: number;
+}
+export interface GradeSet { comfort: number; safety: number; reform: number; profit: number }
+export interface InspectionResult {
+  /** game day of the inspection */
+  day: number;
+  scores: GradeSet;
+  grades: Record<GradeCat, Grade>;
+  /** 0 = failed, 1..3 */
+  stars: number;
+  /** category with the lowest score → inspector tip `progress.tip.<cat>` */
+  worst: GradeCat;
+  /** golden keys a transfer would give right now (preview on the result screen) */
+  keysPreview: number;
+}
+/** Inspection Day (Brief §3.17, M5_DESIGN §5) */
+export interface InspectionState {
+  /** idle → walking (goose walks 45 s) → result (until the player closes the result screen) → idle */
+  phase: 'idle' | 'walking' | 'result';
+  /** rtMs when the walk started */
+  startMs: number;
+  /** goose inspector position (tile units) while walking; the renderer draws it, it is not an Agent */
+  walker: { x: number; y: number; dir: Side; moving: boolean; wp: number };
+  /** earliest game day a (re)inspection may be called; 0 = any */
+  retryDay: number;
+  /** rolling measurement window (≤ 48 buckets, oldest first) */
+  hours: HourBucket[];
+  last: InspectionResult | null;
+  /** cumulative counters at the previous game-hour boundary (the next bucket is the difference) */
+  mark: { released: number; escaped: number; unsolved: number; income: number; wages: number };
+  /** best stars ever reached on this site (0 = never passed) */
+  best: number;
+  /** number of inspections called on this site */
+  count: number;
+}
+
+/** Transfer / prestige (Brief §3.17, M5_DESIGN §6). Survives transfers. The key BALANCE is World.keys. */
+export interface PrestigeState {
+  perks: Partial<Record<PerkId, number>>;
+  /** all-time lifetime coins over every run (stats.lifetimeCoins is per site run) */
+  lifetimeCoins: number;
+  /** sites with a passed inspection (≥ 1★), ascending, unique */
+  completedSites: number[];
+  /** best stars per site, index = site number */
+  bestStars: number[];
+  transfers: number;
+  /** all golden keys ever earned (transfers + mail streak), for stats */
+  keysEarned: number;
+}
+
+/** Mayor's daily mail (Brief §3.16, §5, M5_DESIGN §8) */
+export interface MailTask {
+  id: string;            // pool id from content/progress.ts MAIL_POOL
+  target: number;
+  /** counter value at the start of the mail day; progress = current − base */
+  base: number;
+  done: boolean;
+  claimed: boolean;
+  /** reward in coins, fixed when the mail day starts */
+  reward: number;
+}
+export interface MailState {
+  /** local calendar day index of the current tasks; -1 = never rolled */
+  day: number;
+  tasks: MailTask[];
+  /** completed mail days since the last key (a key every 3) */
+  streak: number;
+  daysCompleted: number;
+  /** last local day the player opened the mail (dot badge while day > seenDay) */
+  seenDay: number;
+  /** the HUD icon exists (session 1: from minute 12, Brief §5) */
+  visible: boolean;
+  /** event-driven counters the tasks watch (keys = content/progress.ts MailCounter), never reset */
+  count: Record<string, number>;
+}
+
+/** Morning VIP (Brief §5.4, M5_DESIGN §9). All times are wall ms from the Clock. */
+export interface VipState {
+  /** none → teased (board: "Tomorrow: …") → ready (next ferry brings the Cat Burglar) → arrived → (next tease) */
+  phase: 'none' | 'teased' | 'ready' | 'arrived';
+  /** wall ms when the session that teased ended (last save / hide), 0 = unknown */
+  sessionEndMs: number;
+  /** local day index of sessionEndMs */
+  sessionEndDay: number;
+  /** from game day 3 the dock board is permanently visible */
+  boardPermanent: boolean;
+  /** count of morning VIPs that arrived */
+  arrivals: number;
+}
+
+/** wall-clock bookkeeping (wall.ts), set only through syncWall(w, now, tz) – never Date.now() in the sim */
+export interface WallState {
+  /** last wall ms seen by syncWall */
+  nowMs: number;
+  /** local UTC offset (min east) of nowMs */
+  tzMin: number;
+  /** wall ms when the current session started */
+  sessionStartMs: number;
+  sessions: number;
+}
+
+/** Offline earnings + income window (Brief §3.15, M5_DESIGN §7) */
+export interface OfflineState {
+  /** income per 1x-minute of ACTIVE play, last 5 minutes (oldest first, ≤ 5 entries) */
+  ring: number[];
+  /** income counter value and rtMs at the start of the current ring minute */
+  ringLife: number; ringMs: number;
+  /** offline result waiting in the return panel (null = nothing to collect) */
+  pending: { coins: number; awayMs: number; effPct: number; capMs: number; capped: boolean } | null;
+  /** all coins ever collected offline (stats) */
+  collected: number;
+}
+
 export interface World {
   seed: number;
   rngState: number;
@@ -186,6 +336,7 @@ export interface World {
   site: number;
   coins: number;
   ruf: number;
+  /** golden keys (permanent across transfers, Brief §3.3): earned by transfers and the mail streak, spent on perks */
   keys: number;
   grid: Grid;
   parcels: boolean[];
@@ -214,6 +365,16 @@ export interface World {
   /** derived caches, excluded from hash/save */
   cache: { fields: Map<string, Uint16Array>; version: number; doorRes: Int32Array; evCursor: number };
   debug: boolean;
+  // ---- M5 (docs/M5_DESIGN.md); defaults in world.ts m5Defaults(), migration in save/serialize.ts (v1 → v2)
+  projects: ProjectsState;
+  leads: LeadsState;
+  taps: TapCounts;
+  inspection: InspectionState;
+  prestige: PrestigeState;
+  mail: MailState;
+  vip: VipState;
+  wall: WallState;
+  offline: OfflineState;
 }
 
 export interface CommandResult { ok: boolean; reason?: string; cost?: number }

@@ -16,6 +16,7 @@ import { ROOMS, roomCost, roomSlots, GUARD_RADIUS, type RoomType } from '../cont
 import { FERRY_POS, GATE_X, GATE_Y, BOOTH, DOCK } from '../content/site1';
 import { MAX_ROOM, LAYOUT, packRoom, adjacencyBonuses, noisePenalty } from '../sim/layout';
 import { tileReason, validatePlacement } from '../sim/rooms';
+import { guardRadiusBonus } from '../sim/effects';
 import { rebuild, makeRoom, isWalled, roomById } from '../sim/world';
 import { distanceField, idx } from '../sim/pathfield';
 import { UNREACHABLE, AF, type World, type Room, type Agent, type CommandResult, type Side } from '../sim/types';
@@ -605,7 +606,7 @@ export function mountTools(ctx: UICtx): Component {
       for (const r of w.rooms) if (r.type === 'guard' && r.id !== pv?.ignore) centres.push({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
       if (guardPv && pv) centres.push({ x: pv.r.x + pv.r.w / 2, y: pv.r.y + pv.r.h / 2, ghost: true });
     }
-    layer.setRadius(centres, GUARD_RADIUS + (w.unlocked.projWhistle ? 2 : 0));
+    layer.setRadius(centres, GUARD_RADIUS + guardRadiusBonus(w));
     // crate stacks
     stacks.length = 0;
     for (const r of w.rooms) if (r.type === 'workshop' && r.stack > 0 && stacks.length < 4) { const s = crateSpot(r); stacks.push({ x: s.x, y: s.y, n: Math.ceil(r.stack) }); }
@@ -659,7 +660,7 @@ export function mountTools(ctx: UICtx): Component {
     put(lSize, 'text', o && !sameRect(rectOf(o), r) ? `${o.w}×${o.h} → ${r.w}×${r.h}` : `${r.w}×${r.h}`);
     put(lPriceN, 'text', (o ? '+' : '') + ctx.fmt(pv.cost));
     put(lPrice, '.bad', pv.cost > w.coins ? '1' : '0');
-    if (type === 'guard') { put(lCapIc, 'src', ctx.icon('staff')); put(lCapN, 'text', t('tools.capGuard', { n: GUARD_RADIUS + (w.unlocked.projWhistle ? 2 : 0) })); }
+    if (type === 'guard') { put(lCapIc, 'src', ctx.icon('staff')); put(lCapN, 'text', t('tools.capGuard', { n: GUARD_RADIUS + guardRadiusBonus(w) })); }
     else {
       put(lCapIc, 'src', ctx.icon(ROOM_ICON[type] ?? 'rooms'));
       put(lCapN, 'text', t(`tools.cap.${type}`, { n: o && o.slots.length !== e.cap ? `${o.slots.length} → ${e.cap}` : e.cap }));

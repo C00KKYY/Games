@@ -212,24 +212,41 @@ export const DIRECTOR = {
 } as const;
 
 export const OFFLINE = {
+  /** (brief §3.15) efficiency base 40 %, +10 pp per lead (content/progress LEAD_OFFLINE_PP), + perks, max 100 % */
   baseEff: 0.4,
   perSupervisor: 0.1,
+  maxEff: 1,
+  /** (brief) cap 2 h + 1 h per offlineCap perk level (max 3) */
   baseCapH: 2,
+  /** (brief) < 60 s: silent resim; 60 s – 5 min: resim in blocks with "Catching up…"; ≥ 5 min: formula + return panel */
   silentBelowSec: 60,
   formulaFromSec: 300,
+  /** (brief) resim blocks of at most 3000 ticks spread over frames; the app runs ≤ catchupTicksPerFrame per frame */
   maxCatchupTicks: 3000,
+  catchupTicksPerFrame: 300,
+  /** (brief) income window: last 5 real minutes of ACTIVE play, normalised to 1x */
+  ringMinutes: 5,
+  /** earn() kinds that do not count as income for the window / the inspection Profit (no feedback loops) */
+  nonIncomeKinds: ['offline', 'mail', 'objective', 'loan'] as readonly string[],
 } as const;
 
 export const INSPECTION = {
+  /** (brief) the goose inspector walks 45 s */
   walkSec: 45,
+  /** (brief) grade thresholds */
   gradeA: 85, gradeB: 70, gradeC: 55, gradeD: 40, gradeE: 25,
-  /** net income per game day considered 100 profit (site 1) */
+  /** (brief) measured over the last 2 game days = 48 hour buckets */
+  windowHours: 48,
+  /** net income per game day considered 100 profit (site 1); per site in content/progress.ts SITES.profitTarget */
   profitTarget: 1200,
+  /** (brief) Safety = 100 − 25 × escapes − 10 × unsolved events; Reform = releases/day per 10 beds × 50 */
+  safetyPerEscape: 25, safetyPerUnsolved: 10, reformPer10Beds: 50,
 } as const;
 
-export const PRESTIGE = { k: 1, C: 2000 } as const;
+/** (brief §3.17) keys = floor(k × sqrt(L / C)) + star bonus; k, C calibrated so casual gets 4–6 base keys (BALANCE.md) */
+export const PRESTIGE = { k: 1, C: 2000, starBonus: [0, 0, 2, 4] as readonly number[] } as const;
 export const keysFor = (lifetimeCoins: number, stars: number) =>
-  Math.floor(PRESTIGE.k * Math.sqrt(lifetimeCoins / PRESTIGE.C)) + (stars >= 3 ? 4 : stars >= 2 ? 2 : 0);
+  Math.floor(PRESTIGE.k * Math.sqrt(Math.max(0, lifetimeCoins) / PRESTIGE.C)) + (PRESTIGE.starBonus[Math.max(0, Math.min(3, stars))] ?? 0);
 
 export const TAP_COOLDOWN_SEC = 2;
 export const COIN_POP_AUTOCOLLECT_SEC = 5;

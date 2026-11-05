@@ -12,6 +12,15 @@ import { noisePenalty } from './layout';
 import { checkInvariants } from './invariants';
 import { hourOf, dayOf, tickMs, isNight } from './time';
 import { PARCELS } from '../content/balance';
+// ---- M5 (docs/M5_DESIGN.md)
+import { projectsTick, startProject } from './projects';
+import { leadsTick, hireLead, leadWages } from './leads';
+import { inspectionTick, inspectionHour, callInspection, closeInspection } from './inspection';
+import { transfer, buyPerk } from './prestige';
+import { mailTick, mailOnEvent, claimMail, seeMail } from './mail';
+import { vipTick, vipOnDayEnd, vipOnEvent } from './vip';
+import { offlineTick, collectOffline } from './offline';
+import type { ProjectId, LeadId, PerkId } from './types';
 
 export function newGame(seed = 1, opts: { debug?: boolean; firstSession?: boolean } = {}): World {
   const w = createWorld(seed, opts);
@@ -51,6 +60,13 @@ export function tick(w: World) {
   cartTick(w);
   directorTick(w);
   objectivesTick(w);
+  // ---- M5 systems (each a cheap no-op while inactive)
+  projectsTick(w);
+  leadsTick(w);
+  inspectionTick(w);
+  mailTick(w);
+  vipTick(w);
+  offlineTick(w);
   // ---- remove agents that left the island
   if (w.agents.some(a => a.flags & AF.gone)) w.agents = w.agents.filter(a => !(a.flags & AF.gone));
   // ---- route new events to the tutorial/objective hooks
@@ -67,7 +83,7 @@ export function flushEvents(w: World) {
   const n = Math.min(w.events.length, w.eventSeq - cur);
   const fresh = w.events.slice(w.events.length - n);
   w.cache.evCursor = w.eventSeq;
-  for (const e of fresh) onEvent(w, e.type, e);
+  for (const e of fresh) { onEvent(w, e.type, e); mailOnEvent(w, e.type, e); vipOnEvent(w, e.type, e); }
   objectivesTick(w);
 }
 
@@ -77,6 +93,7 @@ function onHour(w: World, hour: number) {
     const n = rascals(w).filter(a => a.bed === r.id).length;
     if (n) earn(w, 'board', n * boardPerBedHour(r.level), { x: r.x + r.w / 2, y: r.y + r.h / 2 });
   }
+  inspectionHour(w, Math.floor(w.t / TICKS_PER_HOUR));
   if (hour === 0) onMidnight(w);
   if (hour === 6 && !staffOf(w, 'janitor').length) for (const r of w.rooms) r.clean = Math.max(r.clean, CLEAN.nightReset);
 }
@@ -91,10 +108,12 @@ function onMidnight(w: World) {
     const lvl = own && own.type === type ? own.level : Math.max(1, ...roomsOf(w, type).map(r => r.level));
     wages += wageFor(role, lvl);
   }
+  wages += leadWages(w);
   if (w.coins >= wages) { spend(w, 'wages', wages); }
   else { spend(w, 'wages', w.coins); w.unpaidUntilT = w.t + TICKS_PER_DAY; emit(w, 'unpaid', { wages }); }
   for (const r of w.rooms) { r.usesToday = 0; r.moodSumToday = 0; }
   emit(w, 'dayEnd', { day: dayOf(w.t) - 1, wages });
+  vipOnDayEnd(w, dayOf(w.t) - 1);
 }
 
 function skipNight(w: World) {
@@ -184,14 +203,14 @@ export const cmd = {
   }),
   tapHorn: (w: World) => logged(w, 'tapHorn', [], (): CommandResult => {
     if (w.ferry.state !== 'arriving') return { ok: false, reason: 'noFerry' };
-    w.ferry.tapped = true; w.stats.horntaps++; emit(w, 'hornTap');
+    w.ferry.tapped = true; w.stats.horntaps++; w.taps.horn++; w.taps.hornTotal++; emit(w, 'hornTap');
     return { ok: true };
   }),
   tapCrates: (w: World, roomId: number) => logged(w, 'tapCrates', [roomId], (): CommandResult => {
     const last = w.cart.tapMs[roomId] ?? -1e9;
     if (w.rtMs - last < TAP_COOLDOWN_SEC * 1000) return { ok: false, reason: 'cooldown' };
     const r = roomById(w, roomId); if (!r || r.stack < 1) return { ok: false, reason: 'empty' };
-    w.cart.tapMs[roomId] = w.rtMs; w.stats.cratetaps++;
+    w.cart.tapMs[roomId] = w.rtMs; w.stats.cratetaps++; w.taps.crates++; w.taps.cratesTotal++;
     return { ok: true };
   }),
   tapEscapee: (w: World, id: number) => logged(w, 'tapEscapee', [id], (): CommandResult => {
@@ -221,6 +240,16 @@ export const cmd = {
     w.loan = { amount, open: true }; w.coins += amount; emit(w, 'loan', { amount });
     return { ok: true, cost: -amount };
   }),
+  // ---- M5 (docs/M5_DESIGN.md §11) – failure reasons are mapped to i18n in app.ts REASON_KEY
+  startProject: (w: World, id: ProjectId) => logged(w, 'startProject', [id], () => startProject(w, id)),
+  hireLead: (w: World, id: LeadId) => logged(w, 'hireLead', [id], () => hireLead(w, id)),
+  callInspection: (w: World) => logged(w, 'callInspection', [], () => callInspection(w)),
+  closeInspection: (w: World) => logged(w, 'closeInspection', [], () => closeInspection(w)),
+  transfer: (w: World, toSite: number) => logged(w, 'transfer', [toSite], () => transfer(w, toSite, (seed) => newGame(seed, { firstSession: false, debug: w.debug }))),
+  buyPerk: (w: World, id: PerkId) => logged(w, 'buyPerk', [id], () => buyPerk(w, id)),
+  seeMail: (w: World) => logged(w, 'seeMail', [], () => seeMail(w)),
+  claimMail: (w: World, i: number) => logged(w, 'claimMail', [i], () => claimMail(w, i)),
+  collectOffline: (w: World) => logged(w, 'collectOffline', [], () => collectOffline(w)),
 };
 function logged(w: World, name: string, args: unknown[], fn: () => CommandResult): CommandResult {
   const r = fn();

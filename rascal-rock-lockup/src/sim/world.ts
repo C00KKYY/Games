@@ -2,6 +2,7 @@
 import { ECON, STARS, PARCELS, type RoomType } from '../content/balance';
 import { buildGround, Ground, START_ROOMS, PATH_Y, GATE_X, GATE_Y, DOCK, OFFICE, DEPOT, BOOTH } from '../content/site1';
 import { W, H, TICKS_PER_HOUR, type World, type Room, type Tile, type SimEvent, type Side } from './types';
+import { LEAD_SLOT_STARS } from '../content/progress';
 import { makeGrid, idx, distanceField, rebuildWalls, components } from './pathfield';
 import { packRoom } from './layout';
 
@@ -39,6 +40,7 @@ export function createWorld(seed = 1, opts: { firstSession?: boolean; debug?: bo
     events: [], eventSeq: 0,
     cache: { fields: new Map(), version: 0, doorRes: new Int32Array(W * H), evCursor: 0 },
     debug: !!opts.debug,
+    ...m5Defaults(1),
   };
   markFixed(w);
   applyParcels(w);
@@ -48,6 +50,26 @@ export function createWorld(seed = 1, opts: { firstSession?: boolean; debug?: bo
   addFixedRoom(w, 'office', OFFICE.x, OFFICE.y, OFFICE.w, OFFICE.h);
   rebuild(w);
   return w;
+}
+
+type M5Keys = 'projects' | 'leads' | 'taps' | 'inspection' | 'prestige' | 'mail' | 'vip' | 'wall' | 'offline';
+/**
+ * Defaults of every M5 field (docs/M5_DESIGN.md §1.2). Used by createWorld and by the v1 → v2 save migration, so a
+ * migrated M4 save and a fresh game have exactly the same shape. Per-site fields (projects, leads, inspection,
+ * offline ring) are reset by a transfer; prestige, mail, vip, wall and taps survive it (prestige.ts).
+ */
+export function m5Defaults(site: number): Pick<World, M5Keys> {
+  return {
+    projects: { done: {}, running: null },
+    leads: { slots: (LEAD_SLOT_STARS[site] ?? []).map(() => null), hiredMs: {} },
+    taps: { horn: 0, crates: 0, hornTotal: 0, cratesTotal: 0 },
+    inspection: { phase: 'idle', startMs: 0, walker: { x: 0, y: 0, dir: 'S', moving: false, wp: 0 }, retryDay: 0, hours: [], mark: { released: 0, escaped: 0, unsolved: 0, income: 0, wages: 0 }, last: null, best: 0, count: 0 },
+    prestige: { perks: {}, lifetimeCoins: 0, completedSites: [], bestStars: [], transfers: 0, keysEarned: 0 },
+    mail: { day: -1, tasks: [], streak: 0, daysCompleted: 0, seenDay: -1, visible: false, count: {} },
+    vip: { phase: 'none', sessionEndMs: 0, sessionEndDay: 0, boardPermanent: false, arrivals: 0 },
+    wall: { nowMs: 0, tzMin: 0, sessionStartMs: 0, sessions: 0 },
+    offline: { ring: [], ringLife: 0, ringMs: 0, pending: null, collected: 0 },
+  };
 }
 
 /** fixed structures: never buildable; office & booth are solid */

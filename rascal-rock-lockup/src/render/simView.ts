@@ -9,6 +9,7 @@ import { START_DECOR, FERRY_POS, GATE_X, GATE_Y, OFFICE, DEPOT, BOOTH } from '..
 import { P } from '../../art/palette';
 import type { World, Agent } from '../sim/types';
 import { hourOf } from '../sim/time';
+import { ProgressView } from './progressView';
 
 const hex = (h: string) => parseInt(h.slice(1), 16);
 const ACC_TINTS = [hex(P.sage500), hex(P.teal500), hex(P.gold500), hex(P.brick500), hex(P.ink500)];
@@ -45,6 +46,8 @@ export class SimView {
   readonly booth: Sprite;
   private crates: Sprite[] = [];
   private decor: { s: Sprite; x: number; y: number }[] = [];
+  /** M5 world visuals (projects, leads, inspector, VIP board) – src/render/progressView.ts */
+  readonly progress: ProgressView;
 
   constructor(app: Application, private w: World) {
     app.stage.addChild(this.world.root);
@@ -61,6 +64,7 @@ export class SimView {
       const g = new Sprite(tex('glow')); g.position.set(p.x, p.y); g.scale.set(1.1); g.alpha = 0; wv.lights.addChild(g); this.glows.push(g);
     }
     this.amb = new Ambient(wv.sea, wv.fx, wv.lights);
+    this.progress = new ProgressView(wv, w);
   }
 
   get container(): Container { return this.world.root; }
@@ -84,6 +88,7 @@ export class SimView {
     // natural decor standing where a room was built is cleared
     for (const d of this.decor) d.s.visible = !w.rooms.some(r => d.x >= r.x - 0.2 && d.x <= r.x + r.w + 0.2 && d.y >= r.y && d.y <= r.y + r.h + 0.4);
     this.version = w.cache.version;
+    this.progress.onRooms();
   }
 
   update(dt: number) {
@@ -97,6 +102,7 @@ export class SimView {
     this.world.tinted.tint = (lerp(1, 0xb6 / 255) << 16) | (lerp(1, 0xc0 / 255) << 8) | lerp(1, 0xdc / 255);
     this.glows.forEach((g, i) => { g.alpha = n * 0.85 * (0.92 + Math.sin(rclock.t * 5.5 + i * 1.7) * 0.04); });
     this.amb.update(dt);
+    this.progress.update(dt);
     // ferry: away → off screen to the west, arriving/docked at the berth
     const f = w.ferry;
     const targetX = f.state === 'away' ? -9 : f.state === 'leaving' ? -9 : FERRY_POS.x;

@@ -33,6 +33,22 @@ import { mountTutorial } from './ui/tutorial';
 import { mountJuice } from './render/juice';
 import { mountAudio, type Audio } from './audio/audio';
 import { assetUrl } from './platform/assets';
+// ---- M5 (docs/M5_DESIGN.md §10–§12)
+import { systemClock } from './platform/systemClock';
+import { FakeClock, type Clock } from './sim/clock';
+import { awayMs } from './save/store';
+import { syncWall, beginSession, resumeSession, markSessionEnd } from './sim/wall';
+import { planAway, applyOfflineFormula, CatchUp } from './sim/offline';
+import { completionPercent } from './sim/prestige';
+import type { M5Panel, CatchUpState } from './ui/ctx';
+import { mountProjectBoard } from './ui/projectBoard';
+import { mountLeads } from './ui/leads';
+import { mountMail } from './ui/mail';
+import { mountInspection } from './ui/inspection';
+import { mountTransfer } from './ui/transfer';
+import { mountReturnPanel } from './ui/returnPanel';
+import { mountSaveIndicator } from './ui/saveIndicator';
+import { mountEdgeHints } from './ui/edgeHints';
 
 /** every CommandResult reason the sim returns (src/sim/rooms.ts, src/sim/sim.ts cmd) → its localised message */
 const REASON_KEY: Record<string, Key> = {
@@ -45,11 +61,20 @@ const REASON_KEY: Record<string, Key> = {
   // taps, loan
   noFerry: 'overlays.reason.noFerry', cooldown: 'tools.reason.cooldown', empty: 'overlays.reason.empty',
   none: 'overlays.reason.none', open: 'overlays.reason.open',
+  // M5 commands (src/sim/projects|leads|inspection|prestige|mail|offline.ts)
+  done: 'progress.reason.done', busy: 'progress.reason.busy', noSlot: 'progress.reason.noSlot',
+  notReady: 'progress.reason.notReady', tooSoon: 'progress.reason.tooSoon', tutorial: 'progress.reason.tutorial',
+  notPassed: 'progress.reason.notPassed', keys: 'progress.reason.keys', notDone: 'progress.reason.notDone',
+  claimed: 'progress.reason.claimed',
 };
 
 /** sim events that count as an important action → save soon (debounced ≤ 1 write / 2 s, Brief §9.7) */
-const SAVE_EVENTS = new Set(['build', 'built', 'upgrade', 'release', 'objective', 'hire', 'demolish', 'resize', 'star', 'unlock', 'loan', 'loanRepaid']);
+const SAVE_EVENTS = new Set(['build', 'built', 'upgrade', 'release', 'objective', 'hire', 'demolish', 'resize', 'star', 'unlock', 'loan', 'loanRepaid',
+  // M5: project, lead, inspection, transfer, perk, mail, offline (Brief §9.7 "Inspektion, Versetzung")
+  'projectStart', 'projectDone', 'leadHired', 'inspectionCalled', 'inspectionResult', 'transfer', 'perkBought', 'mailClaimed', 'offlineCollected']);
 const FADE_MS = 320;
+/** absences longer than this are absurd clock jumps (+10 years, H4) – clamped here, the offline cap applies on top */
+const AWAY_MAX_MS = 10 * 365 * 86_400_000;
 
 export interface App { readonly w: World; ctx: UICtx; input: { ownsPointer: boolean; onPanStart(): void }; frame(dt: number): void; readonly container: Container; readonly groundCull: Container; frameStart(): void; insets(): { top: number; bottom: number; left: number; right: number } }
 
@@ -59,7 +84,12 @@ interface Gen { w: World; view: SimView; overlay: Container; stepper: Stepper; b
 export async function createApp(app: Application, cam: Camera, platform: Platform, params: URLSearchParams): Promise<App> {
   // ------------------------------------------------------------------ save read (platform.ready has resolved: §9.2.4)
   const sandbox = params.has('bot') || params.has('warp') || params.has('capture') || params.has('nosave');
-  const store = new SaveStore(() => (sandbox ? null : platform.storage()));
+  // wall clock (Brief §5): the real one, or a FakeClock for tests (?clock=<epoch ms>&tz=<min east of UTC>; window.__clock.advance(ms))
+  const clock: Clock = params.has('clock') ? new FakeClock(Number(params.get('clock')) || 0, Number(params.get('tz') ?? 0) || 0) : systemClock;
+  const tzNow = () => clock.tzOffsetMin?.(clock.now()) ?? 0;
+  /** wall-clock systems (mail day, VIP) run outside sandboxes, and inside one only with an injected ?clock (e2e) */
+  const wallOn = !sandbox || params.has('clock');
+  const store = new SaveStore(() => (sandbox ? null : platform.storage()), () => clock.now());
   const loaded: LoadOutcome = params.has('fresh') ? { kind: 'none' } : store.load();
   const startSettings: Settings = loaded.kind === 'ok' ? loaded.settings : { ...DEFAULT_SETTINGS };
   const w0 = loaded.kind === 'ok' ? loaded.world : newGame(Number(params.get('seed') ?? 1), { debug: params.has('debug') });
@@ -130,6 +160,10 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     panned,
     settings: tracked(new Store<Settings>(startSettings)),
     setLang(l: Lang) { setLang(l); document.documentElement.lang = l; ctx.settings.set({ ...ctx.settings.get(), lang: l }); },
+    clock,
+    panel: tracked(new Store<M5Panel | null>(null)),
+    catchUp: new Store<CatchUpState | null>(null),
+    saved: new Store(0),
   };
 
   // ------------------------------------------------------------------ autosave (Brief §9.7)
@@ -138,8 +172,10 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     // a save made while paused keeps the speed the player will resume with
     const w = ctx.w, sp = w.speed;
     if (paused) w.speed = speedBeforePause;
+    markSessionEnd(w, clock.now(), tzNow()); // the morning-VIP rule measures from the last save (Brief §5.4)
     const r = store.save(w, ctx.settings.get());
     w.speed = sp;
+    if (r.ok) ctx.saved.set(performance.now());
     return r.ok;
   }, performance.now());
   ctx.settings.on(() => autosave.request()); // settings live in the save doc – persist on change
@@ -149,7 +185,16 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     if (store.externallyCleared()) { store.clear(); return; } // "Reset progress" wiped the slots and reloads: stay wiped
     autosave.flush(performance.now());
   };
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
+  // background tab (Brief §3.15): the hidden time is handled like an absence when the tab comes back
+  let hiddenAt = 0;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { hiddenAt = clock.now(); flushSave(); return; }
+    if (!hiddenAt || swapping) return;
+    const away = awayMs(hiddenAt, clock.now(), AWAY_MAX_MS);
+    hiddenAt = 0;
+    if (wallOn) resumeSession(ctx.w, clock.now(), tzNow());
+    handleAway(away);
+  });
   window.addEventListener('pagehide', flushSave);
 
   // ------------------------------------------------------------------ generations
@@ -170,7 +215,9 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       late.tip = mountTooltips(ctx);
       late.toasts = mountToasts(ctx);
       late.modals = mountModals(ctx);
-      const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx), mountTutorial(ctx), mountJuice(ctx, view), late.audio!];
+      const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx), mountTutorial(ctx), mountJuice(ctx, view), late.audio!,
+        // M5 (ui-m5): capture-phase Esc listeners register after modals.ts, so an open modal still wins (docs/M5_DESIGN.md §12)
+        mountProjectBoard(ctx), mountLeads(ctx), mountMail(ctx), mountInspection(ctx), mountTransfer(ctx), mountReturnPanel(ctx), mountSaveIndicator(ctx), mountEdgeHints(ctx)];
       (window as unknown as Record<string, unknown>).__sim = w;
       (window as unknown as Record<string, unknown>).__view = view; // test hook (E): agent views (walk phase, facing)
       return { w, view, overlay, stepper: new Stepper(w), bot, comps, offs };
@@ -195,7 +242,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   (window as unknown as Record<string, unknown>).__tipOf = (el: HTMLElement) => late.tip?.contentOf(el) ?? null;
 
   /** cross-fade to another world (late init found a save): fade in, rebuild the generation, fade out */
-  const replaceWorld = async (nw: World, settings: Settings) => {
+  const replaceWorld = async (nw: World, settings: Settings, doneMsg: Key | null = 'save.restored') => {
     if (swapping) return;
     swapping = true;
     const fade = document.createElement('div');
@@ -209,7 +256,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     try {
       if (paused) { paused = false; platform.gameplayStart(); }
       unmountGen(gen);
-      ctx.selection.set(null); ctx.tool.set({ kind: 'none' }); ctx.menu.set(null);
+      ctx.selection.set(null); ctx.tool.set({ kind: 'none' }); ctx.menu.set(null); ctx.panel.set(null); catchUp = null; ctx.catchUp.set(null);
       input.ownsPointer = false; fly.on = false;
       initSpeed(nw);
       if (!params.get('lang') && settings.lang && settings.lang !== getLang()) { setLang(settings.lang); document.documentElement.lang = settings.lang; }
@@ -220,7 +267,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     fade.style.opacity = '0';
     setTimeout(() => fade.remove(), FADE_MS + 50);
     swapping = false;
-    ctx.toast(t('save.restored'), { kind: 'good', ms: 3500 });
+    if (doneMsg) ctx.toast(t(doneMsg), { kind: 'good', ms: 3500 });
   };
 
   // ------------------------------------------------------------------ save state messages + late init (Brief §9.2.4)
@@ -231,7 +278,14 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   platform.onLateInit(() => {
     if (sandbox) return;
     const r = store.load();
-    if (r.kind === 'ok') { void replaceWorld(r.world, r.settings).then(() => { if (r.damaged) ctx.toast(t('save.damagedOne'), { kind: 'info', ms: 4000 }); }); return; }
+    if (r.kind === 'ok') {
+      void replaceWorld(r.world, r.settings).then(() => {
+        if (r.damaged) ctx.toast(t('save.damagedOne'), { kind: 'info', ms: 4000 });
+        startSession(r.doc.savedAt);
+      });
+      return;
+    }
+    platform.reportProgress(completionPercent(ctx.w));
     if (r.kind === 'corrupt') ctx.toast(t('save.damagedAll'), { kind: 'info', ms: 4000 });
     autosave.flush(performance.now()); // no save yet: saving starts now
   });
@@ -248,6 +302,38 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     flush: () => autosave.flush(performance.now()),
     state: () => ({ saveState: platform.saveState(), available: store.available(), seq: store.seq, writes: store.writes, bytes: store.lastBytes, error: store.lastError, sandbox, loaded: loaded.kind }),
   };
+
+  // ------------------------------------------------------------------ M5: sessions, absence, platform hooks (docs/M5_DESIGN.md §10)
+  /** a running catch-up resim: the normal stepper waits until it is done (the resim stands for the past) */
+  let catchUp: CatchUp | null = null;
+  let catchMode: 'silent' | 'catchup' = 'silent';
+  /** < 60 s silent resim, 60 s – 5 min resim in blocks with "Catching up…", ≥ 5 min formula + return panel (Brief §3.15) */
+  const handleAway = (away: number) => {
+    if (sandbox) return;
+    const plan = planAway(ctx.w, away);
+    if (plan.mode === 'formula') { applyOfflineFormula(ctx.w, plan.awayMs); return; }
+    if (plan.mode === 'silent' || plan.mode === 'catchup') {
+      catchUp = new CatchUp(ctx.w, plan.ticks, tick); catchMode = plan.mode;
+      ctx.catchUp.set({ mode: plan.mode, left: catchUp.left, total: catchUp.total });
+    }
+  };
+  /** session start after a load: absence since the save, then the morning-VIP check; report completion (Brief §3.17) */
+  const startSession = (savedAt: number | null) => {
+    if (!wallOn) return;
+    const now = clock.now();
+    if (savedAt !== null) handleAway(awayMs(savedAt, now, AWAY_MAX_MS));
+    beginSession(ctx.w, now, tzNow());
+    platform.reportProgress(completionPercent(ctx.w));
+  };
+  startSession(loaded.kind === 'ok' ? loaded.doc.savedAt : null);
+  ctx.onEvent(e => {
+    if (e.type === 'happytime') platform.happytime();                         // first release + every passed inspection (§11.1)
+    else if (e.type === 'completion') platform.reportProgress(Number(e.percent) || 0);
+    else if (e.type === 'transfer') pendingRemount = true;                    // the world was reset in place → rebuild views
+  });
+  let pendingRemount = false;
+  let wallAcc = 0;
+  (window as unknown as Record<string, unknown>).__clock = clock;
 
   // dispatch every new sim event exactly once (events are a ring of EVENT_CAP; eventSeq counts all ever emitted)
   const dispatch = () => {
@@ -285,9 +371,18 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
         if (Math.hypot(fly.x - cam.x, fly.y - cam.y) < 1 && Math.abs(fly.z - cam.zoom) < 0.01) fly.on = false;
       }
       const g = gen;
-      const before = g.stepper.ticks;
-      g.stepper.frame(dt * 1e6);
-      if (g.bot) for (let i = before; i < g.stepper.ticks; i++) g.bot.step();
+      if (pendingRemount && !swapping) { pendingRemount = false; void replaceWorld(g.w, ctx.settings.get(), null); }
+      if (catchUp) {
+        catchUp.step();
+        if (catchUp.done) { catchUp = null; ctx.catchUp.set(null); }
+        else ctx.catchUp.set({ mode: catchMode, left: catchUp.left, total: catchUp.total });
+      } else {
+        const before = g.stepper.ticks;
+        g.stepper.frame(dt * 1e6);
+        if (g.bot) for (let i = before; i < g.stepper.ticks; i++) g.bot.step();
+      }
+      wallAcc += dt;
+      if (wallAcc >= 1 && wallOn) { wallAcc = 0; syncWall(g.w, clock.now(), tzNow()); }
       g.view.update(dt);
       dispatch();
       for (const c of g.comps) c.update(dt);

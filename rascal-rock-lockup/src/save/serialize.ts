@@ -4,11 +4,12 @@
  */
 import LZString from 'lz-string';
 import type { World } from '../sim/types';
-import { rebuild } from '../sim/world';
+import { rebuild, m5Defaults } from '../sim/world';
 import { flushEvents } from '../sim/sim';
 import { makeGrid } from '../sim/pathfield';
 
-export const SAVE_VERSION = 1;
+/** v1 = M4, v2 = M5 (projects, leads, taps, inspection, prestige, mail, vip, wall, offline – docs/M5_DESIGN.md §1.2) */
+export const SAVE_VERSION = 2;
 export const SLOT_KEYS = ['rrl_save_a', 'rrl_save_b'] as const;
 export interface Settings { music: number; sfx: number; ambience: number; mute: boolean; lang: 'en' | 'de' | null; shake: boolean }
 export const DEFAULT_SETTINGS: Settings = { music: 0.7, sfx: 0.85, ambience: 0.6, mute: false, lang: null, shake: true };
@@ -42,6 +43,8 @@ export function worldToPlain(w: World): Record<string, unknown> {
   return JSON.parse(JSON.stringify({ ...rest, grid: g }));
 }
 export function plainToWorld(p: Record<string, unknown>): World {
+  // idempotent safety net: an M5 field added after a v2 save was written gets its default (no-op for complete saves)
+  fillDefaults(p, m5Defaults(Number(p.site) || 1) as unknown as Record<string, unknown>);
   const pg = p.grid as Record<string, number[] | number>;
   const grid = makeGrid(pg.w as number, pg.h as number);
   for (const k of ['ground', 'owned', 'fixed', 'road', 'blocked'] as const) unrle(pg[k] as number[], grid[k]);
@@ -54,8 +57,18 @@ export function plainToWorld(p: Record<string, unknown>): World {
 // ---------------------------------------------------------------- migrations
 type Migration = (doc: SaveDoc) => SaveDoc;
 const MIGRATIONS: Record<number, Migration> = {
-  // 1 → 2: example: (d) => { d.world.foo = 0; d.v = 2; return d; }
+  // 1 → 2 (M5): every new top-level field gets its default; a field that already exists (partially) is filled up
+  1: (d) => { d.world = fillDefaults(d.world, m5Defaults(Number(d.world.site) || 1) as unknown as Record<string, unknown>); d.v = 2; return d; },
 };
+/** deep-fill missing keys of plain objects (arrays and values that exist are kept as they are) */
+export function fillDefaults(o: Record<string, unknown>, dflt: Record<string, unknown>): Record<string, unknown> {
+  for (const [k, v] of Object.entries(dflt)) {
+    const cur = o[k];
+    if (cur === undefined || cur === null && v !== null) o[k] = JSON.parse(JSON.stringify(v));
+    else if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) fillDefaults(cur as Record<string, unknown>, v as Record<string, unknown>);
+  }
+  return o;
+}
 export function migrate(doc: SaveDoc): SaveDoc {
   while (doc.v < SAVE_VERSION) { const m = MIGRATIONS[doc.v]; if (!m) throw new Error(`no migration from v${doc.v}`); doc = m(doc); }
   return doc;
