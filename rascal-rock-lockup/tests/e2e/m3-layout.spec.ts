@@ -5,8 +5,10 @@
  *
  * Output:
  *  - qa/m3/b1/<lang>/<screen>-<w>x<h>.png  – the 3 single images per screen that are reviewed visually (800×450, 907×510, 1920×1080)
- *  - qa/tmp/m3-b1/<lang>/…                 – the other 7 sizes; qa/tmp/ is already gitignored, so the repo only keeps the
- *                                            reviewed singles and the montages, while the full matrix stays on disk locally
+ *  - qa/tmp/m3-b1/<lang>/…                 – the other 7 sizes, the 844×390 touch-emulation shots (<screen>-844x390-touch.png)
+ *                                            and the confirmation / transient-layer states (state-<name>-<size>.png);
+ *                                            qa/tmp/ is already gitignored, so the repo only keeps the reviewed singles and
+ *                                            the montages, while the full matrix stays on disk locally
  *  - qa/m3/montage-<lang>.png               – one ffmpeg `tile` montage per language (rows = screens, columns = sizes)
  *  - qa/m3/b1-audit.json                    – the measured DOM audit per screenshot (written by the montage test)
  */
@@ -17,6 +19,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setup, gotoGame } from './helpers';
+import { load, reset, enter, type StateName } from './states';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const QA = join(ROOT, 'qa/m3');
@@ -71,7 +74,7 @@ const auditPath = (lang: string, screen: string) => join(QA_TMP, 'audit', `${lan
 
 interface Audit {
   blocks: { root: string; box: [number, number, number, number] }[];
-  overlap: string[]; clipped: string[]; offscreen: string[]; small: string[]; running: string[];
+  overlap: string[]; inner: string[]; clipped: string[]; spill: string[]; offscreen: string[]; small: string[]; running: string[];
   hudArea: number; textNodes: number;
 }
 
@@ -80,21 +83,35 @@ interface Audit {
  *  - Visible element: `checkVisibility({opacityProperty, visibilityProperty})` is true and its box, clipped by every
  *    ancestor inside `.hud` with overflow ≠ visible, has a non-zero area (.hud/#app/body are not used as clips, so a
  *    box leaving the viewport stays measurable).
- *  - HUD block (overlap check a): every direct child of `.hud` that does not carry `data-overlay`. Elements with
- *    `data-overlay` (and their descendants) are excluded everywhere in the overlap check. A block's footprint is the
- *    bounding box of everything it actually paints – elements with a background colour/image, a visible border or
- *    box-shadow, replaced elements (img/svg/canvas/input) and own text – clipped by ancestor overflow. Transparent
- *    layout wrappers (e.g. the full-screen tools layer `.tl` or the clipboard wrapper `.cb`) therefore count only with
- *    what they draw. Two footprints overlapping by more than 0.5 px in both axes is a failure.
+ *  - Painted box: an element with a background colour/image, a visible border or box-shadow, a replaced element
+ *    (img/svg/canvas/input) or own text – plus its ::before / ::after boxes when they are absolutely positioned and
+ *    paint (content ≠ none and a background, border or text), e.g. the clip tab above the clipboard card.
+ *  - Overlap (a), between blocks: every direct child of `.hud` that does not carry `data-overlay` is a block. Elements
+ *    with `data-overlay` (and their descendants) are excluded everywhere in the overlap checks. A block's footprint is
+ *    the bounding box of all its painted boxes, clipped by ancestor overflow. Transparent layout wrappers (the
+ *    full-screen tools layer `.tl`, the clipboard wrapper `.cb`) therefore count only with what they draw. Two
+ *    footprints overlapping by more than 0.5 px in both axes is a failure.
+ *  - Overlap (a), inside a block ("inner"): any two painted elements of the same block that are not ancestor and
+ *    descendant of each other and do not belong to the same control (button / [role=button] / label) must not overlap
+ *    by more than 0.5 px in both axes (two topbar pills, two build-bar buttons, two clipboard rows, …). The parts of
+ *    one control (icon + caption of a button) are one unit.
  *  - Clipped text (b): a visible element with text in its subtree whose computed overflow on an axis is hidden/clip and
  *    whose scroll size exceeds its client size by more than 1 px on that axis (this includes text-overflow: ellipsis
  *    and line-clamp). overflow:auto/scroll are intentional scroll containers and are not flagged.
+ *  - Spilled text (b), whatever the overflow value: every line box of every visible text node must lie inside the
+ *    padding box of every painted ancestor (button, pill, panel, card – anything with a background or border) up to
+ *    `.hud`, with 1 px tolerance horizontally; vertically the half-leading of a line-height smaller than the glyph box is
+ *    tolerated as well. Scroll containers (overflow auto/scroll) end the walk – what scrolls is not a spill – and so does
+ *    an absolutely positioned painted box (a keycap badge on a button corner is checked against itself). Also an
+ *    own-text element (not inline) whose scrollWidth/scrollHeight exceeds clientWidth/clientHeight by more than 1 px
+ *    with overflow visible is a spill.
  *  - Off-screen (b): any visible element under `.hud` (overlays included) whose clipped box leaves the viewport by
  *    more than 1 px.
- *  - Small text (c): any visible, non-whitespace text node whose parent's computed font-size is below 12 px.
+ *  - Small text (c): any visible, non-whitespace text node whose rendered font size (computed font-size × the
+ *    accumulated CSS transform scale of the element and its ancestors) is below 12 px.
  *  - Running text (d): text nodes are grouped by their nearest non-inline ancestor (the text block). A text block whose
  *    words (whitespace-separated tokens containing a letter or digit) number ≥ 6 is running text; every text node in it
- *    must be ≥ 14 px.
+ *    must be ≥ 14 px (rendered size as in c).
  *  - hudArea: area of the union of all painted boxes of the HUD blocks (opaque HUD), used for B7.
  */
 function auditHud(): Audit {
@@ -127,32 +144,85 @@ function auditHud(): Audit {
     return area(r) > 0 ? r : null;
   };
   const r1 = (r: R) => r.map(v => Math.round(v * 10) / 10) as R;
-  const paints = (el: Element) => {
-    if (/^(IMG|SVG|CANVAS|INPUT|SELECT|TEXTAREA|VIDEO)$/i.test(el.tagName)) return true;
-    const cs = getComputedStyle(el);
-    if (!/rgba\(\d+, \d+, \d+, 0\)|transparent/.test(cs.backgroundColor)) return true;
+  const transparent = (c: string) => /rgba\(\d+, \d+, \d+, 0\)|transparent/.test(c);
+  /** background, border or shadow – a visible box (independent of text) */
+  const paintsBox = (cs: CSSStyleDeclaration) => {
+    if (!transparent(cs.backgroundColor)) return true;
     if (cs.backgroundImage !== 'none' || cs.boxShadow !== 'none') return true;
     for (const s of ['Top', 'Right', 'Bottom', 'Left'] as const) {
-      if (parseFloat(cs[`border${s}Width`]) > 0 && cs[`border${s}Style`] !== 'none' && !/rgba\(\d+, \d+, \d+, 0\)/.test(cs[`border${s}Color`])) return true;
+      if (parseFloat(cs[`border${s}Width`]) > 0 && cs[`border${s}Style`] !== 'none' && !transparent(cs[`border${s}Color`])) return true;
     }
+    return false;
+  };
+  const paints = (el: Element) => {
+    if (/^(IMG|SVG|CANVAS|INPUT|SELECT|TEXTAREA|VIDEO)$/i.test(el.tagName)) return true;
+    if (paintsBox(getComputedStyle(el))) return true;
     return [...el.childNodes].some(n => n.nodeType === 3 && n.textContent!.trim());
   };
+  /** boxes of absolutely positioned, painting ::before / ::after of a positioned element */
+  const pseudoBoxes = (el: Element): R[] => {
+    const out: R[] = [];
+    const ecs = getComputedStyle(el);
+    if (ecs.position === 'static') return out;
+    const eb = el.getBoundingClientRect();
+    const bl = parseFloat(ecs.borderLeftWidth) || 0, bt = parseFloat(ecs.borderTopWidth) || 0, br = parseFloat(ecs.borderRightWidth) || 0, bb = parseFloat(ecs.borderBottomWidth) || 0;
+    for (const pseudo of ['::before', '::after']) {
+      const cs = getComputedStyle(el, pseudo);
+      if (cs.content === 'none' || cs.content === 'normal' || cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity) === 0) continue;
+      if (cs.position !== 'absolute' && cs.position !== 'fixed') continue;
+      const hasText = cs.content.replace(/^["']|["']$/g, '').trim().length > 0 && !/^url\(/.test(cs.content);
+      if (!paintsBox(cs) && !hasText) continue;
+      const extra = (a: string, b: string, c: string, d: string) => cs.boxSizing === 'border-box' ? 0 : (parseFloat(a) || 0) + (parseFloat(b) || 0) + (parseFloat(c) || 0) + (parseFloat(d) || 0);
+      const w = parseFloat(cs.width) + extra(cs.paddingLeft, cs.paddingRight, cs.borderLeftWidth, cs.borderRightWidth);
+      const h = parseFloat(cs.height) + extra(cs.paddingTop, cs.paddingBottom, cs.borderTopWidth, cs.borderBottomWidth);
+      if (!(w > 0 && h > 0)) continue;
+      const x0 = cs.left !== 'auto' ? eb.left + bl + parseFloat(cs.left) : cs.right !== 'auto' ? eb.right - br - parseFloat(cs.right) - w : eb.left + bl;
+      const y0 = cs.top !== 'auto' ? eb.top + bt + parseFloat(cs.top) : cs.bottom !== 'auto' ? eb.bottom - bb - parseFloat(cs.bottom) - h : eb.top + bt;
+      const r = isect([x0, y0, x0 + w, y0 + h], clipOf(el.firstElementChild ?? el));
+      if (area(r) > 0) out.push(r);
+    }
+    return out;
+  };
+  /** rendered font size: computed font-size × accumulated transform scale */
+  const fontPx = (el: Element) => {
+    let k = 1;
+    for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) {
+      const t = getComputedStyle(e).transform;
+      const m = t && t !== 'none' ? t.match(/^matrix(3d)?\(([^)]+)\)$/) : null;
+      if (m) { const v = m[2].split(',').map(parseFloat); const a = v[0], b = v[1], c = m[1] ? v[4] : v[2], d = m[1] ? v[5] : v[3]; k *= Math.sqrt(Math.abs(a * d - b * c)); }
+    }
+    return parseFloat(getComputedStyle(el).fontSize) * k;
+  };
+  const isInline = (el: Element) => /^inline$|^contents$/.test(getComputedStyle(el).display);
+  const control = (el: Element) => el.closest('button, [role="button"], label, a[href]');
 
-  const out: Audit = { blocks: [], overlap: [], clipped: [], offscreen: [], small: [], running: [], hudArea: 0, textNodes: 0 };
+  const out: Audit = { blocks: [], overlap: [], inner: [], clipped: [], spill: [], offscreen: [], small: [], running: [], hudArea: 0, textNodes: 0 };
   // (a) HUD blocks and their painted footprint
   const painted: R[] = [];
   for (const root of [...hud.children]) {
     if (root.hasAttribute('data-overlay')) continue;
     let fp: R | null = null;
+    const items: { el: Element; b: R }[] = [];
     for (const el of [root, ...root.querySelectorAll('*')]) {
       if (el.closest('[data-overlay]')) continue;
-      if (!paints(el)) continue;
-      const b = boxOf(el);
-      if (!b) continue;
-      painted.push(b);
-      fp = fp ? [Math.min(fp[0], b[0]), Math.min(fp[1], b[1]), Math.max(fp[2], b[2]), Math.max(fp[3], b[3])] : b;
+      const own = paints(el) ? boxOf(el) : null;
+      if (own) items.push({ el, b: own });
+      const bs = [...(own ? [own] : []), ...(el.checkVisibility({ opacityProperty: true, visibilityProperty: true }) ? pseudoBoxes(el) : [])];
+      for (const b of bs) {
+        painted.push(b);
+        fp = fp ? [Math.min(fp[0], b[0]), Math.min(fp[1], b[1]), Math.max(fp[2], b[2]), Math.max(fp[3], b[3])] : b;
+      }
     }
     if (fp) out.blocks.push({ root: desc(root).split(' "')[0], box: r1(fp) });
+    // inner overlap: painted elements of this block, not ancestor/descendant, not parts of the same control
+    for (let i = 0; i < items.length; i++) for (let j = i + 1; j < items.length; j++) {
+      const A = items[i], B = items[j];
+      if (A.el.contains(B.el) || B.el.contains(A.el)) continue;
+      const ca = control(A.el), cb = control(B.el);
+      if (ca && ca === cb) continue;
+      const o = isect(A.b, B.b);
+      if (o[2] - o[0] > 0.5 && o[3] - o[1] > 0.5) out.inner.push(`${desc(A.el)} ${JSON.stringify(r1(A.b))} ∩ ${desc(B.el)} ${JSON.stringify(r1(B.b))}`);
+    }
   }
   for (let i = 0; i < out.blocks.length; i++) for (let j = i + 1; j < out.blocks.length; j++) {
     const o = isect(out.blocks[i].box, out.blocks[j].box);
@@ -173,7 +243,7 @@ function auditHud(): Audit {
       out.hudArea += len * (x1 - x0);
     }
   }
-  // (b) clipped text + off-screen, for every element under .hud (overlays included)
+  // (b) clipped text, own-text scroll spill + off-screen, for every element under .hud (overlays included)
   for (const el of hud.querySelectorAll('*')) {
     const b = boxOf(el);
     if (!b) continue;
@@ -183,8 +253,18 @@ function auditHud(): Audit {
     const he = el as HTMLElement;
     if ((cs.overflowX === 'hidden' || cs.overflowX === 'clip') && he.scrollWidth > he.clientWidth + 1) out.clipped.push(`${desc(el)} x: scrollWidth ${he.scrollWidth} > clientWidth ${he.clientWidth}`);
     if ((cs.overflowY === 'hidden' || cs.overflowY === 'clip') && he.scrollHeight > he.clientHeight + 1) out.clipped.push(`${desc(el)} y: scrollHeight ${he.scrollHeight} > clientHeight ${he.clientHeight}`);
+    const ownText = [...el.childNodes].filter(n => n.nodeType === 3 && n.textContent!.trim());
+    if (ownText.length && !isInline(el)) {
+      // vertical slack: a line-height below the font's glyph box (line-height: 1 on numbers) overflows by design
+      let glyph = 0;
+      for (const n of ownText) { const rg = document.createRange(); rg.selectNodeContents(n); for (const q of rg.getClientRects()) glyph = Math.max(glyph, q.height); }
+      const lhv = parseFloat(cs.lineHeight);
+      const slackY = isFinite(lhv) ? Math.max(0, glyph - lhv) : 0;
+      if (cs.overflowX === 'visible' && he.scrollWidth > he.clientWidth + 1) out.spill.push(`${desc(el)} x: scrollWidth ${he.scrollWidth} > clientWidth ${he.clientWidth} (overflow visible)`);
+      if (cs.overflowY === 'visible' && he.scrollHeight > he.clientHeight + 1 + slackY) out.spill.push(`${desc(el)} y: scrollHeight ${he.scrollHeight} > clientHeight ${he.clientHeight} (overflow visible)`);
+    }
   }
-  // (c) + (d) text sizes
+  // (b) spilled text + (c) + (d) text sizes
   const blocks = new Map<Element, { words: number; nodes: { el: Element; px: number; txt: string }[] }>();
   const tw = document.createTreeWalker(hud, NodeFilter.SHOW_TEXT);
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
@@ -196,8 +276,27 @@ function auditHud(): Audit {
     const rr = range.getBoundingClientRect();
     if (rr.width * rr.height <= 0) continue;
     out.textNodes++;
-    const px = parseFloat(getComputedStyle(el).fontSize);
-    if (px < 12) out.small.push(`${desc(el)} font-size ${px}px text "${txt.slice(0, 40)}"`);
+    const px = fontPx(el);
+    if (px < 12) out.small.push(`${desc(el)} font-size ${Math.round(px * 100) / 100}px text "${txt.slice(0, 40)}"`);
+    // spill: each line box against every painted ancestor's padding box (until a scroll container)
+    const ecs = getComputedStyle(el);
+    const lh = parseFloat(ecs.lineHeight);
+    const lines = [...range.getClientRects()].filter(q => q.width > 0.5 && q.height > 0.5);
+    for (let p: Element | null = el; p && p !== hud; p = p.parentElement) {
+      const pcs = getComputedStyle(p);
+      if (/auto|scroll/.test(pcs.overflowX + pcs.overflowY)) break;
+      if (!paintsBox(pcs) || isInline(p)) continue;
+      const pb = p.getBoundingClientRect();
+      const box: R = [pb.left + (parseFloat(pcs.borderLeftWidth) || 0), pb.top + (parseFloat(pcs.borderTopWidth) || 0), pb.right - (parseFloat(pcs.borderRightWidth) || 0), pb.bottom - (parseFloat(pcs.borderBottomWidth) || 0)];
+      const bad = lines.find(q => {
+        const slack = isFinite(lh) ? Math.max(0, (q.height - lh) / 2) : 0;
+        return q.left < box[0] - 1 || q.right > box[2] + 1 || q.top < box[1] - 1 - slack || q.bottom > box[3] + 1 + slack;
+      });
+      if (bad) { out.spill.push(`text "${txt.slice(0, 40)}" ${JSON.stringify(r1([bad.left, bad.top, bad.right, bad.bottom]))} leaves ${desc(p).split(' "')[0]} ${JSON.stringify(r1(box))}`); break; }
+      // an absolutely positioned painted box (hotkey keycap, badge) is the text's own container: where it sits relative
+      // to its parent is placement, checked by the overlap and off-screen rules, not text overflow
+      if (pcs.position === 'absolute' || pcs.position === 'fixed') break;
+    }
     let blk: Element = el;
     while (blk !== hud && /^inline|^contents$/.test(getComputedStyle(blk).display) && blk.parentElement) blk = blk.parentElement;
     const e = blocks.get(blk) ?? { words: 0, nodes: [] };
@@ -205,8 +304,20 @@ function auditHud(): Audit {
     e.nodes.push({ el, px, txt });
     blocks.set(blk, e);
   }
-  for (const [blk, e] of blocks) if (e.words >= 6) for (const nd of e.nodes) if (nd.px < 14) out.running.push(`${desc(blk)} (${e.words} words) node ${desc(nd.el)} font-size ${nd.px}px`);
+  for (const [blk, e] of blocks) if (e.words >= 6) for (const nd of e.nodes) if (nd.px < 14) out.running.push(`${desc(blk)} (${e.words} words) node ${desc(nd.el)} font-size ${Math.round(nd.px * 100) / 100}px`);
   return out;
+}
+
+/** B1 DOM checks (a)–(d) as soft expectations, so one run lists every defect of a screen */
+function softAudit(a: Audit, at: string) {
+  expect.soft(a.textNodes, `${at}: HUD renders text`).toBeGreaterThan(0);
+  expect.soft(a.overlap, `${at}: (a) HUD blocks overlap`).toEqual([]);
+  expect.soft(a.inner, `${at}: (a) elements inside a HUD block overlap`).toEqual([]);
+  expect.soft(a.clipped, `${at}: (b) clipped text`).toEqual([]);
+  expect.soft(a.spill, `${at}: (b) text spills out of its box`).toEqual([]);
+  expect.soft(a.offscreen, `${at}: (b) element outside the viewport`).toEqual([]);
+  expect.soft(a.small, `${at}: (c) text < 12 px`).toEqual([]);
+  expect.soft(a.running, `${at}: (d) running text < 14 px`).toEqual([]);
 }
 
 /** annotation that is also printed (the list reporter shows stdout) */
@@ -260,6 +371,18 @@ test.describe('B1 screenshot matrix', () => {
       add('left:780px;top:260px;font-size:14px;width:60px', 'edge');                                       // (b) off-screen
       add('left:10px;top:10px;font-size:14px;width:60px;height:20px', 'over');                             // (a) over the top bar
       add('left:100px;top:10px;font-size:14px;width:60px;height:20px', 'floating', { 'data-overlay': '' }); // ignored by (a)
+      // (b) spill: label running out of a painted button with overflow visible (inline caption and blockified caption)
+      add('left:300px;top:300px;font-size:14px;width:26px;height:30px;white-space:nowrap;border:2px solid #000', 'Demolish spill');
+      const btn = document.createElement('button'); btn.className = 'selfcheck'; btn.style.cssText = 'position:absolute;left:300px;top:340px;width:26px;display:flex;font-size:14px;white-space:nowrap;background:#fff;border:2px solid #000';
+      const cap = document.createElement('span'); cap.textContent = 'Rooms flexspill'; btn.appendChild(cap); hud.appendChild(btn);
+      // (a) inner overlap: two pills inside one block (the top bar) drawn over each other
+      const tb = document.querySelector('[data-hud="top"]')!;
+      for (const x of [200, 210]) { const pill = document.createElement('div'); pill.className = 'selfcheck pill'; pill.style.cssText = `position:absolute;left:${x}px;top:2px;width:40px;height:20px;background:#fff;font-size:14px`; pill.textContent = 'pill' + x; tb.appendChild(pill); }
+      // (c) transform-scaled text: 14 px × .6 = 8.4 px
+      add('left:500px;top:150px;font-size:14px;transform:scale(.6)', 'scaled');
+      // pseudo-element footprint: an absolutely positioned ::before tab sticking out above a block
+      const st = document.createElement('style'); st.className = 'selfcheck'; st.textContent = '.selfcheck-tab::before{content:"";position:absolute;left:0;top:-30px;width:40px;height:30px;background:#000}'; document.head.appendChild(st);
+      add('left:600px;top:400px;width:40px;height:20px;font-size:14px', 'tab', { class: 'selfcheck selfcheck-tab' });
     });
     const bad = await page.evaluate(auditHud);
     await page.evaluate(() => document.querySelectorAll('.selfcheck').forEach(e => e.remove()));
@@ -270,10 +393,18 @@ test.describe('B1 screenshot matrix', () => {
     expect(bad.overlap.join('|')).toContain('div.selfcheck [10,10,70,30]');  // block roots are named without text
     expect(bad.overlap.join('|')).not.toContain('[100,10,');                // the data-overlay one (also over the top bar) is ignored
     expect(bad.hudArea).toBeGreaterThan(clean.hudArea);
+    expect(bad.spill.join('|')).toContain('Demolish spill');
+    expect(bad.spill.join('|')).toContain('Rooms flexspill');
+    expect(bad.inner.join('|')).toContain('pill200');
+    expect(bad.small.join('|')).toContain('scaled');
+    expect(bad.blocks.find(b => b.root.includes('selfcheck-tab'))?.box[1]).toBe(370);   // 400 − 30 px of the ::before tab
+    // the clean HUD is clean
+    expect(clean.spill).toEqual([]);
+    expect(clean.inner).toEqual([]);
   });
 
   for (const lang of LANGS) for (const sc of SCREENS) {
-    test(`B1 ${lang} ${sc.name}`, async ({ page }) => {
+    test(`B1 ${lang} ${sc.name}`, async ({ page, browser }) => {
       test.setTimeout(240_000);
       const guard = await setup(page);
       const results: Record<string, Audit> = {};
@@ -293,12 +424,29 @@ test.describe('B1 screenshot matrix', () => {
         const a = await page.evaluate(auditHud);
         results[`${w}x${h}`] = a;
         const at = `${lang} ${sc.name} ${w}x${h}`;
-        expect.soft(a.textNodes, `${at}: HUD renders text`).toBeGreaterThan(0);
-        expect.soft(a.overlap, `${at}: (a) HUD blocks overlap`).toEqual([]);
-        expect.soft(a.clipped, `${at}: (b) clipped text`).toEqual([]);
-        expect.soft(a.offscreen, `${at}: (b) element outside the viewport`).toEqual([]);
-        expect.soft(a.small, `${at}: (c) text < 12 px`).toEqual([]);
-        expect.soft(a.running, `${at}: (d) running text < 14 px`).toEqual([]);
+        softAudit(a, at);
+      }
+      // docs/UI_DESIGN.md §5: plus touch emulation (hasTouch, pointer: coarse) at 844×390 – touch layout (44 px targets,
+      // taller top bar). Stored with the other non-reviewed sizes in qa/tmp.
+      {
+        const tctx = await browser.newContext({ viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+        const tp = await tctx.newPage();
+        try {
+          const tguard = await setup(tp);
+          await gotoGame(tp, `lang=${lang}&capture=1${sc.query ? '&' + sc.query : ''}`, 0);
+          expect(await tp.evaluate(() => matchMedia('(pointer: coarse)').matches), 'touch emulation active').toBe(true);
+          await step(tp, 45);
+          if (sc.prep) { await sc.prep(tp); await step(tp, 30); }
+          if (sc.check) await waitFor(tp, sc.check);
+          await settleCss(tp);
+          const file = join(QA_TMP, lang, `${sc.name}-844x390-touch.png`);
+          mkdirSync(join(file, '..'), { recursive: true });
+          await tp.screenshot({ path: file });
+          const a = await tp.evaluate(auditHud);
+          results['844x390-touch'] = a;
+          softAudit(a, `${lang} ${sc.name} 844x390 touch`);
+          expect(tguard.foreign).toEqual([]);
+        } finally { await tctx.close(); }
       }
       mkdirSync(join(QA_TMP, 'audit'), { recursive: true });
       writeFileSync(auditPath(lang, sc.name), JSON.stringify(results, null, 1));
@@ -334,6 +482,49 @@ test.describe('B1 screenshot matrix', () => {
     for (const lang of LANGS) for (const sc of SCREENS) if (existsSync(auditPath(lang, sc.name))) all[`${lang}/${sc.name}`] = JSON.parse(readFileSync(auditPath(lang, sc.name), 'utf8'));
     writeFileSync(join(QA, 'b1-audit.json'), JSON.stringify(all, null, 1));
   });
+});
+
+/**
+ * The B1 DOM checks (a)–(d) for what the screen list does not open: the clipboard goal list, the topbar stage list, the
+ * build cursor label, the touch ✓ / ✕, the demolish bubble, the room-panel and settings-reset confirmations, a visible
+ * hover tooltip and a stack of toasts (tests/e2e/states.ts). EN and DE at the three reviewed sizes, the 1280×720
+ * default and the 844×390 touch size. Toast / tooltip / label text is running text when it has ≥ 6 words (≥ 14 px).
+ */
+const EXTRA_STATES: StateName[] = ['clipList', 'stageList', 'build', 'touchConfirm', 'demoBubble', 'roomConfirm', 'resetConfirm', 'tip', 'toast'];
+const EXTRA_SIZES = [
+  { tag: '800x450', viewport: { width: 800, height: 450 }, touch: false },
+  { tag: '907x510', viewport: { width: 907, height: 510 }, touch: false },
+  { tag: '1280x720', viewport: { width: 1280, height: 720 }, touch: false },
+  { tag: '1920x1080', viewport: { width: 1920, height: 1080 }, touch: false },
+  { tag: '844x390-touch', viewport: { width: 844, height: 390 }, touch: true },
+];
+test.describe('B1 DOM audit of confirmations and transient layers', () => {
+  for (const lang of LANGS) for (const sz of EXTRA_SIZES) {
+    test.describe(`${lang} ${sz.tag}`, () => {
+      test.use({ viewport: sz.viewport, isMobile: sz.touch, hasTouch: sz.touch, deviceScaleFactor: 1 });
+      test(`B1 ${lang} confirmations, tooltip, toasts @ ${sz.tag}`, async ({ page }) => {
+        test.setTimeout(240_000);
+        const guard = await load(page, `${MID}&lang=${lang}`);
+        const results: Record<string, Audit> = {};
+        for (const s of EXTRA_STATES) {
+          await reset(page);
+          if (!(await enter(page, s))) continue;
+          const a = await page.evaluate(auditHud);
+          results[s] = a;
+          if (sz.tag === '800x450' || sz.tag === '844x390-touch') {
+            const file = join(QA_TMP, lang, `state-${s}-${sz.tag}.png`);
+            mkdirSync(join(file, '..'), { recursive: true });
+            await page.screenshot({ path: file });
+          }
+          softAudit(a, `${lang} ${s} ${sz.tag}`);
+        }
+        mkdirSync(join(QA_TMP, 'audit'), { recursive: true });
+        writeFileSync(join(QA_TMP, 'audit', `${lang}-states-${sz.tag}.json`), JSON.stringify(results, null, 1));
+        expect(Object.keys(results), 'states entered').toEqual(EXTRA_STATES.filter(s => s !== 'stageList' || results.stageList));
+        expect(guard.foreign).toEqual([]);
+      });
+    });
+  }
 });
 
 test.describe('B2 canvas backing store', () => {
@@ -476,7 +667,7 @@ test.describe('B7 at 800×450', () => {
     expect(hs[0], `smallest rascal ${JSON.stringify(r.rascals.find(x => x.h === hs[0]))}`).toBeGreaterThanOrEqual(22);
   });
 
-  test('B7.4 world labels ≥ 14 px (Pixi text objects)', async ({ page }) => {
+  test('B7.4 world labels ≥ 14 px (Pixi text objects and the world-anchored DOM labels)', async ({ page }) => {
     await setup(page);
     await gotoGame(page, MID, 1000);
     const r = await page.evaluate(() => {
@@ -496,11 +687,43 @@ test.describe('B7 at 800×450', () => {
       walk(app.stage);
       return labels;
     });
-    if (r.length === 0) {
-      // M3 has no Pixi world labels (src/render uses only Sprite/Graphics) – nothing is invented here
-      note('note', 'no Pixi Text/BitmapText/HTMLText world labels exist in M3; world-anchored DOM labels (.tl layer, tools.ts) are covered by the B1 font checks');
-      expect(r.length).toBe(0);
+    // M3 renders no Pixi text (src/render uses only Sprite/Graphics); if any appears it must be ≥ 14 px
+    note('measured', `${r.length} Pixi text objects`);
+    for (const l of r) expect(l.px, `Pixi world label "${l.text}"`).toBeGreaterThanOrEqual(14);
+
+    // world-anchored DOM labels of the tools layer (src/ui/tools.ts): the build cursor label (price, capacity, reason,
+    // bonus lines), the touch ✓ / ✕ with its label and the demolish bubble. Every visible text node ≥ 14 px rendered
+    // (computed font-size × accumulated transform scale).
+    await page.unroute('**/*');
+    await load(page, MID);
+    const fails: string[] = [];
+    const seen: Record<string, number> = {};
+    for (const s of ['build', 'touchConfirm', 'demoBubble'] as StateName[]) {
+      await reset(page);
+      await enter(page, s);
+      const texts = await page.evaluate(() => {
+        const out: { where: string; text: string; px: number }[] = [];
+        for (const root of document.querySelectorAll('.tl-label, .tl-confirm, .tl-bubble')) {
+          const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+            const t = (n.textContent ?? '').trim(); const el = n.parentElement!;
+            if (!t || !el.checkVisibility({ opacityProperty: true, visibilityProperty: true })) continue;
+            let k = 1;
+            for (let e: Element | null = el; e; e = e.parentElement) {
+              const m = getComputedStyle(e).transform.match(/^matrix\(([^)]+)\)$/);
+              if (m) { const v = m[1].split(',').map(parseFloat); k *= Math.sqrt(Math.abs(v[0] * v[3] - v[1] * v[2])); }
+            }
+            out.push({ where: `${root.className} ${el.tagName.toLowerCase()}.${el.className}`, text: t.slice(0, 40), px: Math.round(parseFloat(getComputedStyle(el).fontSize) * k * 100) / 100 });
+          }
+        }
+        return out;
+      });
+      seen[s] = texts.length;
+      for (const t of texts) if (t.px < 14) fails.push(`[${s}] ${t.px}px "${t.text}" – ${t.where}`);
     }
-    for (const l of r) expect(l.px, `world label "${l.text}"`).toBeGreaterThanOrEqual(14);
+    note('measured', `DOM world-label text nodes per state: ${JSON.stringify(seen)}`);
+    expect(seen.build, 'cursor label texts measured').toBeGreaterThanOrEqual(3);
+    expect(seen.demoBubble, 'demolish bubble texts measured').toBeGreaterThanOrEqual(2);
+    expect(fails).toEqual([]);
   });
 });
