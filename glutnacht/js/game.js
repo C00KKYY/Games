@@ -1319,10 +1319,15 @@ const Game = {
   },
 
   // ---------- Effekte ----------
+  // Partikel und Schadenszahlen kommen aus einem Vorrat (keine neuen Objekte je Treffer: weniger Speicherbereinigung,
+  // die sonst alle paar Sekunden das Spiel für einige ms anhält); _sp ist das zwischengespeicherte Bild der Darstellung
+  partPool: [], textPool: [], numStr: [],
   part(x, y, color, vx, vy, life, size) {
     const ps = this.run.parts;
     if (ps.length > 700) return;
-    ps.push({ x, y, vx, vy, life, max: life, size, color });
+    const q = this.partPool.pop() || { x: 0, y: 0, vx: 0, vy: 0, life: 0, max: 0, size: 0, color: '', _sp: null };
+    q.x = x; q.y = y; q.vx = vx; q.vy = vy; q.life = life; q.max = life; q.size = size; q.color = color; q._sp = null;
+    ps.push(q);
   },
 
   burst(x, y, color, n, speed) {
@@ -1336,8 +1341,12 @@ const Game = {
     const ts = this.run.texts;
     // Bei Gewühl nur noch Krits und Wichtiges zeigen
     if (ts.length > 45 && scale <= 1 && color === '#ffffff') return;
-    if (ts.length > 70) ts.shift();
-    ts.push({ x, y, txt: String(txt), color, scale, t: 0 });
+    if (ts.length > 70) this.textPool.push(ts.shift());
+    // ganze Zahlen (Schaden) als zwischengespeicherte Zeichenkette
+    const ns = this.numStr, s = typeof txt === 'number' && txt >= 0 && txt < 20000 && txt === (txt | 0) ? ns[txt] || (ns[txt] = String(txt)) : String(txt);
+    const o = this.textPool.pop() || { x: 0, y: 0, txt: '', color: '', scale: 1, t: 0 };
+    o.x = x; o.y = y; o.txt = s; o.color = color; o.scale = scale; o.t = 0;
+    ts.push(o);
   },
 
   updateParticles(dt) {
@@ -1346,7 +1355,7 @@ const Game = {
     for (let i = ps.length - 1; i >= 0; i--) {
       const q = ps[i];
       q.life -= dt;
-      if (q.life <= 0) { ps[i] = ps[ps.length - 1]; ps.pop(); continue; }
+      if (q.life <= 0) { ps[i] = ps[ps.length - 1]; ps.pop(); if (this.partPool.length < 800) this.partPool.push(q); continue; }
       q.x += q.vx * dt; q.y += q.vy * dt;
       q.vx *= 0.92; q.vy *= 0.92;
     }
@@ -1354,7 +1363,7 @@ const Game = {
     for (let i = ts.length - 1; i >= 0; i--) {
       ts[i].t += dt;
       ts[i].y -= 32 * dt;
-      if (ts[i].t > 0.7) ts.splice(i, 1);
+      if (ts[i].t > 0.7) { if (this.textPool.length < 100) this.textPool.push(ts[i]); ts.splice(i, 1); }
     }
   },
 

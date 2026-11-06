@@ -52,6 +52,7 @@ const UI = {
     this.el.screen.innerHTML = this['tpl_' + name](data);
     this.el.screen.scrollTop = 0;
     this.modalReady = performance.now() + (['levelup', 'chest', 'victory'].includes(name) ? 380 : 0);
+    if (name === 'levelup' || name === 'chest' || name === 'pause') Sfx.warmBoss();
   },
 
   // Ladebildschirm aus index.html (steckt bis zum ersten show() in #screen) sanft ausblenden
@@ -697,8 +698,10 @@ const UI = {
     const L = this.lastHud, el = this.el;
     const xpk = Math.min(1, r.xp / r.xpNext);
     // Leisten per transform statt width: kein Layout je Bild
-    const xpw = Math.round(xpk * 1000);
-    if (L.xp !== xpw) { el.xpfill.style.transform = 'translateX(' + (xpw / 10 - 100) + '%)'; L.xp = xpw; }
+    // Zähler und Erfahrungsleiste höchstens alle 0,1 s bzw. 0,25 s anfassen (Edelsteinregen und Massenkills änderten
+    // sie sonst in jedem Bild; jede Textänderung kostet Stil und Layout). Die Leiste gleitet per Übergang.
+    const now = performance.now(), slow = now - (L.tq || 0) >= 250, xpw = Math.round(xpk * 1000);
+    if (L.xp !== xpw && (now - (L.tx || 0) >= 100 || L.level !== r.level)) { el.xpfill.style.transform = 'translateX(' + (xpw / 10 - 100) + '%)'; L.xp = xpw; L.tx = now; }
     if (L.level !== r.level) {
       // Stufenaufstieg: Erfahrungsleiste leuchtet kurz auf
       if (L.level && r.level > L.level) { const x = el.xplvl.parentNode; x.classList.remove('lvlglow'); void x.offsetWidth; x.classList.add('lvlglow'); }
@@ -710,8 +713,9 @@ const UI = {
       el.timer.classList.toggle('endless', r.endless);
       L.t = tt;
     }
-    if (L.kills !== r.kills) { el.kills.textContent = fmtNum(r.kills); L.kills = r.kills; }
-    if (L.gold !== r.gold) {
+    if (L.kills !== r.kills && slow) { el.kills.textContent = fmtNum(r.kills); L.kills = r.kills; L.tq = now; }
+    if (L.gold !== r.gold && (slow || !L.gold)) {
+      L.tq = now;
       el.gold.textContent = fmtNum(r.gold); L.gold = r.gold;
       el.goldrow.hidden = !(r.gold > 0); // Goldzähler erst ab der ersten Münze
     }

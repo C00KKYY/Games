@@ -17,13 +17,15 @@ const MIN_ZOOM = 0.8;
 // Fällt die Bildrate im Spiel unter 42 fps, wird auf Probe zurückgeschaltet (siehe autoQuality).
 // sprites: Partikel als Kenney-Funken (sonst gebündelte Quadrate); shadows: Schatten unter Gegnern.
 // Die Lichtkarte ist weich, daher genügt ihr wenig Auflösung; die teuren Schritte (Canvas-Auflösung) kommen zuletzt.
+// px: ab Stufe 1 höchstens so viele Canvas-Bildpunkte (hochauflösende Anzeigen mit großem Fenster, etwa 4K mit
+// Skalierung 1,5 oder ein Retina-Laptop: dort sinkt die Schärfe leicht, aber nie unter einen Bildpunkt je CSS-Pixel).
 const QUALITY = [
   { rs: 1, lm: 0.4, gemLights: true, sprites: true, shadows: true },
-  { rs: 1, lm: 0.3, gemLights: false, sprites: true, shadows: false },
-  { rs: 0.8, lm: 0.28, gemLights: false, sprites: true, shadows: false },
-  { rs: 0.68, lm: 0.25, gemLights: false, sprites: false, shadows: false },
-  { rs: 0.52, lm: 0.22, gemLights: false, sprites: false, shadows: false },
-  { rs: 0.38, lm: 0.2, gemLights: false, sprites: false, shadows: false }, // letzter Ausweg (unscharf)
+  { rs: 1, px: 4.2e6, lm: 0.3, gemLights: false, sprites: true, shadows: false },
+  { rs: 0.8, px: 4.2e6, lm: 0.28, gemLights: false, sprites: true, shadows: false },
+  { rs: 0.68, px: 4.2e6, lm: 0.25, gemLights: false, sprites: false, shadows: false },
+  { rs: 0.52, px: 4.2e6, lm: 0.22, gemLights: false, sprites: false, shadows: false },
+  { rs: 0.38, px: 4.2e6, lm: 0.2, gemLights: false, sprites: false, shadows: false }, // letzter Ausweg (unscharf)
 ];
 // Umgebungslicht je Land: die Lichtkarte wird mit dieser Farbe gefüllt und mit der Szene multipliziert
 // (#ffffff = unverändert). Lichtquellen (Glut des Helden, Kohlebecken, Geschosse …) hellen sie auf.
@@ -42,7 +44,7 @@ const Render = {
 
   init(canvas) {
     this.cv = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext('2d', { alpha: false }); // deckend: nichts scheint durch, der Compositor muss nicht mischen
     this.setStage(STAGES[0]);
     this.spr.bolt = this.glowSprite(26, '#ffffff', '#b48cff');
     this.spr.boltEvo = this.glowSprite(30, '#ffffff', '#ff7cf5');
@@ -73,7 +75,9 @@ const Render = {
   setStage(stage) {
     if (this.stageId === stage.id) return;
     this.stageId = stage.id;
-    this.pattern = this.ctx.createPattern(Sprites.groundTile(stage.ground, stage.id), 'repeat');
+    this.groundSrc = Sprites.groundTile(stage.ground, stage.id);
+    this.pattern = this.ctx.createPattern(this.groundSrc, 'repeat'); // in Weltmaßstab (für Werkzeuge); das Spiel nutzt groundFill
+    this.gTile = null;
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
     this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
@@ -241,8 +245,13 @@ const Render = {
     return c;
   },
 
+  // Canvas-Bildpunkte je CSS-Pixel auf Stufe i (Gerät höchstens 2, ab Stufe 1 mit Obergrenze px, dann × rs)
+  resAt(i) {
+    const Q = QUALITY[i], d = Math.min(2, window.devicePixelRatio || 1), A = Math.max(1, window.innerWidth * window.innerHeight);
+    return (Q.px ? Math.min(d, Math.max(1, Math.sqrt(Q.px / A))) : d) * Q.rs;
+  },
   resize() {
-    const dpr = Math.min(2, window.devicePixelRatio || 1) * QUALITY[this.quality].rs;
+    const dpr = this.resAt(this.quality);
     const W = window.innerWidth, H = window.innerHeight;
     this.dpr = dpr; this.W = W; this.H = H;
     this.cv.width = Math.round(W * dpr); this.cv.height = Math.round(H * dpr);
@@ -273,14 +282,14 @@ const Render = {
   // Neue Stufe anfordern: ohne Auflösungswechsel sofort (nur Lichtkarte), mit Auflösungswechsel erst unter dem
   // nächsten Dialog, wo das Bild ohnehin steht – so flackert die Schärfe nie sichtbar im laufenden Spiel.
   requestQuality(q, now) {
-    if (now || QUALITY[q].rs === QUALITY[this.quality].rs || this.dialogOpen()) this.applyQuality(q);
+    if (now || this.resAt(q) === this.resAt(this.quality) || this.dialogOpen()) this.applyQuality(q);
     else { this.perf.pend = q; this.perf.pendN = 0; }
   },
   applyQuality(q) {
-    const P = this.perf, o = QUALITY[this.quality], n = QUALITY[q];
+    const P = this.perf, o = QUALITY[this.quality], n = QUALITY[q], res = this.resAt(q) !== this.resAt(this.quality);
     P.log.push('q' + this.quality + '>' + q + (this.dialogOpen() ? ' (Dialog)' : ''));
     this.quality = q; P.pend = -1; P.acc = 0; P.ft.length = 0; P.last = 0;
-    if (n.rs !== o.rs) this.resize();
+    if (res) this.resize();
     else if (n.lm !== o.lm) this.makeLightMap();
   },
 
@@ -302,7 +311,9 @@ const Render = {
   // Hochgeschaltet wird nach einer Sperrzeit, wenn alles am Ziel liegt; die Sperre wächst mit jeder Rückstufung, und
   // eine Stufe, die zweimal kurz nach dem Hochschalten wieder aufgegeben werden musste, wird nicht mehr probiert.
   autoQuality(active) {
-    const P = this.perf, now = performance.now();
+    // Zeitstempel des Bildes (requestAnimationFrame, an den Takt der Anzeige gebunden); performance.now() hier im
+    // Zeichnen schwankte mit der Rechenzeit davor und ließ den gemessenen Takt der Anzeige wandern
+    const P = this.perf, now = this.rafNow || performance.now();
     if (!this.qAuto || (typeof document !== 'undefined' && document.hidden)) { P.last = 0; return; }
     if (!active) {
       P.last = 0;
@@ -338,7 +349,7 @@ const Render = {
     }
     const pr = P.probe;
     P.probe = null;
-    const rs = i => QUALITY[i].rs;
+    const rs = i => this.resAt(i);
     let nq = q0, now2 = false;
     // Eine Probe ist nur vergleichbar, wenn die Last gleich blieb: Wurde es viel langsamer (neue Gegnerwelle,
     // gedrosselte CPU), zählt das Fenster wie ein neues „zu langsam“.
@@ -374,12 +385,15 @@ const Render = {
   },
 
   // Lichtkarte in geringer Auflösung; der Randabfall (Vignette) steckt schon darin
+  // Die Lichtkarte hat genau 1/f der Canvas-Auflösung (f ganzzahlig, 2–4, so nah wie möglich an QUALITY.lm) und wird
+  // ohne Glätten um f vergrößert: Ihre Verläufe sind so weich, dass die f×f-Blöcke nicht zu sehen sind (verglichen
+  // in 3-facher Vergrößerung), aber das Filtern beim Vergrößern kostete ohne Grafikkarte 3 ms je Bild.
   makeLightMap() {
-    const s = QUALITY[this.quality].lm;
-    const w = Math.max(1, Math.ceil(this.W * s)), h = Math.max(1, Math.ceil(this.H * s));
+    const f = this.lmF = clamp(Math.round(this.dpr / QUALITY[this.quality].lm), 2, 4);
+    const w = Math.max(1, Math.ceil(this.cv.width / f)), h = Math.max(1, Math.ceil(this.cv.height / f));
     if (!this.lm) this.lm = document.createElement('canvas');
     this.lm.width = w; this.lm.height = h;
-    this.lmS = s;
+    this.lmS = this.dpr / f; // Lichtkarten-Pixel je CSS-Pixel
     this.lmG = this.lm.getContext('2d');
     const v = this.lmVig = document.createElement('canvas');
     v.width = w; v.height = h;
@@ -440,16 +454,18 @@ const Render = {
     }
     const z = this.zoom, d = this.dpr;
     const cx = this.cam.x + sx / z, cy = this.cam.y + sy / z;
-    this.base = { x: d * (this.W / 2 - cx * z), y: d * (this.H / 2 - cy * z) };
-    ctx.setTransform(d * z, 0, 0, d * z, this.base.x, this.base.y);
+    // Weltursprung auf ganze Bildschirmpunkte: Der Boden liegt dann ohne Filtern (siehe groundFill), und alles in der
+    // Welt verschiebt sich gemeinsam mit ihm
+    const B = this.base;
+    B.x = Math.round(d * (this.W / 2 - cx * z)); B.y = Math.round(d * (this.H / 2 - cy * z));
+    ctx.setTransform(d * z, 0, 0, d * z, B.x, B.y);
     const hw = Game.view.hw + 40, hh = Game.view.hh + 40;
     const vx0 = cx - hw, vy0 = cy - hh, vx1 = cx + hw, vy1 = cy + hh;
 
     // Boden
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
-    ctx.fillStyle = this.pattern;
-    ctx.fillRect(vx0, vy0, hw * 2, hh * 2);
+    this.groundFill();
     this.drawDecor(vx0, vy0, vx1, vy1);
 
     // Im Spiel setzt drawWorld die Lichtkarte zwischen Figuren und leuchtende Effekte; sonst nur Umgebungslicht
@@ -462,6 +478,28 @@ const Render = {
     ctx.globalAlpha = 1;
     if (inRun) this.drawScreenFx(r, dt);
     else { this.drawKeyArt(dt); this.drawEmbers(dt); }
+  },
+
+  // Boden: Die Kachel wird einmal auf Bildschirmmaßstab gebracht (hochwertig geglättet, deckend) und dann ohne
+  // Skalierung um ganze Bildpunkte verschoben als Muster gelegt. Ein skaliertes oder um Bruchteile verschobenes Muster
+  // müsste jedes Bild jeden Bildpunkt neu filtern – ohne Grafikkarte ein Viertel der ganzen Zeichenzeit (3,5 ms von
+  // 13,5 bei 1280×720), ganzzahlig 0,3 ms. Die Kachel ist fest an die Welt gebunden (Weltgröße der
+  // Kachel = gerundete Pixelgröße / Maßstab, also 512 ± 0,5).
+  groundFill() {
+    const ctx = this.ctx, k = this.dpr * this.zoom;
+    if (!this.gTile || this.gK !== k) {
+      const Ts = Math.max(8, Math.round(512 * k)), c = document.createElement('canvas');
+      c.width = c.height = Ts;
+      const g = c.getContext('2d', { alpha: false });
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.drawImage(this.groundSrc, 0, 0, Ts, Ts);
+      this.gTile = ctx.createPattern(c, 'repeat'); this.gTs = Ts; this.gK = k;
+    }
+    const Ts = this.gTs, ox = ((this.base.x % Ts) + Ts) % Ts, oy = ((this.base.y % Ts) + Ts) % Ts;
+    ctx.setTransform(1, 0, 0, 1, ox, oy);
+    ctx.fillStyle = this.gTile;
+    ctx.fillRect(-ox, -oy, this.cv.width, this.cv.height);
+    ctx.setTransform(k, 0, 0, k, this.base.x, this.base.y);
   },
 
   drawDecor(x0, y0, x1, y1) {
@@ -1056,7 +1094,9 @@ const Render = {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'multiply';
     ctx.globalAlpha = 1;
-    ctx.drawImage(this.lm, 0, 0, this.cv.width, this.cv.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.lm, 0, 0, w * this.lmF, h * this.lmF);
+    ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'source-over';
     this.resetT();
   },

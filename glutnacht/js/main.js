@@ -35,6 +35,7 @@
       const steps = dt > 1 / 45 ? 2 : 1;
       for (let i = 0; i < steps; i++) Game.update(dt / steps);
     }
+    Render.rafNow = now;
     Render.draw(dt);
     if (booted) UI.updateHud();
     Platform.setPlaying(Game.state === 'play');

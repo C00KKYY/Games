@@ -464,14 +464,19 @@ const Sfx = (() => {
         const t = lowpassFor(intensity);
         if (t !== lpTarget) { lpTarget = t; cur.f.frequency.setTargetAtTime(t, ctx.currentTime, 0.8); }
       }
-      // Die Bossmusik schon während des Kampfes dekodieren (das Umwandeln aus base64 läuft im Hauptthread und
-      // kostete sonst genau im Bild, in dem der Boss erscheint, einige ms); verdrängt wird dabei die Menümusik
-      if (id === 'battle' && !music.boss && !pending.boss && !failed.boss) loadTrack('boss').catch(() => {});
       return;
     }
     if (music[id]) { crossTo(id); return; }
     if (failed[id]) { if (!cur) startSynth(); return; }
     if (!pending[id]) loadTrack(id).then(() => updateMusic(), () => updateMusic());
+  }
+
+  // Die Bossmusik vorab dekodieren, während ein Dialog das Spiel anhält (UI.show: Stufenaufstieg, Truhe, Pause). Das
+  // Umwandeln aus base64 läuft im Hauptthread und kostete sonst im Bild, in dem der Boss erscheint, einige ms. Nur
+  // wenn die Kampfmusik schon läuft: verdrängt wird dann die Menümusik, nie die laufende.
+  function warmBoss() {
+    if (!ctx || !musicOn || synthOn || !cur || cur.id !== 'battle' || music.boss || pending.boss || failed.boss) return;
+    loadTrack('boss').catch(() => {});
   }
 
   function startMusic() {
@@ -613,7 +618,7 @@ const Sfx = (() => {
 
   return {
     init, preload, onData, play, sting, applySettings, setPlatformMute, releasePlatform, startMusic, stopMusic, setIntensity,
-    unlock: armUnlock, loadTrack, debug, level, EVENTS, VOL, TRACK_VOL, SOUNDS,
+    unlock: armUnlock, loadTrack, warmBoss, debug, level, EVENTS, VOL, TRACK_VOL, SOUNDS,
     get ctx() { return ctx; }, get muted() { return muted(); }, get platformMuted() { return platformMuted || FORCE_MUTE; },
   };
 })();
