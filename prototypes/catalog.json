@@ -8,5 +8,15 @@
     "path": "prototypes/2026-11-05-drillbit-plunge",
     "screenshot": "screenshot.png",
     "issue": 1
+  },
+  {
+    "id": "2026-11-06-bricklash",
+    "name": "Bricklash",
+    "date": "2026-11-06",
+    "genre": "Arcade-Roguelite (Brick-Breaker)",
+    "pitch": "Zertrümmere Ziegel mit Kettenexplosionen, wähle nach jedem Level 1 von 3 Upgrades und besiege alle 5 Level den Ziegel-Golem.",
+    "path": "prototypes/2026-11-06-bricklash",
+    "screenshot": "screenshot.png",
+    "issue": null
   }
 ]
