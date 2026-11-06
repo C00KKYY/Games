@@ -41,3 +41,15 @@ Sofort spielbar, bekanntes Genre mit Roguelite-Twist, Runs von 3–10 Minuten, �
 - Seltene „legendäre“ Upgrades und Synergien (z. B. Feuer + Shockwave = Inferno)
 - Daily Challenge mit festem Seed und Bestenliste
 - Musik-Loop, Ball-Skins als Belohnung
+
+## Änderungen
+
+### 2026-11-06 (Abendlauf, Feedback #2: 4/5, „noch nicht verfeinert“)
+- **Musik:** synthetisierter Loop (Bass, Arpeggio, Kick, Hi-Hat), im Boss-Level schneller, in Menüs gedämpft; respektiert Mute/SDK
+- **Level-Intro:** Ziegel fallen gestaffelt mit Überschwinger ins Feld
+- **Ziegel zerbrechen:** rotierende Splitter in Ziegelfarbe plus weißer Aufprall-Rahmen statt nur Pixel-Partikel
+- **Letzter Treffer:** Zeitlupe mit leichtem Zoom auf den letzten Ziegel
+- **Score:** zählt hoch und „poppt“ bei Punkten
+- **Anti-Stau:** nach 7 s ohne Treffer lenken Bälle sanft zum nächsten Ziegel; bei ≤ 3 Restziegeln pulsiert ihr Rahmen
+- **Zweiter Boss „Warden“** (Level 10, 20, …): 10 Orbit-Ziegel kreisen um ihn, drehen schneller je weniger übrig sind, Fächerschuss; Golem bleibt auf 5, 15, 25
+- **Feinschliff:** Abschuss-Ring, Absturz-Effekt an der Stelle des verlorenen Balls, Upgrade-Karten vergrößern sich mit Glow beim Hover
