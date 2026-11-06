@@ -14,10 +14,22 @@
   Render.init(canvas);
   window.addEventListener('resize', () => Render.resize());
 
-  let last = performance.now();
+  // Gleichmäßige Schritte: Die Zeitstempel von requestAnimationFrame schwanken um den Takt der Anzeige (Zeitgeber,
+  // Planung des Browsers). Liegt ein Abstand nahe am geglätteten Takt (sdt), läuft das Spiel genau einen Takt
+  // weiter; die Abweichung wird gesammelt (debt) und in kleinen Raten (höchstens 10 % je Bild) nachgeholt, so geht
+  // keine Zeit verloren. Echte Aussetzer (ab dem 1,6-Fachen) laufen unverändert durch, gedeckelt auf 50 ms.
+  let last = performance.now(), sdt = 1 / 60, debt = 0;
   function frame(now) {
-    const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+    const raw = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
+    let dt = raw;
+    if (raw > 0) sdt = clamp(sdt + (clamp(raw, sdt * 0.5, sdt * 1.5) - sdt) * 0.05, 1 / 250, 0.05); // folgt auch 30-, 120-, 144-Hz-Anzeigen
+    if (raw > sdt * 0.6 && raw < sdt * 1.6) {
+      dt = sdt;
+      debt = clamp(debt + raw - dt, -0.1, 0.1);
+      const pay = clamp(debt, -dt * 0.1, dt * 0.1);
+      dt += pay; debt -= pay;
+    } else if (raw >= sdt * 1.6) { dt = clamp(raw + debt, 0, 0.05); debt = 0; }
     if (booted) Input.update();
     if (Game.state === 'play') {
       const steps = dt > 1 / 45 ? 2 : 1;
@@ -27,7 +39,9 @@
     if (booted) UI.updateHud();
     Platform.setPlaying(Game.state === 'play');
     const r = Game.run;
-    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : r.bosses.some(b => !b.dead) || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
+    let boss = false;
+    if (r) for (const b of r.bosses) if (!b.dead) { boss = true; break; }
+    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : boss || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
@@ -35,7 +49,7 @@
   // 2. Plattform (bestimmt den Speicherort), Grafiken und Klänge – nie länger als 2,5 s warten.
   //    Kommt das SDK später, stellt Platform.lateAttach() den Speicherort sicher um.
   await Promise.race([
-    Promise.all([Platform.init(), Sprites.load(), FxArt.load(), Sfx.preload()]).catch(() => {}),
+    Promise.all([Platform.init(), Sprites.load(), FxArt.load().then(() => FxArt.warm()), Sfx.preload()]).catch(() => {}),
     new Promise(r => setTimeout(r, 2500)),
   ]);
   Platform.booted = true;
@@ -92,6 +106,7 @@
   booted = true;
   UI.show('menu');
   Platform.loaded();
+  UI.warmIcons();
 
   // Für Tests und Werkzeuge im Browser erreichbar; ready = Menü steht, Spielstand geladen
   window.Glutnacht = { Game, Store, UI, Platform, I18N_MISSES, setLang, ready: true };

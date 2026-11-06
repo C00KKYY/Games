@@ -36,7 +36,7 @@ const Render = {
   cam: { x: 0, y: 0 }, camOffset: { x: 0, y: 0 }, base: { x: 0, y: 0 }, shake: 0, flash: 0, time: 0,
   pattern: null, hurtVig: null, spr: {}, list: [], embers: [],
   // Licht und Effekte (nur Darstellung)
-  quality: 0, qAuto: true, perf: { last: 0, acc: 0, ft: [], upBlock: 0, downs: 0, probe: null, capMs: 0, log: [] },
+  quality: 0, qAuto: true, perf: { last: 0, acc: 0, ft: [], upBlock: 0, downs: 0, probe: null, capMs: 0, pend: -1, pendN: 0, up: null, fails: {}, log: [] },
   lm: null, lmG: null, lmVig: null, lmS: 0.5, ambient: AMBIENT_DEFAULT,
   corpses: [], vfx: [], trails: [], tags: [], lvlFx: null, runRef: null,
 
@@ -77,25 +77,70 @@ const Render = {
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
     this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
-    this.prebuildBosses(stage);
+    // Deko steht sofort im Bild (auch hinter Menü und Karte): gleich bauen
+    for (const k of new Set(this.decor)) Sprites.deco(k, this.decorTint, stage.id);
+    this.prebuildStage(stage);
   },
 
-  // Boss-Bilder (scharf, mit Krone; je Boss 2 Bilder × normal/Treffer/vereist) im Voraus bauen, damit das Erscheinen
-  // eines Bosses nicht ruckelt. Gebaut wird nur, solange das Spiel nicht läuft (Menü, Karte, Geschichte, Level-up,
-  // Truhe, Pause), eines alle 0,12 s. Im laufenden Spiel nur als Rückfall, wenn der Boss in weniger als 25 s kommt.
-  // Der Bildzeit-Messer übergeht das Bild nach einem Bau.
-  prebuildBosses(stage) {
-    const q = this.pbQueue = [];
-    for (const b of (stage.bosses || []).slice().sort((x, y) => x.t - y.t)) for (const v of [0, 1, 2]) for (const f of [0, 1]) q.push({ t: b.t, fn: () => Sprites.bossSprite(b.sprite, b.r, f, v, b.tint || null, Sprites.bossLevel(b)) });
+  // Gegnertypen eines Landes: Wellen, Ereignisse, Beschwörungen der Bosse (Boss-Bilder selbst: prebuildStage)
+  stageTypes(stage) {
+    const ts = new Set();
+    for (const w of stage.waves || []) for (const t in w.pool) ts.add(t);
+    for (const ev of stage.events || []) { if (ev.type) ts.add(ev.type); for (const t in ev.mix || {}) ts.add(t); }
+    for (const b of stage.bosses || []) ts.add(b.summon || 'skel');
+    return [...ts].filter(t => ENEMIES[t]);
+  },
+
+  // Alle Bilder eines Landes im Voraus bauen, damit im Spiel nichts mehr gezeichnet werden muss: Gegner (beide
+  // Laufbilder, bei Fernkämpfern das Ausholbild) normal, Treffer und vereist, jeweils gespiegelt, der goldene
+  // Elite-Umriss (gleich für alle Varianten), Aufsammelbares, Edelsteine, Kohlebecken. Dazu je Boss 2 Bilder ×
+  // normal/Treffer/vereist, scharf mit Krone, samt Spiegelbild.
+  // Gebaut wird außerhalb des Spiels (Menü, Karte, Geschichte, Dialoge) mit einem Zeitbudget je Bild; beim Start
+  // eines Laufs holt flushPrebuild() alles außer den Bossen sofort nach (der Lauf beginnt mit einem Bildwechsel).
+  // Boss-Bilder (je Bild bis zu einige zehn ms) entstehen unter den Dialogen davor, als Rückfall kurz vor dem Boss.
+  // Die Bilder des vorigen Landes werden verworfen (Speicher).
+  prebuildStage(stage) {
+    if (this.pbLand && this.pbLand !== stage.id) Sprites.dropLand();
+    this.pbLand = stage.id;
+    const q = this.pbQueue = [], m = sp => this.mirror(sp);
+    for (const ty of this.stageTypes(stage)) {
+      const tn = (stage.tints && stage.tints[ty]) || null, frames = ENEMIES[ty].ranged ? [0, 1, 2] : [0, 1];
+      for (const f of frames) for (const v of [0, 1, 2]) q.push({ t: 0, fn: () => { const sp = Sprites.enemy(ty, f, v, tn); m(sp); if (!v) m(this.goldOf(sp)); } });
+    }
+    for (const k of ['coin', 'chest', 'heart', 'magnet', 'bomb', 'bag', 'fire']) q.push({ t: 0, fn: () => Sprites.item(k) });
+    for (let i = 0; i < 4; i++) q.push({ t: 0, fn: () => Sprites.gem(i) });
+    q.push({ t: 0, fn: () => Sprites.brazier() });
+    for (const b of (stage.bosses || []).slice().sort((x, y) => x.t - y.t)) for (const v of [0, 1, 2]) for (const f of [0, 1]) q.push({ t: b.t, boss: 1, fn: () => m(Sprites.bossSprite(b.sprite, b.r, f, v, b.tint || null, Sprites.bossLevel(b))) });
     this.pbT = 0;
+  },
+  // Goldener Elite-Umriss: hängt am Grundbild (Treffer- und Frostbild haben dieselbe Silhouette)
+  goldOf(sp) {
+    const b = sp._base || sp;
+    return b._gold || (b._gold = Sprites.tintVariant(b, '#ffd34f', 1));
+  },
+  // Spieler-Bilder des gewählten Helden und alle Nicht-Boss-Bilder des Landes jetzt bauen (Start eines Laufs)
+  flushPrebuild(char) {
+    if (char) { for (const f of [0, 1, 2]) { Sprites.player(char, f, false); Sprites.player(char, f, true); } if (CHARS[char]) Sprites.item(CHARS[char].weapon); }
+    const q = this.pbQueue;
+    if (!q) return;
+    while (q.length && !q[0].boss) q.shift().fn();
   },
   prebuildStep() {
     const q = this.pbQueue;
-    if (!q || !q.length || this.time - this.pbT < 0.12) return;
+    if (!q || !q.length) return;
     const r = Game.run;
-    if (Game.state === 'play' && r && !r.endless && q[0].t - r.t > 25) return;
-    this.pbT = this.time;
-    q.shift().fn();
+    if (Game.state === 'play' && r) {
+      // im Spiel nur Rückfall: der nächste Boss kommt in weniger als 25 s und ist noch nicht fertig (sonst bauen
+      // ihn die Dialoge davor); dann ein Bild je Sekunde, damit sich die Bauzeit verteilt
+      if (this.time - this.pbT < 1 || (!r.endless && q[0].t - r.t > 25)) return;
+      this.pbT = this.time;
+      q.shift().fn();
+      this.perf.last = 0;
+      return;
+    }
+    // außerhalb des Spiels: bis zu 6 ms je Bild
+    const t0 = performance.now();
+    while (q.length && performance.now() - t0 < 6) q.shift().fn();
     this.perf.last = 0;
   },
 
@@ -208,70 +253,124 @@ const Render = {
     Game.view.hh = H / 2 / this.zoom;
     this.hurtVig = this.makeVignette(W, H, 'rgba(255,0,40,0)', 'rgba(255,0,40,0.55)', 0.45);
     this.makeLightMap();
+    this.still = false; // ein stehendes Bild unter einem Dialog muss nach dem Leeren des Canvas neu gezeichnet werden
   },
 
   // Stufe fest setzen (fixed = keine automatische Umschaltung mehr) – für Tests und Einstellungen
   setQuality(q, fixed) {
     this.quality = clamp(Math.round(q), 0, QUALITY.length - 1);
     if (fixed !== undefined) this.qAuto = !fixed;
-    this.perf.acc = 0; this.perf.ft.length = 0;
+    this.perf.acc = 0; this.perf.ft.length = 0; this.perf.pend = -1;
     this.resize();
   },
 
-  // Bildrate im laufenden Spiel messen (je 1,5 s, ohne die langsamsten 10 % der Bilder, damit einzelne Hänger
-  // nichts auslösen). Unter 42 fps eine Stufe zurück – aber auf Probe: Bringt die niedrigere Stufe im nächsten
-  // Messfenster keine um 10 % kürzere Bildzeit, wird zuerst die nächste Stufe probiert, die die Canvas-Auflösung
-  // senkt (die billigen Stufen ohne Auflösungsschritt sparen auf einem ausgelasteten Gerät oft nur wenige Prozent,
-  // das allein beweist nichts). Erst wenn auch ein Auflösungsschritt nichts bringt, liegt es nicht an der Grafik,
-  // sondern an einer Obergrenze der Anzeige (Stromsparmodus mit 30 Hz, 30-Hz-Bildschirm, gedrosselter Tab): Dann
-  // geht es zurück auf die Stufe vor der Probe, und dieser Takt wird als Obergrenze gemerkt (capMs); zurückgeschaltet
-  // wird erst wieder, wenn es deutlich langsamer als diese Obergrenze wird. Die reine Rechenzeit in JS taugt dafür
-  // nicht als Maß: Das Rastern des Canvas läuft außerhalb von JS (im Profil als „(program)“) und ist bei vielen
-  // Figuren der größte Posten.
-  // Hochgeschaltet wird nach einer Sperrzeit, wenn die Bildzeit wieder am Ziel liegt (die Sperre wächst mit jeder
-  // Rückstufung, damit nichts pendelt).
+  // Ein Dialog liegt über dem stehenden Spielbild (Stufenaufstieg, Truhe, Pause, Geschichte)
+  dialogOpen() {
+    const st = Game.state;
+    return !!Game.run && (st === 'levelup' || st === 'chest' || st === 'paused' || st === 'story');
+  },
+
+  // Neue Stufe anfordern: ohne Auflösungswechsel sofort (nur Lichtkarte), mit Auflösungswechsel erst unter dem
+  // nächsten Dialog, wo das Bild ohnehin steht – so flackert die Schärfe nie sichtbar im laufenden Spiel.
+  requestQuality(q, now) {
+    if (now || QUALITY[q].rs === QUALITY[this.quality].rs || this.dialogOpen()) this.applyQuality(q);
+    else { this.perf.pend = q; this.perf.pendN = 0; }
+  },
+  applyQuality(q) {
+    const P = this.perf, o = QUALITY[this.quality], n = QUALITY[q];
+    P.log.push('q' + this.quality + '>' + q + (this.dialogOpen() ? ' (Dialog)' : ''));
+    this.quality = q; P.pend = -1; P.acc = 0; P.ft.length = 0; P.last = 0;
+    if (n.rs !== o.rs) this.resize();
+    else if (n.lm !== o.lm) this.makeLightMap();
+  },
+
+  // Bildrate im laufenden Spiel messen (Fenster von 1,5 s). Maß ist der typische Bildabstand (20-%-Quantil) und der
+  // Anteil der Bilder, die länger als das 1,5-Fache des Takts der Anzeige brauchen (Ruckler; Takt = kleinstes
+  // 10-%-Quantil bisher: 60, 120, 144 Hz oder eine 30-Hz-Grenze). Zu langsam: typischer Abstand unter 42 fps oder
+  // mehr als 12 % Ruckler. Dann eine Stufe
+  // zurück – aber auf Probe: Bringt die niedrigere Stufe im nächsten Fenster keinen Gewinn (Bildzeit −10 % oder
+  // Ruckler −30 %), wird zuerst die nächste Stufe probiert, die die Canvas-Auflösung senkt (die billigen Stufen ohne
+  // Auflösungsschritt sparen auf einem ausgelasteten Gerät oft nur wenige Prozent, das allein beweist nichts). Erst
+  // wenn auch ein Auflösungsschritt nichts bringt, liegt es nicht an der Grafik, sondern an einer Obergrenze der
+  // Anzeige (Stromsparmodus mit 30 Hz, 30-Hz-Bildschirm, gedrosselter Tab): Dann geht es zurück auf die Stufe vor der
+  // Probe, und dieser Takt wird als Obergrenze gemerkt (capMs); zurückgeschaltet wird erst wieder, wenn es deutlich
+  // langsamer als diese Obergrenze wird. Die reine Rechenzeit in JS taugt dafür nicht als Maß: Das Rastern des Canvas
+  // läuft außerhalb von JS (im Profil als „(program)“) und ist bei vielen Figuren der größte Posten.
+  // Auflösungswechsel warten auf den nächsten Dialog (requestQuality); bleibt es zu langsam, kommt eine Rückstufung
+  // nach einem weiteren Fenster auch ohne Dialog, unter 36 fps oder bei über 30 % Rucklern sofort; ein Hochschalten
+  // ohne Dialog nach vier Fenstern. Eine Probe, die nichts gebracht hat, wird sofort zurückgenommen.
+  // Hochgeschaltet wird nach einer Sperrzeit, wenn alles am Ziel liegt; die Sperre wächst mit jeder Rückstufung, und
+  // eine Stufe, die zweimal kurz nach dem Hochschalten wieder aufgegeben werden musste, wird nicht mehr probiert.
   autoQuality(active) {
     const P = this.perf, now = performance.now();
-    if (!active || !this.qAuto || (typeof document !== 'undefined' && document.hidden)) { P.last = 0; return; }
+    if (!this.qAuto || (typeof document !== 'undefined' && document.hidden)) { P.last = 0; return; }
+    if (!active) {
+      P.last = 0;
+      // Unter einem Dialog steht das Bild: einen anstehenden Auflösungswechsel jetzt (unsichtbar) vollziehen
+      if (P.pend >= 0 && this.dialogOpen()) this.applyQuality(P.pend);
+      return;
+    }
     if (P.last) { const ft = now - P.last; if (ft < 250) { P.acc += ft; P.ft.push(ft); } }
     P.last = now;
     if (P.acc < 1500) return;
-    const ft = P.ft.sort((a, b) => a - b), n = Math.max(1, Math.floor(ft.length * 0.9));
-    let sum = 0;
-    for (let i = 0; i < n; i++) sum += ft[i];
-    const avg = sum / n;
+    const ft = P.ft.sort((a, b) => a - b), n = ft.length;
+    // I: typischer Bildabstand dieses Fensters; disp: Takt der Anzeige (kleinstes 10-%-Quantil, steigt nur langsam,
+    // damit dauerhaftes Ruckeln nicht zum neuen Maßstab wird)
+    const I = ft[Math.floor(n * 0.2)], m = Math.max(1, Math.floor(n * 0.9)), p10 = ft[Math.floor(n * 0.1)];
+    P.disp = P.disp ? Math.min(p10, P.disp * 1.02) : p10;
+    let long = 0, sum = 0;
+    for (let i = 0; i < n; i++) { if (ft[i] > P.disp * 1.5 + 1) long++; if (i < m) sum += ft[i]; }
+    const share = long / n, avg = sum / m; // avg ohne die langsamsten 10 % (einzelne Hänger)
     P.acc = 0; ft.length = 0;
     const last = QUALITY.length - 1, q0 = this.quality;
     // Obergrenze vergessen, sobald es klar schneller läuft (z. B. Stromsparmodus beendet)
     if (P.capMs && avg < P.capMs * 0.8) P.capMs = 0;
     const slowMs = Math.max(1000 / 42, P.capMs * 1.15), goodMs = P.capMs ? P.capMs * 1.05 : 1000 / 56;
+    const bad = I > slowMs || share > 0.12, good = I < goodMs && share < 0.03;
+    if (P.log.length > 60) P.log.splice(0, 10);
+    P.log.push(Math.round(avg * 10) / 10 + 'ms/' + Math.round(I * 10) / 10 + '/' + Math.round(P.disp * 10) / 10 + ' ' + Math.round(share * 100) + '%:q' + q0 + (P.pend >= 0 ? '(>' + P.pend + ')' : '') + (P.capMs ? ' cap' + Math.round(P.capMs) : ''));
+    if (P.pend >= 0) {
+      // Auflösungswechsel wartet auf einen Dialog: hinfällig, wenn sich die Lage gedreht hat
+      // (Rückstufung nur verwerfen, wenn es klar wieder flüssig läuft – nicht an der Schwelle pendeln)
+      if (P.pend > q0 ? I < slowMs * 0.9 && share < 0.06 : !good) { P.pend = -1; P.probe = null; }
+      else if (++P.pendN >= (P.pend > q0 ? 1 : 4)) this.applyQuality(P.pend); // ohne Dialog: nach 1,5 s bzw. 6 s
+      return;
+    }
     const pr = P.probe;
     P.probe = null;
     const rs = i => QUALITY[i].rs;
-    if (pr && this.quality > pr.q && avg > pr.avg * 0.9) {
+    let nq = q0, now2 = false;
+    // Eine Probe ist nur vergleichbar, wenn die Last gleich blieb: Wurde es viel langsamer (neue Gegnerwelle,
+    // gedrosselte CPU), zählt das Fenster wie ein neues „zu langsam“.
+    const fair = pr && avg < pr.avg * 1.25;
+    if (pr && q0 > pr.q && fair && !(avg < pr.avg * 0.9 || (pr.share > 0.05 && share < pr.share * 0.7))) {
       // Probe ohne Gewinn. Hat sie die Auflösung nicht gesenkt und ist es noch zu langsam: gleich die nächste
       // Stufe mit kleinerer Canvas-Auflösung probieren (Ausgangsstufe und Messwert der Probe bleiben).
-      let nx = this.quality + 1;
-      while (nx < last && rs(nx) >= rs(this.quality)) nx++;
-      if (rs(this.quality) >= rs(pr.q) && avg > slowMs && nx <= last && rs(nx) < rs(this.quality)) {
-        P.probe = pr; this.quality = nx;
-      } else if (rs(this.quality) < rs(pr.q)) {
-        // Auch weniger Pixel bringen nichts: Obergrenze der Anzeige. Zurück auf die Stufe vor der Probe.
-        this.quality = pr.q; P.downs = pr.downs; P.upBlock = pr.upBlock;
-        P.capMs = Math.max(P.capMs, pr.avg);
+      let nx = q0 + 1;
+      while (nx < last && rs(nx) >= rs(q0)) nx++;
+      if (rs(q0) >= rs(pr.q) && bad && nx <= last && rs(nx) < rs(q0)) {
+        P.probe = pr; nq = nx;
+      } else if (rs(q0) < rs(pr.q) && share < 0.1) {
+        // Auch weniger Pixel bringen nichts, und die Bilder kommen gleichmäßig: Obergrenze der Anzeige. Zurück auf die
+        // Stufe vor der Probe. (Ungleichmäßig, also überlastet: weiter unten bleiben.)
+        nq = pr.q; P.downs = pr.downs; P.upBlock = pr.upBlock;
+        P.capMs = Math.max(P.capMs, pr.avg); P.disp = Math.max(P.disp, I);
+        now2 = true; // die Probe hat die Schärfe gesenkt: gleich zurück
       }
       // sonst: billige Stufe behalten (schadet nicht), es geht ohnehin schon schnell genug
-    } else if (avg > slowMs && this.quality < last) {
+    } else if (bad && q0 < last) {
+      // Hochschalten auf q0 ist gescheitert, wenn es kurz danach wieder zu langsam wird
+      if (P.up && P.up.q === q0 && now - P.up.t < 30000) P.fails[q0] = (P.fails[q0] || 0) + 1;
+      P.up = null;
+      P.probe = { q: q0, avg, share, downs: P.downs, upBlock: P.upBlock };
       // weit darunter (< 24 fps): zwei Stufen auf einmal
-      P.probe = { q: this.quality, avg, downs: P.downs, upBlock: P.upBlock };
-      this.quality = Math.min(last, this.quality + (avg > 1000 / 24 ? 2 : 1));
+      nq = Math.min(last, q0 + (avg > 1000 / 24 ? 2 : 1));
       P.downs++; P.upBlock = now + 15000 * P.downs;
-    } else if (avg < goodMs && this.quality > 0 && now > P.upBlock) {
-      this.quality--; P.upBlock = now + 15000;
+    } else if (good && q0 > 0 && now > P.upBlock && (P.fails[q0 - 1] || 0) < 2) {
+      nq = q0 - 1; P.upBlock = now + 15000; P.up = { q: nq, t: now };
     }
-    if (P.log.length > 60) P.log.shift();
-    P.log.push(Math.round(avg * 10) / 10 + 'ms:q' + q0 + (this.quality !== q0 ? '>' + this.quality : '') + (P.capMs ? ' cap' + Math.round(P.capMs) : ''));
-    if (this.quality !== q0) this.resize();
+    // weit unter 30 fps oder stark ruckelnd: nicht erst auf einen Dialog warten
+    if (nq !== q0) this.requestQuality(nq, now2 || (nq > q0 && (I > 1000 / 36 || share > 0.3)));
   },
 
   // Lichtkarte in geringer Auflösung; der Randabfall (Vignette) steckt schon darin
@@ -320,7 +419,14 @@ const Render = {
     if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
     if (r !== this.runRef) { this.runRef = r; this.corpses.length = 0; this.vfx.length = 0; this.lvlFx = null; }
     this.autoQuality(inRun && Game.state === 'play');
-    this.prebuildStep();
+    // Unter Dialogen steht das Spielbild: einmal zeichnen (nach dem Lichtstoß des Stufenaufstiegs), dann nicht
+    // mehr – das spart unter jedem Dialog die volle Bildarbeit, und der Wechsel zurück ins Spiel ruckelt nicht.
+    // Erst unter dem stehenden Bild wird vorgebaut (nicht während des Lichtstoßes).
+    if (this.dialogOpen()) {
+      if (this.lvlFx && this.lvlFx.stop > 0) this.still = false;
+      else if (this.still) { this.prebuildStep(); return; }
+      else this.still = true;
+    } else { this.still = false; this.prebuildStep(); }
     // Effekt-Zeit läuft nur im Spiel (und im kurzen Stopp beim Stufenaufstieg), nicht unter Dialogen
     const L = this.lvlFx;
     this.fxDt = Game.state === 'play' || (L && L.stop > 0) ? dt : 0;
@@ -688,7 +794,7 @@ const Render = {
     if (this.tags.length) {
       const z = this.zoom;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.font = Math.round(13 / z * 10) / 10 + 'px "Lilita One", Impact, sans-serif';
+      ctx.font = this.font(Math.round(13 / z * 10), '');
       ctx.lineWidth = 3.5 / z; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(30,14,0,0.9)';
       ctx.fillStyle = '#ffd34f';
       const label = tr('Elite').toUpperCase();
@@ -712,7 +818,7 @@ const Render = {
         const k = tx.t / 0.7;
         const pop = tx.t < 0.08 ? 1 + (0.08 - tx.t) * 6 : 1;
         ctx.globalAlpha = 1 - k * k;
-        ctx.font = 'bold ' + Math.ceil(Math.max(14, 13 * tx.scale) * pop / z * 10) / 10 + 'px "Lilita One", Impact, sans-serif';
+        ctx.font = this.font(Math.ceil(Math.max(14, 13 * tx.scale) * pop / z * 10), 'bold ');
         ctx.strokeText(tx.txt, tx.x, tx.y);
         ctx.fillStyle = tx.color;
         ctx.fillText(tx.txt, tx.x, tx.y);
@@ -790,9 +896,9 @@ const Render = {
       } else if (te.kind === 'line') {
         ctx.save();
         ctx.translate(te.x, te.y); ctx.rotate(te.a);
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',0.16)';
+        ctx.fillStyle = this.hostileA(0.16);
         ctx.fillRect(0, -te.w / 2, te.len, te.w);
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',0.35)';
+        ctx.fillStyle = this.hostileA(0.35);
         ctx.fillRect(0, -te.w / 2, te.len * k, te.w);
         ctx.strokeStyle = H.ink; ctx.lineWidth = 2;
         ctx.strokeRect(0, -te.w / 2, te.len, te.w);
@@ -800,9 +906,9 @@ const Render = {
       } else if (te.kind === 'lane') {
         ctx.save();
         ctx.translate(te.x, te.y); ctx.rotate(te.a);
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',' + (0.14 + 0.21 * k).toFixed(3) + ')';
+        ctx.fillStyle = this.hostileA(0.14 + 0.21 * k);
         ctx.fillRect(0, -te.w / 2, te.len, te.w);
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',0.3)';
+        ctx.fillStyle = this.hostileA(0.3);
         ctx.fillRect(0, -te.w * k / 2, te.len, te.w * k);
         ctx.strokeStyle = H.rim; ctx.lineWidth = 1.5;
         ctx.strokeRect(0, -te.w / 2 + 2, te.len, te.w - 4);
@@ -811,9 +917,9 @@ const Render = {
         ctx.restore();
       } else if (te.kind === 'circle') {
         const R = te.rad, locked = te.track && te.t >= te.track.until;
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',0.18)';
+        ctx.fillStyle = this.hostileA(0.18);
         ctx.beginPath(); ctx.arc(te.x, te.y, R, 0, TAU); ctx.fill();
-        ctx.fillStyle = 'rgba(' + H.fillRGB + ',0.3)';
+        ctx.fillStyle = this.hostileA(0.3);
         ctx.beginPath(); ctx.arc(te.x, te.y, R * k, 0, TAU); ctx.fill();
         ctx.strokeStyle = H.ink; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(te.x, te.y, R + 2.5, 0, TAU); ctx.stroke();
@@ -835,7 +941,7 @@ const Render = {
           // Keil zum Ziel: Fächer-Umriss, nach dem Sperren heller
           const sh = te.shots, ext = sh.length > 1 ? Math.abs(sh[0].o) + 5 * DEG : 7 * DEG, L = te.wedge, locked = te.t >= te.lockAt;
           ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, L, te.a - ext, te.a + ext); ctx.closePath();
-          ctx.fillStyle = 'rgba(' + H.fillRGB + ',' + (locked ? 0.42 : 0.26) + ')'; ctx.fill();
+          ctx.fillStyle = this.hostileA(locked ? 0.42 : 0.26); ctx.fill();
           ctx.strokeStyle = H.ink; ctx.lineWidth = 2.5; ctx.stroke();
           ctx.strokeStyle = locked ? H.core : H.rim; ctx.lineWidth = 1.5;
           ctx.beginPath();
@@ -844,7 +950,7 @@ const Render = {
         } else {
           // Ladekreis: Tintenring füllt sich im Uhrzeigersinn, Punkte zeigen, wo die Geschosse austreten
           const R = te.sr, pulse = te.boss ? 1 + Math.sin(t * 22) * 0.05 : 1;
-          ctx.strokeStyle = 'rgba(' + H.fillRGB + ',0.45)'; ctx.lineWidth = 2;
+          ctx.strokeStyle = this.hostileA(0.45); ctx.lineWidth = 2;
           ctx.beginPath(); ctx.arc(x, y, R * pulse, 0, TAU); ctx.stroke();
           ctx.strokeStyle = H.ink; ctx.lineWidth = 4;
           ctx.beginPath(); ctx.arc(x, y, R * pulse + 4, -Math.PI / 2, -Math.PI / 2 + k * TAU); ctx.stroke();
@@ -903,6 +1009,17 @@ const Render = {
     }
     ctx.globalAlpha = 1;
     this.resetT();
+  },
+
+  // Schrift-Zeichenkette für eine Größe in Zehntelpixeln (zwischengespeichert: keine neue Zeichenkette je Zahl und Bild)
+  font(tenths, pre) {
+    const m = this.fonts || (this.fonts = { '': [], 'bold ': [] }), a = m[pre];
+    return a[tenths] || (a[tenths] = pre + tenths / 10 + 'px "Lilita One", Impact, sans-serif');
+  },
+  // Gefahrenrot mit Deckkraft a (in Hundertsteln zwischengespeichert)
+  hostileA(a) {
+    const t = this.hfill || (this.hfill = []), k = Math.round(a * 100);
+    return t[k] || (t[k] = 'rgba(' + STYLE.hostile.fillRGB + ',' + k / 100 + ')');
   },
 
   // Bild um (x, y) zentriert, gedreht um a (Weltkoordinaten); danach resetT() aufrufen
@@ -1138,7 +1255,7 @@ const Render = {
       ctx.drawImage(FxArt.tint('ring', '#ffd34f', 128), e.x - rw / 2, e.y + e.r * 0.8 - rw * 0.2, rw, rw * 0.4);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
-      const gold = spr._gold || (spr._gold = Sprites.tintVariant(spr, '#ffd34f', 1));
+      const gold = this.goldOf(spr);
       const os = size * 1.16;
       ctx.drawImage(flip ? this.mirror(gold) : gold, e.x - os / 2, e.y + bob - os / 2 - size * 0.02, os, os);
       this.tags.push(e);

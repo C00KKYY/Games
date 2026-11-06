@@ -42,14 +42,23 @@ const Sprites = (() => {
   let cache = new Map();
   const R_ = STYLE.ramp;
 
-  function canvas(w, h) {
+  // Alle Zwischenbilder liegen im Hauptspeicher (willReadFrequently): finish() liest jedes neue Bild per
+  // getImageData, iconURL kodiert per toDataURL. Auf einem GPU-Canvas müsste der Hauptthread dafür jedes Mal auf die
+  // GPU warten (Rücklesen, im Spiel 20–200 ms je Bild); gezeichnet werden diese Bilder danach ohne Mehrkosten.
+  const WRF = { willReadFrequently: true };
+  function cpuCanvas(w, h) {
     const c = document.createElement('canvas');
-    c.width = Math.ceil(w * SC); c.height = Math.ceil(h * SC);
+    c.width = w; c.height = h;
+    c.getContext('2d', WRF);
+    return c;
+  }
+  function canvas(w, h) {
+    const c = cpuCanvas(Math.ceil(w * SC), Math.ceil(h * SC));
     const g = c.getContext('2d');
     g.scale(SC, SC);
     return { c, g };
   }
-  function blank(c) { const n = document.createElement('canvas'); n.width = c.width; n.height = c.height; return n; }
+  function blank(c) { return cpuCanvas(c.width, c.height); }
 
   // ---------- Stil-Werkzeuge ----------
   // Kugel-Verlauf einer Rampe: Licht oben links, Schatten unten rechts
@@ -569,8 +578,7 @@ const Sprites = (() => {
   const DEG_S = Math.PI / 180;
 
   function tintVariant(src, color, alpha) {
-    const c = document.createElement('canvas');
-    c.width = src.width; c.height = src.height;
+    const c = cpuCanvas(src.width, src.height);
     const g = c.getContext('2d');
     g.drawImage(src, 0, 0);
     g.globalCompositeOperation = 'source-atop';
@@ -619,7 +627,7 @@ const Sprites = (() => {
     if (variant) {
       const base = enemy(type, frame, 0, tint, boss);
       c = variant === 1 ? tintVariant(base, '#ffffff', 0.8) : tintVariant(base, '#7fd8ff', 0.5);
-      c.size = base.size;
+      c.size = base.size; c._base = base;
     } else {
       // Tönung nur auf die Farben, der Umriss bleibt dunkel: ungetöntes Bild ohne Umriss tönen, dann umranden
       const R = baseR(type), size = enemySize(type);
@@ -1481,8 +1489,7 @@ const Sprites = (() => {
     const crop = 56, k = size * 2 / (crop * SC);
     const src = hires('pu' + id, Math.max(1, k), () => player(id, 0, false));
     const f = src.width / HERO_BOX, sx = (HERO_BOX - crop) / 2 * f, sy = (HERO_BOX - crop) / 2 * f - 7 * f;
-    const c = document.createElement('canvas');
-    c.width = c.height = size * 2;
+    const c = cpuCanvas(size * 2, size * 2);
     const g = c.getContext('2d');
     g.imageSmoothingQuality = 'high';
     g.drawImage(src, sx, sy, crop * f, crop * f, 0, 0, c.width, c.height);
@@ -1737,7 +1744,12 @@ const Sprites = (() => {
         wrap(x, y, 6, () => { blob(r * 4, gl, 0.25); g.fillStyle = hexA(gl, 0.9); circ(g, 0, 0, r); g.fill(); });
       }
     }
-    return c;
+    // Fertige Kachel auf ein normales (GPU-fähiges) Canvas kopieren: Ein Muster aus einem willReadFrequently-Canvas
+    // lädt Chrome mit Grafikkarte in jedem Bild neu hoch und liest es zurück (Hauptthread wartet auf die GPU).
+    const out = document.createElement('canvas');
+    out.width = out.height = S;
+    out.getContext('2d').drawImage(c, 0, 0);
+    return out;
   }
 
   const DECOS = ['grave', 'rock', 'mush', 'bones', 'flower', 'stump', 'cross'];
@@ -1871,6 +1883,13 @@ const Sprites = (() => {
     return c;
   }
 
+  // Gegner- und Boss-Bilder verwerfen (beim Wechsel des Landes; Render.prebuildStage baut die des neuen Landes)
+  function dropLand() {
+    for (const k of [...cache.keys()]) if (k[0] === 'e') cache.delete(k);
+    for (const k of [...hiCache.keys()]) if (k.startsWith('boss')) hiCache.delete(k);
+    hiMaps.clear();
+  }
+
   // Höhere Auflösung für Standbilder (z. B. Titelbilder); leert den Zwischenspeicher
   function setScale(s) { SC = s; cache.clear(); hiCache.clear(); hiMaps.clear(); }
 
@@ -1893,5 +1912,5 @@ const Sprites = (() => {
   // und wird bei Bedarf gezeichnet – hier hängt sich später ein Bild-Atlas an.
   function load() { return Promise.resolve(); }
 
-  return { load, setScale, hires, tintVariant, enemy, bossSprite, bossLevel, enemySize, ENEMY_VIS, baseR, player, playerURL, heroOf, HERO_BOX, ICON_IDS: Object.keys(ICONS), gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade, STYLE };
+  return { load, setScale, dropLand, hires, tintVariant, enemy, bossSprite, bossLevel, enemySize, ENEMY_VIS, baseR, player, playerURL, heroOf, HERO_BOX, ICON_IDS: Object.keys(ICONS), gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade, STYLE };
 })();

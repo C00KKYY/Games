@@ -368,6 +368,10 @@ const Game = {
       elite: false, boss: null, swarm: false, dead: false, hitT: {}, anim: Math.random() * 10,
       shootT: rand(1.5, 3), ranged: !!d.ranged, rk: d.ranged || null, windT: 0, windMax: 0, windStart: -1,
       side: Math.random() < 0.5 ? -1 : 1, flitT: rand(0, 1.2), flitD: 0, fadeT: 0, teles: null, pend: null,
+      // später gesetzte Felder (Schwarm, Boss, Darstellung) schon hier: alle Gegner haben dieselbe Form (hidden
+      // class), sonst verwirft V8 die optimierte Gegner-Schleife und legt jede Kommazahl auf dem Heap an
+      life: 0, sdx: 0, sdy: 0, skillT: 0, skillIdx: 0, mode: 'chase', modeT: 0, cast: null, dashA: 0,
+      _rs: null, _rf: -1, _rv: -1, _rsc: 1,
     };
     r.enemies.push(e);
     return e;

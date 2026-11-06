@@ -12,7 +12,7 @@ const FxArt = (() => {
     const src = (typeof window !== 'undefined' && window.ASSET_DATA && window.ASSET_DATA.fx) || {};
     return Promise.all(Object.keys(src).map(k => new Promise(res => {
       const im = new Image();
-      im.onload = () => { img[k] = im; cache.clear(); res(); };
+      im.onload = () => { img[k] = im; cache.clear(); tints.clear(); res(); };
       im.onerror = () => res();
       im.src = src[k];
     })));
@@ -30,10 +30,16 @@ const FxArt = (() => {
     return c;
   }
 
-  // Eingefärbte Fassung als Canvas mit Kantenlänge size (Farbe × Helligkeit des Originals)
+  // Eingefärbte Fassung als Canvas mit Kantenlänge size (Farbe × Helligkeit des Originals).
+  // Zwischenspeicher verschachtelt (Größe → Name → Farbe), damit ein Aufruf je Bild keine Schlüssel-Zeichenkette
+  // erzeugt (hunderte Aufrufe je Bild).
+  const tints = new Map();
   function tint(name, color, size) {
-    const key = name + color + size;
-    let c = cache.get(key);
+    let bySize = tints.get(size);
+    if (!bySize) { bySize = new Map(); tints.set(size, bySize); }
+    let byName = bySize.get(name);
+    if (!byName) { byName = new Map(); bySize.set(name, byName); }
+    let c = byName.get(color);
     if (c) return c;
     const im = img[name];
     if (!im) c = softDot(size, color);
@@ -47,7 +53,7 @@ const FxArt = (() => {
       g.fillStyle = color;
       g.fillRect(0, 0, size, size);
     }
-    cache.set(key, c);
+    byName.set(color, c);
     return c;
   }
 
@@ -61,9 +67,9 @@ const FxArt = (() => {
   }
 
   // Lichtfleck für die Lichtkarte: weicher, fast quadratischer Abfall, Farbe = Lichtfarbe
+  const lights = new Map();
   function light(color) {
-    const key = 'L' + color;
-    let c = cache.get(key);
+    let c = lights.get(color);
     if (c) return c;
     const S = 64, h = S / 2;
     c = document.createElement('canvas');
@@ -74,9 +80,20 @@ const FxArt = (() => {
     for (const [s, a] of [[0, 1], [0.2, 0.86], [0.4, 0.6], [0.6, 0.32], [0.8, 0.1], [1, 0]]) gr.addColorStop(s, 'rgba(' + rgb + ',' + a + ')');
     g.fillStyle = gr;
     g.fillRect(0, 0, S, S);
-    cache.set(key, c);
+    lights.set(color, c);
     return c;
   }
 
-  return { load, has, tint, raw, light };
+  // Feste Färbungen der Spielgrafik schon beim Laden bauen (nicht beim ersten Auftauchen im Spiel)
+  const WARM = [['scorch', '#160603', 64], ['flame1', '#ffb35a', 64], ['flame1', '#ff9a3c', 64], ['flame2', '#ff7ce0', 64], ['flame1', '#ff9ad8', 64],
+    ['ring', '#ffd34f', 128], ['ring', '#ff8a5c', 128], ['ring', '#ffa04a', 128], ['ring', '#8dffb4', 128], ['twirl1', '#ffa04a', 128], ['twirl2', '#ffa04a', 128],
+    ['ringThick', '#7fd8ff', 128], ['ringThick', '#c8faff', 128], ['trace', '#a77cff', 64], ['trace', '#ff7cf5', 64], ['halo', '#3fc8ff', 64], ['halo', '#ffd34f', 64],
+    ['slash', '#8fd0ff', 128], ['slash', '#ff3a5a', 128], ['slash', '#ffffff', 128], ['bolt1', '#5fc8ff', 128], ['bolt2', '#5fc8ff', 128], ['bolt1', '#e8fbff', 128],
+    ['bolt2', '#e8fbff', 128], ['zapHit', '#d8f8ff', 64], ['boltH', '#fff9a8', 128], ['flare', '#ffe9a8', 64], ['star', '#fff1b8', 64]];
+  function warm() {
+    for (const [n, c, s] of WARM) tint(n, c, s);
+    for (const c of ['#4fc3ff', '#5dff8f', '#ff5a6e', '#d36bff']) tint('trace', c, 64);
+  }
+
+  return { load, has, tint, raw, light, warm };
 })();

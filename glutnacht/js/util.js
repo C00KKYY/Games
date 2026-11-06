@@ -78,8 +78,10 @@ class Grid {
     this.used.length = 0;
     if (this.cells.size > 6000) this.cells.clear();
   }
+  // Schlüssel als kleine Ganzzahl (14 + 14 Bit, Smi): keine Heap-Zahl je Einfügen. Zellen, die 16384 Zellen
+  // auseinanderliegen, teilen sich einen Eintrag – das liefert nur zusätzliche Kandidaten, die der Abstandstest verwirft.
   insert(e) {
-    const k = (Math.floor(e.x / this.cs) + 32768) * 65536 + (Math.floor(e.y / this.cs) + 32768);
+    const k = ((Math.floor(e.x / this.cs) & 16383) << 14) | (Math.floor(e.y / this.cs) & 16383);
     let a = this.cells.get(k);
     if (!a) { a = []; this.cells.set(k, a); }
     if (a.length === 0) this.used.push(a);
@@ -92,7 +94,7 @@ class Grid {
     const y0 = Math.floor((y - r) / cs), y1 = Math.floor((y + r) / cs);
     for (let cx = x0; cx <= x1; cx++) {
       for (let cy = y0; cy <= y1; cy++) {
-        const a = this.cells.get((cx + 32768) * 65536 + (cy + 32768));
+        const a = this.cells.get(((cx & 16383) << 14) | (cy & 16383));
         if (a) for (let i = 0; i < a.length; i++) out.push(a[i]);
       }
     }

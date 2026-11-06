@@ -464,6 +464,9 @@ const Sfx = (() => {
         const t = lowpassFor(intensity);
         if (t !== lpTarget) { lpTarget = t; cur.f.frequency.setTargetAtTime(t, ctx.currentTime, 0.8); }
       }
+      // Die Bossmusik schon während des Kampfes dekodieren (das Umwandeln aus base64 läuft im Hauptthread und
+      // kostete sonst genau im Bild, in dem der Boss erscheint, einige ms); verdrängt wird dabei die Menümusik
+      if (id === 'battle' && !music.boss && !pending.boss && !failed.boss) loadTrack('boss').catch(() => {});
       return;
     }
     if (music[id]) { crossTo(id); return; }

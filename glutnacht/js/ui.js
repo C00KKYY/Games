@@ -486,6 +486,7 @@ const UI = {
     this.hudSig = ''; this.lastHud = {};
     Game.newRun(charId, heat, stage.id);
     Render.setStage(stage);
+    Render.flushPrebuild(charId); // alle Gegner-Bilder des Landes jetzt, nicht beim ersten Erscheinen im Spiel
     this.el.hud.hidden = false;
     this.el.toasts.innerHTML = '';
     clearTimeout(this.bannerT);
@@ -646,13 +647,58 @@ const UI = {
   },
 
   // ---------- HUD ----------
+  // Plätze (Waffen oder Passive) abgleichen: belegte Plätze plus ein „+“ für den nächsten freien. prev merkt sich
+  // je Platz Kennung, Stufe und Entwicklung; nur was sich ändert, bekommt neues HTML.
+  slotHtml(it) { return '<div class="slot' + (it.evo ? ' evo' : '') + '">' + this.icon(it.id) + '<span>' + (it.evo ? '★' : it.level) + '</span></div>'; },
+  syncSlots(box, prev, list, max) {
+    const n = list.length;
+    if (prev.length !== n || box.children.length !== n + (n < max ? 1 : 0)) {
+      let h = '';
+      for (const it of list) h += this.slotHtml(it);
+      if (n < max) h += '<div class="slot add">+</div>';
+      box.innerHTML = h;
+      prev.length = 0;
+      for (const it of list) prev.push({ id: it.id, level: it.level, evo: !!it.evo });
+      return;
+    }
+    for (let i = 0; i < n; i++) {
+      const it = list[i], q = prev[i];
+      if (q.id === it.id && q.level === it.level && q.evo === !!it.evo) continue;
+      q.id = it.id; q.level = it.level; q.evo = !!it.evo;
+      box.children[i].outerHTML = this.slotHtml(it);
+    }
+  },
+
+  // Symbole (data:-URL) in Leerlaufzeit vorab kodieren, zuerst die der Stufenaufstiegs-Karten (96 px) und der
+  // HUD-Plätze; sonst kodiert sie erst der Dialog im Spiel (je Symbol einige ms)
+  warmIcons() {
+    const have = new Set(Sprites.ICON_IDS), jobs = [];
+    const run = Object.keys(WEAPONS).concat(Object.keys(PASSIVES), ['coin', 'heart', 'chest', 'dice', 'skip', 'banish']);
+    for (const id of run) if (have.has(id)) jobs.push([id, 96], [id, 64]);
+    for (const id of Sprites.ICON_IDS) jobs.push([id, 64]);
+    let i = 0;
+    const ric = typeof requestIdleCallback === 'function';
+    const step = dl => {
+      while (i < jobs.length) {
+        // mit requestIdleCallback nur bei genug Leerlauf, sonst (älteres Safari) nur außerhalb des Spiels
+        if (ric ? dl.timeRemaining() < 7 : Game.state === 'play') break;
+        const [id, sz] = jobs[i++];
+        Sprites.iconURL(id, sz);
+        if (!ric) break;
+      }
+      if (i < jobs.length) { if (ric) requestIdleCallback(step); else setTimeout(step, 50); }
+    };
+    if (ric) requestIdleCallback(step); else setTimeout(step, 50);
+  },
+
   updateHud() {
     const r = Game.run;
     if (!r || this.el.hud.hidden) return;
     const L = this.lastHud, el = this.el;
     const xpk = Math.min(1, r.xp / r.xpNext);
-    const xpw = (xpk * 100).toFixed(1);
-    if (L.xp !== xpw) { el.xpfill.style.width = xpw + '%'; L.xp = xpw; }
+    // Leisten per transform statt width: kein Layout je Bild
+    const xpw = Math.round(xpk * 1000);
+    if (L.xp !== xpw) { el.xpfill.style.transform = 'translateX(' + (xpw / 10 - 100) + '%)'; L.xp = xpw; }
     if (L.level !== r.level) {
       // Stufenaufstieg: Erfahrungsleiste leuchtet kurz auf
       if (L.level && r.level > L.level) { const x = el.xplvl.parentNode; x.classList.remove('lvlglow'); void x.offsetWidth; x.classList.add('lvlglow'); }
@@ -669,25 +715,16 @@ const UI = {
       el.gold.textContent = fmtNum(r.gold); L.gold = r.gold;
       el.goldrow.hidden = !(r.gold > 0); // Goldzähler erst ab der ersten Münze
     }
-    const sig = r.weapons.map(w => w.id + w.level + (w.evo ? 'e' : '')).join() + '|' + r.passives.map(p => p.id + p.level).join();
-    if (sig !== this.hudSig) {
-      this.hudSig = sig;
-      // nur belegte Plätze plus ein „+“ für den nächsten freien
-      const slot = (id, lvl, max, evo) => '<div class="slot' + (evo ? ' evo' : '') + '">' + this.icon(id) + '<span>' + (evo ? '★' : lvl) + '</span></div>';
-      const add = '<div class="slot add">+</div>';
-      let wh = '', ph = '';
-      for (const w of r.weapons) wh += slot(w.id, w.level, WEAPON_MAX, w.evo);
-      if (r.weapons.length < MAX_WEAPONS) wh += add;
-      for (const p of r.passives) ph += slot(p.id, p.level, PASSIVES[p.id].max);
-      if (r.passives.length < MAX_PASSIVES) ph += add;
-      el.wslots.innerHTML = wh; el.pslots.innerHTML = ph;
-    }
+    // Waffen- und Passiv-Plätze: nur ein geänderter Platz wird neu gesetzt (keine Zeichenkette je Bild)
+    this.syncSlots(el.wslots, L.w || (L.w = []), r.weapons, MAX_WEAPONS);
+    this.syncSlots(el.pslots, L.p || (L.p = []), r.passives, MAX_PASSIVES);
     let boss = null;
     for (const b of r.bosses) if (!b.dead && (!boss || b.maxHp > boss.maxHp)) boss = b;
     if (boss) {
       if (el.bossbar.hidden) el.bossbar.hidden = false;
       if (L.bossName !== boss.boss.name) { el.bossname.textContent = tr(boss.boss.name); L.bossName = boss.boss.name; }
-      el.bossfill.style.width = (Math.max(0, boss.hp / boss.maxHp) * 100).toFixed(1) + '%';
+      const bw = Math.round(Math.max(0, boss.hp / boss.maxHp) * 1000);
+      if (L.boss !== bw) { el.bossfill.style.transform = 'translateX(' + (bw / 10 - 100) + '%)'; L.boss = bw; }
     } else if (!el.bossbar.hidden) el.bossbar.hidden = true;
   },
 };
