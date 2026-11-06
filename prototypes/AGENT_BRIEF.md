@@ -84,10 +84,42 @@ Daraus folgt: schneller Einstieg, klarer Fortschritt, gespeicherter Fortschritt,
    - Falls das Anlegen scheitert, Link und Hinweis in `catalog.json` lassen und im
      Abschlussbericht melden.
 
+## Abendlauf: Feedback umsetzen
+
+Der Abendlauf (Weckruf „Abendlauf“) baut **kein** neues Spiel. Er prüft, ob neue
+Kommentare der Besitzerin oder des Besitzers (Login `C00KKYY`) in Issues mit
+Label `prototyp` stehen, und setzt sie um.
+
+1. Lies `prototypes/feedback_state.json`. Darin stehen die IDs der Kommentare,
+   die schon umgesetzt wurden (`processed_comment_ids`).
+2. Hole die Kommentare aller `prototyp`-Issues. Neu ist jeder Kommentar von
+   `C00KKYY`, dessen ID nicht in der Liste steht. Eigene Kommentare des Agenten
+   zählen nicht.
+3. **Keine neuen Kommentare:** sofort beenden. Kein Commit, kein Bericht außer
+   einer Zeile „Kein neues Feedback.“ Das spart Nutzung.
+4. **Neue Kommentare:**
+   - Kommentare mit `Status: verwerfen` werden nicht umgesetzt. Ihre IDs kommen
+     als erledigt in die Liste.
+   - Von den übrigen nimm **genau ein Spiel** pro Abend, nämlich das mit dem
+     neuesten Kommentar. Die anderen bleiben unverarbeitet und kommen an den
+     folgenden Abenden dran.
+   - Setze in diesem Spiel **alle** noch unverarbeiteten Kommentare zu diesem
+     Spiel um. Konkrete Kritik und Wünsche haben Vorrang. Bei allgemeinem Lob
+     wie „noch nicht verfeinert“ verbesserst du gezielt das, was am schwächsten
+     ist: Spielgefühl, Animation, Abwechslung, Einstieg, Feinschliff.
+   - Arbeite **im bestehenden Ordner** des Spiels, kein neuer Ordner. Teste wie
+     bei neuen Spielen (Playwright, Viewports, keine Konsolenfehler) und
+     aktualisiere den Screenshot.
+   - Ergänze im README des Spiels einen Abschnitt „Änderungen“ mit Datum.
+   - Trage die verarbeiteten Kommentar-IDs in `feedback_state.json` ein,
+     committe und pushe auf `prototypes`.
+   - Schreibe im Issue einen Kommentar: was geändert wurde (kurze Liste), den
+     Spiel-Link und die Bitte um eine neue Bewertung im gewohnten Format.
+5. Aktualisiere dabei auch `RATINGS.md`.
+
 ## Was ein Lauf **nicht** tut
 
-- Keine bestehenden Spiele umbauen (auch nicht welche mit „ausbauen“). Das
-  passiert in separaten Sessions auf Anfrage.
+- Der Morgenlauf baut keine bestehenden Spiele um. Das macht nur der Abendlauf.
 - Nichts auf anderen Branches pushen, keine Pull Requests, keine Issues schließen.
 - Keine Spiele bekannter Marken oder Nachbauten bestehender Spiele.
 
