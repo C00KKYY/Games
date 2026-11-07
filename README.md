@@ -14,3 +14,7 @@ Ein geplanter Agent baut jeden Tag einen neuen Spiel-Prototyp für CrazyGames (A
 - Bewerten: im jeweiligen Issue mit Label `prototyp` als Kommentar `Note: X/5` und `Status: ausbauen / verwerfen / egal`
 - Arbeitsanweisung für den Agenten: [prototypes/AGENT_BRIEF.md](prototypes/AGENT_BRIEF.md)
 - CrazyGames-Anforderungen: [prototypes/CRAZYGAMES_CHECKLIST.md](prototypes/CRAZYGAMES_CHECKLIST.md)
+
+### Fremdbibliotheken in Prototypen
+
+- `prototypes/2026-11-07-swingwreck/vendor/matter.min.js`: [Matter.js](https://github.com/liabru/matter-js) 0.20.0, MIT-Lizenz (`vendor/LICENSE-matter-js.txt`)
