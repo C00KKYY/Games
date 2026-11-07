@@ -105,9 +105,11 @@ const LANGS = (opt('lang') || 'de,en').split(',');
       check(name, m, extra);
       return m;
     };
-    // 1) Countdown erscheint zusammen mit dem Elite-Banner (90 s)
+    // 1) Countdown erscheint (90 s, „Starke Gegner kommen!“); der Elite-Banner derselben Sekunde folgt erst bei 93,2 s
     await page.evaluate(() => { window.__jump(89.9); window.__to(90.5); });
     await shot('1-90s-countdown-elite');
+    await page.evaluate(() => window.__to(93.7));
+    await shot('1b-93s-elite-banner');
     // 2) T-10-Banner mit Hinweis (110 s)
     await page.evaluate(() => window.__to(110.5));
     await shot('2-110s-getready');

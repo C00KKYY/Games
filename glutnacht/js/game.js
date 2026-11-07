@@ -78,7 +78,7 @@ const Game = {
       // Fernkampf: Pfützen, Salven-Regie (gleichzeitiges Ausholen), lebende Fernkämpfer, Elite-Zähler
       haz: [], vol: { active: 0, bells: 0, lastStart: -9 }, rangedAlive: 0, eliteN: 0, lastHitSrc: null,
       // M10: Countdowns (Ansturm, leichter Boss-Countdown) der Reihe nach; surgeWave = Gegnermischung im Ansturm
-      cdList: null, cdIdx: 0, surgeHits: 0, surgeWave: null, surgeK: null,
+      cdList: null, cdIdx: 0, surgeHits: 0, surgeWave: null, surgeK: null, eliteBanT: 0,
     };
     r.cdList = this.buildCountdowns(r);
     this.run = r;
@@ -386,8 +386,13 @@ const Game = {
       e.hp = e.maxHp = first ? Math.max(90, e.maxHp * 3) : Math.max(160, e.maxHp * 14);
       e.r *= 1.55; e.xp *= 8; e.kb *= 0.3; e.dmg *= 1.4;
       e.speed = first ? Math.max(e.speed, r.stats.speed * 0.9) : e.speed * 0.95;
-      Hooks.banner(tr('Ein Elitegegner taucht auf – er trägt eine Truhe!'), 'elite');
+      // Beginnt gerade eine Countdown-Leiste (1:30: „Starke Gegner kommen!“), kommt der Elite-Banner erst nach
+      // deren Einstiegstext – sonst hält man den Elitegegner für die angekündigten starken Gegner
+      const cd = r.cdList[r.cdIdx];
+      if (cd && cd.kind === 'surge' && Math.abs(r.t - cd.start) < 2) r.eliteBanT = cd.start + 3.2;
+      else Hooks.banner(tr('Ein Elitegegner taucht auf – er trägt eine Truhe!'), 'elite');
     }
+    if (r.eliteBanT && r.t >= r.eliteBanT) { r.eliteBanT = 0; Hooks.banner(tr('Ein Elitegegner taucht auf – er trägt eine Truhe!'), 'elite'); }
 
     // Bosse
     const bl = r.bossList;
