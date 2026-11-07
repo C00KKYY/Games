@@ -537,3 +537,24 @@ and banner top there are 5 px on 844×390, below the banner is the hero; before 
 bar for the whole fight). Surge strength below C2/C4 in Burgruine, Eissee light and Herz der Nacht, and the modest
 contact/damage increase for the bot (it dodges melee almost perfectly), as already listed above. The surge costs some frame
 rate because it has more enemies (no spikes); the countdown phase alone is within 2 %.
+
+## 13. Final acceptance (code 760afd7, builds rebuilt from it)
+
+- Checks: `node --check` on all files, simtest (M10 checks ok), stages/enter (desktop and phone), lands, itchcheck,
+  qa.js (d907, d1280, iphone-land, iphone-port, d907-long, d907-de; 0 console errors), modals, countdown.js on both
+  single-file builds (3 viewports × DE/EN, I18N_MISSES empty) – all pass.
+- sdkdelay: the "menu by 2.8 s while the SDK hangs" limit flakes by 10–50 ms (2.5 s SDK timeout + boot). An A/B against
+  the pre-M10 build (92f91fb, 3 runs each, alternating) shows the same flakes there (pre up to 2825 ms, M10 up to 2855 ms),
+  so this is the known tight margin, not an M10 regression.
+- perf.js A/B against the pre-M10 build (2 runs each, alternating): `2 300` 59.5/57.2 vs 56.2/58.3 fps, `2 300 --hostile`
+  55.7/52.4 vs 54.2/55.4, `1 300 --hostile --quality=0` 53.1/54.7 vs 53.2/51.1, `4 --surge --weapons=all` (112–150 s)
+  49.5/52.1 vs 48.7/51.9 fps, p95/p99 33.4 ms on both sides, longest frame 66–83 ms before vs 50–83 ms after: no regression
+  beyond noise, no spike at the surge start.
+- Played Land 1 with a fresh profile and the simple dodge bot (blind card picks) at 907×510 (EN) and iPhone 13 landscape
+  (DE), screenshots every 10 s and at 24 moments between 1:26 and 2:58. The bar reads well in both languages; at 2:00 the
+  screen fills with ghouls (enemies within 150 px up to 7–10, the bot lost half its HP in the surge on both devices) and
+  both runs died between 2:40 and 2:55, before the first boss. 1:30–2:00 is still a waiting phase (only the countdown and
+  the bat swarm at 1:50), which is intended.
+- Weak bot (`BOT=weak`, 96 runs per side and land, TMAX 420) pre vs M10: Alter Friedhof alive at 2:30 77 % vs 77 %,
+  3:00 70 vs 63 %, 4:00 51 vs 45 %, 5:00 24 vs 28 %; Aschenwald alive at 2:30 61 vs 40 % (significant), 3:00 40 vs 30 %,
+  4:00 26 vs 9 %. For weak players Aschenwald's surge is clearly harder; nothing got easier beyond noise.
