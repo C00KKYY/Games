@@ -510,5 +510,5 @@ img { -webkit-user-drag: none; }
   #screen .pause > .actions { flex-wrap: nowrap; gap: 6px; margin: 8px -12px -10px; padding: 8px 12px 10px; }
   .pause .actions .btn { min-height: 36px; padding: 6px 9px; font-size: 13px; }
 }
-/* Sieg und Rundenende listen neue Erfolge selbst auf: Meldungen dort nicht über die Knöpfe legen */
-#app:has(#screen.s-victory, #screen.s-over) #toasts { opacity: 0; }
+/* Sieg und Rundenende listen neue Erfolge selbst auf: Meldungen dort nicht über die Knöpfe legen (Klasse aus UI.show) */
+#toasts.mute { opacity: 0; }

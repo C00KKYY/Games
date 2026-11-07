@@ -50,6 +50,8 @@ const UI = {
     Render.keyArtOn = name === 'menu';
     Render.dlgSince = Render.time; // neue Karten fahren herein: Boss-Bilder erst danach vorbauen (Render.prebuildStep)
     this.el.screen.className = 'show s-' + name;
+    // Sieg und Rundenende listen neue Erfolge selbst auf: Meldungen dort nicht über die Knöpfe legen
+    this.el.toasts.classList.toggle('mute', name === 'victory' || name === 'over');
     this.el.screen.innerHTML = this['tpl_' + name](data);
     this.el.screen.scrollTop = 0;
     this.modalReady = performance.now() + (['levelup', 'chest', 'victory'].includes(name) ? 380 : 0);
@@ -75,6 +77,7 @@ const UI = {
     this.cur = null;
     Render.keyArtOn = false;
     this.el.screen.className = '';
+    this.el.toasts.classList.remove('mute');
     this.el.screen.innerHTML = '';
   },
 
