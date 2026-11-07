@@ -728,7 +728,8 @@ const UI = {
     this.syncSlots(el.wslots, L.w || (L.w = []), r.weapons, MAX_WEAPONS);
     this.syncSlots(el.pslots, L.p || (L.p = []), r.passives, MAX_PASSIVES);
     let boss = null;
-    for (const b of r.bosses) if (!b.dead && (!boss || b.maxHp > boss.maxHp)) boss = b;
+    // nach Tod oder Aufgeben (r.over) bleiben Boss- und Countdown-Leiste aus, auch solange der HUD noch steht
+    if (!r.over) for (const b of r.bosses) if (!b.dead && (!boss || b.maxHp > boss.maxHp)) boss = b;
     if (boss) {
       if (el.bossbar.hidden) el.bossbar.hidden = false;
       if (L.bossName !== boss.boss.name) { el.bossname.textContent = tr(boss.boss.name); L.bossName = boss.boss.name; }
@@ -742,7 +743,7 @@ const UI = {
   // (der Zeitplan schließt das aus, die Regel ist nur die Absicherung)
   updateCountdown(boss) {
     const el = this.el, L = this.lastHud;
-    const cs = boss ? null : Game.countdownState();
+    const cs = boss || Game.run.over ? null : Game.countdownState();
     if (!cs) {
       if (!el.surge.hidden) { el.surge.hidden = true; L.cdKey = L.cdTxt = null; }
       return;
