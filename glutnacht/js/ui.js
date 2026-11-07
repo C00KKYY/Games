@@ -612,7 +612,6 @@ const UI = {
     this.bannerT = setTimeout(() => { b.className = ''; }, dur * 1000);
   },
 
-  // Taste M: Klang und Musik gemeinsam aus/an (die Plattform-Stummschaltung hat weiter Vorrang)
   // Taste M: Gesamt-Stummschaltung; die Schalter für Klang und Musik bleiben, wie sie sind
   toggleSound() {
     const st = Store.data.settings;
@@ -624,7 +623,6 @@ const UI = {
       Sfx.applySettings();
       if (!st.mute) Sfx.play('click');
       msg = st.mute ? 'Ton aus' : !st.sfx && !st.music ? 'Ton an (Klang und Musik sind in den Einstellungen aus)' : 'Ton an';
-      if (this.cur === 'opts') this.show('opts');
     }
     const d = document.createElement('div');
     d.className = 'toast';
