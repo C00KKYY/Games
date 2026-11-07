@@ -6,6 +6,22 @@ const Hooks = {
   sfx() {}, shake() {}, happy() {}, kill() {},
 };
 
+// Grundkurve der Gegner-Lebenspunkte über die Spielminute m (ohne Nachtstufe und Land-Faktor): bis Minute 3 fast
+// linear, danach deutlich schneller (sonst wird es ab Minute 4–5 zu leicht).
+function hpCurve(m) {
+  const q = Math.max(0, m - 3);
+  return 1 + 0.12 * m + 0.012 * m * m + 0.22 * q + 0.125 * q * q;
+}
+// M10: Brücke zwischen 1:15 und 4:00 – statt Plateau und Sprung an der 4:00-Grenze ein gleichmäßiger (geometrischer)
+// Anstieg; nie unter der alten Kurve, vor 1:15 und ab 4:00 identisch mit ihr.
+const HP_BRIDGE_A = 1.25, HP_BRIDGE_B = 4;
+function hpCurveBridged(m) {
+  const h = hpCurve(m);
+  if (m <= HP_BRIDGE_A || m >= HP_BRIDGE_B) return h;
+  const a = hpCurve(HP_BRIDGE_A), b = hpCurve(HP_BRIDGE_B);
+  return Math.max(h, a * Math.pow(b / a, (m - HP_BRIDGE_A) / (HP_BRIDGE_B - HP_BRIDGE_A)));
+}
+
 const ENEMY_COLORS = {
   bat: '#8a5cff', slime: '#46e07f', skel: '#efe8d2', ghost: '#a8ecff', ghoul: '#9c7a52',
   spitter: '#ff9a3c', wraith: '#ff4f7b', brute: '#d0453f', golem: '#8c9cb8', night: '#6b4cff',
@@ -61,7 +77,10 @@ const Game = {
       gemCombo: 0, gemComboT: 0, endlessBossT: 0,
       // Fernkampf: Pfützen, Salven-Regie (gleichzeitiges Ausholen), lebende Fernkämpfer, Elite-Zähler
       haz: [], vol: { active: 0, bells: 0, lastStart: -9 }, rangedAlive: 0, eliteN: 0, lastHitSrc: null,
+      // M10: Countdowns (Ansturm, leichter Boss-Countdown) der Reihe nach; surgeWave = Gegnermischung im Ansturm
+      cdList: null, cdIdx: 0, surgeHits: 0, surgeWave: null,
     };
+    r.cdList = this.buildCountdowns(r);
     this.run = r;
     r.stats = this.computeStats(r);
     r.p.hp = r.stats.maxHp;
@@ -210,10 +229,99 @@ const Game = {
 
   // ---------- Spawns ----------
   hpMul(t) {
-    const m = t / 60;
-    // ab Minute 3 wachsen die Lebenspunkte deutlich schneller (sonst wird es ab Minute 4–5 zu leicht)
-    const q = Math.max(0, m - 3);
-    return HEAT[this.run.heat].hp * this.run.stage.mult.hp * (1 + 0.12 * m + 0.012 * m * m + 0.22 * q + 0.125 * q * q);
+    const st = this.run.stage, m = t / 60;
+    return HEAT[this.run.heat].hp * st.mult.hp * (st.hpBridge ? hpCurveBridged(m) : hpCurve(m));
+  },
+
+  // ---------- Countdown und Ansturm (M10) ----------
+  // Je Land: Ansturm-Einträge aus stage.surges (Leiste lead s vorher, dann dur s Ansturm) und ein leichter
+  // Countdown (nur Leiste, 20 s) vor dem ersten Boss, der nicht der Endboss ist. Nach Startzeit sortiert; was erst
+  // nach dem Ende des Landes begänne, entfällt (Endlosmodus: keine Countdowns).
+  buildCountdowns(r) {
+    const list = [];
+    for (const s of r.stage.surges || []) list.push({ kind: 'surge', s, b: null, start: s.t - s.lead, at: s.t, end: s.t + s.dur, ph: 0, last: 0, t10: false });
+    const fb = r.bossList.find(b => !b.final);
+    if (fb) list.push({ kind: 'boss', s: null, b: fb, start: fb.t - 20, at: fb.t, end: fb.t, ph: 0, last: 0, t10: false });
+    return list.filter(c => c.start < r.length).sort((a, b) => a.start - b.start);
+  },
+  // aktueller Ansturm (Phase „on“) oder null
+  surgeNow() {
+    const c = this.run.cdList[this.run.cdIdx];
+    return c && c.kind === 'surge' && c.ph === 2 ? c : null;
+  },
+  // läuft nur mit r.t (Zustand play): Pause, Aufstieg, Truhe und Dialoge halten Countdown und Ansturm an
+  countdownTick() {
+    const r = this.run, L = r.cdList;
+    while (r.cdIdx < L.length) {
+      const c = L[r.cdIdx];
+      if (r.t < c.start) return;
+      // nie begonnen und schon ganz vorbei (Zeitsprung in Werkzeugen): still überspringen
+      if (c.ph === 0 && r.t >= c.end) { c.ph = 3; r.cdIdx++; continue; }
+      if (c.ph === 0) {
+        c.ph = 1; c.last = Math.ceil(c.at - r.t);
+        if (c.kind === 'surge') Hooks.sfx('warn');
+      }
+      if (c.ph === 1) {
+        if (r.t < c.at) {
+          const n = Math.ceil(c.at - r.t);
+          if (n !== c.last) { c.last = n; if (n <= (c.kind === 'surge' ? 5 : 3)) Hooks.sfx('tick'); }
+          if (c.kind === 'surge' && !c.t10 && r.t >= c.at - 10) { c.t10 = true; Hooks.banner(tr('Mach dich bereit!'), 'event', tr(c.s.hint)); }
+          return;
+        }
+        // Boss-Countdown: Banner und Klang des Bosses selbst sind der Abschluss
+        if (c.kind === 'boss') { c.ph = 3; r.cdIdx++; continue; }
+        c.ph = 2; this.surgeStart(c);
+      }
+      if (c.ph === 2) {
+        if (r.t < c.end) return;
+        c.ph = 3; r.cdIdx++;
+        this.surgeEnd(c);
+      }
+    }
+  },
+  surgeStart(c) {
+    const r = this.run, s = c.s, wv = this.wave();
+    // Nahkämpfer der Welle durch die zähe Ansturm-Mischung ersetzen; Fernkämpfer (rangedFrom, rangedCap) bleiben
+    const pool = Object.assign({}, s.pool);
+    for (const k in wv.pool) if (ENEMIES[k].ranged) pool[k] = wv.pool[k];
+    r.surgeWave = { pool, rate: wv.rate, cap: wv.cap };
+    r.surgeHits = 0;
+    this.runEvent(Object.assign({ text: s.text, quiet: true, surge: s }, s.open));
+    Hooks.sfx('surge');
+    Hooks.shake(6);
+  },
+  surgeEnd(c) {
+    const r = this.run, p = r.p;
+    r.surgeWave = null;
+    if (r.over || p.hp <= 0) return;
+    // Belohnung nur als Gold (Schmiede), keine Stärke im Lauf; ohne Treffer doppelt
+    const g = Math.round(c.s.gold * HEAT[r.heat].gold) * (r.surgeHits ? 1 : 2);
+    r.gold += g;
+    this.text(p.x, p.y - 26, tr('+{0} Gold', g), '#ffd23f', 1.4);
+    Hooks.banner(tr('Ansturm überstanden!'), 'win', r.surgeHits ? tr('+{0} Gold', g) : tr('Ohne Treffer! +{0} Gold', g));
+    Hooks.sfx('achievement');
+  },
+  // Lesezugriff für Oberfläche und Werkzeuge: null oder { kind, phase, left, frac, icon, tint, label }
+  // (ein wiederverwendetes Objekt, die Anzeige fragt jedes Bild)
+  countdownState() {
+    const r = this.run;
+    if (!r || !r.cdList) return null;
+    const L = r.cdList, t = r.t;
+    for (let i = r.cdIdx; i < L.length; i++) {
+      const c = L[i];
+      if (t < c.start) return null;
+      const on = c.kind === 'surge' && t >= c.at;
+      if (t >= (on ? c.end : c.at)) continue;
+      const o = this._cds || (this._cds = { kind: '', phase: '', left: 0, frac: 0, icon: '', tint: null, label: '' });
+      o.kind = c.kind; o.phase = on ? 'on' : 'warn';
+      o.left = Math.max(0, on ? c.end - t : c.at - t);
+      o.frac = clamp(o.left / (on ? c.end - c.at : c.at - c.start), 0, 1);
+      if (c.kind === 'surge') {
+        o.icon = c.s.icon; o.tint = (r.stage.tints && r.stage.tints[c.s.icon]) || null; o.label = '';
+      } else { o.icon = c.b.sprite; o.tint = c.b.tint || null; o.label = c.b.name; }
+      return o;
+    }
+    return null;
   },
 
   wave() {
@@ -223,11 +331,21 @@ const Game = {
 
   director(dt) {
     const r = this.run;
+    this.countdownTick();
     const heat = HEAT[r.heat];
     const wv = this.wave();
     const extra = r.t > r.length ? 1 + (r.t - r.length) / 120 : 1;
     let rate = wv.rate * heat.rate * r.stage.mult.rate * extra;
-    const cap = Math.round(wv.cap * Math.min(1.6, heat.rate) * Math.min(extra, 1.5));
+    let cap = Math.round(wv.cap * Math.min(1.6, heat.rate) * Math.min(extra, 1.5));
+    // Ansturm: mehr Nachschub, höhere Obergrenze, zähe Mischung (ab Nachtstufe 3 gedämpft)
+    const sc = this.surgeNow(), surge = sc && sc.s;
+    let wvUse = wv;
+    if (surge) {
+      const k = r.heat >= 3 ? 0.7 : 1;
+      rate *= 1 + (surge.rate - 1) * k;
+      cap = Math.round(cap * (1 + (surge.cap - 1) * k));
+      wvUse = r.surgeWave || wv;
+    }
     let alive = 0;
     for (const e of r.enemies) if (!e.swarm && !e.boss) alive++;
     if (alive < cap * 0.35) rate *= 2.2;
@@ -237,7 +355,8 @@ const Game = {
       r.spawnAcc -= 1;
       if (alive >= cap) { r.spawnAcc = 0; break; }
       const pos = this.spawnPos();
-      this.spawnEnemy(this.pickType(wv), pos.x, pos.y);
+      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y);
+      if (surge) { e.xp *= surge.xp; e.speed *= surge.speed; }
       alive++;
     }
 
@@ -403,14 +522,17 @@ const Game = {
   runEvent(ev) {
     const r = this.run, p = r.p;
     Hooks.banner(tr(ev.text), 'event');
-    Hooks.sfx('alarm');
+    if (!ev.quiet) Hooks.sfx('alarm');
     const vr = this.viewRadius();
+    // Eröffnung eines Ansturms (ev.surge = Ansturm-Daten): weniger Erfahrung, ggf. schneller
+    const sg = ev.surge || null;
     if (ev.kind === 'swarm') {
       const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a);
       const cx = p.x - ca * (vr + 60), cy = p.y - sa * (vr + 60);
       for (let i = 0; i < ev.n; i++) {
         const off = rand(-260, 260), back = rand(0, 200);
         const e = this.spawnEnemy(ev.type, cx - sa * off - ca * back, cy + ca * off - sa * back);
+        if (sg) { e.xp *= sg.xp; e.speed *= sg.speed; }
         e.swarm = true; e.sdx = ca; e.sdy = sa; e.speed *= 1.35;
         e.life = (vr * 2 + 500) / e.speed;
       }
@@ -421,6 +543,7 @@ const Game = {
       for (let i = 0; i < n; i++) {
         const a = mv + (n > 1 ? i / (n - 1) - 0.5 : 0) * 120 * DEG, R = 0.8 * this.edgeDist(a);
         const e = this.spawnEnemy(types[i], p.x + Math.cos(a) * R, p.y + Math.sin(a) * R);
+        if (sg) { e.xp *= sg.xp; e.speed *= sg.speed; }
         e.shootT = rand(1.6, 2.4); e.fadeT = 0.4;
         this.burst(e.x, e.y, '#120a18', 8, 90); this.burst(e.x, e.y, '#ff3d5a', 6, 120);
       }
@@ -430,6 +553,7 @@ const Game = {
       for (let i = 0; i < n; i++) {
         const a = i / n * TAU, R = ev.mix ? 0.95 * this.edgeDist(a) : vr * 0.85;
         const e = this.spawnEnemy(types[i], p.x + Math.cos(a) * R, p.y + Math.sin(a) * R);
+        if (sg) { e.xp *= sg.xp; e.speed *= sg.speed; }
         if (e.ranged) e.shootT = rand(1.6, 2.6);
       }
     }
@@ -886,6 +1010,7 @@ const Game = {
     p.iframe = 0.5;
     p.flash = 0.25;
     if (r.firstHit === null) r.firstHit = r.t;
+    r.surgeHits++;
     Hooks.sfx('hurt');
     Hooks.shake(Math.min(9, 3 + taken * 0.3));
     this.text(p.x, p.y - 20, '-' + Math.round(taken), '#ff5a6e', 1.1);

@@ -17,7 +17,7 @@ function load() {
   };
   vm.createContext(ctx);
   let src = FILES.map(f => fs.readFileSync(path.join(ROOT, f), 'utf8')).join('\n;\n');
-  src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, STAGES, CHARS, HEAT, fmtTime };';
+  src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, STAGES, CHARS, HEAT, fmtTime, hpCurve, tr };';
   vm.runInContext(src, ctx, { filename: 'bundle.js' });
   return ctx.__api;
 }
@@ -109,7 +109,120 @@ function runOnce(api, charId, heat, log, stage) {
   return r;
 }
 
+// ---------- M10: Countdown und Ansturm (Zeitplan-Regeln, HP-Brücke, Phasen, Pause, Endlosmodus) ----------
+function m10Checks(api) {
+  const { Game, Hooks, Store, STAGES, HEAT, hpCurve } = api;
+  const fail = [];
+  const ok = (c, msg) => { if (!c) fail.push(msg); };
+  for (const st of STAGES) {
+    const id = st.id, surges = st.surges || [];
+    // effektive Ereigniszeiten (unsortierte Listen feuern der Reihe nach: frühestens mit dem Vorgänger)
+    const evT = [];
+    for (const ev of st.events) evT.push(Math.max(ev.t, evT.length ? evT[evT.length - 1] : 0));
+    const bossT = st.bosses.map(b => b.t);
+    const eliteT = [];
+    for (let t = 30; t < st.minutes * 60; t += 60) eliteT.push(t);
+    const fb = st.bosses.slice().sort((a, b) => a.t - b.t).find(b => !b.final);
+    for (const s of surges) {
+      ok(s.t - s.lead >= 85, `${id}: Countdown beginnt vor 85 s (${s.t - s.lead})`);
+      for (const [name, m] of [['Beginn', s.t], ['Ende', s.t + s.dur], ['T-10', s.t - 10]]) {
+        for (const t of evT) ok(Math.abs(t - m) >= 2.5, `${id}: Ansturm-${name} ${m} s zu nah an Ereignis ${t} s`);
+        for (const t of bossT) ok(Math.abs(t - m) >= 2.5, `${id}: Ansturm-${name} ${m} s zu nah an Boss ${t} s`);
+        for (const t of eliteT) ok(Math.abs(t - m) >= 2.5, `${id}: Ansturm-${name} ${m} s zu nah an Elite ${t} s`);
+      }
+      if (fb) {
+        ok(s.t + s.dur <= fb.t - 20 - 10, `${id}: Ansturm endet weniger als 10 s vor dem Boss-Countdown`);
+        ok(s.t + s.dur < fb.t - 20, `${id}: Ansturm überlappt den Boss-Countdown`);
+      }
+      for (const k of ['hint', 'text']) ok(api.tr(s[k]) !== undefined, `${id}: ${k} fehlt`);
+    }
+    // HP-Brücke: bis 75 s und ab 240 s identisch mit der alten Kurve, dazwischen nie darunter
+    Store.load();
+    Game.newRun('aron', 0, id);
+    const base = HEAT[0].hp * st.mult.hp;
+    for (let t = 0; t <= 900; t += 0.5) {
+      const h = Game.hpMul(t), old = base * hpCurve(t / 60);
+      if (t <= 75 || t >= 240) ok(Math.abs(h - old) < 1e-9, `${id}: hpMul(${t}) weicht von der alten Kurve ab`);
+      else ok(h >= old - 1e-9, `${id}: hpMul(${t}) unter der alten Kurve`);
+    }
+  }
+
+  // Phasen, Klänge und Banner in einem echten Lauf je Land (unverwundbarer Held)
+  for (const st of STAGES) {
+    const s = (st.surges || [])[0];
+    if (!s) continue;
+    Store.load();
+    const log = [];
+    const keep = { sfx: Hooks.sfx, banner: Hooks.banner, levelUp: Hooks.levelUp, chest: Hooks.chest };
+    Hooks.sfx = n => log.push([Game.run.t, 'sfx', n]);
+    Hooks.banner = (t, k) => log.push([Game.run.t, 'banner', t]);
+    let pend = null;
+    Hooks.levelUp = o => { pend = o; };
+    Hooks.chest = () => {};
+    const r = Game.newRun('aron', 0, st.id);
+    r.stats.maxHp = r.p.hp = 1e9;
+    const A = s.t - s.lead, E = s.t + s.dur;
+    const marks = [[A - 1, null], [A, 'warn'], [s.t - 0.1, 'warn'], [s.t, 'on'], [E - 0.1, 'on'], [E, null]];
+    const step = until => {
+      while (r.t < until) {
+        if (Game.state === 'levelup') { Game.chooseLevel(pend[0]); continue; }
+        if (Game.state === 'chest') { Game.closeChest(); continue; }
+        Game.update(1 / 60);
+      }
+    };
+    for (const [t, ph] of marks) {
+      step(t);
+      const cs = Game.countdownState();
+      const got = cs && cs.kind === 'surge' ? cs.phase : null;
+      ok(got === ph, `${st.id}: countdownState bei ${t} s = ${got}, erwartet ${ph}`);
+      if (t === A) {
+        // Pause: 10 s Echtzeit ohne Fortschritt
+        const t0 = r.t, left = cs && cs.left;
+        Game.state = 'paused';
+        for (let i = 0; i < 600; i++) Game.update(1 / 60);
+        Game.state = 'play';
+        ok(r.t === t0 && Game.countdownState().left === left, `${st.id}: Pause lässt den Countdown laufen`);
+      }
+    }
+    const at = (kind, name) => log.filter(x => x[1] === kind && x[2] === name).map(x => x[0]);
+    const warn = at('sfx', 'warn'), surge = at('sfx', 'surge'), ach = at('sfx', 'achievement');
+    ok(warn.length === 1 && Math.abs(warn[0] - A) < 0.05, `${st.id}: warn-Klang ${warn}`);
+    ok(surge.length === 1 && Math.abs(surge[0] - s.t) < 0.05, `${st.id}: surge-Klang ${surge}`);
+    ok(at('sfx', 'alarm').filter(t => Math.abs(t - s.t) < 0.05).length === 0, `${st.id}: Eröffnung nicht leise`);
+    const ticks = at('sfx', 'tick').filter(t => t < s.t + 1);
+    ok(ticks.length === 5 && ticks.every((t, i) => Math.abs(t - (s.t - 5 + i)) < 0.05), `${st.id}: Ticks ${ticks.map(t => t.toFixed(2))}`);
+    ok(at('banner', api.tr('Mach dich bereit!')).some(t => Math.abs(t - (s.t - 10)) < 0.05), `${st.id}: T-10-Banner fehlt`);
+    ok(at('banner', api.tr(s.text)).some(t => Math.abs(t - s.t) < 0.05), `${st.id}: Ansturm-Banner fehlt`);
+    ok(at('banner', api.tr('Ansturm überstanden!')).some(t => Math.abs(t - E) < 0.05), `${st.id}: End-Banner fehlt`);
+    ok(ach.some(t => Math.abs(t - E) < 0.05), `${st.id}: End-Klang fehlt`);
+    // leichter Boss-Countdown: Leiste, drei Ticks, kein warn
+    const fb = r.bossList.find(b => !b.final);
+    step(fb.t - 20 - 0.5);
+    ok(Game.countdownState() === null, `${st.id}: Countdown vor dem Boss-Countdown`);
+    step(fb.t - 19.5);
+    const bc = Game.countdownState();
+    ok(bc && bc.kind === 'boss' && bc.phase === 'warn' && bc.label === fb.name, `${st.id}: Boss-Countdown fehlt`);
+    step(fb.t + 0.5);
+    const bt = at('sfx', 'tick').filter(t => t > fb.t - 20);
+    ok(bt.length === 3 && bt.every((t, i) => Math.abs(t - (fb.t - 3 + i)) < 0.05), `${st.id}: Boss-Ticks ${bt.map(t => t.toFixed(2))}`);
+    ok(at('sfx', 'warn').length === 1, `${st.id}: Boss-Countdown mit warn-Klang`);
+    ok(Game.countdownState() === null, `${st.id}: Countdown nach dem Boss`);
+    // Endlosmodus: nie ein Countdown
+    r.t = r.length + 1; r.endless = true; r.won = true;
+    const n0 = log.length;
+    step(r.length + 30);
+    ok(Game.countdownState() === null && !log.slice(n0).some(x => x[1] === 'sfx' && ['warn', 'tick', 'surge'].includes(x[2])), `${st.id}: Countdown im Endlosmodus`);
+    Object.assign(Hooks, keep);
+  }
+  return fail;
+}
+
 const api = load();
+{
+  const t0 = Date.now(), fail = m10Checks(api);
+  if (fail.length) { console.log('M10-PRÜFUNG FEHLGESCHLAGEN:\n  ' + fail.join('\n  ')); process.exitCode = 1; }
+  else console.log(`M10-Prüfung ok (Zeitplan, HP-Brücke, Phasen, Pause, Endlos; ${Date.now() - t0} ms)`);
+}
 const charId = process.argv[2] || 'aron';
 const heat = +(process.argv[3] || 0);
 const n = +(process.argv[4] || 1);

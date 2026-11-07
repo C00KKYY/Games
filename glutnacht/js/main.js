@@ -95,7 +95,7 @@
   Hooks.chest = r => UI.chest(r);
   Hooks.victory = () => UI.victory();
   Hooks.gameOver = s => UI.gameOver(s);
-  Hooks.banner = (t, k) => UI.banner(t, k);
+  Hooks.banner = (t, k, sub, dur) => UI.banner(t, k, sub, dur);
   Hooks.achievement = a => UI.achievement(a);
   Hooks.happy = () => Platform.happy();
 
