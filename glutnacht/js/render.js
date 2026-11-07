@@ -998,11 +998,20 @@ const Render = {
             ctx.fillStyle = H.ink; ctx.beginPath(); ctx.arc(dx, dy, dr + 1.6, 0, TAU); ctx.fill();
             ctx.fillStyle = later ? H.rim : H.core; ctx.beginPath(); ctx.arc(dx, dy, dr, 0, TAU); ctx.fill();
           }
-          if (te.arms) { // Spirale: kurze Pfeile in Drehrichtung
-            ctx.strokeStyle = H.glow; ctx.lineWidth = 2.5;
+          if (te.arms) { // Spirale: kurze Pfeile in Drehrichtung (je Arm ein eigener Bogen mit Spitze)
+            const RA = R + 16;
             ctx.beginPath();
-            for (const q of te.shots) ctx.arc(x, y, R + 16, q.a, q.a + 0.5);
-            ctx.stroke();
+            for (const q of te.shots) {
+              const a1 = q.a + 0.55, ex = x + Math.cos(a1) * RA, ey = y + Math.sin(a1) * RA, tx = -Math.sin(a1), ty = Math.cos(a1), nx = Math.cos(a1), ny = Math.sin(a1);
+              ctx.moveTo(x + Math.cos(q.a) * RA, y + Math.sin(q.a) * RA);
+              ctx.arc(x, y, RA, q.a, a1);
+              ctx.moveTo(ex + tx * 7, ey + ty * 7); ctx.lineTo(ex + nx * 6, ey + ny * 6);
+              ctx.moveTo(ex + tx * 7, ey + ty * 7); ctx.lineTo(ex - nx * 6, ey - ny * 6);
+            }
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = H.ink; ctx.lineWidth = 6; ctx.stroke();
+            ctx.strokeStyle = H.core; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.lineCap = 'butt';
           }
         }
       }

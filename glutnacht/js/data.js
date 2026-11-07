@@ -206,13 +206,13 @@ const STAGES = [
     ground: { base: '#4d6b64', speckle: ['#6e9a7a', '#2a4044'], grass: '#8cc88a' },
     decor: ['grave', 'grave', 'cross', 'bones', 'rock', 'mush', 'stump', 'flower'],
     tints: {  }, mods: {  },
-    mult: { hp: 0.95, dmg: 1.0, rate: 1 },
+    mult: { hp: 0.95, dmg: 0.9, rate: 1 },
     rangedFrom: 40, // Fernkämpfer im normalen Nachschub erst ab dieser Sekunde
     waves: [
       { pool: { bat: 2, slime: 3, spitter: 1 }, rate: 2.1, cap: 42 },
       { pool: { bat: 3, slime: 2, skel: 2, spitter: 2 }, rate: 3, cap: 65 },
       { pool: { slime: 2, skel: 3, ghost: 2, spitter: 2 }, rate: 3.4, cap: 85 },
-      { pool: { skel: 3, ghost: 2, bat: 2, spitter: 2 }, rate: 3.4, cap: 95 },
+      { pool: { skel: 3, ghost: 2, bat: 2, spitter: 1 }, rate: 3.4, cap: 95 },
       { pool: { ghost: 2, ghoul: 2, skel: 2, spitter: 2, bell: 1 }, rate: 4, cap: 115 },
       { pool: { ghoul: 3, spitter: 2, bat: 3, bell: 1 }, rate: 4.8, cap: 135 },
       { pool: { ghoul: 2, wraith: 1, skel: 3, spitter: 2, bell: 1 }, rate: 5.4, cap: 155 },
@@ -221,9 +221,9 @@ const STAGES = [
       { pool: { brute: 2, ghoul: 3, wraith: 2, bell: 2 }, rate: 6.8, cap: 215 },
     ],
     events: [
-      { t: 40, kind: 'arc', type: 'spitter', n: 2, text: 'Spucker in Stellung!' },
+      { t: 40, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
       { t: 50, kind: 'ring', type: 'slime', n: 24, text: 'Umzingelt!' },
-      { t: 85, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
+      { t: 72, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
       { t: 105, kind: 'swarm', type: 'bat', n: 36, text: 'Fledermausschwarm!' },
       { t: 150, kind: 'ring', type: 'skel', n: 28, text: 'Umzingelt!' },
       { t: 240, kind: 'ring', type: 'slime', n: 34, text: 'Umzingelt!' },
@@ -244,8 +244,8 @@ const STAGES = [
     ground: { base: '#6e554c', speckle: ['#8c5a3e', '#38282a', '#ff7a3c'], grass: '#ae9484' },
     decor: ['stump', 'stump', 'stump', 'rock', 'bones', 'mush'], decorTint: '#2a1a14',
     tints: { bat: '#ff7a3c', ghost: '#ffb070', wraith: '#ff5a1f', slime: '#ff9a3c', skel: '#4a2e20', ghoul: '#5a3a2a', brute: '#b8502a' }, mods: { all: { hp: 0.9, speed: 1.1 } },
-    mult: { hp: 1.15, dmg: 1.15, rate: 1 },
-    rangedFrom: 58,
+    mult: { hp: 1.15, dmg: 1.1, rate: 1 },
+    rangedFrom: 42,
     rangedCd: 1.6, // Abklingzeit der Fernkämpfer ×1,6 (abgestimmt mit dem Balance-Bot)
     waves: [
       { pool: { bat: 4, slime: 1, cinder: 1 }, rate: 2.6, cap: 50 },
@@ -266,7 +266,7 @@ const STAGES = [
     ],
     events: [
       { t: 50, kind: 'swarm', type: 'bat', n: 30, text: 'Funkenflug!' },
-      { t: 58, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
+      { t: 42, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
       { t: 95, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
       { t: 165, kind: 'swarm', type: 'ghost', n: 36, text: 'Rauchschwaden!' },
       { t: 210, kind: 'arc', type: 'moth', n: 2, text: 'Nadelmotten schwärmen aus!' },
@@ -342,7 +342,7 @@ const STAGES = [
     tints: { skel: '#c8a060', golem: '#a08a6a', brute: '#8a6a4a', ghoul: '#7a7a5a', slime: '#8a9a5a' }, mods: { skel: { hp: 1.25 }, spitter: { hp: 1.2 }, golem: { speed: 1.1 } },
     mult: { hp: 1.2, dmg: 1.1, rate: 1.1 },
     rangedFrom: 40,
-    rangedCd: 1.1,
+    rangedCd: 1.2,
     waves: [
       { pool: { skel: 3, slime: 2, spitter: 1 }, rate: 2.4, cap: 50 },
       { pool: { skel: 3, spitter: 2, bat: 2 }, rate: 3, cap: 70 },
@@ -361,9 +361,10 @@ const STAGES = [
       { pool: { golem: 3, brute: 3, spitter: 3, wraith: 3, skel: 2, cinder: 1, moth: 1 }, rate: 10.6, cap: 325 },
     ],
     events: [
-      { t: 40, kind: 'arc', type: 'spitter', n: 2, text: 'Spucker auf der Mauer!' },
+      { t: 40, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker auf der Mauer!' },
       { t: 55, kind: 'swarm', type: 'bat', n: 32, text: 'Fledermausschwarm!' },
-      { t: 80, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker auf der Mauer!' },
+      { t: 66, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
+      { t: 80, kind: 'arc', mix: { spitter: 2, moth: 1 }, text: 'Schützen auf der Mauer!' },
       { t: 195, kind: 'ring', type: 'skel', n: 36, text: 'Die Wache rückt an!' },
       { t: 300, kind: 'ring', mix: { spitter: 12, moth: 6 }, text: 'Kreuzfeuer!' },
       { t: 405, kind: 'swarm', type: 'ghost', n: 44, text: 'Geisterzug!' },

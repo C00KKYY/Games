@@ -22,7 +22,7 @@ Die Weltkarte zeigt fünf Länder, jedes mit eigenen Gegnern, Bossen, Ereignisse
 | Land | Dauer | Eigenart | Fernkämpfer (ab) | Endboss |
 |---|---|---|---|---|
 | Alter Friedhof | 10 min | Einstieg | Spucker (0:40), Totenglocke (Minute 4) | Blutgraf |
-| Aschenwald | 15 min | schnelle Schwärme | Aschenkessel (0:58), Nadelmotte (Minute 3) | Kohlenherz |
+| Aschenwald | 15 min | schnelle Schwärme | Aschenkessel (0:42), Nadelmotte (Minute 3) | Kohlenherz |
 | Eissee | 15 min | langsam, aber zäh | Nadelmotte (0:45), Spucker, Totenglocke (Minute 5) | Der Ertrunkene König |
 | Burgruine | 15 min | Spucker, Kreuzfeuer | Spucker (0:40), Aschenkessel, Nadelmotte | Steinkoloss |
 | Herz der Nacht | 15 min | alles zusammen | alle vier (ab 0:40) | Die Nacht |
@@ -48,7 +48,7 @@ Schleimpfütze), Spirale oder Bahnen über das ganze Bild; die Nova lädt jetzt 
 
 - Ein befreites Land schaltet das nächste frei und dort die nächste **Nachtstufe** (bis 5): mehr Lebenspunkte, Tempo und Schaden der Gegner, mehr Gold.
 - **Sterne:** ★ befreit, ★★ auf Nachtstufe 1+, ★★★ auf Nachtstufe 3+ – insgesamt 15.
-- **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen. Nach 40–58 Sekunden (je Land) gehen die ersten Fernkämpfer sichtbar im Bild in Stellung, kurz danach folgt das erste große Ereignis. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
+- **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen. Nach 40–45 Sekunden (je Land) gehen die ersten Fernkämpfer sichtbar im Bild in Stellung, kurz danach folgt das erste große Ereignis. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
 - Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`, die auch Stufe nach 60 s, ersten Treffer, Schaden je Minute und Gegner im Bild nach 2/10/30/60 s meldet).
 
 Siegquoten des starken Bots (alle 9 Helden reihum, Nachtstufe 0; „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`). Die Quoten schwanken stark; bei n = 24 beträgt der Zufallsfehler etwa ±10 Prozentpunkte:

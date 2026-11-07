@@ -275,6 +275,7 @@ const LANG_EN = {
   'Totenglocke': 'Knell Bell',
   'Spucker in Stellung!': 'Spitters take aim!',
   'Spucker auf der Mauer!': 'Spitters on the wall!',
+  'Schützen auf der Mauer!': 'Marksmen on the wall!',
   'Die Aschenkessel brodeln!': 'The ash cauldrons are boiling!',
   'Nadelmotten schwärmen aus!': 'Needle moths take flight!',
   'Die Glocken läuten!': 'The bells are tolling!',
