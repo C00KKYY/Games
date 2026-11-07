@@ -43,12 +43,14 @@ const Sfx = (() => {
     hurt: 0.28, flask: 0.56, orbit: 0.22, dash: 0.35, nova: 1.5, magnet: 0.31, chestpick: 0.54, click: 0.83, deny: 0.26,
     item: 0.22, buy: 1.33, chest_open: 0.5, summon: 0.37, slam: 0.45,
     levelup: 0.39, chest: 1.5, evolve: 0.46, boss: 0.45, bomb: 0.48, death: 0.36, revive: 0.5, alarm: 0.79, achievement: 0.55, heal: 0.44,
+    // Countdown und Ansturm (M10): Warnhorn beim Erscheinen der Leiste, Ticks in den letzten Sekunden, Ansturm-Schlag
+    warn: 0.5, tick: 0.35, surge: 0.7,
   };
   // Musikstücke auf etwa −20 LUFS gebracht (gemessen: Menü −24,6, Kampf −13,5, Boss −19,0, Sieg −17,7, Niederlage −13,1)
   const TRACK_VOL = { menu: 1.7, battle: 0.47, boss: 0.89, victory: 0.77, gameover: 0.45 };
   // Mindestabstand in ms (wie bisher)
   const GATE = { hit: 35, kill: 28, gem: 30, coin: 50, shoot: 70, knife: 45, slash: 60, zap: 50, throw: 80, flask: 90, break: 60, hurt: 120,
-    ewind: 90, efire: 80, eimpact: 120 };
+    ewind: 90, efire: 80, eimpact: 120, tick: 500 };
   // Zufällige Verstimmung in Cent, damit schnelle Wiederholungen nicht mechanisch klingen
   const DETUNE = { hit: 40, kill: 40, shoot: 20, knife: 30, slash: 25, throw: 25, zap: 30, break: 30, flask: 20, coin: 10, hurt: 25, dash: 20, summon: 30 };
   // Edelstein-Kombo: pentatonisch steigend, höchstens +12 Halbtöne
@@ -267,6 +269,10 @@ const Sfx = (() => {
     ewind(a, pan) { return voice('zap', { vol: VOL.zap * 0.6, rate: cents(-300), pan }); },
     efire(a, pan) { return voice('throw', { vol: VOL.throw * 0.75, pan }); },
     eimpact(a, pan) { return voice('slam', { vol: VOL.slam * 0.6, pan }); },
+    // Countdown und Ansturm (M10): vorhandene Aufnahmen, umgestimmt
+    warn() { return voice('summon', { rate: 0.7, vol: VOL.warn }); },
+    tick() { return voice('click', { rate: cents(-700), vol: VOL.tick }); },
+    surge() { return voice('slam', { vol: VOL.slam * VOL.surge / 0.7 }) && voice('alarm', { delay: 0.05, vol: VOL.alarm * VOL.surge / 0.7 }); },
   };
 
   // ---------- Synthesizer (Ersatz, wenn eine Aufnahme fehlt) ----------
@@ -333,6 +339,9 @@ const Sfx = (() => {
     death() { notes(330, [0, -3, -7, -12, -15], 0.14, { type: 'sawtooth', dur: 0.4, vol: 0.12, lp: 1400 }); },
     boss() { tone({ type: 'sawtooth', f: 82, dur: 1.4, vol: 0.18, lp: 500, attack: 0.1 }); tone({ type: 'sawtooth', f: 87, dur: 1.4, vol: 0.12, lp: 400, attack: 0.1 }); noise({ f: 120, dur: 1.2, vol: 0.2, ftype: 'lowpass' }); },
     alarm() { tone({ type: 'square', f: 660, dur: 0.12, vol: 0.06 }); tone({ type: 'square', f: 494, dur: 0.12, vol: 0.06, delay: 0.15 }); tone({ type: 'square', f: 660, dur: 0.12, vol: 0.06, delay: 0.3 }); },
+    warn() { tone({ type: 'sawtooth', f: 147, dur: 0.25, vol: 0.09, lp: 700, attack: 0.04 }); tone({ type: 'sawtooth', f: 110, dur: 0.25, vol: 0.09, lp: 600, attack: 0.04, delay: 0.3 }); },
+    tick() { tone({ type: 'square', f: 880, dur: 0.04, vol: 0.04 }); },
+    surge() { this.alarm(); noise({ f: 110, dur: 0.6, vol: 0.3, ftype: 'lowpass' }); },
     shoot() { tone({ type: 'sine', f: 900, f2: 500, dur: 0.07, vol: 0.035 }); },
     knife() { noise({ f: 5000, q: 3, dur: 0.04, vol: 0.04 }); },
     slash() { noise({ f: 900, f2: 3500, q: 1.5, dur: 0.13, vol: 0.13 }); },
@@ -614,7 +623,7 @@ const Sfx = (() => {
   }
   const EVENTS = ['hit', 'kill', 'gem', 'coin', 'levelup', 'chestpick', 'chest', 'evolve', 'item', 'hurt', 'death', 'boss', 'bossdown', 'alarm',
     'shoot', 'knife', 'slash', 'zap', 'throw', 'flask', 'nova', 'orbit', 'heal', 'magnet', 'bomb', 'break', 'summon', 'dash', 'slam', 'revive',
-    'ewind', 'efire', 'eimpact', 'click', 'buy', 'deny', 'achievement', 'victory'];
+    'ewind', 'efire', 'eimpact', 'click', 'buy', 'deny', 'achievement', 'victory', 'warn', 'tick', 'surge'];
 
   return {
     init, preload, onData, play, sting, applySettings, setPlatformMute, releasePlatform, startMusic, stopMusic, setIntensity,

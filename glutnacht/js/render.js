@@ -453,10 +453,16 @@ const Render = {
   hudTop() {
     const el = typeof UI !== 'undefined' && UI.el;
     if (!el || !el.bossbar) return;
-    const bv = !el.bossbar.hidden;
+    // unterstes sichtbares Element von Zeit, Bossleiste und Countdown-Leiste (M10)
+    const sv = !!el.surge && !el.surge.hidden, bv = (!el.bossbar.hidden ? 2 : 0) + (sv ? 1 : 0);
     if (bv === this.hudBV && this.hudW === this.W && this.hudH === this.H) return;
     this.hudBV = bv; this.hudW = this.W; this.hudH = this.H;
-    const phone = this.H < 500 || this.W < 560, b = bv ? el.bossbar : el.timer;
+    let b = el.timer;
+    for (const x of [el.bossbar, sv ? el.surge : null]) if (x && !x.hidden && (!b || x.offsetTop + x.offsetHeight > b.offsetTop + b.offsetHeight)) b = x;
+    // für die Pfeile am oberen Rand: Unterkante und halbe Breite der sichtbaren Leiste in Canvas-Pixeln
+    const bar = bv ? (sv ? el.surge : el.bossbar) : null;
+    this.hudBar = bar ? { bottom: bar.offsetTop + bar.offsetHeight, half: bar.offsetWidth / 2 } : null;
+    const phone = this.H < 500 || this.W < 560;
     Game.view.top = phone && b ? (b.offsetTop + b.offsetHeight + 6) / this.zoom : 0;
   },
 
@@ -1436,7 +1442,9 @@ const Render = {
       const s = this.toScreen(x, y);
       const m = 34;
       if (s.x > m && s.x < this.W - m && s.y > m && s.y < this.H - m) continue;
-      const ex = clamp(s.x, m, this.W - m), ey = clamp(s.y, m + 40, this.H - m);
+      const ex = clamp(s.x, m, this.W - m), hb = this.hudBar;
+      // unter Countdown- bzw. Bossleiste, wenn der Pfeil darunter läge (M10; Spitze 24 px über der Mitte); sonst wie bisher
+      const ey = clamp(s.y, hb && Math.abs(ex - this.W / 2) < hb.half + 30 ? Math.max(m + 40, hb.bottom + 28) : m + 40, this.H - m);
       const a = Math.atan2(s.y - this.H / 2, s.x - this.W / 2);
       ctx.save();
       ctx.translate(ex, ey);

@@ -27,6 +27,7 @@ const UI = {
       hud: $('hud'), xpfill: $('xpfill'), xplvl: $('xplvl'), timer: $('timer'), kills: $('kills'), gold: $('goldc'), goldrow: $('goldrow'),
       wslots: $('wslots'), pslots: $('pslots'), bossbar: $('bossbar'), bossname: $('bossname'), bossfill: $('bossfill'),
       banner: $('banner'), toasts: $('toasts'), screen: $('screen'), pausebtn: $('pausebtn'),
+      surge: $('surge'), surgeicon: $('surgeicon'), surgetxt: $('surgetxt'), surgefill: $('surgefill'),
     };
     document.querySelectorAll('img[data-icon]').forEach(img => { img.src = Sprites.iconURL(img.dataset.icon, 32); });
     this.el.pausebtn.addEventListener('click', () => { this.el.pausebtn.blur(); Sfx.init(); this.pause(); });
@@ -519,6 +520,7 @@ const UI = {
     Game.run = null;
     this.el.hud.hidden = true;
     this.el.bossbar.hidden = true;
+    this.el.surge.hidden = true;
     Platform.attachPending(); // SDK kam während des Laufs: Speicherort jetzt umstellen
     this.show('menu');
     if (Store.data.settings.music) Sfx.startMusic();
@@ -591,6 +593,7 @@ const UI = {
 
   gameOver(sum) {
     this.el.bossbar.hidden = true;
+    this.el.surge.hidden = true;
     setTimeout(() => {
       if (Game.state !== 'over') return;
       this.el.hud.hidden = true;
@@ -732,5 +735,53 @@ const UI = {
       const bw = Math.round(Math.max(0, boss.hp / boss.maxHp) * 1000);
       if (L.boss !== bw) { el.bossfill.style.transform = 'translateX(' + (bw / 10 - 100) + '%)'; L.boss = bw; }
     } else if (!el.bossbar.hidden) el.bossbar.hidden = true;
+    this.updateCountdown(boss);
+  },
+
+  // Countdown-Leiste (M10): Text nur beim Sekundenwechsel, Füllung per transform; bei lebendem Boss nie sichtbar
+  // (der Zeitplan schließt das aus, die Regel ist nur die Absicherung)
+  updateCountdown(boss) {
+    const el = this.el, L = this.lastHud;
+    const cs = boss ? null : Game.countdownState();
+    if (!cs) {
+      if (!el.surge.hidden) { el.surge.hidden = true; L.cdKey = L.cdTxt = null; }
+      return;
+    }
+    const key = cs.kind + cs.phase + cs.icon;
+    if (el.surge.hidden || L.cdKey !== key) {
+      const appear = el.surge.hidden;
+      el.surge.hidden = false;
+      el.surge.className = cs.kind === 'boss' ? 'boss' : cs.phase;
+      if (appear) { void el.surge.offsetWidth; el.surge.classList.add('pop'); }
+      this.drawCountdownIcon(cs);
+      L.cdKey = key; L.cdTxt = null; L.cdF = -1;
+    }
+    const sec = Math.ceil(cs.left), intro = cs.kind === 'surge' && cs.phase === 'warn' && cs.since < 3;
+    const tk = sec * 2 + (intro ? 1 : 0);
+    if (L.cdTxt !== tk) {
+      L.cdTxt = tk;
+      const tm = fmtTime(sec);
+      el.surgetxt.textContent = cs.kind === 'boss' ? tr('{0} in {1}', tr(cs.label), tm)
+        : cs.phase === 'on' ? tr('Ansturm! Noch {0}', tm) : intro ? tr('Starke Gegner kommen!') : tr('Ansturm in {0}', tm);
+      el.surgetxt.classList.toggle('urgent', cs.kind === 'surge' && cs.phase === 'warn' && sec <= 5);
+    }
+    const f = Math.round(cs.frac * 1000);
+    if (L.cdF !== f) { el.surgefill.style.transform = 'scaleX(' + f / 1000 + ')'; L.cdF = f; }
+  },
+  // Symbol des kommenden Gegners bzw. Bosses – nur aus schon gebauten Bildern, sonst ausgeblendet
+  drawCountdownIcon(cs) {
+    const cv = this.el.surgeicon, g = cv.getContext('2d'), r = Game.run;
+    let sp = null;
+    if (cs.kind === 'boss') {
+      const b = r && r.bossList.find(x => x.name === cs.label);
+      if (b) sp = Sprites.bossPeek(b.sprite, b.r, 0, b.tint || null, Sprites.bossLevel(b));
+    } else sp = Sprites.enemyPeek(cs.icon, 0, cs.tint);
+    cv.hidden = !sp;
+    if (!sp) return;
+    g.clearRect(0, 0, cv.width, cv.height);
+    // Mitte des Bildes (der Körper füllt etwa 60 %), auf die Leinwand eingepasst
+    const sw = sp.width, sh = sp.height, k = 0.62, cw = sw * k, ch = sh * k;
+    g.imageSmoothingEnabled = true;
+    g.drawImage(sp, (sw - cw) / 2, (sh - ch) / 2 - sh * 0.03, cw, ch, 0, 0, cv.width, cv.height);
   },
 };

@@ -265,7 +265,7 @@ const Game = {
         if (r.t < c.at) {
           const n = Math.ceil(c.at - r.t);
           if (n !== c.last) { c.last = n; if (n <= (c.kind === 'surge' ? 5 : 3)) Hooks.sfx('tick'); }
-          if (c.kind === 'surge' && !c.t10 && r.t >= c.at - 10) { c.t10 = true; Hooks.banner(tr('Mach dich bereit!'), 'event', tr(c.s.hint)); }
+          if (c.kind === 'surge' && !c.t10 && r.t >= c.at - 10) { c.t10 = true; Hooks.banner(tr('Mach dich bereit!'), 'event ready', tr(c.s.hint), 2.6); }
           return;
         }
         // Boss-Countdown: Banner und Klang des Bosses selbst sind der Abschluss
@@ -301,7 +301,7 @@ const Game = {
     Hooks.banner(tr('Ansturm überstanden!'), 'win', r.surgeHits ? tr('+{0} Gold', g) : tr('Ohne Treffer! +{0} Gold', g));
     Hooks.sfx('achievement');
   },
-  // Lesezugriff für Oberfläche und Werkzeuge: null oder { kind, phase, left, frac, icon, tint, label }
+  // Lesezugriff für Oberfläche und Werkzeuge: null oder { kind, phase, left, frac, since, icon, tint, label }
   // (ein wiederverwendetes Objekt, die Anzeige fragt jedes Bild)
   countdownState() {
     const r = this.run;
@@ -312,8 +312,8 @@ const Game = {
       if (t < c.start) return null;
       const on = c.kind === 'surge' && t >= c.at;
       if (t >= (on ? c.end : c.at)) continue;
-      const o = this._cds || (this._cds = { kind: '', phase: '', left: 0, frac: 0, icon: '', tint: null, label: '' });
-      o.kind = c.kind; o.phase = on ? 'on' : 'warn';
+      const o = this._cds || (this._cds = { kind: '', phase: '', left: 0, frac: 0, since: 0, icon: '', tint: null, label: '' });
+      o.kind = c.kind; o.phase = on ? 'on' : 'warn'; o.since = on ? t - c.at : t - c.start;
       o.left = Math.max(0, on ? c.end - t : c.at - t);
       o.frac = clamp(o.left / (on ? c.end - c.at : c.at - c.start), 0, 1);
       if (c.kind === 'surge') {

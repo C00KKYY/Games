@@ -671,6 +671,13 @@ const Sprites = (() => {
     return k > 1 ? hires('boss' + type + frame + variant + (tint || '') + lvl, k, fn) : fn();
   }
 
+  // Schon gebautes Bild oder null – baut nie etwas (Countdown-Leiste, M10: kein Zeichnen auf Abruf im Spiel)
+  function enemyPeek(type, frame, tint) { return cache.get('e' + type + frame + '0' + (tint || '')) || null; }
+  function bossPeek(type, r, frame, tint, lvl) {
+    const k = Math.min(3, Math.ceil(r / baseR(type)));
+    return (k > 1 ? hiCache.get('boss' + type + frame + '0' + (tint || '') + lvl + '@' + k) : cache.get('e' + type + frame + '0' + (tint || '') + (type === 'night' ? '' : 'b' + lvl))) || null;
+  }
+
   function baseR(type) { return BASE_R[type] || ENEMIES[type].r; }
   // Gegner werden etwas größer gezeichnet als ihr Trefferkreis (nur Darstellung, r bleibt gleich)
   const ENEMY_VIS = 1.15;
@@ -1694,5 +1701,5 @@ const Sprites = (() => {
   // und wird bei Bedarf gezeichnet – hier hängt sich später ein Bild-Atlas an.
   function load() { return Promise.resolve(); }
 
-  return { load, setScale, dropLand, hires, tintVariant, enemy, bossSprite, bossLevel, enemySize, ENEMY_VIS, baseR, player, playerURL, heroOf, HERO_BOX, ICON_IDS: Object.keys(ICONS), gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade, STYLE };
+  return { load, setScale, dropLand, hires, tintVariant, enemy, enemyPeek, bossSprite, bossPeek, bossLevel, enemySize, ENEMY_VIS, baseR, player, playerURL, heroOf, HERO_BOX, ICON_IDS: Object.keys(ICONS), gem, gemTier, GEM_COLORS, item, iconURL, drawIcon, groundTile, deco, DECOS, brazier, shade, STYLE };
 })();

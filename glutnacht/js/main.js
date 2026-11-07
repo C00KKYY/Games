@@ -53,7 +53,9 @@
     const r = Game.run;
     let boss = false;
     if (r) for (const b of r.bosses) if (!b.dead) { boss = true; break; }
-    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : boss || r.t > 600 ? 3 : r.t > 240 ? 2 : 1);
+    // Ansturm (M10): Kampfmusik eine Stufe höher, solange er läuft
+    const cs = r && Game.state !== 'menu' ? Game.countdownState() : null, surge = !!cs && cs.kind === 'surge' && cs.phase === 'on';
+    Sfx.setIntensity(!r || Game.state === 'menu' ? 0 : boss || r.t > 600 ? 3 : r.t > 240 || surge ? 2 : 1);
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
