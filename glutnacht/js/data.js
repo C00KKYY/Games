@@ -202,6 +202,8 @@ const HEAT = [
 // ×cap, die Nahkämpfer der Welle durch pool ersetzt (Fernkämpfer bleiben), Erfahrung ×xp, Tempo ×speed; open ist das
 // Eröffnungsereignis (still, Banner text), icon der Gegner in der Leiste, hint die Zeile im T-10-Banner, gold die
 // Belohnung fürs Überstehen (ohne Treffer doppelt). hpBridge: Lebenspunkte steigen 1:15–4:00 gleichmäßig an.
+// xp an einer Welle bzw. einem Ereignis: Erfahrungsfaktor ihres Nachschubs (nur bis Nachtstufe 2) – zusätzliche
+// Gegner gegen die Flaute sollen den Helden nicht schneller wachsen lassen (sonst wird es ab Minute 5 leichter).
 const STAGES = [
   {
     id: 'graveyard', name: 'Alter Friedhof', minutes: 10,
@@ -310,8 +312,8 @@ const STAGES = [
     waves: [
       { pool: { slime: 3, ghost: 2, moth: 1 }, rate: 2.2, cap: 45 },
       { pool: { slime: 3, ghost: 2, skel: 1, moth: 1 }, rate: 2.6, cap: 60 },
-      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1, ghoul: 1 }, rate: 3.3, cap: 78 },
-      { pool: { ghost: 3, ghoul: 2, skel: 2, moth: 1, spitter: 1 }, rate: 3.4, cap: 85 },
+      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1, ghoul: 1 }, rate: 3.3, cap: 78, xp: 0.88 },
+      { pool: { ghost: 3, ghoul: 2, skel: 2, moth: 1, spitter: 1 }, rate: 3.4, cap: 85, xp: 0.88 },
       { pool: { ghoul: 2, ghost: 3, wraith: 1, moth: 1, spitter: 1 }, rate: 3.6, cap: 100 },
       { pool: { ghoul: 3, wraith: 1, skel: 2, spitter: 1, moth: 1, bell: 1 }, rate: 4, cap: 115 },
       { pool: { wraith: 2, ghoul: 3, brute: 1, moth: 1, bell: 1 }, rate: 4.4, cap: 130 },
@@ -328,7 +330,7 @@ const STAGES = [
       { t: 45, kind: 'arc', type: 'moth', n: 2, text: 'Nadelmotten schwärmen aus!' },
       { t: 55, kind: 'swarm', type: 'ghost', n: 26, text: 'Nebel zieht auf!' },
       { t: 85, kind: 'arc', type: 'moth', n: 2, text: 'Nadelmotten schwärmen aus!' },
-      { t: 180, kind: 'swarm', type: 'ghost', n: 30, text: 'Nebel zieht auf!' },
+      { t: 180, kind: 'swarm', type: 'ghost', n: 30, text: 'Nebel zieht auf!', xp: 0.4 },
       { t: 210, kind: 'ring', type: 'slime', n: 34, text: 'Umzingelt!' },
       { t: 330, kind: 'ring', type: 'ghoul', n: 36, text: 'Das Eis bricht!' },
       { t: 400, kind: 'arc', type: 'bell', n: 2, text: 'Die Glocken läuten!' },

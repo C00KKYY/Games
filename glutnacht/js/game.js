@@ -361,6 +361,7 @@ const Game = {
       const pos = this.spawnPos();
       const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y);
       if (surge) { e.xp *= r.surgeK.xp; e.speed *= r.surgeK.speed; }
+      else if (wv.xp && r.heat < 3) e.xp *= wv.xp;
       alive++;
     }
 
@@ -534,7 +535,8 @@ const Game = {
     if (!ev.quiet) Hooks.sfx('alarm');
     const vr = this.viewRadius();
     // Eröffnung eines Ansturms (ev.surge = { xp, speed }): weniger Erfahrung, ggf. schneller
-    const sg = ev.surge || null;
+    // ev.xp: Erfahrungsfaktor eines gewöhnlichen Ereignisses (wie wave.xp nur bis Nachtstufe 2)
+    const sg = ev.surge || (ev.xp && r.heat < 3 ? { xp: ev.xp, speed: 1 } : null);
     if (ev.kind === 'swarm') {
       const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a);
       const cx = p.x - ca * (vr + 60), cy = p.y - sa * (vr + 60);
