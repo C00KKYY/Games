@@ -49,7 +49,7 @@ function pageSetup() {
       UI.startRun('aron');
       Game.update = () => {};
       Render.setQuality(0, true);
-      clearTimeout(UI.bannerT); UI.el.banner.className = ''; UI.el.toasts.innerHTML = '';
+      UI.bannerLeft = 0; UI.el.banner.className = ''; UI.el.toasts.innerHTML = '';
       const r = Game.run;
       r.t = 30; r.level = 7; r.xp = Math.round(r.xpNext * 0.62); r.kills = 143; r.gold = 37;
       r.enemies.length = 0; r.gems.length = 0; r.pickups.length = 0; r.shots.length = 0; r.fx.length = 0;
@@ -117,7 +117,7 @@ function pageSetup() {
       const b = Game.spawnBoss(def, 1);
       Game.spawnPos = pos;
       b.anim = 0.1; b.hp = b.maxHp * 0.64;
-      clearTimeout(UI.bannerT); UI.el.banner.className = '';
+      UI.bannerLeft = 0; UI.el.banner.className = '';
       r.tele.push({ kind: 'circle', x: 36, y: 46, rad: 100, t: 0.55, life: 1.05, dmg: 1 });
       for (const [x, y, a] of [[90, -150, 0], [330, 90, 0.2], [-160, -90, 0.1], [-220, 120, 0.3], [380, -140, 0.15], [-40, 200, 0.05]]) S.enemy('skel', x, y, a);
       for (const [x, y, a] of [[-330, -160, 0], [-300, 40, 0.2]]) S.enemy('bat', x, y, a);

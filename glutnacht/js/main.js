@@ -48,7 +48,7 @@
     } else resume = 0;
     Render.rafNow = now;
     Render.draw(dt);
-    if (booted) UI.updateHud();
+    if (booted) { UI.updateHud(); UI.tickBanner(dt); }
     Platform.setPlaying(Game.state === 'play');
     const r = Game.run;
     let boss = false;

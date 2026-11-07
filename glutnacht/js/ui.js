@@ -19,7 +19,7 @@ const PREMISE_SHORT = 'Trag die letzte Glut durch die Nacht und hol den Morgen z
 
 const UI = {
   el: {}, cur: null, selChar: null, banMode: false, hudSig: '', lastHud: {}, optsBack: 'menu',
-  prevBest: 0, confirm: null, modalReady: 0, bannerT: null, kbNav: false,
+  prevBest: 0, confirm: null, modalReady: 0, bannerLeft: 0, bannerHeld: false, kbNav: false,
 
   init() {
     const $ = id => document.getElementById(id);
@@ -495,7 +495,7 @@ const UI = {
     Render.flushPrebuild(charId); // alle Gegner-Bilder des Landes jetzt, nicht beim ersten Erscheinen im Spiel
     this.el.hud.hidden = false;
     this.el.toasts.innerHTML = '';
-    clearTimeout(this.bannerT);
+    this.bannerLeft = 0;
     this.el.banner.className = '';
     if (s.settings.music) Sfx.startMusic();
     // Allererster Lauf: kein Dialog, sofort spielen – die Rahmengeschichte steht als eine Zeile im Kapitel-Banner
@@ -614,8 +614,17 @@ const UI = {
     b.style.setProperty('--bd', dur + 's');
     void b.offsetWidth;
     b.className = 'show ' + (kind || '');
-    clearTimeout(this.bannerT);
-    this.bannerT = setTimeout(() => { b.className = ''; }, dur * 1000);
+    this.bannerLeft = dur;
+  },
+  // je Bild aus main.js: Während Aufstieg, Truhe oder Pause steht der Banner still (Animation und Restzeit) und läuft
+  // danach weiter – sonst verpasst man z. B. „Die Ghule erheben sich!“, wenn im selben Moment ein Aufstieg aufgeht
+  tickBanner(dt) {
+    const st = Game.state, held = st === 'levelup' || st === 'chest' || st === 'paused', b = this.el.banner;
+    if (held !== this.bannerHeld) { this.bannerHeld = held; b.style.animationPlayState = held ? 'paused' : ''; }
+    if (this.bannerLeft > 0 && !held) {
+      this.bannerLeft -= dt;
+      if (this.bannerLeft <= 0) { this.bannerLeft = 0; b.className = ''; }
+    }
   },
 
   // Taste M: Gesamt-Stummschaltung; die Schalter für Klang und Musik bleiben, wie sie sind
