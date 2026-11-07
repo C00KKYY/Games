@@ -76,7 +76,8 @@ img { -webkit-user-drag: none; }
 #surge { position: absolute; left: 0; right: 0; margin: 0 auto; top: calc(74px + env(safe-area-inset-top, 0px)); width: min(460px, 70vw); text-align: center; pointer-events: none; }
 #surge.pop { animation: surgePop 0.35s cubic-bezier(0.3, 1.5, 0.5, 1); }
 @keyframes surgePop { from { transform: scale(0.6); opacity: 0; } to { transform: none; opacity: 1; } }
-#surgehead { display: flex; align-items: center; justify-content: center; gap: 6px; height: 24px; white-space: nowrap; }
+/* dezente dunkle Unterlage: der Text bleibt über Gegnern und hellen Effekten lesbar */
+#surgehead { display: flex; align-items: center; justify-content: center; gap: 6px; height: 24px; white-space: nowrap; width: fit-content; max-width: 100%; margin: 0 auto; padding: 0 10px 0 6px; box-sizing: border-box; border-radius: 12px; background: rgba(10, 4, 20, 0.5); box-shadow: 0 0 8px 2px rgba(10, 4, 20, 0.35); }
 #surgeicon { width: 26px; height: 26px; flex: none; margin: -2px 0; filter: drop-shadow(0 1px 0 #000); }
 #surgetxt { font-family: var(--head); font-size: 18px; line-height: 1; color: #ffd2a0; text-shadow: 0 2px 0 #000, 0 0 10px #ff7a1a; overflow: hidden; text-overflow: ellipsis; }
 #surge .bar { height: 12px; border-radius: 6px; background: rgba(10, 4, 20, 0.85); border: 2px solid #4a2408; overflow: hidden; margin-top: 3px; }
