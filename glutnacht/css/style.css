@@ -487,3 +487,26 @@ img { -webkit-user-drag: none; }
   .panel.wide > .actions .btn { min-height: 38px; padding: 6px 18px; }
   .panel.wide > .actions .btn.big { font-size: 22px; padding: 6px 30px; }
 }
+/* Pause ohne Scrollen auch auf den kleinsten Handys (568×320 quer, 320×568 hoch) */
+@media (max-height: 560px) {
+  #screen .pause > .actions { margin: 8px -16px -12px; padding: 8px 16px 12px; }
+}
+@media (max-height: 340px) {
+  .pause { padding: 8px 14px; }
+  .pause h2 { font-size: 20px; margin: 0; }
+  .pause .bcol h3 { font-size: 14px; }
+  .pause .brow { margin-bottom: 2px; }
+  .pause .statgrid { margin-top: 4px; gap: 3px; }
+  .pause .statgrid div { padding: 2px 8px; font-size: 12px; }
+  #screen .pause > .actions { margin: 6px -14px -8px; padding: 6px 14px 8px; }
+  .pause .actions .btn { min-height: 34px; padding: 5px 14px; }
+}
+@media (max-width: 360px) and (max-height: 700px) {
+  #screen .pause { padding: 10px 12px; }
+  .pause h2 { font-size: 26px; margin: 0 0 2px; }
+  .pause .bcol h3 { font-size: 14px; }
+  .pause .statgrid { margin-top: 6px; gap: 3px; }
+  .pause .statgrid div { padding: 2px 7px; font-size: 11px; }
+  #screen .pause > .actions { flex-wrap: nowrap; gap: 6px; margin: 8px -12px -10px; padding: 8px 12px 10px; }
+  .pause .actions .btn { min-height: 36px; padding: 6px 9px; font-size: 13px; }
+}
