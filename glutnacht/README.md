@@ -51,17 +51,25 @@ Schleimpfütze), Spirale oder Bahnen über das ganze Bild; die Nova lädt jetzt 
 - **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen. Nach 40–45 Sekunden (je Land) gehen die ersten Fernkämpfer sichtbar im Bild in Stellung, kurz danach folgt das erste große Ereignis. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
 - Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`, die auch Stufe nach 60 s, ersten Treffer, Schaden je Minute und Gegner im Bild nach 2/10/30/60 s meldet).
 
-Siegquoten des starken Bots (alle 9 Helden reihum, Nachtstufe 0; „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`). Die Quoten schwanken stark; bei n = 24 beträgt der Zufallsfehler etwa ±10 Prozentpunkte:
+Siegquoten des starken Bots (M9-Endstand, Spielcode 43e7d60): alle 9 Helden reihum, je Konfiguration n = 36 Läufe, Nachtstufe 0
+(außer der letzten Zeile); „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`. Der Bot nimmt
+Fernkampf wie ein geübter Mensch wahr (siehe Technik). Bei n = 36 beträgt der Zufallsfehler etwa ±8 Prozentpunkte; einzelne Messungen
+mit n = 18 auf gleichem Code lagen bis zu 20 Punkte auseinander. Ein Teil der Läufe stammt aus Messungen früherer Stände, deren Spiellogik
+und Landdaten für dieses Land mit 43e7d60 übereinstimmen (`tools/balance-batch.js`).
 
-| Land | Schmiede | Ziel | Siege (n) | Tod im Median |
-|---|---|---|---|---|
-| Alter Friedhof | none | 65–75 % | 73 % (48) | 9,7 min (meist Endboss) |
-| Aschenwald | none / light | ~25 / ~40 % | 42 % / 21 % (je 24) | 8,9 / 10,1 min |
-| Eissee | light / mid | ~33 / ~50 % | 50 % / 33 % (je 24) | 13,6 / 14,7 min |
-| Burgruine | mid | ~33 % | 22 % (36) | 14,4 min |
-| Herz der Nacht | mid / max | ~17 / ~67 % | 33 % / 67 % (je 24) | 11,5 / 16,7 min |
+| Land | Schmiede | Ziel | Siege (n = 36) | Tod im Median | erster Treffer (Median) |
+|---|---|---|---|---|---|
+| Alter Friedhof | none | 40–55 % | 39 % | 7,9 min | 67 s |
+| Aschenwald | none / light | 5–15 % / 20–35 % | 11 % / 28 % | 7,3 / 7,8 min | 65 / 79 s |
+| Eissee | light / mid | 20–30 % / 35–50 % | 19 % / 42 % | 10,3 / 10,4 min | 73 / 68 s |
+| Burgruine | mid / light | 15–25 % / ≤ 10 % | 14 % / 0 % | 9,5 / 8,6 min | 73 / 75 s |
+| Herz der Nacht | mid / max | 5–15 % / 35–55 % | 8 % / 53 % | 8,4 / 15,7 min | 68 / 87 s |
+| Alter Friedhof, Nachtstufe 5 | max | > 0 % | 47 % | 8,1 min | 57 s |
 
-Erste Minute mit dem starken Bot: Stufe 6–10 nach 60 s (vorher 5–8), 10–13 Gegner im Bild nach 2 s (vorher 3–5), Truhe vor 60 s in 48 von 48 Läufen auf dem Friedhof (vorher 1 von 12).
+Schon die erste Minute tut weh: In allen Konfigurationen trifft den starken Bot der erste Schaden im Median nach 57–87 s, zu 88–100 %
+durch Fernkampf (Schaden in den ersten drei Minuten). Erste Minute sonst (Mittel je Konfiguration): Stufe 5–10 nach 60 s,
+10–13 Gegner im Bild nach 2 s, eine Truhe vor 60 s in 86–97 % der Läufe (Ausnahmen: Burgruine 44–61 %,
+Herz der Nacht mid 75 %).
 
 ## Zwischen den Läufen
 
