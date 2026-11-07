@@ -5,6 +5,8 @@
 
 /* veil with a soft hole around the target: dims, never blocks; clipped by its own full-screen box */
 .tu > .tu-veil-box { right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
+.tu > .tu-gbox { right: 0; bottom: 0; overflow: hidden; pointer-events: none; }
+.tu-gbox > * { position: absolute; left: 0; top: 0; }
 .tu-veil-box > .tu-veil { position: absolute; left: 0; top: 0; }
 .tu-veil { width: 0; height: 0; --r: 60px; opacity: 0; transition: opacity .35s ease; will-change: transform; pointer-events: none;
   background: radial-gradient(circle at 50% 50%, rgba(31,43,62,0) 0, rgba(31,43,62,0) var(--r), rgba(31,43,62,.36) calc(var(--r) + 30px)); }

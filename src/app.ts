@@ -3,7 +3,8 @@
  * Dev params: ?bot=casual|optimal, ?warp=<s>, ?speed=n, ?seed=n, ?debug, ?lang=de, ?capture,
  *   ?fresh (ignore an existing save, start a new game that overwrites it), ?nosave (no load, no save).
  *   ?bot / ?warp / ?capture imply ?nosave (deterministic sandboxes never touch the player's save) unless ?keepsave
- *   (e2e flow: save + load + absence handling on a warped world); ?botoff stops the bot after the warp.
+ *   (e2e flow: save + load + absence handling on a warped world); ?botoff stops the bot after the warp
+ *   (&noleads: it hires no department lead either, so the e2e flow hires one by hand).
  *
  * World replacement (late SDK init with an existing save, Brief §9.2.4): the UICtx object, its stores and the audio
  * component live for the whole session; everything bound to one World (SimView, overlay, stepper, all other
@@ -16,6 +17,7 @@ import type { Camera } from './render/camera';
 import { SimView } from './render/simView';
 import { newGame, Stepper, cmd, tick } from './sim/sim';
 import type { World, CommandResult, SimEvent } from './sim/types';
+import type { RoomType } from './content/balance';
 import { t, fmtNum, setLang, getLang, langFromLocale, type Lang, type Key } from './i18n/i18n';
 import { Store, type UICtx, type Component, type Selection, type Tool } from './ui/ctx';
 import { DEFAULT_SETTINGS, SLOT_KEYS, type Settings } from './save/serialize';
@@ -38,7 +40,7 @@ import { assetUrl } from './platform/assets';
 import { systemClock } from './platform/systemClock';
 import { FakeClock, type Clock } from './sim/clock';
 import { awayMs } from './save/store';
-import { syncWall, beginSession, resumeSession, markSessionEnd } from './sim/wall';
+import { syncWall, beginSession, resumeSession, markSessionEnd, awayBaseMs } from './sim/wall';
 import { planAway, applyOfflineFormula, CatchUp } from './sim/offline';
 import { completionPercent } from './sim/prestige';
 import type { M5Panel, CatchUpState } from './ui/ctx';
@@ -167,6 +169,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     clock,
     panel: tracked(new Store<M5Panel | null>(null)),
     catchUp: new Store<CatchUpState | null>(null),
+    guideSpot: new Store<{ type: RoomType; x: number; y: number; w: number; h: number } | null>(null),
     saved: new Store(0),
   };
 
@@ -194,7 +197,8 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') { hiddenAt = clock.now(); flushSave(); return; }
     if (!hiddenAt || swapping) return;
-    const away = awayMs(hiddenAt, clock.now(), AWAY_MAX_MS);
+    // measured from the wall high-water mark: a clock toggled back and forth while hidden pays nothing twice (§3.18)
+    const away = awayMs(awayBaseMs(ctx.w, hiddenAt), clock.now(), AWAY_MAX_MS);
     hiddenAt = 0;
     if (wallOn) resumeSession(ctx.w, clock.now(), tzNow());
     handleAway(away);
@@ -238,7 +242,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   let bot: { step(): void } | null = null;
   // ?botoff: the bot only plays the warp (and leaves Inspection Day to the player), then hands over (e2e flow)
   const botOff = params.has('botoff');
-  if (params.get('bot') && loaded.kind !== 'ok') { const m = await import('../tools/bots'); bot = new m.BotDriver(w0, { profile: params.get('bot') as 'casual', seed: 1, ...(botOff ? { m5: { inspect: false } } : {}) }); }
+  if (params.get('bot') && loaded.kind !== 'ok') { const m = await import('../tools/bots'); bot = new m.BotDriver(w0, { profile: params.get('bot') as 'casual', seed: 1, ...(botOff ? { m5: { inspect: false, leads: !params.has('noleads') } } : {}) }); }
   const warp = Number(params.get('warp') ?? 0) * 1000;
   if (warp > 0 && loaded.kind !== 'ok') while (w0.rtMs < warp) { tick(w0); bot?.step(); }
   let gen = mountGen(w0, botOff ? null : bot);
@@ -316,6 +320,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   /** a running catch-up resim: the normal stepper waits until it is done (the resim stands for the past) */
   let catchUp: CatchUp | null = null;
   let catchMode: 'silent' | 'catchup' = 'silent';
+  let catchAway = 0;
   /** < 60 s silent resim, 60 s – 5 min resim in blocks with "Catching up…", ≥ 5 min formula + return panel (Brief §3.15) */
   const handleAway = (away: number) => {
     if (sandbox) return;
@@ -323,16 +328,16 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     if (plan.mode === 'formula') { applyOfflineFormula(ctx.w, plan.awayMs); return; }
     if (plan.mode === 'silent' || plan.mode === 'catchup') {
       // a second absence while a catch-up still runs: append its ticks instead of dropping the rest of the first one
-      if (catchUp && plan.ticks) { catchUp.extend(plan.ticks); if (plan.mode === 'catchup') catchMode = 'catchup'; return; }
-      catchUp = new CatchUp(ctx.w, plan.ticks, tick); catchMode = plan.mode;
-      ctx.catchUp.set({ mode: plan.mode, left: catchUp.left, total: catchUp.total });
+      if (catchUp && plan.ticks) { catchUp.extend(plan.ticks); catchAway += plan.awayMs; if (plan.mode === 'catchup') catchMode = 'catchup'; return; }
+      catchUp = new CatchUp(ctx.w, plan.ticks, tick); catchMode = plan.mode; catchAway = plan.awayMs;
+      ctx.catchUp.set({ mode: plan.mode, left: catchUp.left, total: catchUp.total, awayMs: catchAway });
     }
   };
   /** session start after a load: absence since the save, then the morning-VIP check; report completion (Brief §3.17) */
   const startSession = (savedAt: number | null) => {
     if (!wallOn) return;
     const now = clock.now();
-    if (savedAt !== null) handleAway(awayMs(savedAt, now, AWAY_MAX_MS));
+    if (savedAt !== null) handleAway(awayMs(awayBaseMs(ctx.w, savedAt), now, AWAY_MAX_MS));
     beginSession(ctx.w, now, tzNow(), savedAt !== null);
     platform.reportProgress(completionPercent(ctx.w));
   };
@@ -386,7 +391,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       if (catchUp) {
         catchUp.step();
         if (catchUp.done) { catchUp = null; ctx.catchUp.set(null); }
-        else ctx.catchUp.set({ mode: catchMode, left: catchUp.left, total: catchUp.total });
+        else ctx.catchUp.set({ mode: catchMode, left: catchUp.left, total: catchUp.total, awayMs: catchAway });
       } else {
         const before = g.stepper.ticks;
         g.stepper.frame(dt * 1e6);

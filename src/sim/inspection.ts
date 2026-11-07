@@ -45,7 +45,8 @@ export const worstOf = (s: GradeSet): GradeCat => CATS.reduce((a, c) => (s[c] < 
 /**
  * Scores over the bucket window:
  *  Comfort = Ø mood % · Safety = max(0, 100 − 25 × escapes − 10 × unsolved events)
- *  Reform = min(100, releases per day per 10 beds × 50) · Profit = min(100, net income per day ÷ target × 100)
+ *  Reform = min(100, releases per day per 10 beds × 50) · Profit = min(100, net income per day ÷ target × 100),
+ *  net = income − wages OWED at the day ends (unpaid wages count too)
  * Days in the window = buckets / 24 (at least 1/24 so an early forecast never divides by 0).
  */
 export function scoresOf(w: World): GradeSet {
@@ -127,7 +128,8 @@ export function inspectionTick(w: World) {
 
 /** cumulative counters the hour buckets are differences of (inspection window, Brief §3.17 "letzte 2 Spieltage") */
 export function inspectionCounters(w: World) {
-  return { released: w.stats.released, escaped: w.stats.escaped, unsolved: w.stats.unsolved, income: incomeCounter(w), wages: w.stats.spend.wages ?? 0 };
+  // wages OWED, not paid: a broke prison with unpaid staff must not get a better Profit grade (closer M5)
+  return { released: w.stats.released, escaped: w.stats.escaped, unsolved: w.stats.unsolved, income: incomeCounter(w), wages: w.stats.wagesOwed ?? 0 };
 }
 
 /**

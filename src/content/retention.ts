@@ -37,6 +37,12 @@ export const MAIL = {
   paceFromMin: 3,
   /** un-rated counters: ladder rung k is used from tierStars[k] stars on (0★ → rung 0, 2★ → rung 1, 4★ → rung 2) */
   tierStars: [0, 2, 4, 5],
+  /**
+   * anti-exploit vs. lockout (wall.ts, closer M5): a local day MORE than this many days before the current mail day
+   * means the clock was far ahead (or a wrong system date was corrected) → the mail day re-anchors to today (closed
+   * without reward). Smaller back-jumps (time zones, a day or two of clock fiddling) never re-roll.
+   */
+  reanchorAfterDays: 3,
 } as const;
 
 // ------------------------------------------------------------------ Morning VIP (Brief §5.4)

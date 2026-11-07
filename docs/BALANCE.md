@@ -267,3 +267,79 @@ Schlüssel, H6 „jeder `cmd.*` der UI existiert"), H5 in `tests/unit/m5-retenti
 4. **Tutorial-Ende** 0:57 (Fenster ab 0:56): 11/27 Seeds darunter, Median knapp drin (vor diesem Pass ebenso).
 5. Die Bot-Zeilen sind gegen kleine Zahländerungen empfindlich (Seed-Rauschen ±1 min ab Minute 9); jede Änderung in
    `src/content/balance.ts` braucht den 27-Seed-Lauf.
+
+## 8. Integration M5: Entlassungsziel 20, Schlüsselkonstante C = 600 (Werte gelten; strengere Messung in §9)
+
+Anlass: H3 (§12.9, §4.3 „Die erste Inspektion ist beim Casual-Bot nach 22–30 min möglich") stand nach §7 im Median bei 19:48
+und nur in 3/27 Seeds streng im Fenster; §7 hatte ±20 % angelegt. Die Schwelle bleibt wörtlich 22–30 min (der Test
+`tests/unit/balance-h.test.ts` prüft jetzt ohne Toleranz).
+
+| Wert | vorher | jetzt | Grund |
+|---|---|---|---|
+| Pflichtziel Entlassungen | `release15` (15) | **`release20` (20)** | Gate der Inspektion war Lv15 (19:46) bzw. 15 Entlassungen (~16 min). 20 Entlassungen kommen bei ~25 min. Alte Spielstände mit erledigtem `release15` bekommen das neue Ziel und erledigen es bei 20 Entlassungen (`tests/unit/m5-integration.test.ts`). i18n `obj.release20`, `clipboard.short/why.release20`. |
+| Schlüssel C | 450 | **600** | Mit dem späteren Ausrufen steigen die Lebenszeit-Coins beim ersten Ausrufen auf 14,8–25,7 K (26 Seeds; Seed 534 ruft erst bei 30:26 aus, im 45-min-Lauf L = 21,0 K → 5). C = 450 hätte 6–7 Basis-Schlüssel gegeben (7 → mit 2★ drei Perks). C = 600: 4 Schlüssel ab 9,6 K, 6 bis 29,4 K → 4/5/6 = 1/23/2 Seeds. |
+
+Ergebnis `npx tsx tools/balance.ts --minutes 30 --seeds 9` (27 Seeds, `qa/balance.md`/`.csv`, 545 s):
+- **Alle 22 Pacing-Zeilen ✅** (Casual-Median ±20 %, Optimal ≤ 35 % schneller). Geändert gegenüber §7.1: Kernraum Lv15 19:53
+  (1/27 außerhalb), Parzelle 3 27:11, **Inspektion möglich 25:04** (Basen 22:49 / 25:14 / 27:03; **24/27 Seeds streng in
+  22:00–30:00**, 26/27 in ±20 %), ausgerufen 25:09. Alle Zeilen bis 3★/erste Leitung unverändert (das Ziel liegt dahinter).
+- **H1b ✅** (Optimal gutes Layout 24:35, Zufallslayout in 45 min nicht bereit) · **H2 ✅** (Naiv-Bot nie bereit; Zufalls-Bot
+  Median 1★, 1/27 Seeds 2★; Ausbruchsversuche in 27/27, gelungene Ausbrüche in 5/27, Essensschlacht in 27/27) · **H3 ✅**
+  (danach Ruf-Zuwachs bis 45:00 in 27/27, bestanden bis 45:00 in 12/27) · **Schlüssel ✅** (Median 5 Basis-Schlüssel, mit 2★
+  genau 2 Perks; „1/27 abweichend" ist Seed 534 ohne Inspektion in 30 min).
+- **H0 ✅** (`npm run economy`: Inspektion 22:19, L = 16,3 K → 5 Schlüssel, Amortisation 3:22, Mix 15:00 48/35/17 · Löhne 23 %).
+- **Offen (unverändert aus §7.4, Exit-Code 1 des Werkzeugs):** Taktung §4.3 in 4/27 Seeds (79, 619, 1034, 1051: 122–137 s
+  nach dem Tunnel 3:03). Ursache genauer angesehen: In diesen Seeds bekommt der 3. Fahrgast (Kurzstrafe 45–55) vor der ersten
+  Nacht kaum Werkstattzeit (3–4 % bei 2:00 statt ~40 %), passive Besserung ruht nachts, also fehlt die 3. Entlassung, die in den
+  anderen Seeds das Klassenzimmer bezahlt (Klassenzimmer erst 5:05–5:20). Versuch Kurzstrafe 36–42: Lücke bleibt (3. Entlassung
+  5:10–5:28), daher zurückgenommen. Der Director-Abstand 150–240 s ist Brief-Wert. Mix bei 30:00 (Entlassungen 34 %, Kisten
+  48 %, 0/27 Seeds) wie §7.4 Nr. 1. Tutorial-Ende 0:57 (11/27 Seeds unter 0:56).
+
+## 9. Closer-Pass M5: ehrlichere Messung – maßgeblich
+
+Anlass: Der Prüfer fand im Werkzeug drei Lockerungen und zwei Scheinerfolge (QA_REPORT.md „Closer-Pass M5"). Die
+Schwellen sind die des Briefs; geändert hat sich nur, wie streng `tools/balance.ts` sie liest (jetzt `npm run balance`).
+
+| Prüfung | vorher | jetzt |
+|---|---|---|
+| Pacing-Zeile | Casual-Median in ±20 % | Median in ±20 % **und ≥ 90 % der Seeds** in ±20 % (`SEED_QUOTA`) |
+| Optimal ≤ 35 % schneller (§4.1) | nur Zeilen ab 3:00 | **jede Zeile** (der Brief kennt keine Ausnahme) |
+| H1b / H2-Naiv | Vergleichs-Bot nie fertig (∞) zählte als bestanden | **endliche Zeit nötig**; Zufallslayout-Bot kauft Land, wenn das Ziel keinen Platz mehr hat; Naiv-Bot kauft das Klemmbrett-Ziel, sobald es bezahlbar ist, sonst das Billigste |
+| H2 Zufalls-Bot < 2★ | Median | ≥ 90 % der Seeds (Unit-Test: jeder Probe-Seed) |
+| H2 Druckzustände | gescripteter Tunnel/Essensschlacht zählten | **vom Director gewählte** Ausbruchsversuche (≥ 90 % der Seeds); Essensschlacht mit der gescripteten |
+| H3 | Median in ±20 % | Median **streng** 22–30 min und ≥ 90 % der Seeds in ±20 % |
+| Schlüssel | Median | Median und ≥ 90 % der Seeds |
+
+Spielwerte: unverändert gegenüber §8 – mit einer Ausnahme, die zurückgenommen wurde: Die Abdeckung im Fluchtscore als
+Kachelanteil der heute genutzten Räume (§3.10) wurde gebaut und gemessen (27 Seeds: H3 je Seed 20/27 statt 24/27 streng
+in 22–30, Unit-Test-Seed 500 bei 30:24, Pacing-Zeilen sonst gleich). Zurück auf die binäre Abdeckung am Standort
+(Abweichung 22). Profit der Inspektion zählt jetzt geschuldete Löhne (`stats.wagesOwed`) – betrifft nur Noten, nicht das
+Pacing.
+
+**Ergebnis `npm run balance`** (27 Seeds, 660 s, `qa/balance.md`/`.csv`):
+- Pacing: **16/22 Zeilen ✅**. ❌: Tutorial-Ende (Median 0:57, 16/27 Seeds in ±20 %; Optimal 0:34 = 40 % schneller),
+  Strickstube (Casual 1:30 ✅, Optimal 0:46 = 49 % schneller), 4. Entlassung (7:04, 18/27 Seeds), Kantine Lv5 (7:12, 20/27),
+  erstes Projekt (8:18, 22/27), erste Leitung (16:59, 24/27). Alle Mediane liegen im ±20-%-Fenster.
+- **H1b ❌**: Optimal gutes Layout 24:35 vs. Zufallslayout 28:06 (2/27 Zufallslayouts nie bereit) – nur 12 % schneller statt
+  ≥ 25 %. Zur Info Ausrufen mit Prognose ≥ 1★: 25:35 vs. 32:57 (22 % schneller).
+- **H2-Naiv ❌**: 25:25 vs. 24:35 (+3 % statt ≥ +30 %). Der wörtliche Gierig-Bot („kauft immer das Billigste", ohne Ziel)
+  erreicht die Inspektion nie: Er kauft jedes Mal die billigste Aufwertung, sobald die Strickstube (520) bezahlbar wäre
+  (Seed 11: nach 45 min 73 Coins, nur Waschhaus Lv8 und Zellen Lv8).
+- H2 Zufalls-Bot ✅ (1/27 Seeds mit 2★), H2 Druck ✅ (Director-Ausbruchsversuche Median 5, in 27/27 Seeds; gelungene
+  Ausbrüche in 5/27; Essensschlacht 27/27), H3 ✅ (Median 25:04, 24/27 streng, 26/27 in ±20 %, Ruf wächst danach in 27/27),
+  Schlüssel ✅ (Median 5, mit 2★ 2 Perks; 26/27). H0 ✅ (`npm run economy`, Amortisation 3:22, 5 Schlüssel).
+- Unverändert offen: Taktung 4/27 (Seeds 79, 619, 1034, 1051: 122–137 s nach dem Tunnel), Mix 30:00 (34/48/18, 0/27).
+
+**Ursachen der neuen ❌ (keine Schwelle gelockert):**
+1. *Tutorial-Ende/Strickstube vs. Optimal:* In den ersten zwei Minuten bestimmt die Reaktionszeit alles (Optimal 3,5–4,5 s
+   pro Tutorial-Schritt und 8 s bis zum ersten Ziehen, Casual 5–9 s und 15–30 s). Das Spiel bremst einen schnellen Spieler
+   dort nicht. Möglicher Hebel: Tutorial-Schritte an feste Momente koppeln (Feier nach Earl), Strickstube teurer als das
+   Startgeld – beides gegen den G2-Wunsch nach weniger Warten. Tutorial-Ende 0:57 statt 1:10–1:30 ist Folge der G2-Kürzung
+   (§6): G3-Entscheidung.
+2. *Seed-Quote 4. Entlassung/Kantine Lv5/erstes Projekt/erste Leitung:* Basis 11 liegt bei 4. Entlassung und Kantine Lv5
+   fast 1,5 min früher als die anderen Basen (frühe Kurzstrafen), Basis 500/1000 beim ersten Projekt ~1 min später. Die
+   Streuung kommt aus Strafmaß-Ziehungen der ersten Fähren; ein engeres Strafmaß-Band (§6) wäre der Hebel.
+3. *H1b:* „Inspektion möglich" ist ein fester Zielkatalog (20 Entlassungen, Lv15 …). Gutes Layout beschleunigt Wege, aber
+   die Gates hängen an Coins und Strafmaß. Hebel: Layout stärker in den Durchsatz (Nachbarschafts-Boni, Wegzeit-Kosten).
+4. *H2-Naiv:* Wer dem Klemmbrett folgt, kommt fast so schnell an wie der ROI-Bot – das Klemmbrett ist absichtlich eine gute
+   Strategie (G2). Der wörtliche Gierig-Bot bleibt ganz hängen. Ob der Brief den einen oder anderen meint, ist bei G3 zu klären.

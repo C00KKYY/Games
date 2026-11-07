@@ -44,45 +44,45 @@
 17:34  BUY Hire foreman 2 (-50)  coins=360 ruf=415 beds=24 rascals=23
 19:09  release #14 (pop 23)  coins=767 ruf=445
 19:38  release #15 (pop 22)  coins=1384 ruf=465
-19:38  objective release15 (+10 Ruf)  ruf=475
-19:38  BUY Workshop → Lv10 (-1200)  coins=727 ruf=480 beds=24 rascals=22
-19:48  release #16 (pop 21)  coins=1123 ruf=500
-19:48  BUY Classroom 2 4x4 (-750)  coins=376 ruf=500 beds=24 rascals=21
-19:50  BUY Hire teacher 2 (-60)  coins=185 ruf=500 beds=24 rascals=21
-20:15  release #17 (pop 23)  coins=788 ruf=520
-21:43  release #18 (pop 23)  coins=1056 ruf=540
-21:59  release #19 (pop 22)  coins=1559 ruf=560
-22:19  release #20 (pop 21)  coins=2160 ruf=590
-22:19  BUY Workshop → Lv15 (milestone) (-2114)  coins=49 ruf=595 beds=24 rascals=21
+19:38  BUY Workshop → Lv10 (-1200)  coins=187 ruf=470 beds=24 rascals=22
+19:48  release #16 (pop 21)  coins=650 ruf=490
+20:00  BUY Classroom 2 4x4 (-750)  coins=12 ruf=490 beds=24 rascals=21
+20:06  BUY Hire teacher 2 (-60)  coins=8 ruf=490 beds=24 rascals=24
+20:15  release #17 (pop 23)  coins=451 ruf=510
+21:43  release #18 (pop 23)  coins=776 ruf=530
+21:59  release #19 (pop 22)  coins=1279 ruf=550
+22:19  release #20 (pop 21)  coins=1880 ruf=580
+22:19  objective release20 (+10 Ruf)  ruf=590
+22:19  BUY Workshop → Lv15 (milestone) (-2114)  coins=309 ruf=595 beds=24 rascals=21
 22:19  objective workshop15 (+10 Ruf)  ruf=605
-22:37  release #21 (pop 23)  coins=1228 ruf=630
-24:47  release #22 (pop 23)  coins=2130 ruf=650
-25:05  release #23 (pop 23)  coins=2756 ruf=670
-25:25  release #24 (pop 22)  coins=3387 ruf=690
-25:37  release #25 (pop 21)  coins=3985 ruf=720
-27:00  release #26 (pop 23)  coins=4577 ruf=740
-27:00  BUY Parcel 3 (-4500)  coins=79 ruf=740 beds=24 rascals=23
-27:04  BUY Depot → Lv5 (flow bar shows cart bottleneck) (-126)  coins=4 ruf=745 beds=24 rascals=23
-27:33  release #27 (pop 23)  coins=976 ruf=765
-27:33  BUY Cells 3rd block 6x6 (36 beds) (-620)  coins=359 ruf=765 beds=36 rascals=23
-28:04  release #28 (pop 22)  coins=1336 ruf=785
-28:05  BUY Canteen 2 5x4 (-520)  coins=761 ruf=785 beds=36 rascals=22
-28:10  BUY Hire cook 2 (-40)  coins=433 ruf=790 beds=36 rascals=22
-29:17  release #29 (pop 27)  coins=731 ruf=800
-29:27  release #30 (pop 26)  coins=1340 ruf=820
-29:46  release #31 (pop 25)  coins=2135 ruf=840
+22:37  release #21 (pop 23)  coins=1505 ruf=625
+24:47  release #22 (pop 23)  coins=2465 ruf=645
+25:05  release #23 (pop 23)  coins=3053 ruf=665
+25:25  release #24 (pop 22)  coins=3684 ruf=685
+25:37  release #25 (pop 21)  coins=4282 ruf=715
+26:58  BUY Parcel 3 (-4500)  coins=12 ruf=715 beds=24 rascals=24
+27:00  release #26 (pop 23)  coins=432 ruf=735
+27:00  BUY Depot → Lv5 (flow bar shows cart bottleneck) (-126)  coins=308 ruf=740 beds=24 rascals=23
+27:25  BUY Cells 3rd block 6x6 (36 beds) (-620)  coins=99 ruf=740 beds=36 rascals=23
+27:33  release #27 (pop 28)  coins=656 ruf=760
+28:04  release #28 (pop 27)  coins=1269 ruf=790
+28:05  BUY Canteen 2 5x4 (-520)  coins=681 ruf=790 beds=36 rascals=27
+28:10  BUY Hire cook 2 (-40)  coins=248 ruf=790 beds=36 rascals=27
+29:17  release #29 (pop 32)  coins=788 ruf=800
+29:27  release #30 (pop 31)  coins=1443 ruf=820
+29:46  release #31 (pop 30)  coins=2309 ruf=840
 @15:00 mix release 48 % · crates 35 % · board 17 % · wages 23 %
-@30:00 mix release 47 % · crates 37 % · board 17 % · wages 27 %
-lifetime coins @inspection 22:19 16306 (@30:00 26663) → base keys 6
+@30:00 mix release 46 % · crates 37 % · board 17 % · wages 26 %
+lifetime coins @inspection 22:19 16306 (@30:00 27029) → base keys 5
 
 SUMMARY {
-  stars: [ '3:05', '8:07', '15:07', '24:47' ],
+  stars: [ '3:05', '8:07', '15:07', '25:05' ],
   inspection: '22:19',
   releases: 31,
-  coinsEnd: 2418,
+  coinsEnd: 2641,
   ruf: 840,
   payback: '3:22',
-  keys: 6
+  keys: 5
 }
 
 H0 OK

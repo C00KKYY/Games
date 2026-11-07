@@ -88,6 +88,17 @@ export function syncRail(ctx: UICtx, d: DomKit) {
   const any = [...el.children].some(c => !(c as HTMLElement).hidden);
   d.flag(el, 'hidden', any ? null : '');
   d.attr(el, 'aria-label', ctx.t('eventBanner.rail'));
+  // an open menu sheet that reaches the right edge (compact sizes) lies over the rail: the rail steps aside until the
+  // sheet closes, instead of peeking out half-covered and untappable (M5 flow audit, 844×390)
+  let hide = false;
+  if (any && ctx.menu.get() !== null) {
+    const m = ctx.root.querySelector<HTMLElement>('.bb-menu:not([hidden])')?.getBoundingClientRect();
+    if (m && m.width > 0) for (const k of el.children) {
+      const r = (k as HTMLElement).getBoundingClientRect();
+      if (r.width > 0 && r.left < m.right && r.right > m.left && r.top < m.bottom && r.bottom > m.top) { hide = true; break; }
+    }
+  }
+  d.cls(el, 'm5-away', hide);
 }
 
 /** the chip stack top-centre (non-blocking, data-overlay: it floats like the toasts) */

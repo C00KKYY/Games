@@ -18,10 +18,12 @@ export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'yard', mandatory: false, target: 1, progress: w => roomsOf(w, 'yard').filter(r => r.built).length },
   { id: 'canteen5', mandatory: false, target: 5, progress: w => Math.max(0, ...roomsOf(w, 'canteen').map(r => r.level)) },
   { id: 'beds24', mandatory: true, target: 24, progress: w => totalBeds(w) },
-  // Lv15 before release 15 (balance pass M5): pacing §4.2 puts the core room Lv15 at 16:00–20:00, the 15th release
-  // comes with the inspection at 22–28 min; in the old order the clipboard asked for Lv15 last (casual 27:30)
+  // Lv15 before the release goal (balance pass M5): pacing §4.2 puts the core room Lv15 at 16:00–20:00; in the old
+  // order the clipboard asked for Lv15 last (casual 27:30)
   { id: 'workshop15', mandatory: true, target: 15, progress: w => Math.max(0, ...roomsOf(w, 'workshop').map(r => r.level)) },
-  { id: 'release15', mandatory: true, target: 15, progress: w => w.stats.released },
+  // 20 releases (integration M5): with 15 the casual bot could call the inspection at 19:48, before H3's 22–30 min
+  // window (Brief §12.9); old saves that only had "release15" get this goal and finish it as soon as 20 are out
+  { id: 'release20', mandatory: true, target: 20, progress: w => w.stats.released },
   // catching is not something the player can start (the director sends the escapes): last on the clipboard, so the
   // current goal is always one the player can work on (Brief §4.3 "verfolgbares Ziel"); it still completes any time
   { id: 'catch3', mandatory: true, target: 3, progress: w => w.stats.caught },

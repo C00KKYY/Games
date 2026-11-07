@@ -526,6 +526,9 @@ test.describe('D5 every button has a label/icon and a tooltip', () => {
 // ---------------------------------------------------------------------------------------------------------- B5
 test.describe('B5 no fullscreen button, no external links', () => {
   test('B5 DOM: no off-origin link and no fullscreen control in any state (EN + DE)', async ({ page }) => {
+    // 2 languages × 22 states (8 of them M5) in one test: ~115 s under SwiftShader, right at the 120 s default – the time
+    // limit is test infrastructure, not a B5 threshold (closer M5: two runs ended at 120 s in state m5Leads/m5Banner)
+    test.setTimeout(300_000);
     const fails: string[] = [];
     for (const lang of ['en', 'de']) {
       const guard = await load(page, `${MID}&lang=${lang}`);

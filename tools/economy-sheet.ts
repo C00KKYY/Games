@@ -75,7 +75,7 @@ const ORDER: Step[] = [
 ];
 
 /** Objective → reached flag + Ruf (each objective +10 Ruf, coins scaled) */
-const MANDATORY = ['workshop', 'classroom', 'guard', 'beds24', 'release15', 'workshop15', 'catch3'];
+const MANDATORY = ['workshop', 'classroom', 'guard', 'beds24', 'release20', 'workshop15', 'catch3'];
 
 export function run(verbose = true) {
   const errors: string[] = [];
@@ -216,7 +216,7 @@ export function run(verbose = true) {
       gateCd = RATE.gateSecPerRelease;
       log.push(`${fmt(t)}  release #${released} (pop ${rascals.length})  coins=${coins.toFixed(0)} ruf=${ruf}`);
       if (released >= 5) objective('release5', t);
-      if (released >= 15) objective('release15', t);
+      if (released >= 20) objective('release20', t);
     }
     // --- board
     const bunkLvl = Math.max(...rooms.filter(r => r.t === 'bunk').map(r => r.lvl));

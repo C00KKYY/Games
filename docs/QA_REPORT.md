@@ -263,3 +263,157 @@ Produktions-Build im eigenen Scratch-Ordner, `vite preview` auf Port 5380 (`--st
 - Ein menschlicher Playtest (G-artig) steht aus; der „Neuling" ist ein Skript, gehört hat niemand etwas.
 - Nicht gebaut: Stern-Tooltip in der Topbar mit nächster Belohnung (die Info steht im Stern-Toast), „Nächste Entlassung in ~40 s"
   an der Tor-Stufe der Fluss-Leiste (ersetzt durch die „Fast frei"-Sterne).
+
+## Stand M5 (Integration, 2026-11-07)
+
+Umfang (Brief §14 M5): Rest von Standort 1 – Projekte, Leitungen, Essensschlacht, Inspektion, Versetzung, Perks, Offline,
+Tagespost, Morgen-VIP – plus die G2-Rückmeldung (Abschnitt oben). Vertrag: `docs/M5_DESIGN.md`. Standort 2 (P0b) und P1
+(Hausregeln, Überraschungsinspektion) sind nicht gebaut und nicht verbaut (Versetzung zeigt Standort 2 nur als Silhouette mit
+„Freigeschaltet“, ohne Knopf und ohne Versprechen).
+
+### Abnahme H0–H6 für Standort 1 (Brief §12.9; Messung `tools/balance.ts --minutes 30 --seeds 9`, 27 Seeds, `qa/balance.md`)
+
+| Test | Schwelle (Brief) | Ergebnis | Status | Beleg |
+|---|---|---|---|---|
+| H0 | Economy-Sheet ohne Widerspruch zur Pacing-Tabelle | Inspektion 22:19, 5 Basis-Schlüssel, Amortisation 3:22, Mix 15:00 48/35/17 · Löhne 23 % | ✅ | `qa/economy-sheet.txt`, `tests/unit/economy.test.ts` |
+| H1 Pacing | jede Zeile ±20 % (Casual), Optimal nicht > 35 % schneller | Closer-Lesart (Median **und** ≥ 90 % der Seeds in ±20 %, Optimal-Regel für jede Zeile): **16/22 Zeilen ✅**; alle 22 Mediane im Fenster (u. a. 2★ 8:11, Essensschlacht 10:31, Parzelle 2 11:00, 3★ 15:19, Lv15 19:53, Parzelle 3 27:11, Inspektion möglich 25:04). ❌ Tutorial-Ende (16/27 Seeds; Optimal 40 % schneller), Strickstube (Optimal 49 % schneller), 4. Entlassung 18/27, Kantine Lv5 20/27, erstes Projekt 22/27, erste Leitung 24/27 | ❌ offen (6 Zeilen) | `qa/balance.md`, BALANCE.md §9 |
+| H1 Taktung §4.3 | ≤ 120 s ohne Neues (15 min), ≤ 45 s ohne Kauf/Ziel, kein Runaway | 23/27 Seeds ≤ 120 s (4 Seeds 122–137 s nach dem Tunnel 3:03), 27/27 nie > 45 s ohne Kauf/Ziel, 27/27 ohne Runaway | ❌ offen (4/27) | `qa/balance.md` „Taktung“, BALANCE.md §8 |
+| H1 Mix/Löhne §3.8 | 15:00 und 30:00 im Korridor | 15:00 49/32/18 · Löhne 25 % (Median im Korridor, 8/27 Seeds); **30:00 34/48/18** · Löhne 31 % (0/27) | ❌ offen (30:00) | BALANCE.md §7.4 Nr. 1 |
+| H1 Ruf-Quellen | Report | Entlassungen 15–16/min, Ziele 5,3 → 1,3, Ereignisse ~1, Fangen 1, Meilensteine 0,7 | ✅ berichtet | `qa/balance.md` |
+| H1 Standort 2 | 30 min Standort 2 mit Perks | nicht Teil von M5 (P0b) | – (M6) | |
+| H1b | gutes Layout ≥ 25 % schneller als Zufallslayout | Vorher ✅ nur, weil der Zufallslayout-Bot festhing (∞). Mit landkaufendem Vergleichs-Bot: gut 24:35 vs. zufällig 28:06 (12 %; 2/27 nie bereit) | ❌ offen | `qa/balance.md`, BALANCE.md §9 Nr. 3 |
+| H2 | Naiv ≥ 30 % langsamer; Zufalls-Bot < 2★ in 30 min; ≥ 1 Ausbruch und ≥ 1 Essensschlacht | Naiv (folgt dem Ziel, sonst das Billigste) 25:25 vs. 24:35 (+3 %) ❌ – der wörtliche Gierig-Bot erreicht nie die Inspektion; Zufalls-Bot 1/27 Seeds 2★ ✅ (≥ 90 %); vom Director gewählte Ausbruchsversuche in 27/27 Seeds (Median 5, gelungen in 5/27), Essensschlacht 27/27 ✅ | ❌ offen (Naiv) | `qa/balance.md`, `balance-h.test.ts`, BALANCE.md §9 Nr. 4 |
+| H3 | erste Inspektion beim Casual nach 22–30 min möglich, danach Progression | **Median 25:04** (streng im Fenster), 24/27 Seeds streng in 22–30, 26/27 in ±20 % (≥ 90 %); Ruf wächst danach bis 45:00 in 27/27, Folgeziele/Versetzung/Perks | ✅ | BALANCE.md §8–§9, `balance-h.test.ts`, `m5-integration.test.ts` |
+| Schlüssel §3.17 | Casual 4–6 Basis-Schlüssel, mit 2★ genau 2 Perks | Median 5 (4/5/6 = 1/23/2 Seeds; Seed 534 ruft erst bei 30:26 aus, dann 5), mit 2★ 2 Perks | ✅ | BALANCE.md §8 |
+| H4 | Save/Load-Hash gleich, Offline gedeckelt, Zeitsprünge geklemmt; M4-Saves laden | Hash vor dem ersten Tick gleich (auch mitten im Inspektionsgang, nach Nachspielen, nach Versetzung); Deckel 2 h + Perks; −∞/NaN/negativ → 0, +10 Jahre/∞ → Deckel; **Uhr hin und her zahlt den Deckel nur einmal** (Hochwassermarke, Closer); v1- und v2-Saves laden (SAVE_VERSION 3, `m5-migration.spec.ts`) | ✅ | `m5-retention.test.ts`, `m5-closer.test.ts`, `m5-contract.test.ts`, `save.test.ts` |
+| H5 | Tagespost + Morgen-VIP (a) und (b) mit injizierter Uhr | 00:00 Ortszeit inkl. Zeitzone, Uhr zurück, keine Wiederholung über 30 Tage, (a) neuer Tag + 4 h, (b) 8 h | ✅ | `m5-retention.test.ts` (FakeClock) |
+| H6 | kein toter Button, kein „Coming soon“ | E2E „every button does something“ über alle M5-Screens; jeder `cmd.*` der UI existiert; kein „coming soon“ in i18n | ✅ | `m5-ui.spec.ts`, `balance-h.test.ts`, `m5-ui.test.ts` |
+| I (§12.10) | `happytime` nur erste Entlassung + Inspektion; Completion nach Inspektion und beim Laden; Start/Stop gepaart | Browser-Lauf, SDK-Mock: `init → report → start → stop (Ergebnis) → report → happytime → start (Versetzung) → stop/start (Perk-Laden)`; nach Reload `init → report → start`; keine zweite `happytime` auf dem Versetzungslauf | ✅ | `qa/m5/flow/*/log.json`, `m5-ui.spec.ts` |
+
+### Im Browser durchgespielt (`tools/selfreview/m5flow.spec.ts`, Bilder `qa/m5/flow/<lang>-<größe>/`)
+Frisches Profil, EN und DE bei 1280×720, 907×510 und 844×390 (Touch). Der Casual-Bot spielt die ersten 30 Spielminuten
+im Seiteninneren (`?bot=casual&warp=1800&botoff&noleads`), danach ausschließlich **echte Klicks/Taps** auf jeden neuen
+Knopf: Projekttafel → Projekt starten → Personal → Büro-Karte → Leitung einstellen (Bestätigung) → Räume → Land-Karte
+(Zwei-Tipp, Grund bei zu wenig Coins) → Tagespost → Inspektions-Knopf → Prognose → „Inspektionstag ausrufen“ → Folgen →
+Ergebnis (pausiert) → „Versetzen…“ → zweimal „Versetzen“ → Schlüssel-Knopf → Perk kaufen → × → 2,5 min neuer Lauf →
+Speichern → Reload nach 30 min (FakeClock) → Rückkehr-Panel „Einsammeln“ → Tab 2 min versteckt (Aufholen) → Tab 12 min
+versteckt (Rückkehr-Panel). Jeder Klick prüft, dass nichts über dem Knopf liegt; jedes Bild prüft Überlappungen der HUD-Teile.
+
+Ergebnis des letzten Laufs (6/6 grün, 8,6 min): **0 Konsolenfehler, 0 pageerror, 0 verdeckte und 0 fehlende Knöpfe** in allen
+sechs Läufen; Inspektion 2★ (Comfort C, Safety B, Reform A, Profit A), Versetzung, Perk „Startkapital“ gekauft, Rückkehr-Panel
+nach Reload (+279 bei 40 %) und nach Tab-Rückkehr, „Aufgeholt – 2 min nachgespielt“-Chip.
+
+Gefunden und behoben (alle Bilder angesehen):
+- Tagesbilanz-/Fähren-Toasts lagen auf der pausierenden Ergebnis-Karte (844×390: über Stempel und Sternen) → Sim-Ereignis-Toasts
+  warten mit angehaltener Uhr hinter pausierenden Karten und dem Rückkehr-Panel; Antworten auf eigene Taps erscheinen sofort
+  (`src/ui/toasts.ts`).
+- Bei 844×390 lagen „Inspektionstag ausrufen“, „Weiter optimieren/Versetzen…“ und „Versetzen“ unter dem Falz → Hauptknopfzeile
+  bleibt beim Scrollen sichtbar (`m5-sticky`, `src/ui/m5.css`).
+- Rail (Inspektion, Projekt-Timer, Post, Schlüssel) ragte halb unter offenen Menü-Blättern hervor → weicht, solange ein Blatt sie
+  bedeckt (`m5kit.ts syncRail`).
+- Projekttafel/Leitungen überdeckten den Projekt-Chip der Rail → Layout-Pass 5×/s statt 2×/s.
+- VIP-Tafeltext ragte bei 907×510 unter Seitenpanels, Toasts und Kärtchen → Kollisionsprüfung mit der zuletzt gemessenen Größe
+  (vorher 160×40 geraten) und gegen Toasts/Kärtchen (`eventBanner.ts`).
+- Rückkehr-Panel unter einer zweizeiligen Banner-Leiste → rückt darunter (`returnPanel.ts`).
+- „Aufholen…“ dauerte nur wenige Frames und war nie zu sehen → Chip bleibt 1,8 s und sagt „Aufgeholt – N min nachgespielt“.
+- Ein späterer Schlingel (und auf dem Versetzungslauf ein Wiesel) hieß „Earl“ → der Name gehört nur dem Tutorial-Waschbären.
+- Ein M4-Spielstand bekam nach Abwesenheit kein Rückkehr-Panel (leerer Einnahmen-Ring nach der Migration → 0 Coins) → die
+  Offline-Formel nutzt dann den Schnitt des Spielstands (`offline.ts offlineRatePerMin`).
+- B1-Audit (Übergangszustände, 800×450/907×510): Die Führungshand auf der Bauleiste ragte 2–5 px über den unteren Rand und
+  ließ die Tutorial-Ebene (mit Text) „scrollen“ → Führungsring, -hand, Grundriss und Zieh-Vorführung liegen in einer eigenen
+  textfreien Clip-Box (`tu-gbox`, wie der Schleier).
+- Bekannt, bewusst gelassen: Bei 844×390 liegen Toasts (`data-overlay`, 1,8–3,5 s) kurz über der Kopfzeile eines offenen
+  Bau-Menü-Blatts; Strafakten-Kärtchen und Toasts können sich kurz überschneiden (beides flüchtige Overlays). Unter `?capture`
+  laufen CSS-Animationen nur mit gemalten Frames; das Werkzeug wartet darauf (in DE 1280 blieb die Land-Karte im zweiten Lauf
+  dadurch kurz unsichtbar – kein Spielfehler, im Probe-Lauf ohne Werkzeug sichtbar).
+
+### Automatisierte Tests
+Produktions-Build im Scratch-Ordner, `vite preview` auf Port 5375 (`--strictPort`, danach gestoppt), Chromium mit SwiftShader.
+- `tsc --noEmit -p .` und `eslint src tests` sauber. `vitest run`: **24 Dateien, 328/328** (neu `tests/unit/m5-integration.test.ts`:
+  Entlassungsziel 20 + alter `release15`-Stand, C = 600, „Earl“ nur einmal, Offline-Formel mit leerem Ring; `balance-h.test.ts` H3
+  jetzt ohne Toleranz).
+- **`npx playwright test --workers=1`: 132/132 bestanden, 0 übersprungen, 56,5 min** (`qa/playwright-results.json`): m0-infra 5,
+  m3-layout 45 (B1-Matrix mit den vier M5-Screens Projekttafel, Rückkehr-Panel, Inspektionsergebnis, Versetzung in EN/DE × 10
+  Größen + Touch, Montage, B2, B7, Übergangszustände inkl. Post, Leitungs-Dialog, Prognose, Banner + Randpfeil), m3-ui 23 (B3, **B4**
+  und **D5 über alle Zustände inkl. der 8 M5-Zustände**, B5, B6), m4-accept 6 (A4 101 Dateien/5,03 MB, initial 0,54 MB; A6 600 s
+  Spielzeit ohne Fehler/Warnung), m4-fixes-ui 17, m4-onboarding 8 (A2 424 ms, D3 3,9 s, D8 erste Entlassung 25,5 s, D9 Skip bei
+  3 s), m4-save 10, m5-migration 1 (M4-Spielstand → v2, Rückkehr-Panel, Completion beim Laden), m5-ui 17 (alle Screens EN/DE bei
+  1280×720/800×450/844×390 Touch, Esc-Reihenfolge, Pause-Paarung, **H6**). **D7** (EN/DE-Schlüsselgleichheit) in
+  `tests/unit/i18n.test.ts`.
+- Zwischenläufe: Lauf 1 fand 2 Fehler (Aufholen-Chip-Test erwartete das alte Sofort-Verschwinden → Test auf „Aufgeholt“ angepasst;
+  M4-Spielstand ohne Rückkehr-Panel → Spielfehler in `offline.ts` behoben, Testspielstand hat jetzt 6 min Spielzeit, damit es
+  überhaupt Einnahmen gibt), Lauf 2 fand 3 (Führungshand, s. o. → behoben). Keine Schwelle gelockert, kein Test übersprungen.
+- Balance: `tools/balance.ts --minutes 30 --seeds 9` (27 Seeds, 545 s) – Exit 1 nur wegen Taktung (4/27) und Mix 30:00; H0 grün.
+
+### Offen (Ursache, keine Schwelle gelockert)
+- **Taktung §4.3:** 4/27 Seeds mit 122–137 s ohne Neues nach dem Tunnel (Ursache und verworfener Versuch: BALANCE.md §8).
+- **Einnahmenmix 30:00:** Kisten 48 % statt ≤ 40 %, Entlassungen 34 % statt ≥ 40 % (BALANCE.md §7.4 Nr. 1).
+- **Tutorial-Ende** 0:57 im Median an der Unterkante (0:56), 11/27 Seeds darunter.
+- `reportGameCompletedPercentage` +50 % je erstmals bestandenem Standort statt +20 % (Abweichung 4, RULES_CHECK §6) – bitte
+  bei G3 bestätigen; `COMPLETION.percentPerSite = 20` stellt den Brief-Wortlaut her.
+- `happytime` kommt nur bei **bestandenen** Inspektionen (§11.1 „jeder bestandenen Inspektion“); §12.10 sagt „jeder
+  Inspektion“. Wir folgen der strengeren Regel aus §11.1 (Abweichung 19).
+- Ein menschlicher Playtest von Inspektion/Versetzung steht aus (G3).
+
+### Closer-Pass M5 (2026-11-07): Prüfer-Befunde und was daraus wurde
+
+Der Prüfer hat den Integrationsstand frisch gespielt (907×510, 6:10 Spielzeit), Formeln gegen den Brief gelesen,
+Mutationstests auf den M5-Tests gefahren (52/54 getötet) und Exploits gesucht. Jeder Befund ist behoben oder mit Ursache
+offen; keine Schwelle gelockert, kein Test übersprungen. Wo die ehrlichere Messung jetzt ❌ zeigt, steht es unten als offen.
+
+| Befund | Schwere | Was jetzt gilt | Beleg |
+|---|---|---|---|
+| Unbegrenzte Offline-Coins durch Hin- und Herstellen der Systemuhr (145 → 183.270 Coins in 5 Umstellungen) | HOCH | `wall.maxSeenMs` ist eine Hochwassermarke, die nie sinkt (`syncWall`, `markSessionEnd`). Abwesenheit beim Laden und bei Tab-Rückkehr misst ab `max(Speicherzeit, Marke)` (`awayBaseMs`), ebenso das Sitzungsende für den Morgen-VIP. Uhr zurück → 0, bis die echte Zeit die Marke überholt. SAVE_VERSION **3** mit Migration 2 → 3 (Marke = max(Speicherzeit, letzte Wanduhr, VIP-Sitzungsende)). | `tests/unit/m5-closer.test.ts` (5 Umstellungen zahlen den Deckel genau einmal; Tab-Pfad; VIP; Hash) |
+| Tagespost nach Uhr weit in der Zukunft monatelang gesperrt; Post-Tage per Uhr vorwärts farmbar | MITTEL | Liegt der Ortstag mehr als 3 Tage vor dem Post-Tag (`MAIL.reanchorAfterDays`), springt der Post-Tag auf heute (Aufgaben geschlossen, ohne Belohnung), der nächste echte Tag bringt neue Post. `mail.hiDay` (höchster je gerollter Tag) – nur Post-Tage ab diesem Tag zählen für den Schlüssel-Streak. Kleine Rücksprünge (≤ 3 Tage, Zeitzonen) rollen nie neu (bestehender H5-Test grün). | `m5-closer.test.ts` (+400 d → korrigiert → nächster Tag neue Post; 6 nachgerollte Tage ohne Schlüssel) |
+| Tipp in den gestrichelten Bauplatz baut woanders / „Außerhalb deines Landes" | MITTEL | Ein Tipp (ohne Ziehen) irgendwo im Grundriss baut genau diesen Grundriss (`ctx.guideSpot`, `tools.ts`). Touch: das erste ✓-Rechteck des Ziel-Werkzeugs liegt auf dem Vorschlag, ein Tipp in den Grundriss setzt es dorthin. | `tests/e2e/m5-closer.spec.ts` (Ecke antippen, Maus 907×510 und Touch 844×390) |
+| Führung und „Jetzt bauen" geben das letzte Geld vor Mitternacht aus → „Löhne nicht voll bezahlt" | MITTEL | `paydayReserve` = Lohnsumme der nächsten Mitternacht minus das, was die gemessene Einnahme bis 22:00 noch bringt. Die Führung startet und „Jetzt bauen" erscheint erst bei Kosten + Rücklage; das Klemmbrett sagt „Bald Zahltag: N für Löhne behalten". Wer das Werkzeug selbst öffnet, sieht den Bauplatz weiter. Neuer Frischlauf: 0 unbezahlte Tage (vorher 4:13). | `qa/m5/closer/hook-en-907x510/` (log.json: `unpaid` leer) |
+| Strafakten-Kärtchen bei 907×510 fast nie sichtbar | MITTEL | Vier Ankerplätze um den Schlingel (über, unter, rechts, links; der zuletzt benutzte zuerst), am Bildrand eingeschoben; nur wenn alle vier verdeckt sind, wartet das Kärtchen unsichtbar mit angehaltener Uhr (≤ 8 s). Zeigehand, Ring, Steuerungs-Overlay und Earl-Schild gelten als Hindernis. | Stichprobe 1/3 s, siehe unten |
+| H1b und H2-Naiv bestanden nur, weil die Vergleichs-Bots festhingen (∞) | MITTEL | Zufallslayout-Bot kauft Land, wenn das Ziel keinen gültigen Platz mehr hat; Naiv-Bot kauft das Klemmbrett-Ziel, sobald es bezahlbar ist, sonst immer das Billigste (der wörtliche Gierig-Bot bleibt vor der Strickstube hängen, Seed 11: 73 Coins, nur Waschhaus). Ein nie erreichter Vergleich zählt als ❌. **Ergebnis: beide ❌** (siehe offen). | `qa/balance.md` |
+| H2-Druck war eine Tautologie (gescripteter Tunnel/Essensschlacht) | MITTEL | Gezählt werden vom Director gewählte Ausbruchsversuche (Lesart „Ausbruch" = Ausbruchsversuch, gefangen oder nicht); Essensschlacht zählt mit der gescripteten. Unit-Test prüft `tunnelsRandom ≥ 1`. | `balance-h.test.ts`, `qa/balance.md` |
+| „Optimal ≤ 35 % schneller" nur ab 3:00 geprüft | MITTEL | Gilt jetzt für jede Zeile. Tutorial-Ende und Strickstube sind dadurch ❌ (offen). | `tools/balance.ts` |
+| Median versteckte Seeds außerhalb; 2★-Zufalls-Bot am Median | MITTEL | Jede Zeile braucht zusätzlich ≥ 90 % der Seeds in ±20 %; Zufalls-Bot ≥ 90 % der Seeds < 2★; H3 Median streng 22–30 und ≥ 90 % der Seeds in ±20 %; Schlüssel ≥ 90 % der Seeds. Unit-Test: Zufalls-Bot jeder Seed < 2★. | `qa/balance.md` |
+| Fluchtscore: Abdeckung nicht als Kachelanteil | NIEDRIG | Kachelanteil gebaut und gemessen (27 Seeds): H3 je Seed fiel von 24/27 auf 20/27 streng im Fenster, ein Unit-Test-Seed rutschte auf 30:24, ohne sichtbaren Unterschied fürs Spielen. Zurückgenommen und als **Abweichung 22** dokumentiert (binäre Abdeckung am Standort, 0,85). | `director.ts escapeScore`, PROGRESS.md |
+| Profit zählte nur gezahlte Löhne | NIEDRIG | `stats.wagesOwed` (alle fälligen Löhne, Save v3, Migration = bisher gezahlt); Profit = Einnahmen − geschuldete Löhne. | `m5-closer.test.ts` (Pleite-Tag, bekannte Lohnsumme 100 → 75) |
+| Überlebende Mutanten (Horn-Tap, Director-Abstände, leere Slots, Completion) | NIEDRIG | Tests: zweiter Horn-Tap = cooldown ohne Zählung; Director-Abstände 150–240 s, kein leerer Slot vor 900 s (2 Seeds, 22 min); Completion 50 % je Standort, zweiter Pass +0. | `m5-closer.test.ts` |
+| Hand zeigt auf „Personal", ohne Grund | NIEDRIG | Fehlt einem gebauten Raum sein Personal und reicht das Geld, sagt die Warum-Zeile des Klemmbretts „Erst Vorarbeiter einstellen: die Strickstube läuft voll" (bzw. Lehrer/Wache), EN/DE. | `clipboard.ts`, i18n `clipboard.first.*` |
+| Stille Strecke 1:35–2:35 (Sparen auf das Klassenzimmer) | INFO | Nicht geändert (Taktung offen, s. u.). Die Zahltag-Rücklage verlängert das Sparen dort um bis zu ~1 min, verhindert aber den Lohnstrafe-Tag. | |
+
+**Nachweise im Browser (Produktions-Build, `vite preview` Port 5377):**
+- Strafakten-Kärtchen der ersten Fähre, Stichprobe alle 10 Frames (1/3 s) über 50 s: bei **907×510** waren Earl 10, Gus 10,
+  Juno 10 und Olive 9 Stichproben sichtbar (= ihre vollen 3,2 s; vorher Earl 0/10, Gus 2/11, Juno 1/11, Olive 2/10), dazu
+  3/13/18/8 Stichproben wartend (verdeckt, Uhr angehalten); bei 1280×720 9/10/10/9 sichtbar. Bilder `qa/m5/closer/cards-*.png`.
+- Neuling-Selbstspiel (`tools/selfreview/hook.spec.ts`, EN 907×510, 6:00 Spielzeit, Bilder alle 15 s in
+  `qa/m5/closer/hook-en-907x510/`): 7/7 geführte Ziele bis Kantine Lv5 (5:55), Entlassungen 0:25 / 1:41 / 4:28 / 5:10,
+  längste Strecke ohne Ereignis 54 s (ab 2:06), **0 unbezahlte Lohntage** (vorher „Löhne nicht voll bezahlt" um 4:13),
+  „Bald Zahltag: 181 für Löhne behalten" um 3:45 sichtbar (`016-225s-t.jpg`), 0 Fehler.
+- Tipp in eine Ecke des gestrichelten Bauplatzes: baut genau den Grundriss, Maus 907×510 und Touch 844×390
+  (`tests/e2e/m5-closer.spec.ts`, 2/2).
+
+**Offen nach dem Closer-Pass (Ursache, keine Schwelle gelockert, BALANCE.md §9):**
+- Pacing mit Seed-Quote und Optimal-Regel für jede Zeile: 6/22 Zeilen ❌ (Tutorial-Ende, Strickstube, 4. Entlassung, Kantine
+  Lv5, erstes Projekt, erste Leitung). Alle Mediane liegen im ±20-%-Fenster.
+- H1b ❌ (gutes Layout 24:35 vs. Zufallslayout 28:06, 12 % statt ≥ 25 %) und H2-Naiv ❌ (+3 % statt ≥ +30 %; der wörtliche
+  Gierig-Bot erreicht die Inspektion nie). Lesart und Hebel bei G3.
+- Taktung §4.3 4/27 Seeds, Mix 30:00 0/27 (unverändert).
+- Stille Strecken der ersten 5 Minuten (~1:35–2:35, ~3:00–3:55); die Zahltag-Rücklage kann das Sparen aufs Klassenzimmer um
+  bis zu ~1 min verlängern (dafür kein Lohnstrafe-Tag).
+- Abweichung 22 (binäre Abdeckung) und 23 (Tagespost-Neuverankerung) bei G3 bestätigen. Wer seine Uhr weit vorstellt und
+  zurückdreht, bekommt bis zum Erreichen der Hochwassermarke keinen Offline-Ertrag (gewollt, Anti-Exploit).
+- Kein menschlicher Playtest des neuen Builds; der Neuling-Lauf ist ein Skript.
+
+**Tests nach dem Closer-Pass** (Produktions-Build im Scratch-Ordner, `vite preview` Port 5377 `--strictPort`, danach gestoppt):
+- `tsc --noEmit -p .` und `eslint src tests` sauber; `vitest run`: **25 Dateien, 342/342** (neu `m5-closer.test.ts` 14 Tests;
+  `balance-h.test.ts` prüft jetzt Director-Ausbruchsversuche und jeden Zufalls-Bot-Seed; `m5-contract` SAVE_VERSION 3).
+- `npx playwright test --workers=1` (voller Lauf, 62 min, `qa/playwright-results.json`): **133/134**, 0 übersprungen. Rot nur
+  „B5 DOM: kein fremder Link/keine Vollbild-Steuerung in allen Zuständen" – kein Befund, sondern das 120-s-Testlimit: 2 Sprachen
+  × 22 Zustände brauchen unter SwiftShader ~115 s (gemessen je Zustand; `touchConfirm` 5–11 s, `m5Projects` 5,5 s). Danach
+  in `tools.ts` die Regel „Tipp ins wartende Touch-Rechteck behält es" zurückgenommen (ein ungültiges, rotes Rechteck ließ
+  sich so nicht mehr durch einen Tipp knapp daneben verschieben; der Bauplatz-Tipp bleibt) und neu gebaut; Nachlauf m3-ui + m5-closer + m4-fixes-ui + m4-onboarding: **49/50**, wieder nur
+  B5 DOM am 120-s-Limit (`qa/playwright-results-closer-rerun.json`). Das Testlimit von B5 DOM ist jetzt 300 s (Infrastruktur,
+  keine B5-Schwelle): **B5 2/2** (1,9 min). Kennzahlen: A2 464–633 ms, D3 2,6–3,7 s, D8 erste Entlassung 25,5 s, A4 101 Dateien
+  / 5,03 MB, initial 0,55 MB, A6 600 s Spielzeit (741 s Wanduhr), 0 Fehler, 0 Warnungen.
+- Single-File (`SINGLEFILE=1 npx vite build` → `qa/g2/rascal-rock-lockup-singlefile.html`, 6,37 MB) von file://:
+  `tools/selfreview/singlefile.spec.ts` **2/2** (offline und mit SDK-Mock; Start 0,7–0,85 s, 309 Icons, 36/37 Klänge, die
+  Inspektionsmusik lädt erst beim Inspektionstag). Playtest-Zip `qa/g2/rascal-rock-lockup-playtest.zip` (116 Dateien) mit
+  neuer `ANLEITUNG.txt` (Stand M5, was neu ist, wie testen, offene G3-Entscheidungen).
+- `npm run balance` (27 Seeds, 660 s): Exit 1 – Ergebnis und Ursachen BALANCE.md §9. `npm run economy`: H0 OK.

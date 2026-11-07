@@ -116,9 +116,24 @@ export function rollMailDay(w: World, day: number, perMin1x: number) {
   if (day <= M.day) return; // never backwards, never twice
   const yesterday = M.tasks.map(t => t.id);
   M.day = day;
+  if (day > M.hiDay) M.hiDay = day;
   const reward = mailReward(w, perMin1x);
   M.tasks = mailPicks(w, day, yesterday).map(p => ({ id: p.id, target: mailTarget(w, p), base: mailCount(w, p.counter), done: false, claimed: false, reward }));
   emit(w, 'mailNewDay', { day });
+}
+
+/**
+ * wall.ts: the local day is ≥ 2 days BEFORE the current mail day (a clock that was far ahead was corrected, or turned
+ * back on purpose). Without this the mail stays locked until that future date. Today's slot is closed without a reward
+ * (tasks marked claimed → "New mail tomorrow"), the key streak restarts, and the next real day rolls normally.
+ */
+export function reanchorMail(w: World, day: number) {
+  const M = w.mail;
+  if (!(day < M.day)) return;
+  M.day = day;
+  M.seenDay = Math.min(M.seenDay, day);
+  for (const t of M.tasks) { t.done = true; t.claimed = true; }
+  M.streak = 0;
 }
 
 /** per tick (cheap): visibility gate and done flags */
@@ -152,7 +167,9 @@ export function claimMail(w: World, i: number): CommandResult {
   earn(w, 'mail', t.reward);
   emit(w, 'mailClaimed', { i, reward: t.reward });
   if (mailAllClaimed(w)) {
-    M.daysCompleted++; M.streak++;
+    M.daysCompleted++;
+    // only the newest day ever rolled counts towards a key (a day re-rolled after a back-jump of the clock does not)
+    if (M.day >= M.hiDay) M.streak++;
     const key = M.streak >= MAIL.keyEveryDays;
     if (key) { M.streak = 0; w.keys++; w.prestige.keysEarned++; emit(w, 'keysEarned', { n: 1, source: 'mail' }); }
     emit(w, 'mailDayComplete', { daysCompleted: M.daysCompleted, streak: M.streak, key });

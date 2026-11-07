@@ -10,6 +10,7 @@
     "test": "vitest run",
     "qa": "playwright test",
     "economy": "tsx tools/economy-sheet.ts",
+    "balance": "tsx tools/balance.ts --minutes 30 --seeds 9",
     "art:build": "tsx tools/art-build.ts",
     "art:sheet": "tsx tools/art-sheet.ts",
     "audio:build": "tsx tools/audio/build.ts && tsx tools/audio/measure.ts",

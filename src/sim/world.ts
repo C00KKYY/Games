@@ -36,7 +36,7 @@ export function createWorld(seed = 1, opts: { firstSession?: boolean; debug?: bo
     director: { nextMs: 0, active: null, activeSinceMs: 0, data: {} },
     obj: { done: {}, current: 0 },
     log: [],
-    stats: { income: {}, spend: {}, rufBy: {}, released: 0, arrived: 0, caught: 0, escaped: 0, cratesSold: 0, teleports: 0, unsolved: 0, horntaps: 0, cratetaps: 0, lifetimeCoins: 0, minute: [] },
+    stats: { income: {}, spend: {}, rufBy: {}, released: 0, arrived: 0, caught: 0, escaped: 0, cratesSold: 0, teleports: 0, unsolved: 0, horntaps: 0, cratetaps: 0, lifetimeCoins: 0, wagesOwed: 0, minute: [] },
     events: [], eventSeq: 0,
     cache: { fields: new Map(), version: 0, doorRes: new Int32Array(W * H), evCursor: 0 },
     debug: !!opts.debug,
@@ -65,9 +65,9 @@ export function m5Defaults(site: number): Pick<World, M5Keys> {
     taps: { horn: 0, crates: 0, hornTotal: 0, cratesTotal: 0 },
     inspection: { phase: 'idle', startMs: 0, walker: { x: 0, y: 0, dir: 'S', moving: false, wp: 0 }, route: [], retryDay: 0, hours: [], mark: { released: 0, escaped: 0, unsolved: 0, income: 0, wages: 0 }, last: null, best: 0, count: 0 },
     prestige: { perks: {}, lifetimeCoins: 0, completedSites: [], bestStars: [], transfers: 0, keysEarned: 0 },
-    mail: { day: -1, tasks: [], streak: 0, daysCompleted: 0, seenDay: -1, visible: false, count: {} },
+    mail: { day: -1, tasks: [], streak: 0, daysCompleted: 0, seenDay: -1, visible: false, count: {}, hiDay: -1 },
     vip: { phase: 'none', sessionEndMs: 0, sessionEndDay: 0, boardPermanent: false, arrivals: 0 },
-    wall: { nowMs: 0, tzMin: 0, sessionStartMs: 0, sessions: 0 },
+    wall: { nowMs: 0, tzMin: 0, sessionStartMs: 0, sessions: 0, maxSeenMs: 0 },
     offline: { ring: [], ringLife: 0, ringMs: 0, pending: null, collected: 0 },
   };
 }

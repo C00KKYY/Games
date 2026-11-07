@@ -14,14 +14,15 @@ import { M5_ICON } from './m5icons';
 import { roomsOf } from '../sim/world';
 import { RUF, PARCELS, type RoomType } from '../content/balance';
 import { GATE_X, GATE_Y, FERRY_POS, TUTORIAL_WASH } from '../content/site1';
-import { buildGoal, savingsEta } from './guide';
+import { buildGoal, savingsEta, missingStaff } from './guide';
+import { hireFee } from '../sim/staff';
 
 /** room type an objective is about (camera target + icon) */
 const OBJ_ROOM: Record<string, RoomType> = {
   wash: 'wash', workshop: 'workshop', classroom: 'classroom', guard: 'guard', beds12: 'bunk', yard: 'yard',
   canteen5: 'canteen', beds24: 'bunk', workshop15: 'workshop',
 };
-const OBJ_ICON: Record<string, string> = { catch3: 'staff', release15: 'gate' };
+const OBJ_ICON: Record<string, string> = { catch3: 'staff', release20: 'gate' };
 const TUT_ICON: Record<string, string> = { horn: 'ferry', wash: 'shower', stamp: 'gate', upgrade: 'meal' };
 /** M5 follow-ups after the 10 clipboard goals (Brief §3.16 "always a current objective", objectives.ts currentGoal) */
 const FOLLOW_ICON: Record<FollowupId, string> = { callInspection: M5_ICON.inspect, stars2: 'star', stars3: 'star', transfer: M5_ICON.transfer };
@@ -197,7 +198,7 @@ export function mountClipboard(ctx: UICtx): Component {
   const roomTarget = (type: RoomType): Target => { const r = bestRoom(type); return r ? { ...centre(r), place: t(`room.${type}`) } : parcel(); };
   const gate = (): Target => ({ x: GATE_X + 1, y: GATE_Y - 0.6, place: t('room.gate') });
   const objTarget = (o: ObjectiveDef): Target => {
-    if (o.id === 'release15') return gate();
+    if (o.id === 'release20') return gate();
     if (o.id === 'catch3') {
       if (bestRoom('yard')) return roomTarget('yard');
       const f = w.poi.fenceEscape;
@@ -363,6 +364,10 @@ export function mountClipboard(ctx: UICtx): Component {
       const k = currentIdx(), o = OBJECTIVES[k], p = progOf(o);
       header = t('clip.title'); goalS = objText(o.id); icon = objIcon(o.id); chipS = t(`clipboard.short.${o.id}`);
       num = `${ctx.fmt(p)}/${ctx.fmt(o.target)}`; frac = p / o.target; mand = o.mandatory; rewardS = rewardText(k); whyS = whyText(o.id);
+      // the guide points at Staff first while a built room waits for its worker (guide.ts guideStep): say why here, so
+      // the hand on "Staff" next to a "Build a Classroom" goal makes sense (closer M5, fresh play at 1:30)
+      const lack = w.tutorial.done ? missingStaff(w) : null;
+      if (lack && w.coins >= hireFee(lack)) whyS = t(`clipboard.first.${lack}`);
     } else {
       const c = counts(), g = followup();
       header = t('clip.title');
@@ -383,10 +388,12 @@ export function mountClipboard(ctx: UICtx): Component {
     cls(save, 'cb-hide', !sv);
     cls(chipSave, 'cb-hide', !sv);
     if (sv) {
-      const f = Math.max(0, Math.min(1, w.coins / sv.cost));
+      const f = Math.max(0, Math.min(1, w.coins / (sv.cost + sv.reserve)));
       css(saveFill, 'transform', `scaleX(${Math.round(f * 100) / 100})`);
-      const eta = savingsEta(w, sv.cost);
-      text(saveTxt, t(eta ? 'clipboard.saveEta' : 'clipboard.save', { have: ctx.fmt(Math.floor(Math.max(0, w.coins))), cost: ctx.fmt(sv.cost), min: eta ?? 0 }));
+      const eta = savingsEta(w, sv.cost + sv.reserve);
+      // enough for the room, but not for tonight's wages after it: say why the guide waits (closer M5)
+      if (sv.reserve > 0) text(saveTxt, t('clipboard.saveWages', { n: ctx.fmt(sv.reserve) }));
+      else text(saveTxt, t(eta ? 'clipboard.saveEta' : 'clipboard.save', { have: ctx.fmt(Math.floor(Math.max(0, w.coins))), cost: ctx.fmt(sv.cost), min: eta ?? 0 }));
       attr(save, 'aria-label', t('clipboard.save', { have: ctx.fmt(Math.floor(Math.max(0, w.coins))), cost: ctx.fmt(sv.cost) }));
       attr(chipSave, 'style', `--f:${Math.round(f * 100)}%`);
     }

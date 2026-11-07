@@ -31,7 +31,9 @@ export function spawnRascal(w: World, x: number, y: number, opts: { earl?: boole
   const a = baseAgent(w, opts.vip ? 'vip' : 'rascal', x, y);
   const n = w.stats.arrived;
   a.species = opts.earl ? 'raccoon' : opts.vip ? 'cat' : rngPick(w, SPECIES_S1);
-  a.name = opts.earl ? 'Earl' : opts.vip ? 'Cat Burglar' : NAMES[(n * 7 + rngInt(w, 0, 3)) % NAMES.length];
+  // 'Earl' belongs to the scripted tutorial raccoon only (no second "Earl" later or on a transfer run): the other
+  // rascals draw from the rest of the list (same RNG draw as before)
+  a.name = opts.earl ? 'Earl' : opts.vip ? 'Cat Burglar' : NAMES[1 + (n * 7 + rngInt(w, 0, 3)) % (NAMES.length - 1)];
   const [lo, hi] = n < SENTENCE.firstFerry ? SENTENCE.firstFerryRange : n < SENTENCE.earlyCount ? SENTENCE.early : SENTENCE.normal;
   a.sentence = opts.earl ? SENTENCE.earl : opts.vip ? SENTENCE.vip : rngInt(w, lo, hi);
   a.crime = rngInt(w, 0, 63); a.caseNo = 1000 + rngInt(w, 0, 8999); a.look = rngInt(w, 0, 1 << 20);

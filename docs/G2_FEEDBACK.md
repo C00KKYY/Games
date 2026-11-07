@@ -86,3 +86,15 @@ Grundlage: zwei unabhängige Design-Analysen (Klarheit, Reiz) mit eigenen Spiell
 - **Wachposten nicht an 1★ gebunden**: Er bliebe sonst unter seinem Fenster (Zeile 4:30–5:30).
 - **Keine neuen Sprites, keine Änderung am Zeichenbudget**: „Fast frei" nutzt den vorhandenen Stern im gemeinsamen Need-Layer.
 - **Brief-Schwellen bleiben**: Keine Pacing-Zeile wurde gelockert. Was nicht grün ist, steht in QA_REPORT.md „G2-Rückmeldung".
+
+## Stand nach Prüfung und Closer-Pass (2026-11-07)
+
+- **Punkt 1 (Orientierung): weitgehend behoben.** Frischtest des Prüfers bei 907×510: an 22 von 24 Prüfpunkten (alle 15 s)
+  war der nächste Schritt samt Grund klar. Die zwei Lücken sind behoben: Die Warum-Zeile sagt „Erst Vorarbeiter einstellen:
+  die Strickstube läuft voll", wenn die Hand auf „Personal" zeigt; ein Tipp irgendwo in den gestrichelten Bauplatz baut genau
+  dort. Neu: Die Führung hält vor Mitternacht Geld für die Löhne zurück („Bald Zahltag: N für Löhne behalten") – im neuen
+  Neuling-Lauf 0 unbezahlte Lohntage (vorher eine Lohnstrafe um 4:13).
+- **Punkt 2 (Reiz am Anfang): teilweise behoben.** Klare Momente bei 0:47 (Earl, Konfetti), 1:06, 1:21, ~2:35 (erste
+  Lieferung), ~2:45 (2. Entlassung), 4:45 (1★). Die Strafakten-Kärtchen der ersten Fähre sind jetzt ihre vollen 3,2 s
+  sichtbar (vorher bei 907×510 fast nie). Offen: zwei ruhige Strecken (~1:35–2:35 beim Sparen aufs Klassenzimmer, ~3:00–3:55
+  nach dem Tunnel; Taktungsregel 4/27 Seeds). Ein menschlicher Playtest mit dem neuen Build in `qa/g2/` steht aus.

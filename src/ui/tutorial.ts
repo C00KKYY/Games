@@ -270,13 +270,17 @@ export function mountTutorial(ctx: UICtx): Component {
   // guided first builds after the tutorial (src/ui/guide.ts): a ring + hand on the one next control, a dashed footprint
   // at a good spot while the build tool is on, and once a looping hand that drags it out (Brief §6.2 "Zieh-Geste … per
   // Animation"). Own classes (not .tu-ring / .tu-hand): the e2e drivers read those as the tutorial pointer.
-  const gRing = h('div', 'tu-gring', stage);
-  const gHand = h('div', 'tu-ghand', stage);
+  // they are world-/screen-anchored and may run past the screen edge (a hand on the build bar): like the veil they get
+  // their own text-free clip box, so the stage (which holds text) never scrolls (B1 audit (b), M5 integration)
+  const gBox = h('div', 'tu-gbox', stage);
+  gBox.setAttribute('aria-hidden', 'true');
+  const gRing = h('div', 'tu-gring', gBox);
+  const gHand = h('div', 'tu-ghand', gBox);
   const gHandIn = h('div', 'tu-hand-in', gHand);
   gHandIn.innerHTML = ctx.touch ? HAND_SVG : MOUSE_SVG;
   gHandIn.style.transformOrigin = `${tipX}px ${tipY}px`;
-  const gSpot = h('div', 'tu-gspot', stage);
-  const gDrag = h('div', 'tu-gdrag', stage);
+  const gSpot = h('div', 'tu-gspot', gBox);
+  const gDrag = h('div', 'tu-gdrag', gBox);
   for (const el of [gRing, gHand, gSpot, gDrag]) el.setAttribute('aria-hidden', 'true');
   // tutorial end: the flow bar is highlighted once (Brief §4.2 row 1:10–1:30) with a one-line explanation
   const flowChip = h('div', 'tu-flowchip', stage);
@@ -620,18 +624,23 @@ export function mountTutorial(ctx: UICtx): Component {
   // ---------------------------------------------------------------- guide (after the tutorial, ≤ 10/s)
   /** the guide points through the first goals (up to Canteen level 5); the spot ghost helps with every build goal */
   const guideEra = () => w.tutorial.done && !w.obj.done.canteen5;
+  let gSpotNow: { type: RoomType; x: number; y: number; w: number; h: number } | null = null;
   function measureGuide() {
     gEl = null;
+    gSpotNow = null;
     const tool = ctx.tool.get();
     const toolType = tool.kind === 'build' ? tool.type : undefined;
     // suggested spot for the goal room while its build tool is on (re-searched when the layout changes)
     let spot: { x: number; y: number; w: number; h: number } | null = null;
     const bg = toolType ? buildGoal(w) : null;
-    if (bg && toolType === bg.type && bg.affordable && !bg.building) {
+    // the player opened this build tool: the spot helps as soon as the room itself is affordable (the payday reserve
+    // only holds back the guide's own pointing, not a player who builds on purpose)
+    if (bg && toolType === bg.type && w.coins >= bg.cost && !bg.building) {
       const c = gSpotCache;
       if (!c || c.type !== bg.type || c.ver !== w.cache.version || c.w !== bg.size.w || c.h !== bg.size.h) gSpotCache = { type: bg.type, ver: w.cache.version, w: bg.size.w, h: bg.size.h, rect: suggestSpot(w, bg.type, bg.size.w, bg.size.h) };
       spot = gSpotCache!.rect && tileReason(w, bg.type, gSpotCache!.rect.x, gSpotCache!.rect.y, gSpotCache!.rect.w, gSpotCache!.rect.h) === 'ok' ? gSpotCache!.rect : null;
     }
+    gSpotNow = spot && toolType ? { type: toolType, ...spot } : null;
     const pending = !!document.querySelector('.tl-confirm:not([hidden]) .tl-yes');
     // the tutorial end gets its moment first (unlock toast, new goal, flow-bar intro), then the guide points
     const settled = handoverAt < 0 && flowIntroUntil < 0;
@@ -707,6 +716,15 @@ export function mountTutorial(ctx: UICtx): Component {
     cls(gRing, 'on', !!aim && aim.tap);
     cls(gSpot, 'on', spotOn);
     cls(gDrag, 'on', dragOn);
+    // tools.ts builds exactly this footprint on a tap inside it (closer M5: a tap centred the minimum room on the tapped
+    // tile, so a tap off the centre tile built elsewhere or failed with "Outside your land")
+    // published whenever the goal room's tool is on and a good spot exists – also while a touch rectangle waits for ✓
+    // (tools.ts moves its first touch rectangle there)
+    const gs = ctx.guideSpot, cur = gs?.get() ?? null;
+    const want = gSpotNow;
+    if (gs && (want ? !cur || cur.type !== want.type || cur.x !== want.x || cur.y !== want.y || cur.w !== want.w || cur.h !== want.h : cur)) {
+      gs.set(want ? { type: want.type, x: want.x, y: want.y, w: want.w, h: want.h } : null);
+    }
   }
   /** tutorial end: close the panel the tutorial opened, highlight the flow bar once with its one-line explanation */
   function handover() {

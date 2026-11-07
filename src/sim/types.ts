@@ -160,6 +160,11 @@ export interface Stats {
   horntaps: number;
   cratetaps: number;
   lifetimeCoins: number;
+  /**
+   * wages OWED at all day ends so far (paid or not) – the inspection's Profit uses this, so unpaid wages never raise the
+   * grade (closer M5; spend.wages only holds what a broke prison could pay). Save v3.
+   */
+  wagesOwed: number;
   /** per real minute snapshots for bots/reports */
   minute: { m: number; life: number; coins: number; ruf: number; released: number; rascals: number; beds: number; mood: number }[];
 }
@@ -290,6 +295,11 @@ export interface MailState {
   visible: boolean;
   /** event-driven counters the tasks watch (keys = content/progress.ts MailCounter), never reset */
   count: Record<string, number>;
+  /**
+   * highest local day ever rolled (never lowers, anti-exploit Brief §3.18): a mail day older than this one – rolled
+   * again after the clock was turned back – pays its coins but never advances the key streak
+   */
+  hiDay: number;
 }
 
 /** Morning VIP (Brief §5.4, M5_DESIGN §9). All times are wall ms from the Clock. */
@@ -315,6 +325,11 @@ export interface WallState {
   /** wall ms when the current session started */
   sessionStartMs: number;
   sessions: number;
+  /**
+   * high-water mark: the latest wall ms this world has ever seen (syncWall / markSessionEnd), never lowered. Absence
+   * and the VIP rule measure from it, so a clock turned back and forth never pays the offline cap twice (Brief §3.18)
+   */
+  maxSeenMs: number;
 }
 
 /** Offline earnings + income window (Brief §3.15, M5_DESIGN §7) */

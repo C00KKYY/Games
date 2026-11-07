@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { runBot, type BotReport } from '../../tools/bots';
-import { PACING, median, medMs, keysOf } from '../../tools/balance';
+import { PACING, medMs, keysOf } from '../../tools/balance';
 import { cmd } from '../../src/sim/sim';
 
 const SEEDS = [11, 500, 1000];
@@ -29,20 +29,21 @@ describe('H1 pacing (casual median of 3 seeds, ±20 %)', () => {
 });
 
 describe('H2 pressure and the random bot', () => {
-  it('every casual run has ≥ 1 escape attempt and ≥ 1 food fight in 30 min', () => {
-    for (const r of casual) { expect(r.pressure.tunnels, `seed ${r.seed}`).toBeGreaterThanOrEqual(1); expect(r.pressure.foodFights, `seed ${r.seed}`).toBeGreaterThanOrEqual(1); }
+  // the scripted 3:00 tunnel always happens – it proves nothing about pressure (verifier M5): count the director's own picks
+  it('every casual run has ≥ 1 escape attempt PICKED BY THE DIRECTOR (not the scripted one) and ≥ 1 food fight in 30 min', () => {
+    for (const r of casual) { expect(r.pressure.tunnelsRandom, `seed ${r.seed}`).toBeGreaterThanOrEqual(1); expect(r.pressure.foodFights, `seed ${r.seed}`).toBeGreaterThanOrEqual(1); }
   });
-  it('a random bot does not reach 2★ in 30 min (median)', () => {
+  it('a random bot does not reach 2★ in 30 min (every sampled seed)', () => {
     const rnd = SEEDS.map(seed => runBot({ profile: 'random', seed, minutes: 30 }));
-    expect(median(rnd.map(r => r.final.maxStars))).toBeLessThan(2);
+    for (const r of rnd) expect(r.final.maxStars, `seed ${r.seed}`).toBeLessThan(2);
   });
 });
 
 describe('H3 + key calibration', () => {
-  it('first inspection possible at 22–30 min (±20 %), and it gets called', () => {
+  it('first inspection possible at 22–30 min (Brief §12.9 H3, no tolerance), and it gets called', () => {
     const m = medMs(casual, 'inspectionReady');
-    expect(m!).toBeGreaterThanOrEqual(1320 * 0.8);
-    expect(m!).toBeLessThanOrEqual(1800 * 1.2);
+    expect(m!).toBeGreaterThanOrEqual(1320);
+    expect(m!).toBeLessThanOrEqual(1800);
     for (const r of casual) expect(r.milestones.inspection1, `seed ${r.seed}`).toBeDefined();
   });
   it('casual: 4–6 base keys at the first inspection, with 2★ exactly 2 perks (Brief §3.17)', () => {

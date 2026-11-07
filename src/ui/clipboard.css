@@ -39,7 +39,7 @@
 .cb-loop { margin: 0 0 .35rem; padding: .2rem .4rem; border-radius: 6px; background: rgba(232,177,58,.18); border: 1.5px dashed var(--gold700, #b37f1d); font: 600 1rem/1.25 Inter, sans-serif; color: var(--wood700); pointer-events: auto; }
 .cb-why { margin: .2rem 0 0 1.75rem; font: 400 1rem/1.3 Inter, sans-serif; color: var(--ink700); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .cb-save { margin-top: .35rem; display: flex; align-items: center; gap: .35rem; font-size: .9rem; color: var(--ink700); }
-.cb-savebar { flex: 1 1 auto; height: .45rem; }
+.cb-savebar { flex: 1 1 auto; min-width: 2.5rem; height: .45rem; }
 .cb-savebar i { background: linear-gradient(var(--gold500, #e8b13a), var(--gold700, #b37f1d)); }
 .cb-save-txt { flex: 0 1 auto; white-space: nowrap; font-size: .86rem; }
 .cb-build { background: var(--gold500, #e8b13a); border-color: var(--wood700); color: var(--ink900) !important; box-shadow: inset 0 -2px 0 var(--gold700, #b37f1d); animation: cb-build-pulse 1.6s ease-in-out 3; }

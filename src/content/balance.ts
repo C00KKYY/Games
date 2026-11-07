@@ -268,11 +268,11 @@ export const INSPECTION = {
 
 /**
  * (brief §3.17) keys = floor(k × sqrt(L / C)) + star bonus (2★ +2, 3★ +4). k and C calibrated on the casual agent bot
- * (BALANCE.md §7): L at its first inspection call 12.4–14.5 K coins (27 seeds, ~20 min) → 5 base keys on every seed
- * (4 from L ≥ 7.2 K, 6 from 16.2 K, 7 from 22 K). With 2★ that is 7 keys = exactly 2 perks (cheapest level-1 perks 3 + 3,
- * three cost 9).
+ * (BALANCE.md §7–§8): with the release goal at 20 the casual bot calls at ~25 min with L = 14.8–25.7 K coins (26 of 27
+ * seeds) → C = 600 gives 4–6 base keys on every seed, 5 on 23 of them (4 from L ≥ 9.6 K, 6 from 21.6 K, 7 from 29.4 K).
+ * With 2★ that is 6–8 keys = exactly 2 perks (cheapest level-1 perks 3 + 3, three cost 9).
  */
-export const PRESTIGE = { k: 1, C: 450, starBonus: [0, 0, 2, 4] as readonly number[] } as const;
+export const PRESTIGE = { k: 1, C: 600, starBonus: [0, 0, 2, 4] as readonly number[] } as const;
 export const keysFor = (lifetimeCoins: number, stars: number) =>
   Math.floor(PRESTIGE.k * Math.sqrt(Math.max(0, lifetimeCoins) / PRESTIGE.C)) + (PRESTIGE.starBonus[Math.max(0, Math.min(3, stars))] ?? 0);
 

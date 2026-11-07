@@ -108,7 +108,13 @@ function guardCovers(w: World, x: number, y: number) {
   const R2 = guardRadius(w);
   return staffOf(w, 'guard').some(g => !(g.flags & AF.offDuty) && Math.hypot(g.x - x, g.y - y) <= R2);
 }
-/** Brief §3.12: (1 − cover) × sneaky factor × (1 + (50 − mood)/100); the Cat Burglar on top × DIRECTOR_RET.vipEscapeMult */
+/**
+ * Brief §3.12: (1 − Abdeckung) × sneaky factor × (1 + (50 − mood)/100); the Cat Burglar on top × DIRECTOR_RET.vipEscapeMult.
+ * Documented deviation 22 (PROGRESS.md, BALANCE.md §9): Abdeckung is read at the rascal's CURRENT tile – 0.85 inside a
+ * guard's radius, else 0 – not as the share of the tiles of all rooms it uses today (§3.10). The tile share was built
+ * and measured in the closer pass (27 seeds): it moved H3 per seed from 24/27 to 20/27 inside 22–30 min and pushed a
+ * unit-test seed past 30:00 without changing anything a player sees; the calibration stays on the binary reading.
+ */
 export function escapeScore(w: World, a: Agent) {
   if (a.flags & AF.earl) return 0;
   const cover = guardCovers(w, a.x, a.y) ? 0.85 : 0;

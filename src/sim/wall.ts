@@ -8,19 +8,25 @@
  *  - resumeSession: tab visible again
  *  - markSessionEnd: before every save and on tab hide – the "session end" the VIP rule measures from
  * Days only roll FORWARD: a clock turned back (or a time zone change backwards) never resets mail or taps again.
+ * Anti-exploit (Brief §3.18): `wall.maxSeenMs` is a high-water mark that never lowers. Absence (awayBaseMs) and the VIP
+ * session end measure from it, so toggling the OS clock back and forth pays the offline cap only once. A clock that was
+ * far ahead and is set back (> MAIL.reanchorAfterDays local days) re-anchors the mail day (mail.ts reanchorMail) instead of locking it.
  */
 import type { World } from './types';
 import { localDayOf } from './clock';
-import { rollMailDay } from './mail';
+import { rollMailDay, reanchorMail } from './mail';
 import { vipMarkSessionEnd, vipOnSessionStart } from './vip';
 import { incomePerMin1x } from './offline';
+import { MAIL } from '../content/retention';
 
 export function syncWall(w: World, nowMs: number, tzMin = 0) {
   if (!Number.isFinite(nowMs)) return;
   const tz = Number.isFinite(tzMin) ? tzMin : 0;
   w.wall.nowMs = nowMs; w.wall.tzMin = tz;
+  bumpMark(w, nowMs);
   const day = localDayOf(nowMs, tz);
-  if (day > w.mail.day) {
+  if (w.mail.day >= 0 && day < w.mail.day - MAIL.reanchorAfterDays) reanchorMail(w, day);
+  else if (day > w.mail.day) {
     if (w.mail.day >= 0) { w.taps.horn = 0; w.taps.crates = 0; } // "You tapped N times today" counts the local day
     rollMailDay(w, day, incomePerMin1x(w));
   }
@@ -45,5 +51,21 @@ export function resumeSession(w: World, nowMs: number, tzMin = 0) {
 
 export function markSessionEnd(w: World, nowMs: number, tzMin = 0) {
   if (!Number.isFinite(nowMs)) return;
-  vipMarkSessionEnd(w, nowMs, Number.isFinite(tzMin) ? tzMin : 0);
+  bumpMark(w, nowMs);
+  // the VIP rule measures from the furthest time seen: a clock set back before the save cannot restart the 8 h wait
+  vipMarkSessionEnd(w, w.wall.maxSeenMs, Number.isFinite(tzMin) ? tzMin : 0);
+}
+
+/** raise the high-water mark (never lowers; garbage and absurd future values are ignored by the callers' clamps) */
+function bumpMark(w: World, nowMs: number) {
+  if (Number.isFinite(nowMs) && nowMs > w.wall.maxSeenMs) w.wall.maxSeenMs = nowMs;
+}
+
+/**
+ * the wall ms an absence is measured from (app: save time on load, hide time on tab return): never earlier than the
+ * high-water mark. Call BEFORE beginSession / resumeSession (they raise the mark to now).
+ */
+export function awayBaseMs(w: World, sinceMs: number): number {
+  const m = w.wall.maxSeenMs;
+  return Number.isFinite(sinceMs) ? Math.max(sinceMs, m) : m;
 }

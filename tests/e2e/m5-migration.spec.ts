@@ -1,11 +1,11 @@
 /**
- * M5 contract in the browser: an M4 (v1) save in the SDK data module loads through the v1 → v2 migration, the
- * session start runs (offline plan, mail day from the injected clock, completion report) and the next save is v2.
+ * M5 contract in the browser: an M4 (v1) save in the SDK data module loads through the v1 → v2 → v3 migrations, the
+ * session start runs (offline plan, mail day from the injected clock, completion report) and the next save is v3.
  */
 import { test, expect } from '@playwright/test';
 import LZString from 'lz-string';
 import { setup, gotoGame } from './helpers';
-import { newGame, cmd, flushEvents } from '../../src/sim/sim';
+import { newGame, cmd, flushEvents, runFor } from '../../src/sim/sim';
 import { worldToPlain, crc32, DEFAULT_SETTINGS, SLOT_KEYS, type SaveDoc } from '../../src/save/serialize';
 
 type Win = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -15,6 +15,8 @@ function v1Save(savedAt: number): string {
   const w = newGame(3);
   cmd.skipTutorial(w);
   expect(cmd.build(w, 'wash', 1, 13, 3, 3).ok).toBe(true);
+  // a few minutes of play, so the save has income to pay offline (a world without any income shows no "+0" panel)
+  runFor(w, 6 * 60_000);
   flushEvents(w);
   const plain = worldToPlain(w);
   for (const k of M5_KEYS) delete plain[k];
@@ -23,7 +25,7 @@ function v1Save(savedAt: number): string {
   return `${crc32(json).toString(16)}:${LZString.compressToBase64(json)}`;
 }
 
-test('an M4 save migrates to v2 in the browser; session start + completion report run; the next save is v2', async ({ page }) => {
+test('an M4 save migrates to v2 in the browser; session start + completion report run; the next save is current (v3)', async ({ page }) => {
   const now = Date.UTC(2026, 10, 5, 9, 0);
   await setup(page, { mock: { data: { [SLOT_KEYS[0]]: v1Save(now - 20 * 60_000) } } });
   await gotoGame(page, `?clock=${now}&tz=60`, 0);
@@ -33,7 +35,7 @@ test('an M4 save migrates to v2 in the browser; session start + completion repor
       loaded: g.__save.state().loaded as string,
       wash: (w.rooms as { type: string; x: number; y: number }[]).some(r => r.type === 'wash' && r.x === 1 && r.y === 13),
       slots: w.leads.slots as unknown[], mailTasks: (w.mail.tasks as unknown[]).length, sessions: w.wall.sessions as number,
-      pending: w.offline.pending as { awayMs: number } | null,
+      pending: w.offline.pending as { awayMs: number; coins: number } | null,
       reports: (g.__sdkCalls as { n: string; a: unknown }[]).filter(c => c.n === 'reportGameCompletedPercentage').map(c => c.a),
     };
   });
@@ -43,6 +45,7 @@ test('an M4 save migrates to v2 in the browser; session start + completion repor
   expect(s.mailTasks).toBe(3);
   expect(s.sessions).toBe(1);
   expect(s.pending?.awayMs).toBe(20 * 60_000); // ≥ 5 min → offline formula → return panel data
+  expect(s.pending!.coins).toBeGreaterThan(0);  // the empty ring of a migrated save falls back to the world's average
   expect(s.reports).toContain(0);
   await page.evaluate(() => (window as unknown as Win).__save.flush());
   const v = await page.evaluate(async (key) => {
@@ -53,6 +56,6 @@ test('an M4 save migrates to v2 in the browser; session start + completion repor
   const doc = await page.evaluate((key) => (window as unknown as Win).__sdkMock.store[key] as string, SLOT_KEYS[1]);
   const json = LZString.decompressFromBase64(doc.slice(doc.indexOf(':') + 1))!;
   const parsed = JSON.parse(json) as SaveDoc;
-  expect(parsed.v).toBe(2);
+  expect(parsed.v).toBe(3); // SAVE_VERSION 3 (wall high-water mark)
   for (const k of M5_KEYS) expect(parsed.world[k], k).toBeTruthy();
 });

@@ -62,6 +62,15 @@ export function mountReturnPanel(ctx: UICtx): Component {
     return m % 60 ? t('returnPanel.hm', { h: Math.floor(m / 60), m: m % 60 }) : t('returnPanel.h', { h: m / 60 });
   };
 
+  // the resim of a 60 s – 5 min absence takes only a few frames (≤ 300 ticks each): the chip stays up for HOLD_MS after
+  // it started, ending on "Caught up – N min played", so the player sees the absence was played and not lost
+  const HOLD_MS = 1800;
+  let holdUntil = 0, caughtMs = 0;
+  const offCatch = ctx.catchUp.on((v, prev) => {
+    if (v && v.mode === 'catchup' && !(prev && prev.mode === 'catchup')) { holdUntil = performance.now() + HOLD_MS; caughtMs = 0; }
+    if (v && v.mode === 'catchup') caughtMs = Math.max(caughtMs, v.awayMs ?? v.total * 100);
+  });
+
   let shownFor: number | null = null, k = 0, acc = WRITE_MS;
   return {
     update(dt) {
@@ -74,6 +83,15 @@ export function mountReturnPanel(ctx: UICtx): Component {
       acc = 0;
       d.flag(card, 'hidden', p ? null : '');
       d.cls(card, 'm5-compact', ctx.compact.get());
+      // below the banner stack while it shows more than one chip (e.g. "Caught up" + an event): no chip under the card
+      let topPx = '';
+      const ban = ctx.root.querySelector<HTMLElement>(':scope > .m5-banners');
+      if (p && ban && !ban.hidden && !ban.classList.contains('m5-away')) {
+        const b = ban.getBoundingClientRect(), tb = ctx.root.querySelector<HTMLElement>('[data-hud="top"]')?.getBoundingClientRect();
+        const def = (tb?.bottom ?? 44) + (ctx.compact.get() ? 2.8 : 3.4) * 16;
+        if (b.height > 0 && b.bottom + 6 > def) topPx = `${Math.round(b.bottom + 6)}px`;
+      }
+      d.style(card, 'top', topPx);
       if (p) {
         const e = 1 - Math.pow(1 - k, 3);
         d.text(title, t('progress.awayTitle'));
@@ -88,13 +106,17 @@ export function mountReturnPanel(ctx: UICtx): Component {
         d.attr(card, 'aria-label', t('progress.awayTitle'));
       }
       const cu = ctx.catchUp.get();
-      const on = !!cu && cu.mode === 'catchup' && cu.total > 0;
+      const running = !!cu && cu.mode === 'catchup' && cu.total > 0;
+      const on = running || performance.now() < holdUntil;
       d.flag(chip, 'hidden', on ? null : '');
-      if (on) {
+      if (running) {
         d.text(chipTxt, t('progress.catchingUp'));
         d.text(chipNum, t('returnPanel.pct', { n: Math.floor((1 - cu.left / cu.total) * 100) }));
+      } else if (on) {
+        d.text(chipTxt, t('returnPanel.caughtUp', { time: dur(caughtMs) }));
+        d.text(chipNum, '');
       }
     },
-    destroy() { window.removeEventListener('keydown', onKey, true); card.remove(); chip.remove(); },
+    destroy() { offCatch(); window.removeEventListener('keydown', onKey, true); card.remove(); chip.remove(); },
   };
 }

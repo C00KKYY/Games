@@ -63,15 +63,15 @@ describe('M5 defaults', () => {
   });
 });
 
-describe('M5 save migration (v1 → v2)', () => {
-  it('SAVE_VERSION is 2', () => expect(SAVE_VERSION).toBe(2));
+describe('M5 save migration (v1 → v2 → v3)', () => {
+  it('SAVE_VERSION is 3', () => expect(SAVE_VERSION).toBe(3));
   it('an M4 save loads, gets every M5 default and hashes like the same world created now', () => {
     const w = newGame(7);
     flushEvents(w);                    // route the start events (M5 counters see them) …
     Object.assign(w, m5Defaults(1));   // … then reset to the shape an M4 world had (all M5 fields at default)
     const doc = decode(v1Save(w));
     expect(doc).not.toBeNull();
-    expect(doc!.v).toBe(2);
+    expect(doc!.v).toBe(3);
     for (const k of M5_KEYS) expect(doc!.world[k], k).toEqual(m5Defaults(1)[k]);
     const w2 = plainToWorld(doc!.world);
     expect(stateHash(w2)).toBe(stateHash(w));

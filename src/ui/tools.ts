@@ -156,6 +156,7 @@ export function mountTools(ctx: UICtx): Component {
   let rect: Rect | null = null;          // build ghost (hover or drag)
   let dragging = false, anchor: Tile = { x: 0, y: 0 }, base: Rect = { x: 0, y: 0, w: 1, h: 1 };
   let pending: Rect | null = null;       // touch: rectangle waiting for ✓ / ✕
+  let autoPending = false;               // touch: `pending` is still the one the tool placed itself (not moved by the player)
   let edge: { id: number; e: Edge; orig: Rect; cur: Rect } | null = null;
   let hoverEdge: Edge | null = null;
   let bubbleRoom = 0, hoverRoom = 0;
@@ -429,7 +430,16 @@ export function mountTools(ctx: UICtx): Component {
     }
     if (dragging && tool.kind === 'build') {
       dragging = false;
-      const r = rect; if (!r) return;
+      let r = rect; if (!r) return;
+      // a tap (no drag) inside the guide's dashed footprint builds exactly that footprint – mouse at once, touch as the
+      // rectangle waiting for ✓ (closer M5: the tap centred the minimum room on the tapped tile instead). Elsewhere a tap
+      // still moves the rectangle to the tapped tile.
+      const gs = ctx.guideSpot?.get();
+      if (click && gs && gs.type === tool.type) {
+        const tl = tileOf(p);
+        if (tl.x >= gs.x && tl.x < gs.x + gs.w && tl.y >= gs.y && tl.y < gs.y + gs.h) { r = { x: gs.x, y: gs.y, w: gs.w, h: gs.h }; rect = r; }
+      }
+      autoPending = false;
       if (pr.type !== 'touch') doBuild(r, e.shiftKey);
       else { pending = r; rect = r; }
       return;
@@ -557,12 +567,18 @@ export function mountTools(ctx: UICtx): Component {
   // ------------------------------------------------------------------ stores
   const offTool = ctx.tool.on(v => {
     tool = v; dragging = false; pending = null; edge = null; bubbleRoom = 0; hoverRoom = 0; rect = null; press = null;
+    autoPending = false;
     if (v.kind === 'build') {
-      if (touchy()) pending = nearestSpot(v.type, tileOf({ x: cam.x, y: cam.y }));
+      if (touchy()) { pending = nearestSpot(v.type, tileOf({ x: cam.x, y: cam.y })); autoPending = true; }
       else { const hw = hoverWorld(); if (hw) rect = centred(v.type, tileOf(hw)); }
       rect = pending ?? rect;
     }
     syncOwn(); dirtyPixi = true; urgent = true;
+  });
+  // touch: the first rectangle of the goal room's tool moves to the guide's suggested footprint (once it is known)
+  const offSpot = ctx.guideSpot?.on(v => {
+    if (!autoPending || !v || tool.kind !== 'build' || v.type !== tool.type || dragging) return;
+    pending = { x: v.x, y: v.y, w: v.w, h: v.h }; rect = pending; dirtyPixi = true; urgent = true;
   });
   const offSel = ctx.selection.on(() => { if (edge) { edge = null; syncOwn(); } dirtyPixi = true; urgent = true; });
   syncOwn();
@@ -829,7 +845,7 @@ export function mountTools(ctx: UICtx): Component {
       window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('blur', onBlur);
       window.removeEventListener('resize', onResize);
-      offTool(); offSel();
+      offTool(); offSel(); offSpot?.();
       ctx.input.ownsPointer = false;
       layer.destroy();
       wrap.remove();

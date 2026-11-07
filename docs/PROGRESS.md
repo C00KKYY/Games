@@ -1,6 +1,6 @@
 # PROGRESS
 
-**Aktueller Meilenstein:** M4 abgeschlossen (Tutorial, Audio, Juice, Speichern; Review, Abnahmetests, Selbst-Review) → G2 → M5
+**Aktueller Meilenstein:** M5 abgeschlossen mit offenen Punkten (Rest von Standort 1 + G2-Rückmeldung + Closer-Pass; Abnahme siehe QA_REPORT.md „Stand M5“ und „Closer-Pass M5“) → **M6 (Standort 2, P0b)**
 **Gates:** G1 **freigegeben** (2026-11-04) · G2: Material bereit; Auftraggeber hat mit "mach fertig" das Weiterarbeiten freigegeben, Musikwahl und eigener Playtest stehen aus · G3 offen
 
 ## Erledigt
@@ -64,18 +64,42 @@
   - Prüfer-Befunde nach der Abnahme behoben (QA_REPORT.md „Stand M4“): Skip bleibt im Tutorial auch bei offenem Menü auf Handy-Größen sichtbar (Skip-Knopf als letzte Blasen-Form). Bau-Menüs verdecken den Klemmbrett-Chip nicht mehr (D4). `musicDay` lädt erst nach `gameplayStart` (§8.4). Das Klemmbrett springt bei neuem Ziel an Ort und Stelle auf, statt aus dem Bild zu gleiten. Der Fluchtmarker springt nicht mehr bei ≥ 3 Ausbrechern. OFL-Texte der Schriften stehen in THIRD_PARTY_NOTICES.
   - G2-Material `qa/g2/`: Playtest-Zip mit ANLEITUNG.txt und Musik-Hörproben, Single-File-Build (läuft per Doppelklick von file://, geprüft mit `tools/selfreview/singlefile.spec.ts`), 60-s-Video, `MUSIK.md`. Beides markiert als „nur Playtest, nicht einreichen“.
 
+- **M5 Rest von Standort 1 + G2-Rückmeldung** (Vertrag `docs/M5_DESIGN.md`, Abnahme QA_REPORT.md „Stand M5“):
+  - Sim (`src/sim/`): Projekttafel (12 Projekte, eins zur Zeit, Timer laufen offline weiter), Abteilungsleitungen (Olli/Horn, Becca/Karren, Plätze ab 3★/4★), Inspektionstag (Gans läuft 45 s echte Wege, Noten A–F über 48 Stunden-Eimer, Sterne, Tipp, Wiederholung ab nächstem Spieltag), Versetzung mit Goldenen Schlüsseln und 6 Perks, Offline-Ertrag in 3 Stufen (still < 60 s, Nachspielen 60 s–5 min in ≤ 3000er-Blöcken, Formel + Rückkehr-Panel ab 5 min, Deckel 2 h + Perks), Tagespost (3 Aufgaben, Reset 00:00 Ortszeit, 1 Schlüssel je 3 Tage), Morgen-VIP (Teaser am Tagesende 1, beide Bedingungen), Director (Essensschlacht gescriptet ~10:00, nie zwei Ereignisse gleichzeitig), Wanduhr/`Clock`. SAVE_VERSION 2 mit Migration 1 → 2.
+  - UI (`src/ui/`): Projekttafel, Leitungen, Tagespost, Inspektion (Prognose, Rundgang-Chip mit Folgen, pausierendes Ergebnis), Versetzung + Perk-Laden, Rückkehr-Panel + „Aufholen“-Chip, Speicher-Häkchen, Randpfeile, Ereignis-Banner, Folgeziele auf dem Klemmbrett, Land-Karte.
+  - Welt (`src/render/`, `art/svg`): Katzen-Einbrecher mit Zylinder, Gans-Inspektorin, Biber-Leitungen, alle 12 Projekte sichtbar, VIP-Tafel am Steg, Standort-2-Silhouette (Leuchtturm), Schlägerei-Wolken, Parzellen mit Schildern. 9 Draw Calls pro Frame.
+  - G2-Rückmeldung (`docs/G2_FEEDBACK.md`): Klemmbrett mit Warum/Sparbalken/„Jetzt bauen“, geführte erste Ziele, Strafakten-Kärtchen, früher 2. Entlassung, Land kaufen.
+  - Balance-Pass (BALANCE.md §7–§8): alle 22 Pacing-Zeilen im Fenster, H1b/H2/H3/Schlüssel grün, H0 grün.
+  - Closer-Pass (QA_REPORT.md „Closer-Pass M5“): Uhr-Umstellungs-Exploit geschlossen (Hochwassermarke `wall.maxSeenMs`,
+    SAVE_VERSION 3 mit Migration 2 → 3), Tagespost nach falscher Zukunftsuhr nicht mehr gesperrt (Neuverankerung, Schlüssel nur
+    an neuen Tagen), Tipp in den gestrichelten Bauplatz baut genau dort (Maus und Touch), Zahltag-Rücklage für Führung und
+    „Jetzt bauen", Strafakten-Kärtchen mit vier Ankerplätzen, Profit zählt geschuldete Löhne, Klemmbrett erklärt „erst
+    Personal", ehrlicheres Balance-Werkzeug (jede Zeile ≥ 90 % der Seeds, Optimal-Regel ohne Ausnahme, H1b/H2 brauchen
+    endliche Vergleichszeiten, H2-Druck ohne die gescripteten Ereignisse), `npm run balance`, neue Tests
+    `tests/unit/m5-closer.test.ts` und `tests/e2e/m5-closer.spec.ts`. Playtest-Zip und Single-File neu (`qa/g2/`).
+  - Integration: Querschnitts-Fixes (Earl nur einmal, Horn-Tap einmal je Fähre, `happytime`/`reportGameCompletedPercentage`, Inspektionsmusik, Aufholen verlängert statt verworfen), Entlassungsziel 20 (H3), C = 600, Toasts warten hinter pausierenden Karten und dem Rückkehr-Panel, Hauptknöpfe der Karten bleiben beim Scrollen sichtbar, Rail weicht offenen Menü-Blättern, „Aufgeholt – N min“-Chip. Durchgespielt im Browser: `tools/selfreview/m5flow.spec.ts`, Bilder `qa/m5/flow/`.
+
 ## Offen
-- **G2:** Musikwahl und eigener Playtest des Auftraggebers stehen aus. Die Rückmeldungen kommen in QA_REPORT.md und werden vor P0b/P1 abgearbeitet.
-- Befunde aus dem Selbst-Review (QA_REPORT.md): zweite Entlassung erst bei ~5:20, Leerlauf 1:05–3:00 und 3:33–6:18. Kein Randhinweis bei einem Ausbrecher außerhalb des Bildes. ~23 s Warten im Tutorial-Schritt 3. Viel ungenutztes Geld ab Minute 6.
+- **G2:** Rückmeldung des Auftraggebers ist eingearbeitet (QA_REPORT.md „G2-Rückmeldung“, „Closer-Pass M5“). Stand nach dem
+  Frischtest des Prüfers und dem Closer-Pass: Punkt 1 („man weiß nicht, was man tun soll“) **weitgehend behoben** – an 22 von 24
+  Prüfpunkten war der nächste Schritt samt Grund klar; die zwei Lücken (Hand auf „Personal“ ohne Grund, Bauplatz-Tipp baute
+  woanders) sind behoben, die Führung treibt nicht mehr in unbezahlte Löhne. Punkt 2 („kein Reiz am Anfang“) **teilweise
+  behoben** – klare Momente bei 0:47, 1:06, 1:21, ~2:35, ~2:45, 4:45, Strafakten-Kärtchen jetzt wirklich sichtbar; offen
+  bleiben zwei ruhige Strecken (~1:35–2:35 Sparen aufs Klassenzimmer, ~3:00–3:55 nach dem Tunnel; Taktung 4/27 Seeds). Ein
+  menschlicher Playtest mit dem neuen Build (`qa/g2/`) steht aus. Musikwahl steht weiter aus.
+- M5-Abnahme offen (QA_REPORT.md „Stand M5“ + „Closer-Pass M5“, BALANCE.md §9; Messung jetzt mit Seed-Quote ≥ 90 % und
+  Optimal-Regel für jede Zeile): **6/22 Pacing-Zeilen ❌** (Tutorial-Ende 16/27 Seeds und Optimal 40 % schneller; Strickstube
+  Optimal 49 % schneller; 4. Entlassung 18/27, Kantine Lv5 20/27, erstes Projekt 22/27, erste Leitung 24/27 – alle Mediane im
+  Fenster), **H1b ❌** (gutes Layout nur 12 % schneller als Zufallslayout), **H2-Naiv ❌** (Ziel-folgender Naiv-Bot +3 %;
+  der wörtliche Gierig-Bot erreicht die Inspektion nie), Taktungsregel §4.3 in 4/27 Seeds (122–137 s nach dem Tunnel),
+  Einnahmenmix bei 30:00 (Kisten 48 %, Entlassungen 34 %). H1-Teil „30 min Standort 2“ kommt mit M6.
 - C4: Ein echter Browser-Freeze (CDP `frozen`) wirkt im Headless-Chromium nicht. Prüfung mit sichtbarem Browser (Xvfb) in M7.
 - M8-Lizenzpass: `CREDITS.txt` (§15.5) fehlt noch, über die CC-BY-3.0-Pfeife ist noch zu entscheiden. Die OFL-Texte der Schriften stehen seit M4 in THIRD_PARTY_NOTICES.
 - Ad-Mute im FULL-Build (adStarted → stumm, adFinished/adError → laut) wird mit dem FULL-Build gebaut und getestet (P2). Der BASIC-Build ruft keine Ad-API auf.
 - Abweichung 15 (Steuerungs-Overlay bei kompakten Größen links unter dem Klemmbrett) bei G2 bestätigen lassen.
 - Aufräumen außerhalb des Projekts (von Hand, Sicherheitsprüfung verweigert): `/dist` und `/layers.log` im Wurzelverzeichnis.
-- B1-Screens Projekttafel, Rückkehr-Panel, Inspektionsergebnis, Versetzung (kommen mit M5/M6).
 - Kosmetik: Scroll-Hinweis in Einstellungen/Hilfe fehlt; „Folgen“-Button im Rascal-Panel bei 907×510 DE ragt 5 px unter die Kante; Platzierungs-Icons in `tools.ts` noch als Inline-SVG.
-- Taktungsregel §4.3 in 6/27 Seeds verletzt (Spar-Phase vor dem Klassenzimmer, siehe BALANCE.md §0). Der Bereich 10–15 min hängt an der Projekttafel (M5).
-- Casual-Tempo bei 6–7 min eher an der unteren Toleranzgrenze.
+- Bei 844×390 liegen Toasts kurz über der Kopfzeile eines offenen Bau-Menü-Blatts (flüchtiges Overlay, bewusst gelassen).
 
 ## Abweichungen vom Brief
 1. Eltern-Repo enthält `verkehrsmeister/`, nicht `glutnacht/`. Ohne Auswirkung.
@@ -103,17 +127,41 @@
 18. Brief §4.2 „Strafakten-Kärtchen ploppen kurz auf" ist ab M5 gebaut (`src/ui/arrivalCards.ts`): alle Fahrgäste der ersten
     Fähre, danach die ersten zwei jeder Fähre und der VIP – nicht jeder Neuankömmling (sonst bei 6er-Fähren zu viel Text).
 
+19. `happytime()` nur bei der ersten Entlassung und bei **bestandenen** Inspektionen (§11.1 „jeder bestandenen Inspektion“);
+    §12.10 schreibt „jeder Inspektion“. Wir folgen der sparsameren Regel aus §11.1 und der SDK-Doku („sparingly“).
+20. Pflichtziel „Entlasse 20 Schlingel“ statt 15 (Ziele sind Beispiele im Brief, §3.16): Mit 15 war die Inspektion beim
+    Casual-Bot schon bei 19:48 möglich, H3 verlangt 22–30 min (jetzt 25:04). Schlüsselkonstante C = 600 (BALANCE.md §8).
+21. Toasts zu Sim-Ereignissen (Tagesbilanz, Fähre, Ziele) warten, solange eine pausierende Karte (Inspektionsergebnis,
+    Versetzung, Einstellungen) oder das Rückkehr-Panel offen ist; Antworten auf eigene Taps erscheinen sofort.
+22. Fluchtscore (§3.12) mit **binärer Abdeckung am Standort des Schlingels** (0,85 im Radius einer Wache, sonst 0) statt
+    „Anteil der Kacheln der Räume, die ein Rascal heute nutzt" (§3.10). Der Kachelanteil wurde im Closer-Pass gebaut und auf
+    27 Seeds gemessen: H3 je Seed fiel von 24/27 auf 20/27 streng in 22–30 min, ein Unit-Test-Seed rutschte auf 30:24, ohne
+    für Spielende sichtbaren Unterschied. Die Kalibrierung bleibt auf der binären Lesart (BALANCE.md §9). Bei G3 bestätigen.
+23. Tagespost-Uhrschutz: Liegt der Ortstag mehr als 3 Tage vor dem Post-Tag (Uhr war weit vorgestellt), springt der
+    Post-Tag auf heute (Aufgaben geschlossen, ohne Belohnung); Schlüssel-Streaks zählen nur Post-Tage ab dem höchsten je
+    gerollten Tag. Der Brief regelt Uhr-Rücksprünge nicht im Einzelnen (§3.16, §3.18).
+
 ## Bekannte Bugs / Schwächen
 - Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
 - Bei 800×450 verdeckt das Raum-Panel als Bottom-Sheet fast die ganze Welt.
 
 ## Letzte Testergebnisse
+- **Stand Closer-Pass M5 (2026-11-07):** `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 25 Dateien, **342/342** ·
+  `npx playwright test --workers=1` (Produktions-Build): **133/134**, 0 übersprungen, 62 min; rot nur B5 DOM am 120-s-Testlimit
+  (~115 s für 44 Zustände). Nach einer Änderung in `tools.ts` Nachlauf der betroffenen Dateien 49/50 (wieder nur B5 am Limit),
+  B5-Testlimit auf 300 s → B5 2/2 · A2 464–633 ms, D3 2,6–3,7 s, D8 25,5 s, A4 5,03 MB/101 Dateien, initial 0,55 MB, A6 600 s
+  ohne Fehler · Single-File von file:// 2/2 · `npm run balance` (27 Seeds): 16/22 Pacing-Zeilen, H2-Zufall/H2-Druck/H3/Schlüssel/H0
+  ✅, H1b/H2-Naiv ❌, Taktung 4/27, Mix 30:00 0/27 (BALANCE.md §9)
+- **Stand M5-Integration (2026-11-07):** `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 24 Dateien, **328/328** · `npx playwright test --workers=1` (Produktions-Build): **132/132 bestanden, 0 übersprungen**, 56,5 min (B1 mit den 4 M5-Screens, B4/D5 über alle M5-Zustände, H6) · A2 424 ms, D3 3,9 s, D8 25,5 s, A4 5,03 MB/101 Dateien, initial 0,54 MB, A6 600 s ohne Fehler · Browser-Durchlauf `m5flow` 6/6 (EN/DE × 1280×720/907×510/844×390 Touch), 0 Fehler · Balance 27 Seeds: 22/22 Pacing-Zeilen, H1b/H2/H3/Schlüssel/H0 grün; offen Taktung 4/27 und Mix 30:00
 - Stand nach den Prüfer-Befunden M4 (2026-11-05): `tsc --noEmit` und `eslint src tests` sauber · `vitest run`: 16 Dateien, **196/196** grün · `npx playwright test --workers=1` (Produktions-Build): 107 Tests, **106 bestanden, 0 fehlgeschlagen, 1 übersprungen** (ausstehende B1-Screens M5/M6), 40,4 min · A2 496 ms, D2 315 ms, D3 2,8 s, D8 28,5 s, D9 Entlassung 26,5 s, A4 4,73 MB/94 Dateien, initial 1,10 MB, A6 601 s/676 s ohne Fehler · Balance unverändert: alle H1-Zeilen ✅, Taktung 6/27 offen
 - Single-File-Build von file://: 2/2 (offline und mit SDK-Mock) · G2-Video neu aufgenommen (1800 Frames, 0 Fehler) · Selbst-Review: 4 × 600 s ohne pageerror, console.error oder Warnung (vor diesen Fixes)
 
 **M4 abgeschlossen.** Offen bleiben nur Punkte außerhalb von M4: FULL-Ad-Mute (P2), C4 im sichtbaren Browser (M7), Lizenzpass mit `CREDITS.txt` (M8) und die G2-Rückmeldung.
 
 ## Nächste 3 Schritte
-1. M5 (freigegeben mit „mach fertig“): Projekttafel, Rückkehr-Panel, Inspektion. Dabei die Pacing-Befunde aus dem Selbst-Review (zweite Entlassung, Leerlauf 1–3 min) angehen.
-2. G2-Rückmeldung einarbeiten, sobald sie kommt: Musikwahl (`qa/g2/MUSIK.md`, `npm run audio:build`) und Notizen aus dem Playtest.
-3. Kleine UX-Befunde: Randhinweis für Ausbrecher, Wartezeit im Tutorial-Schritt 3, Scroll-Hinweis im Räume-Menü bei 907×510.
+1. **M6 Standort 2** (P0b, Gullrock Lighthouse): aus der Silhouette ein echtes Versetzungsziel machen (`SITES[1].available`),
+   H1 „30 min Standort 2 mit Perks“, B1-Screens für Standort 2. Vorher den Playtest-Build (`qa/g2/`) an den Auftraggeber.
+2. Balance-Rest Standort 1 (BALANCE.md §9): Layout stärker in den Durchsatz (H1b), Streuung der frühen Strafmaße (Seed-Quote
+   4. Entlassung/Kantine Lv5/Projekt/Leitung), Mix 30:00, Taktung nach dem Tunnel; jedes Mal `npm run balance` (27 Seeds, ~11 min).
+3. G3 vorbereiten: menschlicher Playtest Inspektion/Versetzung, Entscheidungen zu Abweichung 4 (+50 %/+20 %), 17, 19, 20, 22,
+   zur Lesart von H2-Naiv (Ziel-folgend vs. wörtlich gierig) und zum Tutorial-Ende 0:57 (G2-Kürzung vs. 1:10–1:30).
