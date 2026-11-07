@@ -78,7 +78,7 @@ const Game = {
       // Fernkampf: Pfützen, Salven-Regie (gleichzeitiges Ausholen), lebende Fernkämpfer, Elite-Zähler
       haz: [], vol: { active: 0, bells: 0, lastStart: -9 }, rangedAlive: 0, eliteN: 0, lastHitSrc: null,
       // M10: Countdowns (Ansturm, leichter Boss-Countdown) der Reihe nach; surgeWave = Gegnermischung im Ansturm
-      cdList: null, cdIdx: 0, surgeHits: 0, surgeWave: null,
+      cdList: null, cdIdx: 0, surgeHits: 0, surgeWave: null, surgeK: null,
     };
     r.cdList = this.buildCountdowns(r);
     this.run = r;
@@ -230,7 +230,9 @@ const Game = {
   // ---------- Spawns ----------
   hpMul(t) {
     const st = this.run.stage, m = t / 60;
-    return HEAT[this.run.heat].hp * st.mult.hp * (st.hpBridge ? hpCurveBridged(m) : hpCurve(m));
+    // Brücke nur bis Nachtstufe 2: ab Stufe 3 sind die Gegner ohnehin zäh, und mehr Lebenspunkte kosten dort
+    // Erfahrung (der Held tötet langsamer, als Nachschub kommt) – Nachtstufe 5 wurde sonst deutlich schwerer
+    return HEAT[this.run.heat].hp * st.mult.hp * (st.hpBridge && this.run.heat < 3 ? hpCurveBridged(m) : hpCurve(m));
   },
 
   // ---------- Countdown und Ansturm (M10) ----------
@@ -286,7 +288,11 @@ const Game = {
     for (const k in wv.pool) if (ENEMIES[k].ranged) pool[k] = wv.pool[k];
     r.surgeWave = { pool, rate: wv.rate, cap: wv.cap };
     r.surgeHits = 0;
-    this.runEvent(Object.assign({ text: s.text, quiet: true, surge: s }, s.open));
+    // Erfahrung und Tempo der Ansturm-Gegner; ab Nachtstufe 3 gedämpft und ohne Erfahrungsabzug (dort fehlt sonst
+    // Erfahrung: der Held tötet langsamer, als Nachschub kommt)
+    const hk = r.heat >= 3;
+    r.surgeK = { xp: hk ? 1 : s.xp, speed: hk ? 1 + (s.speed - 1) * 0.7 : s.speed };
+    this.runEvent(Object.assign({ text: s.text, quiet: true, surge: r.surgeK }, s.open));
     Hooks.sfx('surge');
     Hooks.shake(6);
   },
@@ -356,7 +362,7 @@ const Game = {
       if (alive >= cap) { r.spawnAcc = 0; break; }
       const pos = this.spawnPos();
       const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y);
-      if (surge) { e.xp *= surge.xp; e.speed *= surge.speed; }
+      if (surge) { e.xp *= r.surgeK.xp; e.speed *= r.surgeK.speed; }
       alive++;
     }
 
@@ -524,7 +530,7 @@ const Game = {
     Hooks.banner(tr(ev.text), 'event');
     if (!ev.quiet) Hooks.sfx('alarm');
     const vr = this.viewRadius();
-    // Eröffnung eines Ansturms (ev.surge = Ansturm-Daten): weniger Erfahrung, ggf. schneller
+    // Eröffnung eines Ansturms (ev.surge = { xp, speed }): weniger Erfahrung, ggf. schneller
     const sg = ev.surge || null;
     if (ev.kind === 'swarm') {
       const a = rand(0, TAU), ca = Math.cos(a), sa = Math.sin(a);
