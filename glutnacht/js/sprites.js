@@ -639,9 +639,12 @@ const Sprites = (() => {
 
   // variant: 0 normal, 1 Blitz (weiß), 2 vereist (blau); tint: Farbtönung je Gebiet (oder null);
   // boss: 0 kein Boss, 1 Boss (kleine Krone), 2 Endboss (große Krone)
+  // Cache-Schlüssel – von enemy()/bossSprite() und den Peek-Abfragen gemeinsam benutzt
+  function enemyKey(type, frame, variant, tint, boss) { return 'e' + type + frame + variant + (tint || '') + (boss ? 'b' + boss : ''); }
+  function bossKey(type, frame, variant, tint, lvl) { return 'boss' + type + frame + variant + (tint || '') + lvl; }
   function enemy(type, frame, variant, tint, boss) {
     boss = boss || 0;
-    const key = 'e' + type + frame + variant + (tint || '') + (boss ? 'b' + boss : '');
+    const key = enemyKey(type, frame, variant, tint, boss);
     let c = cache.get(key);
     if (c) return c;
     if (variant) {
@@ -668,14 +671,14 @@ const Sprites = (() => {
   function bossSprite(type, r, frame, variant, tint, lvl) {
     const k = Math.min(3, Math.ceil(r / baseR(type)));
     const fn = () => enemy(type, frame, variant, tint, type === 'night' ? 0 : lvl);
-    return k > 1 ? hires('boss' + type + frame + variant + (tint || '') + lvl, k, fn) : fn();
+    return k > 1 ? hires(bossKey(type, frame, variant, tint, lvl), k, fn) : fn();
   }
 
   // Schon gebautes Bild oder null – baut nie etwas (Countdown-Leiste, M10: kein Zeichnen auf Abruf im Spiel)
-  function enemyPeek(type, frame, tint) { return cache.get('e' + type + frame + '0' + (tint || '')) || null; }
+  function enemyPeek(type, frame, tint) { return cache.get(enemyKey(type, frame, 0, tint, 0)) || null; }
   function bossPeek(type, r, frame, tint, lvl) {
     const k = Math.min(3, Math.ceil(r / baseR(type)));
-    return (k > 1 ? hiCache.get('boss' + type + frame + '0' + (tint || '') + lvl + '@' + k) : cache.get('e' + type + frame + '0' + (tint || '') + (type === 'night' ? '' : 'b' + lvl))) || null;
+    return (k > 1 ? hiCache.get(bossKey(type, frame, 0, tint, lvl) + '@' + k) : cache.get(enemyKey(type, frame, 0, tint, type === 'night' ? 0 : lvl))) || null;
   }
 
   function baseR(type) { return BASE_R[type] || ENEMIES[type].r; }

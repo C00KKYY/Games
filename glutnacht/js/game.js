@@ -301,33 +301,31 @@ const Game = {
     r.surgeWave = null;
     if (r.over || p.hp <= 0) return;
     // Belohnung nur als Gold (Schmiede), keine Stärke im Lauf; ohne Treffer doppelt
-    const g = Math.round(c.s.gold * HEAT[r.heat].gold) * (r.surgeHits ? 1 : 2);
+    // wie ein Goldbeutel (Gier und Nachtstufe), ohne Treffer doppelt
+    const g = Math.round(c.s.gold * r.stats.greed * HEAT[r.heat].gold) * (r.surgeHits ? 1 : 2);
     r.gold += g;
     this.text(p.x, p.y - 26, tr('+{0} Gold', g), '#ffd23f', 1.4);
     Hooks.banner(tr('Ansturm überstanden!'), 'win', r.surgeHits ? tr('+{0} Gold', g) : tr('Ohne Treffer! +{0} Gold', g));
     Hooks.sfx('achievement');
   },
   // Lesezugriff für Oberfläche und Werkzeuge: null oder { kind, phase, left, frac, since, icon, tint, label }
-  // (ein wiederverwendetes Objekt, die Anzeige fragt jedes Bild)
+  // (ein wiederverwendetes Objekt, die Anzeige fragt jedes Bild). Die Phase kommt allein aus dem Zustand, den
+  // countdownTick fortschreibt (c.ph) – Leiste, Musik und Spawner können nicht auseinanderlaufen; r.t liefert nur
+  // die Restzeit.
   countdownState() {
     const r = this.run;
     if (!r || !r.cdList) return null;
-    const L = r.cdList, t = r.t;
-    for (let i = r.cdIdx; i < L.length; i++) {
-      const c = L[i];
-      if (t < c.start) return null;
-      const on = c.kind === 'surge' && t >= c.at;
-      if (t >= (on ? c.end : c.at)) continue;
-      const o = this._cds || (this._cds = { kind: '', phase: '', left: 0, frac: 0, since: 0, icon: '', tint: null, label: '' });
-      o.kind = c.kind; o.phase = on ? 'on' : 'warn'; o.since = on ? t - c.at : t - c.start;
-      o.left = Math.max(0, on ? c.end - t : c.at - t);
-      o.frac = clamp(o.left / (on ? c.end - c.at : c.at - c.start), 0, 1);
-      if (c.kind === 'surge') {
-        o.icon = c.s.icon; o.tint = (r.stage.tints && r.stage.tints[c.s.icon]) || null; o.label = '';
-      } else { o.icon = c.b.sprite; o.tint = c.b.tint || null; o.label = c.b.name; }
-      return o;
-    }
-    return null;
+    const c = r.cdList[r.cdIdx];
+    if (!c || (c.ph !== 1 && c.ph !== 2)) return null;
+    const on = c.ph === 2, t = r.t;
+    const o = this._cds || (this._cds = { kind: '', phase: '', left: 0, frac: 0, since: 0, icon: '', tint: null, label: '' });
+    o.kind = c.kind; o.phase = on ? 'on' : 'warn'; o.since = Math.max(0, on ? t - c.at : t - c.start);
+    o.left = Math.max(0, on ? c.end - t : c.at - t);
+    o.frac = clamp(o.left / (on ? c.end - c.at : c.at - c.start), 0, 1);
+    if (c.kind === 'surge') {
+      o.icon = c.s.icon; o.tint = (r.stage.tints && r.stage.tints[c.s.icon]) || null; o.label = '';
+    } else { o.icon = c.b.sprite; o.tint = c.b.tint || null; o.label = c.b.name; }
+    return o;
   },
 
   wave() {
