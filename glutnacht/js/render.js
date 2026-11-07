@@ -1568,17 +1568,27 @@ const Render = {
     const gy = land ? H * 0.88 : H - Math.max(18, H * 0.04);
     const fl = 1 + Math.sin(t * 9) * 0.03 + Math.sin(t * 13.7) * 0.02;
     let s = hh / 40; // Spieler-Sprite: rund 40 sichtbare Einheiten hoch, Füße bei +17,4, Glut in der Hand bei (9,6 | −3,8)
-    // Nicht mit dem Menü (DOM) überlappen: Held links daneben, notfalls kleiner (sichtbar etwa −17 … +13 Einheiten breit)
+    // Nicht mit dem Menü (DOM) überlappen: Held links daneben, notfalls kleiner (sichtbar etwa −17 … +13 Einheiten breit).
+    // Die Oberkante hängt vom Helden ab (Ignis' Flammenkapuze, Miras Hut ragen höher)
+    const cid = CHARS[Store.data.lastChar] ? Store.data.lastChar : 'aron';
+    const topU = this.keyArtHeroTop(cid);
+    let heroK = 1;
     const rects = this.keyArtRects();
     if (land) {
       for (let it = 0; it < 3; it++) {
-        const top = gy - 40 * s - 6;
+        const top = gy - topU * s - 6;
         let L = W;
         for (const q of rects) if (q.bottom > top && q.top < gy) L = Math.min(L, q.left);
         if (hx + 13 * s <= L - 8) break;
         if (L - 8 - 13 * s >= 17 * s + 2) { hx = L - 8 - 13 * s; break; }
         s = Math.max(40 / 40, (L - 12) / 30); hh = s * 40; hx = 17 * s + 2;
       }
+    } else {
+      // Hochformat: Held unten in der Mitte; ragt er in Tipp oder Statistik, wird er kleiner (höchstens auf 60 %)
+      let B = 0;
+      for (const q of rects) if (q.right > hx - 17 * s && q.left < hx + 13 * s && q.bottom < gy) B = Math.max(B, q.bottom);
+      if (gy - topU * s < B + 6) { s = Math.max(s * 0.6, (gy - B - 6) / topU); hh = s * 40; }
+      if (gy - topU * s < B + 2) heroK = 0.22; // passt auch so nicht (kleinste Handys): nur angedeutet hinter dem Text
     }
 
     // Glut-Schein um den Helden und auf dem Boden
@@ -1637,23 +1647,37 @@ const Render = {
     });
 
     // Held (schaut nach rechts zur Horde) mit Glut in der Hand
-    const cid = CHARS[Store.data.lastChar] ? Store.data.lastChar : 'aron';
     const p0 = Sprites.player(cid, 0, false);
     const hb = p0.size, k = clamp(Math.ceil(hb * s * d / p0.width), 1, 8);
     const hero = Sprites.hires('ka-hero' + cid, k, () => Sprites.player(cid, 0, false));
-    ctx.globalAlpha = A * 0.5;
+    ctx.globalAlpha = A * 0.5 * heroK;
     ctx.fillStyle = '#000';
     ctx.beginPath(); ctx.ellipse(hx, gy, 12 * s, 3.5 * s, 0, 0, TAU); ctx.fill();
-    ctx.globalAlpha = A;
+    ctx.globalAlpha = A * heroK;
     const by = Math.sin(t * 1.8) * s * 0.4;
     ctx.drawImage(hero, hx - hb / 2 * s, gy - 17.4 * s - hb / 2 * s + by, hb * s, hb * s);
     ctx.globalCompositeOperation = 'lighter';
     const fs = 22 * s * fl;
     ctx.drawImage(this.spr.flame, ex - fs / 2, ey - fs * 0.6 + by, fs, fs);
-    ctx.globalAlpha = A * 0.8;
+    ctx.globalAlpha = A * 0.8 * heroK;
     ctx.drawImage(this.spr.flame, ex - fs / 4, ey - fs * 0.3 + by, fs / 2, fs / 2);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
+  },
+
+  // Sichtbare Oberkante des Helden-Sprites über den Füßen, in Sprite-Einheiten (einmal je Held aus dem Alphakanal gelesen)
+  keyArtHeroTop(cid) {
+    const m = this._kaTop || (this._kaTop = {});
+    if (m[cid] != null) return m[cid];
+    let top = 40;
+    try {
+      const p0 = Sprites.player(cid, 0, false), w = p0.width, h = p0.height;
+      const a = p0.getContext('2d').getImageData(0, 0, w, h).data;
+      let row = -1;
+      for (let y = 0; y < h && row < 0; y++) for (let x = 0; x < w; x++) if (a[(y * w + x) * 4 + 3] > 40) { row = y; break; }
+      if (row >= 0) top = 17.4 + p0.size / 2 - row / h * p0.size;
+    } catch (e) { /* ohne Pixelzugriff: Standardhöhe */ }
+    return (m[cid] = top);
   },
 
   // Umrisse der Menü-Elemente (CSS-Pixel), alle 0,4 s neu gelesen, solange das Titelbild sichtbar ist
