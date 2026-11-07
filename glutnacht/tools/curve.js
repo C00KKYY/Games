@@ -9,7 +9,7 @@
 //   n Läufe noch am Leben · Stufe am Ende · Aufstiege · nDPS = Σ Schaden × Anzahl / Abklingzeit der Waffen (nominell,
 //   ein Ziel) · HP = mittlere Lebenspunkte eines neuen Gegners aus dem Nachschub · TTK = HP / nDPS (s) · Last =
 //   Lebenspunkte aller neuen Gegner je s / nDPS (< 1: die Waffen sind dem Nachschub voraus) · Feld = Lebenspunkte
-//   aller lebenden Gegner / nDPS (s) · lebend · ≤150 = Gegner in 150 px · nah% = Anteil der Zeit mit einem Gegner
+//   aller lebenden Gegner / nDPS (s) · Spawn/s = Nachschub des Directors / alle neuen Gegner (mit Ereignissen) · lebend · ≤150 = Gegner in 150 px · nah% = Anteil der Zeit mit einem Gegner
 //   in Berührungsnähe (Rand + 40 px) oder einem Geschoss in 80 px · leer% = ohne jede Gefahr in 250 px · K/s Kills ·
 //   XP/s · Sch/min Schaden am Helden · Tr/min Treffer · HP% Leben · Gesch/min Gegnergeschosse in 450 px · Boss% Zeit
 //   mit lebendem Boss · Ereignisse/Bosse im Abschnitt (aus den Landdaten).
@@ -108,10 +108,10 @@ function table(g) {
   const L = [];
   L.push(`### ${g.stage} ${g.preset} N${g.heat} (${g.runs} Läufe; Tode bei ${g.deaths.map(t => mmss(Math.round(t))).join(' ') || '–'})`);
   L.push('');
-  L.push('| Zeit | n | Stufe | Aufst. | nDPS | HP | TTK s | Last | Feld s | lebend | ≤150 | nah% | leer% | K/s | XP/s | Sch/min | Tr/min | HP% | Gesch/min | Boss% | Ereignisse |');
-  L.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
+  L.push('| Zeit | n | Stufe | Aufst. | nDPS | HP | TTK s | Last | Feld s | Spawn/s | lebend | ≤150 | nah% | leer% | K/s | XP/s | Sch/min | Tr/min | HP% | Gesch/min | Boss% | Ereignisse |');
+  L.push('|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const r of g.rows) {
-    L.push(`| ${mmss(r.t)} | ${r.n} | ${f(r.lv, 1)} | ${f(r.lvUps, 1)} | ${f(r.ndps, 0)} | ${f(r.avgHp, 0)} | ${f(r.ttk, 2)} | ${f(r.load, 2)} | ${f(r.clearT, 1)} | ${f(r.alive, 0)} | ${f(r.near150, 1)} | ${f(r.close * 100, 0)} | ${f(r.idle * 100, 1)} | ${f(r.kps, 1)} | ${f(r.xps, 1)} | ${f(r.taken, 1)} | ${f(r.hits, 2)} | ${f(r.hpf * 100, 0)} | ${f(r.shotsNear, 0)} | ${f(r.boss * 100, 0)} | ${r.ev.join('; ')} |`);
+    L.push(`| ${mmss(r.t)} | ${r.n} | ${f(r.lv, 1)} | ${f(r.lvUps, 1)} | ${f(r.ndps, 0)} | ${f(r.avgHp, 0)} | ${f(r.ttk, 2)} | ${f(r.load, 2)} | ${f(r.clearT, 1)} | ${f(r.dirRate, 1)}/${f(r.spawnRate, 1)} | ${f(r.alive, 0)} | ${f(r.near150, 1)} | ${f(r.close * 100, 0)} | ${f(r.idle * 100, 1)} | ${f(r.kps, 1)} | ${f(r.xps, 1)} | ${f(r.taken, 1)} | ${f(r.hits, 2)} | ${f(r.hpf * 100, 0)} | ${f(r.shotsNear, 0)} | ${f(r.boss * 100, 0)} | ${r.ev.join('; ')} |`);
   }
   return L.join('\n');
 }
