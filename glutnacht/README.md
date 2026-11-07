@@ -17,9 +17,9 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
   kommenden Gegners, dann „Ansturm in 0:27 …“ (Warnhorn, 10 s vorher „Mach dich bereit!“ mit einem Hinweis wie „Ghule: zäh
   und langsam“, in den letzten 5 s Ticks). Zeit, Erfahrung zu sammeln und den nächsten Ausbau gezielt zu wählen. Um 2:00
   bricht der Ansturm los (je Land ein eigener Auftakt, z. B. ein Ring aus Ghulen): 20–25 s lang mehr und zähere Gegner,
-  dafür etwas weniger Erfahrung je Gegner. Wer durchhält, bekommt 15 Gold (×Nachtstufe), ohne Treffer das Doppelte; um
+  dafür etwas weniger Erfahrung je Gegner. Wer durchhält, bekommt 15 Gold (wie ein Goldbeutel ×Gier ×Nachtstufe), ohne Treffer das Doppelte; um
   2:30 folgt der Elitegegner mit Truhe. Danach steigen die Gegner gleichmäßig weiter an statt erst bei Minute 4 sprunghaft,
-  und 20 s vor dem ersten Boss zählt eine schlichte Leiste herunter. Pause, Aufstieg und Truhen halten den Countdown an.
+  und 20 s vor dem ersten Boss zählt eine schlichte Leiste herunter. Pause, Aufstieg und Truhen halten Countdown und Banner an.
 - **Kohlebecken** auf der Karte zerschlagen: Gold, Herzen, Magnete (ziehen alle Edelsteine und Münzen an), Bomben.
 
 ## Länder, Sterne, Nachtstufen
@@ -61,51 +61,65 @@ Schleimpfütze), Spirale oder Bahnen über das ganze Bild; die Nova lädt jetzt 
 - **Die erste Minute:** Schon beim Start stehen ein paar Gegner im Bild. Die Stufen 1–10 kosten weniger Erfahrung (ab Stufe 11 gilt die alte Kurve), so bringt die erste Minute 4–5 Aufstiege. Nach 30 Sekunden erscheint der erste Elitegegner sichtbar im Bild (schnell, aber schwächer als spätere) und lässt eine Truhe fallen. Nach 34–45 Sekunden (je Land) gehen die ersten Fernkämpfer sichtbar im Bild in Stellung, kurz danach folgt das erste große Ereignis. Damit es nicht zu leicht wird, kommen in den ersten drei Wellen jedes Landes mehr Gegner, und langsame Gegner sind in den ersten drei Minuten bis zu 20 % schneller.
 - Ab Minute 3–4 ziehen Gegner-Lebenspunkte und Schaden deutlich an; Stufenaufstiege werden ab Stufe 20 langsamer. Abgestimmt mit einem Bot (`tools/balancebot.js`, Sammelauswertung `tools/balance-batch.js`, die auch Stufe nach 60 s, ersten Treffer, Schaden je Minute und Gegner im Bild nach 2/10/30/60 s meldet).
 
-Siegquoten des starken Bots (Stand M10, Countdown und Ansturm; Spielcode a3789cc): alle 9 Helden reihum, Nachtstufe 0
-(außer der letzten Zeile); „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`. Der
-Bot nimmt Fernkampf wie ein geübter Mensch wahr (siehe Technik), den Countdown aber nicht – für Menschen, die sich auf den
-Ansturm vorbereiten, sind die Werte eher eine untere Grenze. Gezählt sind nur Läufe auf dem M10-Code (keine Auswahl einzelner
-Messreihen), dahinter das 95-%-Vertrauensintervall (Wilson) und zum Vergleich der Stand vor M10 (gepoolt, Spielcode 158d72b).
+Siegquoten des starken Bots (Stand M10, Countdown und Ansturm): alle 9 Helden reihum, Nachtstufe 0 (außer der letzten
+Zeile); „Schmiede“: none = nichts gekauft, light/mid/max = Voreinstellungen in `tools/balancebot.js`. Der Bot nimmt Fernkampf
+wie ein geübter Mensch wahr (siehe Technik), den Countdown aber nicht – für Menschen, die sich auf den Ansturm vorbereiten,
+sind die Werte eher eine untere Grenze. Gezählt sind alle Läufe auf dem M10-Spielcode (keine Auswahl einzelner Messreihen):
+die Messung der Umsetzung und die unabhängige Nachmessung zusammen (Spielcode a3789cc; die späteren Änderungen an Oberfläche,
+Klang und Gold ändern den Spielverlauf nachweislich nicht – gleiche Zufallszahlen, gleicher Zustand bis 7:00), für den Eissee
+nur Läufe nach der Erfahrungskorrektur (4cc158f). Dahinter das 95-%-Vertrauensintervall (Wilson) und zum Vergleich der Stand
+vor M10 (gepoolt: frühere Messung auf 158d72b plus Nachmessung desselben Tages auf 419d30a, spielgleich).
 Läufe enden nach 25 min Spielzeit (`TMAX`); wer dann noch gegen den Endboss kämpft, zählt als „offen“ (kam diesmal nicht vor).
 Der Zufall ist groß: Messreihen mit n = 12 auf gleichem Code lagen bis zu 40 Punkte auseinander.
 
 | Land | Schmiede | Siege M10 | 95-%-Intervall | vor M10 | Tod im Median | erster Treffer (Median) |
 |---|---|---|---|---|---|---|
-| Alter Friedhof | none | **29 %** (21/72) | 20–41 % | 31 % (22/72) | 7,7 min | 75 s |
-| Aschenwald | none | 11 % (4/36) | 4–25 % | 11 % (7/66) | 6,8 min | 86 s |
-| Aschenwald | light | 25 % (9/36) | 14–41 % | 21 % (16/78) | 8,1 min | 70 s |
-| Eissee | light | 28 % (10/36) | 16–44 % | 22 % (21/96) | 9,7 min | 87 s |
-| Eissee | mid | 39 % (14/36) | 25–55 % | 35 % (36/102) | 12,1 min | 84 s |
-| Burgruine | mid | 14 % (5/36) | 6–29 % | 19 % (7/36) | 9,6 min | 72 s |
-| Burgruine | light | 6 % (2/36) | 2–18 % | 11 % (4/36) | 8,1 min | 80 s |
-| Herz der Nacht | mid | 6 % (2/36) | 2–18 % | 11 % (4/36) | 8,1 min | 63 s |
-| Herz der Nacht | max | 47 % (17/36) | 32–63 % | 42 % (15/36) | 15,4 min | 71 s |
-| Alter Friedhof, Nachtstufe 5 | max | 35 % (25/72) | 25–46 % | 47 % (17/36); Nachmessung 42 % (15/36) | 7,8 min | 54 s |
+| Alter Friedhof | none | **32 %** (46/144) | 25–40 % | 34 % (49/144) | 7,9 min | 75 s |
+| Aschenwald | none | 13 % (9/72) | 7–22 % | 13 % (13/102) | 7,1 min | 80 s |
+| Aschenwald | light | 22 % (16/72) | 14–33 % | 20 % (23/114) | 8,2 min | 64 s |
+| Eissee | light | 19 % (7/36) | 10–35 % | 21 % (28/132) | 10,3 min | 85 s |
+| Eissee | mid | 43 % (31/72) | 32–55 % | 35 % (61/174) | 11,7 min | 85 s |
+| Burgruine | mid | 19 % (14/72) | 12–30 % | 15 % (11/72) | 10,0 min | 79 s |
+| Burgruine | light | 6 % (4/72) | 2–13 % | 7 % (5/72) | 8,2 min | 86 s |
+| Herz der Nacht | mid | 6 % (4/72) | 2–13 % | 8 % (6/72) | 8,0 min | 65 s |
+| Herz der Nacht | max | 51 % (37/72) | 40–63 % | 44 % (32/72) | 15,6 min | 71 s |
+| Alter Friedhof, Nachtstufe 5 | max | 36 % (52/144) | 29–44 % | 44 % (63/144) | 7,8 min | 59 s |
 
-Keine Konfiguration ist leichter geworden (kein Wert liegt mehr als 5 Punkte über dem alten mit getrennten Intervallen); der
-Alte Friedhof bleibt mit 29 % über der Untergrenze von 20 % für das erste Land. Nachtstufe 5 liegt mit 35 % knapp unter dem
-geplanten Boden (37 %); der Unterschied zum alten Code (zusammen 32/72 = 44 % in zwei Messreihen) ist nicht signifikant
-(z ≈ 1,1). Ab Nachtstufe 3 entfallen deshalb HP-Brücke und Erfahrungsabzug im Ansturm (vorher 25 %: dem Helden fehlten bei 3:00
-zwei Stufen, weil er bei dreifachen Lebenspunkten langsamer tötet, als Nachschub kommt).
+Keine Konfiguration ist signifikant leichter geworden; die größten Ausschläge nach oben sind Eissee mid (+8 Punkte, z ≈ 1,2)
+und Herz der Nacht max (+7, z ≈ 0,8). Im Eissee wuchs der Held anfangs durch die zusätzlichen Gegner von 2:00–3:59 voraus
+(Erfahrung bei 4:00 +8 %, Stufe bei 5:00 +1,6); seit diese Gegner weniger Erfahrung bringen (`xp` an Welle 3/4 und am
+Nebelzug bei 3:00), liegt er bei +3 % bzw. +0,6 Stufen (je 24 Läufe). Der Alte Friedhof bleibt mit 32 % klar über der
+Untergrenze von 20 % für das erste Land. Nachtstufe 5 liegt mit 36 % knapp unter dem geplanten Boden (37 %); der Unterschied
+zum alten Code (44 %) ist nicht signifikant (z ≈ 1,3). Ab Nachtstufe 3 entfallen deshalb HP-Brücke und Erfahrungsabzug im
+Ansturm (vorher 25 %: dem Helden fehlten bei 3:00 zwei Stufen, weil er bei dreifachen Lebenspunkten langsamer tötet, als
+Nachschub kommt).
 
 **Spannungsverlauf (M10).** Vorher war Minute 2 die ruhigste des Spiels: Gegner starben in 0,2 s, bevor sie ankamen, bis die
-Gegner-Lebenspunkte an der 4:00-Grenze sprunghaft auf das 2–3-Fache stiegen. Jetzt (Alter Friedhof, Mediane aus je 24 Läufen,
-`node tools/curve.js 24 graveyard:none:0`; TTK = Lebenspunkte eines neuen Gegners / Waffen-DPS, Last = Lebenspunkte des
-Nachschubs je s / Waffen-DPS):
+Gegner-Lebenspunkte an der 4:00-Grenze sprunghaft auf das Doppelte stiegen. Jetzt (Alter Friedhof, Mediane aus je 24 Läufen
+auf altem und neuem Code, `node tools/curve.js 24 graveyard:none:0`; TTK = Lebenspunkte eines neuen Gegners / Waffen-DPS,
+Last = Lebenspunkte des Nachschubs je s / Waffen-DPS):
 
 | Abschnitt | 1:00 | 1:30 | 2:00 (Ansturm) | 2:30 | 3:00 | 3:30 | 4:00 | 5:00 |
 |---|---|---|---|---|---|---|---|---|
-| TTK vorher / nachher (s) | 0,18 / 0,18 | 0,17 / 0,16 | 0,21 / **0,35** | 0,18 / 0,22 | 0,16 / 0,23 | 0,14 / 0,22 | 0,29 / 0,30 | 0,34 / 0,31 |
-| Last vorher / nachher | 0,62 / 0,61 | 0,64 / 0,93 | 1,15 / **1,77** | 0,71 / 1,05 | 0,78 / 1,01 | 0,81 / 1,07 | 1,42 / 1,38 | 2,10 / 2,24 |
-| Gegner in 150 px vorher / nachher | 1,6 / 1,6 | 1,6 / 1,5 | 1,5 / **3,0** | 1,9 / 2,4 | 1,5 / 1,6 | 1,3 / 1,3 | 1,3 / 1,4 | 1,4 / 1,2 |
+| TTK vorher / nachher (s) | 0,18 / 0,17 | 0,17 / 0,16 | 0,23 / **0,33** | 0,21 / 0,24 | 0,19 / 0,26 | 0,17 / 0,24 | 0,35 / 0,35 | 0,40 / 0,37 |
+| Last vorher / nachher | 0,66 / 0,65 | 0,67 / 0,63 | 0,91 / **1,93** | 1,04 / 1,15 | 0,89 / 1,09 | 0,83 / 1,02 | 1,66 / 1,60 | 2,36 / 2,24 |
+| Gegner in 150 px vorher / nachher | 1,5 / 1,7 | 1,6 / 1,5 | 1,5 / **3,1** | 2,0 / 2,7 | 1,6 / 2,0 | 1,3 / 1,7 | 1,4 / 1,6 | 1,6 / 1,9 |
 
-Der Ansturm erreicht 0,9 × die Last von Minute 5, danach liegt alles über dem alten Plateau, und der Sprung bei 4:00
-(TTK ×2,1) ist auf ×1,4 geglättet; ab Minute 4 ist nichts leichter (TTK, Last, Schaden im Mittel 0,99–1,2 × vorher). Die
-anderen Länder folgen demselben Muster, schwächer in Burgruine und Herz der Nacht, die schon vorher ab 2:00–3:00 anzogen.
+Bis 1:30 ist der Code unverändert; die kleinen Unterschiede dort sind Zufall (gleicher Code streut je Abschnitt um bis zu
+±30 %). Nachschub, der im selben Bild nach einer Abschnittsgrenze erscheint, zählt zum neuen Abschnitt – frühere Fassungen
+dieser Tabelle buchten die Ansturm-Eröffnung (bei genau 2:00) und alte Ringe (bei 2:30) in den Abschnitt davor. Der Ansturm
+erreicht 0,8 × die Last von Minute 5, danach liegt alles über dem alten Plateau, und der Sprung bei 4:00 (TTK ×2,1) ist auf
+×1,5 geglättet. Ab Minute 4 ist nichts leichter: Je Abschnitt schwanken die Werte bei 24 Läufen um ±10 %; über 72 gegen 72
+Läufe liegt die TTK ab 4:00 bei 1,07 × vorher (95 %: 0,90–1,28), die Last bei 1,01 ×, und der Held ist gleich stark oder
+etwas schwächer (Stufe bei 4:00 18,3 statt 18,8). Die anderen Länder folgen demselben Muster, schwächer in Burgruine und Herz
+der Nacht, die schon vorher ab 2:00–3:00 anzogen (in der Burgruine bleibt die halbe Minute nach dem Ansturm, 2:25–2:59, so
+ruhig wie vorher; der Anstieg beginnt dort wie bisher bei 3:00).
 
-Schon die erste Minute tut weh: In allen Konfigurationen trifft den starken Bot der erste Schaden im Median nach 54–87 s (M10; vorher 58–89 s, Burgruine
-light knapp), zu 90–100 % durch Fernkampf (Schaden in den Minuten 1–3). Erste Minute sonst (Mittel je Konfiguration): Stufe 6–10 nach
-60 s, 10–13 Gegner im Bild nach 2 s, eine Truhe vor 60 s in 86–96 % der Läufe (Ausnahmen: Burgruine 67–78 %, Herz der Nacht mid 61 %).
+Schon die erste Minute tut weh: In allen Konfigurationen trifft den starken Bot der erste Schaden im Median nach 59–86 s (M10,
+gepoolt; vorher 58–89 s). Vor 2:00 ist der Spielcode gleich geblieben – einzelne Messreihen streuen hier um ±15 s (54–98 s),
+das ist Zufall, keine Wirkung von M10. Der erste Schaden kommt zu 90–100 % durch Fernkampf (Schaden in den Minuten 1–3).
+Erste Minute sonst (Mittel je Konfiguration): Stufe 6–10 nach 60 s, 10–13 Gegner im Bild nach 2 s, eine Truhe vor 60 s in
+86–96 % der Läufe (Ausnahmen: Burgruine 67–78 %, Herz der Nacht mid 61 %).
 
 ## Zwischen den Läufen
 

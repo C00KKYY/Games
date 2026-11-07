@@ -516,3 +516,24 @@ Results against §9 (details: scratchpad m10/compare.md):
   one of two runs at 844×390 (the other 50/66.6 vs 33.4/50: the surge phase has ~35 % more enemies, 43 vs 32, which
   costs ~0.3 ms update and ~0.8 ms draw per frame); opener frame ≤ 50–83 ms vs reference max 83–100 ms. `perf.js 6 300`
   and `--hostile` unchanged (26.4/27.9 vs 25.9/27.7 fps; 21.2/19.8 vs 21.7/20.3 fps).
+
+### 12.1 Fixes after the independent verification
+
+| Finding | Change |
+|---|---|
+| Eissee mid: hero pulled ahead from 3:00 (XP from the extra 2:00–3:59 enemies is not covered by the surge `xp`) | `xp` factor on waves and events (heat < 3 only): Eissee W3/W4 `xp: 0.88`, 180 s fog swarm `xp: 0.4`. XP at 4:00 old/before/after 1934/2085/1995, level at 5:00 25.0/26.6/25.6 (24 runs each); gate mid 31/72 = 43 %, light 7/36 = 19 % |
+| Telemetry booked spawns of the frame that crosses a bin edge (surge opener at 120.0 s, old rings at 150 s) into the previous bin | `tools/balancebot.js` carries them over to the next bin; README curve re-measured on old and new code (24 runs each) |
+| Countdown ticks barely audible in combat | tick gain 0.35 → 1.4, pitch +3 semitones instead of −7 (peak alone 0.025 → 0.075, now above hit/kill/gem; in a live surge 0.08–0.11 vs a median 0.03–0.09 before each tick) |
+| Countdown at 1:30 starts together with the elite banner | the elite banner is held until 3.2 s after the bar appears (after „Starke Gegner kommen!“); gameplay unchanged |
+| Bar and boss bar reappeared after death / quit (frozen phase) | `updateHud` treats `r.over` as "no boss, no countdown" |
+| Surge gold ignored greed | `gold × greed × heat gold`, as for a gold bag |
+| Phase tracked twice (state machine vs. time) | `countdownState()` reads the phase from `c.ph` only; time only gives the rest |
+| Peek cache keys copied | `enemyKey()` / `bossKey()` shared by `enemy()`, `bossSprite()` and the peeks |
+| Banners firing under a modal were never seen | banner animation and its remaining time pause during level-up, chest and pause (`UI.tickBanner`) |
+| Bar text hard to read over bright effects | faint dark pill behind `#surgehead` (static, no per-frame repaint) |
+
+Left as is: the offscreen chest/boss marker can sit under a banner for ≤ 2.6 s while the bar is shown (between bar bottom
+and banner top there are 5 px on 844×390, below the banner is the hero; before M10 such markers were hidden under the boss
+bar for the whole fight). Surge strength below C2/C4 in Burgruine, Eissee light and Herz der Nacht, and the modest
+contact/damage increase for the bot (it dodges melee almost perfectly), as already listed above. The surge costs some frame
+rate because it has more enemies (no spikes); the countdown phase alone is within 2 %.
