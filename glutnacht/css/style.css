@@ -80,15 +80,17 @@ img { -webkit-user-drag: none; }
 #surgeicon { width: 26px; height: 26px; flex: none; margin: -2px 0; filter: drop-shadow(0 1px 0 #000); }
 #surgetxt { font-family: var(--head); font-size: 18px; line-height: 1; color: #ffd2a0; text-shadow: 0 2px 0 #000, 0 0 10px #ff7a1a; overflow: hidden; text-overflow: ellipsis; }
 #surge .bar { height: 12px; border-radius: 6px; background: rgba(10, 4, 20, 0.85); border: 2px solid #4a2408; overflow: hidden; margin-top: 3px; }
-#surgefill { height: 100%; width: 100%; transform-origin: left center; background: linear-gradient(180deg, #ffd08a, #ff8a1a); }
+#surgefill { height: 100%; width: 100%; transform-origin: left center; background: linear-gradient(180deg, #ffd08a, #ff8a1a); will-change: transform; transition: transform 0.2s linear; }
+#surgefill.jump { transition: none; }
 #surge.on #surgetxt { color: #ffc0c8; text-shadow: 0 2px 0 #000, 0 0 12px #ff3d5a; }
 #surge.on .bar { border-color: #4a0a14; }
 #surge.on #surgefill { background: linear-gradient(180deg, #ff7a8c, #ff3d5a 60%, #c4123c); }
 #surge.boss #surgetxt { color: #ffb3c1; text-shadow: 0 2px 0 #000, 0 0 10px #ff2050; }
 #surge.boss .bar { border-color: #3a0a1a; }
 #surge.boss #surgefill { background: linear-gradient(180deg, #ff6a8a, #c4123c); }
-#surgetxt.urgent { animation: surgeUrgent 0.5s ease-in-out infinite alternate; }
-@keyframes surgeUrgent { from { color: #ffd2a0; } to { color: #ff5a6e; text-shadow: 0 2px 0 #000, 0 0 14px #ff2040; } }
+/* letzte 5 s: rot und pulsierend – nur transform (läuft im Compositor, kein Neuzeichnen je Bild) */
+#surgetxt.urgent { color: #ff7a86; text-shadow: 0 2px 0 #000, 0 0 12px #ff2040; animation: surgeUrgent 0.5s ease-in-out infinite alternate; will-change: transform; }
+@keyframes surgeUrgent { from { transform: scale(1); } to { transform: scale(1.1); } }
 @media (prefers-reduced-motion: reduce) { #surge.pop, #surgetxt.urgent { animation: none; } }
 /* Banner im oberen Fünftel, damit er den Helden in der Mitte nie verdeckt; Dauer kommt aus UI.banner (--bd) */
 #banner { position: absolute; left: 0; right: 0; top: 18%; text-align: center; font-family: var(--head); font-size: clamp(26px, 6vw, 52px); line-height: 1.05; color: #fff; text-shadow: 0 4px 0 #000, 0 0 30px rgba(255, 138, 60, 0.8); opacity: 0; transform: scale(0.6); pointer-events: none; padding: 0 16px; }

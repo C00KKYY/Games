@@ -765,8 +765,14 @@ const UI = {
         : cs.phase === 'on' ? tr('Ansturm! Noch {0}', tm) : intro ? tr('Starke Gegner kommen!') : tr('Ansturm in {0}', tm);
       el.surgetxt.classList.toggle('urgent', cs.kind === 'surge' && cs.phase === 'warn' && sec <= 5);
     }
-    const f = Math.round(cs.frac * 1000);
-    if (L.cdF !== f) { el.surgefill.style.transform = 'scaleX(' + f / 1000 + ')'; L.cdF = f; }
+    // Füllung in 0,5-%-Schritten (je 0,1–0,15 s), dazwischen gleitet sie per Übergang (Compositor); bei neuem
+    // Abschnitt (Countdown → Ansturm) springt sie ohne Übergang
+    const f = Math.round(cs.frac * 200);
+    if (L.cdF !== f) {
+      const jump = L.cdF === -1;
+      el.surgefill.classList.toggle('jump', jump);
+      el.surgefill.style.transform = 'scaleX(' + f / 200 + ')'; L.cdF = f;
+    }
   },
   // Symbol des kommenden Gegners bzw. Bosses – nur aus schon gebauten Bildern, sonst ausgeblendet
   drawCountdownIcon(cs) {

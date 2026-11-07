@@ -91,7 +91,13 @@ const SURGE = process.argv.includes('--surge') || process.argv.includes('--nosur
           const s = t.slice().sort((a, b) => a - b), q = k => s[Math.min(s.length - 1, Math.floor(s.length * k))];
           let open = 0; for (let i = 0; i < t.length; i++) if (gt[i] >= 119.5 && gt[i] <= 121.5) open = Math.max(open, t[i]);
           const nf = t.length;
-          res({ frames: nf, fps: +(nf / (s.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), medMs: +q(0.5).toFixed(1), p95Ms: +q(0.95).toFixed(1), p99Ms: +q(0.99).toFixed(1), maxMs: +s[s.length - 1].toFixed(1),
+          // Abschnitte: Countdown (112–120), Ansturm (120–145), danach (145–150)
+          const win = {};
+          for (const [k, a, b] of [['cd', 112, 120], ['on', 120, 145], ['after', 145, 151]]) {
+            const v = t.filter((x, i) => gt[i] >= a && gt[i] < b), sv = v.slice().sort((p, q) => p - q);
+            win[k] = v.length ? { fps: +(v.length / (v.reduce((p, q) => p + q, 0) / 1000)).toFixed(1), p95: +sv[Math.floor(sv.length * 0.95)].toFixed(1) } : null;
+          }
+          res({ win, frames: nf, fps: +(nf / (s.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), medMs: +q(0.5).toFixed(1), p95Ms: +q(0.95).toFixed(1), p99Ms: +q(0.99).toFixed(1), maxMs: +s[s.length - 1].toFixed(1),
             openMaxMs: +open.toFixed(1), updMs: +(P.upd / nf).toFixed(2), drawMs: +(P.draw / nf).toFixed(2), maxEnemies: maxE, eshotsEnd: Game.run.eshots.length, quality: Render.quality, canvasW: Render.cv.width, state: Game.state, tEnd: +Game.run.t.toFixed(1) });
         }
       };
