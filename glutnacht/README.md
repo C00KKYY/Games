@@ -13,6 +13,13 @@ Sprachen: **Englisch** und **Deutsch**. Ohne gespeicherte Wahl richtet sich das 
 - **Entwicklungen:** Waffe auf Stufe 8 + der passende Passiv-Gegenstand → die nächste **Truhe** verwandelt sie in eine deutlich stärkere Form (z. B. Klinge + Herz → Blutklinge).
 - **Truhen** lassen Elitegegner (goldener Schein, der erste nach 30 Sekunden, danach etwa jede Minute) und Bosse fallen. Am Ende jedes Landes wartet ein Endboss.
 - **Ereignisse:** Fledermausschwärme, „Umzingelt!“-Ringe, Geisterzüge, Kreuzfeuer – je nach Land andere.
+- **Countdown und Ansturm:** Bei 1:30 erscheint unter der Zeit eine Leiste „Starke Gegner kommen!“ mit dem Bild des
+  kommenden Gegners, dann „Ansturm in 0:27 …“ (Warnhorn, 10 s vorher „Mach dich bereit!“ mit einem Hinweis wie „Ghule: zäh
+  und langsam“, in den letzten 5 s Ticks). Zeit, Erfahrung zu sammeln und den nächsten Ausbau gezielt zu wählen. Um 2:00
+  bricht der Ansturm los (je Land ein eigener Auftakt, z. B. ein Ring aus Ghulen): 20–25 s lang mehr und zähere Gegner,
+  dafür etwas weniger Erfahrung je Gegner. Wer durchhält, bekommt 15 Gold (×Nachtstufe), ohne Treffer das Doppelte; um
+  2:30 folgt der Elitegegner mit Truhe. Danach steigen die Gegner gleichmäßig weiter an statt erst bei Minute 4 sprunghaft,
+  und 20 s vor dem ersten Boss zählt eine schlichte Leiste herunter. Pause, Aufstieg und Truhen halten den Countdown an.
 - **Kohlebecken** auf der Karte zerschlagen: Gold, Herzen, Magnete (ziehen alle Edelsteine und Münzen an), Bomben.
 
 ## Länder, Sterne, Nachtstufen
