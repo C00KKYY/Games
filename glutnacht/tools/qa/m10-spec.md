@@ -478,3 +478,41 @@ Pass rules:
 | Bot cannot use the warning | accepted. The measured difficulty is an upper bound for humans |
 | Heat 5 too dense | k = 0.7 damping; graveyard max heat5 floor 37 % |
 | Herz der Nacht becomes a wall | weakest surge (1.15, 20 s), no bridge, floor 5 % |
+
+---------------------------------------------------------------------------------------------------
+## 12. As built (deviations from the numbers above; code a3789cc)
+
+Measurement: `tools/curve.js 24 <config>` (all 8 configs, 24 runs each), compared against the pre-M10 curve
+(m10/curve.json raw runs, plus 24 extra pre-M10 frostlake light runs) with medians of TTK/Last per bin (one run
+with nDPS 3 distorted the means). Balance gate: m10/gate1 (heat 0) and m10/gate2 (heat 5), 36–72 runs each.
+
+| Change | Spec | As built | Why |
+|---|---|---|---|
+| Friedhof surge `speed` | 1 | **1.1** | damage in the surge was 0.6× the old 2:00 bin (melee never arrived); now 2.1× |
+| Aschenwald surge `rate` / `cap` | 1.3 / 1.3 | **1.5 / 1.4** | surge Last was 0.6× window B; now 0.7× |
+| Eissee surge `rate`, pool | 1.5, ghoul 1 | **1.6, ghoul 2** | surge Last 0.65× B; light preset still 0.63× |
+| Eissee W3 / W4 pool | rate only | **+ghoul 1 / ghoul 1 → 2** | TTK 2:30–3:59 was only 1.03× (bridge alone gives ≤1.13×); now 1.13× (light) / 1.37× (mid) |
+| Burgruine surge `rate` / `cap` | 1.3 / 1.2 | **1.5 / 1.3** | surge Last 0.42× B; now 0.49–0.68× |
+| Heat ≥ 3 | k = 0.7 on rate/cap | **plus: no hpBridge, surge `xp` 1, speed bonus ×0.7** | graveyard max heat 5 fell to 25 % (hero 2 levels behind at 3:00: at triple HP the hero is DPS-bound, so tougher pools cost XP) |
+| T-10 banner | kind `event` | **`event ready`, 2.6 s, smaller font** | 844×390: two-line banner reached the hero's head |
+| Bar width at max-height 400 px | min(460, 70vw) | **also ≤ 100vw − 446 px − 2·safe-left (boss bar too)** | with 6+6 slots the second slot row ends at x 215 and overlapped both bars (boss bar: pre-existing) |
+| Portrait banner (no bar) | 23 % | **max(23 %, 142 px)** | elite/end banner touched the second slot row on 320×568 (pre-existing for elites) |
+| Banner fade-out drift | −20 px | **−2 px** | the fading banner slid into the bar |
+| Chevron clamp | bottom + 22 | **bottom + 28** | arrow tip is 24 px above the circle centre |
+| Fill / pulse | scaleX per frame, colour pulse | **0.5 % steps + 0.2 s transition, pulse via transform** | the per-frame repaint cost ~20 % fps at CPU ×6 in the countdown |
+| `Hooks.countdown` | UI draws the icon on warn start | **not added**: ui.js draws the icon when the bar (re)appears or its kind/phase changes | same effect, no extra hook |
+
+Results against §9 (details: scratchpad m10/compare.md):
+- C2 met for Friedhof (0.93), Aschenwald (0.70/0.72), Eissee mid (0.75); not met for Eissee light (0.63), Burgruine
+  (0.49/0.68), Herz der Nacht (0.41, intended weakest surge, §4.1). C4 met for Friedhof, Aschenwald light, Eissee mid,
+  Burgruine; Aschenwald none 1.10/1.15, Eissee light 1.13/1.23, Herz 0.93/0.97. C6 met everywhere except Eissee mid and
+  Burgruine mid (within 0.07). C7/C8 met except Herz der Nacht TTK 0.76 (n = 12 baseline; its win rate did not rise).
+- C1 cannot be resolved at this n: the first minute is code-identical, yet bins differ by up to ±30 % between run sets.
+  C5 is distorted by the opener (spawned in the frame that crosses 120 s, so it lands in the 1:30 bin); cmp.js also
+  prints C5 without it (1.52–1.90, all ≥ 1.4).
+- Gate: all heat-0 configs within their floors and none easier; graveyard none 29 % (21/72). Heat 5: 35 % (25/72) vs
+  floor 37 %; old code re-measured the same day 42 % (15/36), difference not significant (z ≈ 1.1).
+- Perf (CPU ×6, `perf.js --surge` vs `--nosurge`, 112–150 s): whole-window p95/p99 equal at 907×510 (33.4/50 ms) and in
+  one of two runs at 844×390 (the other 50/66.6 vs 33.4/50: the surge phase has ~35 % more enemies, 43 vs 32, which
+  costs ~0.3 ms update and ~0.8 ms draw per frame); opener frame ≤ 50–83 ms vs reference max 83–100 ms. `perf.js 6 300`
+  and `--hostile` unchanged (26.4/27.9 vs 25.9/27.7 fps; 21.2/19.8 vs 21.7/20.3 fps).
