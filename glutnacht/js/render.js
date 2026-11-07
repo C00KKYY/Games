@@ -31,6 +31,7 @@ const QUALITY = [
 // (#ffffff = unverändert). Lichtquellen (Glut des Helden, Kohlebecken, Geschosse …) hellen sie auf.
 const AMBIENT = { graveyard: '#66769e', ashwood: '#8a6c74', frostlake: '#647ca4', ruins: '#74708c', nightheart: '#8e7ec8' };
 const AMBIENT_DEFAULT = '#7880a6';
+const SHADOW_A = { ashwood: 'rgba(0,0,0,0.42)', frostlake: 'rgba(0,0,0,0.4)', ruins: 'rgba(0,0,0,0.45)' };
 
 const Render = {
   keyArtOn: false, keyArtA: 0, hintA: 0,
@@ -82,6 +83,8 @@ const Render = {
     this.decor = stage.decor || Sprites.DECOS;
     this.decorTint = stage.decorTint || null;
     this.ambient = AMBIENT[stage.id] || AMBIENT_DEFAULT;
+    // Gegnerschatten: auf hellen, gemusterten Böden kräftiger, damit sich Gegner vom Boden abheben
+    this.shadowA = SHADOW_A[stage.id] || 'rgba(0,0,0,0.28)';
     // Deko steht sofort im Bild (auch hinter Menü und Karte): gleich bauen
     for (const k of new Set(this.decor)) Sprites.deco(k, this.decorTint, stage.id);
     this.prebuildStage(stage);
@@ -592,7 +595,7 @@ const Render = {
     ctx.globalCompositeOperation = 'source-over';
 
     // Schatten
-    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.fillStyle = this.shadowA || 'rgba(0,0,0,0.28)';
     ctx.beginPath();
     const list = this.list;
     list.length = 0;

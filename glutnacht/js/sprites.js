@@ -1284,9 +1284,10 @@ const Sprites = (() => {
   // Stein-, Eis-, Riss- und Kristallmuster je Land: Voronoi-Zellen auf dem Torus (nahtlos), pro Pixel gerechnet.
   // Fase: Zellrand zum Licht (oben links) hell, abgewandt dunkel; Fuge dunkel oder hell (Eisriss) oder glühend.
   const VORO = {
-    ruins: { n: 11, jit: 0.85, holes: 0.12, stone: '#9a917c', cover: 0.55, vary: 0.22, bevel: 0.30, bw: 6, dome: 0.16, mw: 2.0, mortar: '#211c16', moss: '#4a6a32', mossP: 0.18 },
-    frostlake: { n: 5, jit: 0.9, holes: 0, stone: '#8ec0e8', cover: 0.32, vary: 0.16, bevel: 0.22, bw: 9, dome: 0.10, mw: 1.1, mortar: '#f2fbff', halo: '#16304e', hw: 3.2, sheen: 0.16 },
-    ashwood: { n: 7, jit: 0.9, holes: 0, stone: '#8e6a58', cover: 0.3, vary: 0.18, bevel: 0.2, bw: 7, dome: 0.08, mw: 1.8, mortar: '#120a08', glow: '#ff6a1e', glowP: 0.26, gw: 6 },
+    // Fugen und Fasen bewusst zurückhaltend: dunkle Fugen wie Gegner-Umrisse machen Gegner auf hellen Böden schwer lesbar
+    ruins: { n: 11, jit: 0.85, holes: 0.12, stone: '#807865', cover: 0.55, vary: 0.14, bevel: 0.2, bw: 6, dome: 0.12, mw: 1.5, mortar: '#3c352a', moss: '#4a6a32', mossP: 0.18 },
+    frostlake: { n: 5, jit: 0.9, holes: 0, stone: '#86b6de', cover: 0.32, vary: 0.12, bevel: 0.16, bw: 9, dome: 0.10, mw: 0.9, mortar: '#e2f2fc', halo: '#16304e', hw: 3.2, sheen: 0.1 },
+    ashwood: { n: 7, jit: 0.9, holes: 0, stone: '#86644f', cover: 0.3, vary: 0.12, bevel: 0.14, bw: 7, dome: 0.08, mw: 1.4, mortar: '#26170f', glow: '#ff6a1e', glowP: 0.26, gw: 6 },
     nightheart: { n: 6, jit: 0.75, holes: 0, stone: '#5a46a8', cover: 0.38, vary: 0.2, bevel: 0.30, bw: 6, dome: 0.0, mw: 1.6, mortar: '#140c2e', glow: '#9a7cff', glowP: 0.28, gw: 6, sheen: 0.22 },
   };
   function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
