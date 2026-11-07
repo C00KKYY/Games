@@ -160,13 +160,14 @@ function m10Checks(api) {
     Hooks.levelUp = o => { pend = o; };
     Hooks.chest = () => {};
     const r = Game.newRun('aron', 0, st.id);
-    r.stats.maxHp = r.p.hp = 1e9;
     const A = s.t - s.lead, E = s.t + s.dur;
     const marks = [[A - 1, null], [A, 'warn'], [s.t - 0.1, 'warn'], [s.t, 'on'], [E - 0.1, 'on'], [E, null]];
     const step = until => {
       while (r.t < until) {
         if (Game.state === 'levelup') { Game.chooseLevel(pend[0]); continue; }
         if (Game.state === 'chest') { Game.closeChest(); continue; }
+        if (Game.state !== 'play') throw new Error(`${st.id}: Zustand ${Game.state} bei ${r.t.toFixed(1)} s`);
+        r.p.iframe = 1; r.p.hp = r.stats.maxHp; // unverwundbar
         Game.update(1 / 60);
       }
     };

@@ -96,6 +96,8 @@ const Render = {
     for (const w of stage.waves || []) for (const t in w.pool) ts.add(t);
     for (const ev of stage.events || []) { if (ev.type) ts.add(ev.type); for (const t in ev.mix || {}) ts.add(t); }
     for (const b of stage.bosses || []) ts.add(b.summon || 'skel');
+    // Ansturm (M10): Mischung, Eröffnung und Bild in der Countdown-Leiste
+    for (const s of stage.surges || []) { for (const t in s.pool) ts.add(t); if (s.open && s.open.type) ts.add(s.open.type); if (s.icon) ts.add(s.icon); }
     return [...ts].filter(t => ENEMIES[t]);
   },
 

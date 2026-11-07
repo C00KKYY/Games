@@ -67,6 +67,8 @@ function load() {
   // Telemetrie (TELEM, M10): Nachschub des Directors (Anzahl, Lebenspunkte), Erfahrung je Zeitabschnitt (r.B)
   src = opt(src, '      const pos = this.spawnPos();\n      this.spawnEnemy(this.pickType(wv), pos.x, pos.y);',
     '      const pos = this.spawnPos();\n      { const _e = this.spawnEnemy(this.pickType(wv), pos.x, pos.y); if (r.B) { r.B.dirN++; r.B.dirHp += _e.maxHp; } }');
+  src = opt(src, '      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y);',
+    '      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y); if (r.B) { r.B.dirN++; r.B.dirHp += e.maxHp; }');
   src = opt(src, 'r.xp += v * r.stats.growth;', 'r.xp += v * r.stats.growth; if (r.B) r.B.xp += v * r.stats.growth;');
   if (process.env.PATCH) for (const [a, b] of JSON.parse(fs.readFileSync(process.env.PATCH, 'utf8'))) src = rep(src, a, b);
   src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, CHARS, HEAT, SHOP, ENEMIES, STAGES, fmtTime, xpFor };';
@@ -536,7 +538,7 @@ for (let i = 0; i < n; i++) {
   // Telemetrie je Zeitabschnitt (TELEM Sekunden)
   const buckets = [];
   const newB = () => ({ t0: r.t, lv0: r.level, n: 0, taken: 0, hits: 0, dmg: 0, raw: 0, bossDmg: 0, spawnN: 0, dirN: 0, dirHp: 0, kills: 0, life: 0, lifeN: 0, dd: 0, xp: 0,
-    shots: 0, shotsNear: 0, bossShots: 0, bossShotsNear: 0, spawnHp: 0, fieldHp: 0, minD: 0, close: 0, alive: 0, aliveN: 0, near300: 0, near150: 0, scr: 0, idle: 0, boss: 0, atCap: 0, boost: 0, hpf: 0, hpMin: 1, eshots: 0, nearDmg: 0 });
+    shots: 0, shotsNear: 0, bossShots: 0, bossShotsNear: 0, spawnHp: 0, fieldHp: 0, minD: 0, close: 0, alive: 0, aliveN: 0, near300: 0, near150: 0, scr: 0, idle: 0, boss: 0, atCap: 0, boost: 0, hpf: 0, hpMin: 1, eshots: 0, nearDmg: 0, cd: 0 });
   if (TELEM) r.B = newB();
   let curB = 0;
   while (!over && r.t < TMAX) {
@@ -575,6 +577,7 @@ for (let i = 0; i < n; i++) {
       B.fieldHp += fhp; B.minD += Math.min(800, Math.sqrt(md2)); if (close) B.close++;
       if (!thr) B.idle++; if (boss) B.boss++; if (aliveN >= cap) B.atCap++; if (aliveN < cap * 0.35) B.boost++;
       const f = p.hp / r.stats.maxHp; B.hpf += f; if (f < B.hpMin) B.hpMin = f;
+      if (Game.surgeNow && Game.surgeNow()) B.cd++; // M10: Zeitanteil im Ansturm (der Bot sieht den Countdown nicht)
     }
     if (TELEM && Math.floor(r.t / TELEM) > curB) {
       const B = r.B, n = Math.max(1, B.n), dt0 = Math.max(1e-6, r.t - B.t0);
@@ -589,7 +592,7 @@ for (let i = 0; i < n; i++) {
         ndps: Math.round(ndps), dps: Math.round(B.dmg / dt0), raw: Math.round(B.raw / dt0), bossDps: Math.round(B.bossDmg / dt0),
         ttk: avgHp === null ? null : +(avgHp / Math.max(1, ndps)).toFixed(3), kps: +(B.kills / dt0).toFixed(2), life: B.lifeN ? +(B.life / B.lifeN).toFixed(2) : null, dd: B.lifeN ? Math.round(B.dd / B.lifeN) : null,
         xps: +(B.xp / dt0).toFixed(2), taken: Math.round(B.taken), hits: B.hits, hpf: +(B.hpf / n).toFixed(3), hpMin: +B.hpMin.toFixed(3),
-        shots: B.shots, shotsNear: B.shotsNear, bossShots: B.bossShots, bossShotsNear: B.bossShotsNear, eshots: +(B.eshots / n).toFixed(1) });
+        shots: B.shots, shotsNear: B.shotsNear, bossShots: B.bossShots, bossShotsNear: B.bossShotsNear, eshots: +(B.eshots / n).toFixed(1), cd: +(B.cd / n).toFixed(3) });
       r.B = newB(); curB = Math.floor(r.t / TELEM);
     }
     if (r.eshots.length > r.M.shotsMax) r.M.shotsMax = r.eshots.length;

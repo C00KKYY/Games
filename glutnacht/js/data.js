@@ -198,6 +198,10 @@ const HEAT = [
 // Bosse: summon = welcher Gegnertyp beschworen wird; Endboss-HP sind absolut (nicht mit mult skaliert).
 // Boss-Fernangriffe (M9): skills nennt sie, cast[skill] gibt die Grundform (prim: fan, lances, rain, spiral, lanes)
 // und ihre Werte; 'nova' braucht keinen Eintrag. rangedFrom: ab dieser Sekunde kommen Fernkämpfer im Nachschub.
+// Ansturm (M10, surges): lead s vor t erscheint die Countdown-Leiste, von t an dur s lang Nachschub ×rate, Obergrenze
+// ×cap, die Nahkämpfer der Welle durch pool ersetzt (Fernkämpfer bleiben), Erfahrung ×xp, Tempo ×speed; open ist das
+// Eröffnungsereignis (still, Banner text), icon der Gegner in der Leiste, hint die Zeile im T-10-Banner, gold die
+// Belohnung fürs Überstehen (ohne Treffer doppelt). hpBridge: Lebenspunkte steigen 1:15–4:00 gleichmäßig an.
 const STAGES = [
   {
     id: 'graveyard', name: 'Alter Friedhof', minutes: 10,
@@ -211,8 +215,8 @@ const STAGES = [
     waves: [
       { pool: { bat: 2, slime: 3, spitter: 1 }, rate: 2.1, cap: 42 },
       { pool: { bat: 3, slime: 2, skel: 2, spitter: 2 }, rate: 3, cap: 65 },
-      { pool: { slime: 2, skel: 3, ghost: 2, spitter: 2 }, rate: 3.4, cap: 85 },
-      { pool: { skel: 3, ghost: 2, bat: 2, spitter: 1 }, rate: 3.4, cap: 95 },
+      { pool: { slime: 2, skel: 3, ghost: 2, spitter: 2, ghoul: 1 }, rate: 3.8, cap: 85 },
+      { pool: { skel: 3, ghost: 2, ghoul: 1, bat: 1, spitter: 1 }, rate: 3.8, cap: 95 },
       { pool: { ghost: 2, ghoul: 2, skel: 2, spitter: 2, bell: 1 }, rate: 4, cap: 115 },
       { pool: { ghoul: 3, spitter: 2, bat: 3, bell: 1 }, rate: 4.8, cap: 135 },
       { pool: { ghoul: 2, wraith: 1, skel: 3, spitter: 2, bell: 1 }, rate: 5.4, cap: 155 },
@@ -225,12 +229,15 @@ const STAGES = [
       { t: 50, kind: 'ring', type: 'slime', n: 24, text: 'Umzingelt!' },
       { t: 72, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
       { t: 105, kind: 'swarm', type: 'bat', n: 36, text: 'Fledermausschwarm!' },
-      { t: 150, kind: 'ring', type: 'skel', n: 28, text: 'Umzingelt!' },
+      { t: 170, kind: 'ring', type: 'skel', n: 28, text: 'Umzingelt!' },
       { t: 240, kind: 'ring', type: 'slime', n: 34, text: 'Umzingelt!' },
       { t: 270, kind: 'arc', type: 'bell', n: 2, text: 'Die Glocken läuten!' },
       { t: 315, kind: 'swarm', type: 'ghost', n: 44, text: 'Geisterzug!' },
       { t: 435, kind: 'ring', type: 'ghoul', n: 36, text: 'Umzingelt!' },
     ],
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.4, cap: 1.3, xp: 0.7, speed: 1, pool: { ghoul: 2, skel: 3, ghost: 2 }, open: { kind: 'ring', type: 'ghoul', n: 14 },
+      icon: 'ghoul', text: 'Die Ghule erheben sich!', hint: 'Ghule: zäh und langsam', gold: 15 }],
+    hpBridge: true,
     bosses: [
       { id: 'slimeking', name: 'Schleimkönig', t: 180, sprite: 'slime', hp: 1400, speed: 60, dmg: 15, r: 46, xp: 100, skills: ['dash', 'glob', 'dash', 'glob'], cast: { glob: { prim: 'rain', v: 'flank', k: 3 } } },
       { id: 'bonelord', name: 'Knochenfürst', t: 360, sprite: 'skel', hp: 4800, speed: 64, dmg: 24, r: 42, xp: 200, skills: ['summon', 'fan', 'dash', 'fan'], cast: { fan: { prim: 'fan', n: 7, spread: 60, spd: 190 } } },
@@ -250,8 +257,8 @@ const STAGES = [
     waves: [
       { pool: { bat: 4, slime: 1, cinder: 1 }, rate: 2.6, cap: 50 },
       { pool: { bat: 3, ghost: 2, slime: 1, cinder: 1 }, rate: 3.2, cap: 70 },
-      { pool: { bat: 3, ghost: 3, skel: 1, cinder: 1 }, rate: 3.6, cap: 88 },
-      { pool: { ghost: 3, skel: 2, bat: 3, cinder: 1, moth: 1 }, rate: 3.8, cap: 100 },
+      { pool: { bat: 2, ghost: 3, skel: 2, cinder: 1 }, rate: 3.6, cap: 88 },
+      { pool: { ghost: 3, skel: 2, bat: 3, wraith: 1, cinder: 1, moth: 1 }, rate: 4, cap: 100 },
       { pool: { ghost: 3, wraith: 1, bat: 3, skel: 1, cinder: 1, moth: 1 }, rate: 4.6, cap: 125 },
       { pool: { wraith: 2, ghost: 3, ghoul: 1, bat: 2, cinder: 1, moth: 1 }, rate: 5.2, cap: 145 },
       { pool: { wraith: 2, ghoul: 2, bat: 4, cinder: 1, moth: 1 }, rate: 5.8, cap: 165 },
@@ -280,6 +287,9 @@ const STAGES = [
       { t: 860, kind: 'ring', type: 'brute', n: 30, text: 'Die Oger kommen!' },
       { t: 885, kind: 'swarm', type: 'bat', n: 100, text: 'Der Wald brennt …' },
     ],
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.3, cap: 1.3, xp: 0.7, speed: 1, pool: { ghost: 3, skel: 2, wraith: 1, ghoul: 1 }, open: { kind: 'swarm', type: 'ghost', n: 30 },
+      icon: 'wraith', text: 'Der Wald fängt Feuer!', hint: 'Irrlichter: schnell und zäh', gold: 15 }],
+    hpBridge: true,
     bosses: [
       { id: 'smolderer', name: 'Der Schwelende', t: 240, sprite: 'slime', tint: '#ff6a2a', hp: 2600, speed: 70, dmg: 16, r: 44, xp: 120, skills: ['dash', 'rain', 'dash', 'summon', 'rain'], cast: { rain: { prim: 'rain', v: 'scatter', k: 5, rad: 46 } }, summon: 'bat' },
       { id: 'wildfire', name: 'Lauffeuer', t: 540, sprite: 'wraith', tint: '#ffb347', hp: 11000, speed: 92, dmg: 26, r: 40, xp: 300, skills: ['dash', 'spiral', 'dash', 'nova'], cast: { spiral: { prim: 'spiral', arms: 2 } } },
@@ -300,8 +310,8 @@ const STAGES = [
     waves: [
       { pool: { slime: 3, ghost: 2, moth: 1 }, rate: 2.2, cap: 45 },
       { pool: { slime: 3, ghost: 2, skel: 1, moth: 1 }, rate: 2.6, cap: 60 },
-      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1 }, rate: 3, cap: 78 },
-      { pool: { ghost: 3, ghoul: 1, skel: 2, moth: 1, spitter: 1 }, rate: 3, cap: 85 },
+      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1 }, rate: 3.3, cap: 78 },
+      { pool: { ghost: 3, ghoul: 1, skel: 2, moth: 1, spitter: 1 }, rate: 3.4, cap: 85 },
       { pool: { ghoul: 2, ghost: 3, wraith: 1, moth: 1, spitter: 1 }, rate: 3.6, cap: 100 },
       { pool: { ghoul: 3, wraith: 1, skel: 2, spitter: 1, moth: 1, bell: 1 }, rate: 4, cap: 115 },
       { pool: { wraith: 2, ghoul: 3, brute: 1, moth: 1, bell: 1 }, rate: 4.4, cap: 130 },
@@ -318,6 +328,7 @@ const STAGES = [
       { t: 45, kind: 'arc', type: 'moth', n: 2, text: 'Nadelmotten schwärmen aus!' },
       { t: 55, kind: 'swarm', type: 'ghost', n: 26, text: 'Nebel zieht auf!' },
       { t: 85, kind: 'arc', type: 'moth', n: 2, text: 'Nadelmotten schwärmen aus!' },
+      { t: 180, kind: 'swarm', type: 'ghost', n: 30, text: 'Nebel zieht auf!' },
       { t: 210, kind: 'ring', type: 'slime', n: 34, text: 'Umzingelt!' },
       { t: 330, kind: 'ring', type: 'ghoul', n: 36, text: 'Das Eis bricht!' },
       { t: 400, kind: 'arc', type: 'bell', n: 2, text: 'Die Glocken läuten!' },
@@ -327,6 +338,9 @@ const STAGES = [
       { t: 795, kind: 'ring', type: 'brute', n: 30, text: 'Die Oger kommen!' },
       { t: 880, kind: 'ring', type: 'ghoul', n: 50, text: 'Der See erstarrt …' },
     ],
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.5, cap: 1.3, xp: 0.7, speed: 1.15, pool: { ghost: 3, skel: 3, ghoul: 1 }, open: { kind: 'ring', type: 'skel', n: 24 },
+      icon: 'skel', text: 'Das Eis bricht!', hint: 'Skelette: zäh, sie kesseln dich ein', gold: 15 }],
+    hpBridge: true,
     bosses: [
       { id: 'hoarfrost', name: 'Raureif', t: 270, sprite: 'slime', tint: '#cfeaff', hp: 3600, speed: 44, dmg: 20, r: 54, xp: 150, skills: ['slam', 'icicle', 'dash', 'icicle'], cast: { icicle: { prim: 'rain', v: 'walk', k: 7 } } },
       { id: 'whitelady', name: 'Die Weiße Frau', t: 570, sprite: 'wraith', tint: '#ffffff', hp: 13000, speed: 64, dmg: 26, r: 42, xp: 320, skills: ['nova', 'summon', 'fan', 'dash', 'nova'], cast: { fan: { prim: 'fan', n: 9, spread: 70, spd: 150 } }, summon: 'ghost' },
@@ -374,6 +388,9 @@ const STAGES = [
       { t: 795, kind: 'ring', type: 'golem', n: 12, text: 'Die Mauern erwachen!' },
       { t: 880, kind: 'ring', type: 'skel', n: 60, text: 'Die Wache rückt an!' },
     ],
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.3, cap: 1.2, xp: 0.7, speed: 1, pool: { skel: 3, ghoul: 1, slime: 2 }, open: { kind: 'ring', type: 'skel', n: 20 },
+      icon: 'skel', text: 'Die Wache rückt an!', hint: 'Die Wache: zäh, von allen Seiten', gold: 15 }],
+    hpBridge: false,
     bosses: [
       { id: 'castellan', name: 'Der Burgvogt', t: 240, sprite: 'skel', tint: '#b07040', hp: 3400, speed: 66, dmg: 20, r: 44, xp: 150, skills: ['summon', 'lances', 'dash', 'lances'], cast: { lances: { prim: 'lances' } }, summon: 'skel' },
       { id: 'towerwitch', name: 'Die Turmhexe', t: 510, sprite: 'wraith', tint: '#ffc94f', hp: 11000, speed: 70, dmg: 26, r: 40, xp: 300, skills: ['nova', 'spiral', 'dash', 'nova'], cast: { spiral: { prim: 'spiral', arms: 3 } } },
@@ -421,6 +438,9 @@ const STAGES = [
       { t: 855, kind: 'ring', type: 'golem', n: 12, text: 'Die Finsternis schließt sich!' },
       { t: 885, kind: 'swarm', type: 'bat', n: 100, text: 'Die Nacht erwacht …' },
     ],
+    surges: [{ t: 120, lead: 30, dur: 20, rate: 1.15, cap: 1.1, xp: 0.7, speed: 1, pool: { ghoul: 2, skel: 2, ghost: 2 }, open: { kind: 'ring', type: 'ghoul', n: 10 },
+      icon: 'ghoul', text: 'Die Nacht greift an!', hint: 'Ghule: zäh und langsam', gold: 15 }],
+    hpBridge: false,
     bosses: [
       { id: 'nightmare', name: 'Der Nachtmahr', t: 210, sprite: 'wraith', tint: '#4a2cff', hp: 3200, speed: 84, dmg: 22, r: 42, xp: 150, skills: ['dash', 'fan', 'dash', 'nova'], cast: { fan: { prim: 'fan', n: 5, spread: 40, spd: 220 } } },
       { id: 'mooneater', name: 'Mondfresser', t: 450, sprite: 'golem', tint: '#2e2366', hp: 14000, speed: 52, dmg: 32, r: 58, xp: 350, skills: ['slam', 'eclipse', 'summon', 'eclipse'], cast: { eclipse: { prim: 'rain', v: 'track', k: 1 } }, summon: 'ghost' },

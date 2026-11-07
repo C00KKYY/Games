@@ -55,13 +55,19 @@ function runAll(n, specs, done) {
   go();
 }
 
-const KEYS = ['lv', 'lvUps', 'ndps', 'avgHp', 'ttk', 'load', 'clearT', 'alive', 'aliveN', 'near300', 'near150', 'minD', 'close', 'idle', 'kps', 'xps', 'taken', 'hits', 'hpf', 'shotsNear', 'bossShotsNear',
+const KEYS = ['lv', 'lvUps', 'cd', 'ndps', 'avgHp', 'ttk', 'load', 'clearT', 'alive', 'aliveN', 'near300', 'near150', 'minD', 'close', 'idle', 'kps', 'xps', 'taken', 'hits', 'hpf', 'shotsNear', 'bossShotsNear',
   'boss', 'atCap', 'boost', 'spawnRate', 'dirRate', 'dps', 'raw', 'scr', 'life', 'dd', 'hpMul', 'eshots', 'nW', 'evo'];
 
 function events(st, a, b) {
   const out = [];
   for (const e of st.events) if (e.t >= a && e.t < b) out.push(`${e.t}s ${e.kind} ${e.mix ? Object.entries(e.mix).map(([k, v]) => k + '×' + v).join('+') : e.type + '×' + e.n}`);
   for (const x of st.bosses) if (x.t >= a && x.t < b) out.push(`${x.t}s BOSS ${x.id}`);
+  for (const s of st.surges || []) {
+    if (s.t - s.lead >= a && s.t - s.lead < b) out.push(`${s.t - s.lead}s Countdown`);
+    if (s.t >= a && s.t < b) out.push(`${s.t}s ANSTURM ${s.open.kind} ${s.open.type}×${s.open.n} (${s.dur} s)`);
+  }
+  const fb = st.bosses.slice().sort((p, q) => p.t - q.t).find(x => !x.final);
+  if (fb && fb.t - 20 >= a && fb.t - 20 < b) out.push(`${fb.t - 20}s Countdown ${fb.id}`);
   for (let t = Math.ceil(a / 60) * 60; t < b; t += 60) if (t > 0 && t < st.minutes * 60) out.push(`${t}s Welle ${t / 60 + 1}`);
   if (a <= 30 && 30 < b) out.push('30s Elite'); for (let t = 90; t < st.minutes * 60; t += 60) if (t >= a && t < b) out.push(`${t}s Elite`);
   return out;
