@@ -57,7 +57,7 @@ export function mountTransfer(ctx: UICtx): Component {
   const silT = d.h('div', 'm5-titles', sil);
   const silName = d.h('div', 'm5-strong', silT);
   const silSub = d.h('p', 'm5-p', silT);
-  const row = d.h('div', 'm5-btnrow', trBox);
+  const row = d.h('div', 'm5-btnrow m5-sticky', trBox);
   const go = d.button('m5-btn gold tr-go', row, () => { if (!sure) { sure = true; shell.dirty(); return; } doTransfer(); });
   d.img(ctx.icon(M5_ICON.transfer), go);
   const goTxt = d.h('span', '', go);

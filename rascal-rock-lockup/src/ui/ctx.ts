@@ -34,7 +34,8 @@ export class Store<T> {
  */
 export type M5Panel = 'projects' | 'leads' | 'mail' | 'forecast' | 'inspection' | 'transfer';
 /** a running catch-up resim (Brief §3.15: 60 s – 5 min → "Catching up…" mini-toast; silent below 60 s) */
-export interface CatchUpState { mode: 'silent' | 'catchup'; left: number; total: number }
+/** awayMs: the wall time this resim stands for (sum over appended absences) – the "Caught up – N min" chip */
+export interface CatchUpState { mode: 'silent' | 'catchup'; left: number; total: number; awayMs?: number }
 
 export interface TipContent { title: string; body?: string; hotkey?: string }
 
@@ -114,6 +115,11 @@ export interface UICtx {
   catchUp: Store<CatchUpState | null>;
   /** performance.now() of the last successful save (0 = none yet) – saveIndicator.ts shows the check icon (Brief §5.6) */
   saved: Store<number>;
+  /**
+   * the dashed footprint the guide shows for the current goal room (tutorial.ts sets it while it is drawn, null when
+   * not). tools.ts: a TAP (no drag) anywhere inside it with that room's build tool builds exactly this rectangle.
+   */
+  guideSpot?: Store<{ type: RoomType; x: number; y: number; w: number; h: number } | null>;
 }
 
 export interface Component { update(dt: number): void; destroy?(): void }

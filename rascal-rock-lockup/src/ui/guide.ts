@@ -18,6 +18,10 @@ import { tileReason, validatePlacement, priceBuild } from '../sim/rooms';
 import { totalBeds } from '../sim/ferry';
 import { staffOf, hireFee } from '../sim/staff';
 import { incomePerMin1x } from '../sim/offline';
+import { wagesDue } from '../sim/sim';
+import { hourOf } from '../sim/time';
+import { TICKS_PER_HOUR, DAY_TICK_MS } from '../sim/types';
+import { TIME } from '../content/balance';
 import { PATH_Y } from '../content/site1';
 
 /** clipboard goals that ask for a room of this type */
@@ -40,7 +44,24 @@ export function goalSize(w: World, id: string, type: RoomType): { w: number; h: 
   return { w: Math.max(R.minW, Math.min(8, Math.ceil(tiles / 3))), h: 3 };
 }
 
-export interface BuildGoal { id: string; type: RoomType; size: { w: number; h: number }; cost: number; affordable: boolean; unlocked: boolean; guided: boolean; building: boolean }
+/**
+ * Coins to keep for tonight's wages (Brief §3.18 "Unbezahlte Löhne bremsen"; closer M5: the guide and "Build it" spent
+ * the last coins at 4:05 and the player got "Wages not fully paid" at the next midnight). = the wage bill of the next
+ * midnight minus what the measured income still brings in before 22:00 (night income is not counted – conservative).
+ */
+export function paydayReserve(w: World): number {
+  const due = wagesDue(w);
+  if (due <= 0) return 0;
+  const h = hourOf(w.t);
+  const dayMsLeft = h >= TIME.dayStartHour && h < TIME.nightStartHour ? (TIME.nightStartHour - h) * TICKS_PER_HOUR * DAY_TICK_MS : 0;
+  return Math.max(0, Math.ceil(due - incomePerMin1x(w) * dayMsLeft / 60_000));
+}
+
+/**
+ * `affordable`: the goal can be bought now AND tonight's wages stay paid (cost + paydayReserve); `reserve` > 0 while
+ * the coins would cover the room but not the wages after it (the clipboard says "Payday soon: keep N").
+ */
+export interface BuildGoal { id: string; type: RoomType; size: { w: number; h: number }; cost: number; affordable: boolean; unlocked: boolean; guided: boolean; building: boolean; reserve: number }
 /** the current goal when it is "build a room"; null otherwise (or when it is already being built) */
 export function buildGoal(w: World): BuildGoal | null {
   const g = currentGoal(w);
@@ -52,7 +73,9 @@ export function buildGoal(w: World): BuildGoal | null {
   // can't afford the suggested bunk block yet → the smallest one still helps
   if (type === 'bunk' && w.coins < cost) { const m = priceBuild(w, type, ROOMS.bunk.minW, ROOMS.bunk.minH); if (w.coins >= m) { size.w = ROOMS.bunk.minW; size.h = ROOMS.bunk.minH; cost = m; } }
   const building = roomsOf(w, type).some(r => !r.built);
-  return { id: g.id, type, size, cost, affordable: w.coins >= cost, unlocked: !!w.unlocked[type], guided: GUIDED.has(g.id), building };
+  const keep = w.coins >= cost ? paydayReserve(w) : 0;
+  const affordable = w.coins >= cost + keep;
+  return { id: g.id, type, size, cost, affordable, unlocked: !!w.unlocked[type], guided: GUIDED.has(g.id), building, reserve: affordable ? 0 : keep };
 }
 
 /** a role a built room is still waiting for (the first one found, in build order) */
@@ -83,7 +106,7 @@ export function upgradeGoal(w: World): { roomId: number; type: RoomType } | null
   const type = UPGRADE_GOAL[g.id];
   if (!type) return null;
   const r = roomsOf(w, type).filter(x => x.built).sort((a, b) => b.level - a.level || a.id - b.id)[0];
-  if (!r || w.coins < upCost(type, r.level)) return null;
+  if (!r || w.coins < upCost(type, r.level) + paydayReserve(w)) return null;
   return { roomId: r.id, type };
 }
 
@@ -103,13 +126,14 @@ export function guideStep(w: World, ui: GuideUi): GuideStep | null {
     if (!u || ui.tool.kind !== 'none' || ui.menu !== null) return null;
     return ui.selRoom === u.roomId ? { kind: 'upgrade', ...u } : { kind: 'room', ...u };
   }
-  if (g.building || !g.unlocked || !g.affordable) return null;
+  if (g.building || !g.unlocked || w.coins < g.cost) return null;
   if (ui.tool.kind === 'build') {
     if (ui.tool.type !== g.type) return null;
     if (ui.pending) return { kind: 'confirm', type: g.type };
     return ui.spot ? { kind: 'spot', type: g.type, ...ui.spot } : null;
   }
-  if (!g.guided) return null;
+  // the guide itself starts the chain only when tonight's wages stay paid (paydayReserve)
+  if (!g.guided || !g.affordable) return null;
   if (ui.tool.kind !== 'none') return null;
   if (ui.menu === 'rooms') return { kind: 'card', type: g.type };
   if (ui.menu === null) return { kind: 'rooms', type: g.type };

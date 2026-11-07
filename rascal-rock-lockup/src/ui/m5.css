@@ -65,6 +65,9 @@
 .hud .m5-dot { position: absolute; right: -.15rem; top: -.15rem; width: .8rem; height: .8rem; border-radius: 50%; background: var(--coral500); border: 2px solid var(--cream300); box-shadow: 0 1px 0 var(--wood700); pointer-events: none; }
 .hud .m5-btnrow { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
 .hud .m5-btnrow .m5-btn { flex: 1 1 auto; }
+/* the screen's main choice (Call Inspection Day / Keep optimising + Transfer… / Transfer) stays in view while the body
+   scrolls on short screens (844×390: the buttons sat below the fold, M5 flow audit) */
+.hud .m5-btnrow.m5-sticky { position: sticky; bottom: 0; z-index: 1; padding: .4rem 0 .3rem; background: var(--cream300); box-shadow: 0 -.55rem .45rem -.3rem var(--cream300); }
 .hud .m5-keys { display: inline-flex; align-items: center; gap: .25rem; font: 700 1rem/1 Fredoka, Inter, sans-serif; color: var(--wood900); }
 .hud .m5-keys img { width: 1.15rem; height: 1.15rem; }
 
@@ -85,7 +88,7 @@
 .hud .m5-banners { position: absolute; z-index: 5; left: 50%; top: calc(var(--m5-top) + 6px); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .3rem;
   width: max-content; max-width: min(30rem, calc(100% - 16px)); pointer-events: none; }
 .hud .m5-banners.m5-side { top: auto; flex-direction: column-reverse; }
-.hud .m5-banners.m5-away { visibility: hidden; }
+.hud .m5-banners.m5-away, .hud .m5-rail.m5-away { visibility: hidden; }
 .hud .m5-ban { pointer-events: auto; display: flex; align-items: center; gap: .45rem; max-width: 100%; min-height: var(--m5-btn); padding: .2rem .35rem .2rem .45rem; border-radius: 99px; cursor: pointer;
   background: var(--cream300); border: 2px solid var(--gold700); box-shadow: 0 0 0 3px rgba(232,177,58,.3), var(--shadow); text-align: left; }
 .hud .m5-ban.bad { border-color: var(--coral500); box-shadow: 0 0 0 3px rgba(223,100,80,.25), var(--shadow); }

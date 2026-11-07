@@ -49,6 +49,8 @@ interface Entry {
   outAt?: number;
   /** not shown before this time (a toast queued behind another one, e.g. the Daily Ledger behind "Next morning…") */
   startAt?: number;
+  /** a direct answer to the player's own tap (ctx.toast / ctx.feedback): never held back behind a modal card */
+  ui?: boolean;
 }
 
 export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?: ToastOpts): void } {
@@ -65,6 +67,7 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
   let lastLang = ctx.lang();
   let lastTop = '';
   let lastCompact: boolean | null = null;
+  let lastNow = performance.now();
 
   const iconUrl = (name: string) => (name.startsWith('data:') ? name : ctx.icon(name));
   /** translated text or null when the key does not exist */
@@ -225,7 +228,7 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
   };
 
   return {
-    toast(text, opts) { push(`txt:${text}`, () => text, opts); },
+    toast(text, opts) { const e = push(`txt:${text}`, () => text, opts); if (e) e.ui = true; },
     update(dt) {
       frameUnlocks.clear(); // events are dispatched before update() each frame
       acc += dt;
@@ -257,6 +260,19 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
       const langChanged = lastLang !== ctx.lang();
       lastLang = ctx.lang();
 
+      // a modal card is open (inspection result, transfer, settings – all pausing): sim-event toasts (ledger, ferry,
+      // goals) wait behind it with their clock stopped instead of covering its stamp and stars (M5 flow audit,
+      // 844×390); answers to the player's own taps inside the card still show at once
+      // (the return panel counts too: on short screens the stack below it ran into the build bar)
+      const modal = [...document.querySelectorAll<HTMLElement>('[aria-modal="true"]')].some(el => !el.closest('[hidden]') && el.getClientRects().length > 0)
+        || !!(ret && !ret.hidden);
+      const held = now - lastNow;
+      lastNow = now;
+      if (modal) for (const e of entries) {
+        if (e.ui || e.outAt !== undefined) continue;
+        if (e.el) { e.until += held; e.last += held; e.el.classList.add('held'); }
+        else { e.startAt = Math.max(e.startAt ?? 0, now + 1); e.until = e.startAt + e.ms; }
+      } else for (const e of entries) if (e.el?.classList.contains('held')) e.el.classList.remove('held');
       const waiting = (e: Entry) => e.startAt !== undefined && now < e.startAt;
       // expire
       for (const e of entries) if (e.outAt === undefined && !waiting(e) && now >= e.until) e.outAt = now;

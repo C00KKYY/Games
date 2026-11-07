@@ -9,6 +9,10 @@
  *        ≥ 1 escape attempt and ≥ 1 food fight in 30 min
  *  - H3: first inspection possible for casual at 22–30 min, progression continues afterwards
  *  - keys: casual 4–6 base keys at the first inspection, with 2★ exactly 2 perks
+ * Verdicts (closer M5, after the verifier's review): a row passes only when the casual MEDIAN lies inside ±20 % AND at
+ * least SEED_QUOTA (90 %) of the seeds do – a median alone hid rows with a third of the seeds outside. The optimal bot's
+ * "at most 35 % faster" applies to EVERY row (no tutorial exemption). H1b/H2 need a finite comparison time: a bot that
+ * never reaches the inspection is reported as ❌ (never), not as a pass on ∞.
  * Writes qa/balance.md + qa/balance.csv. Exit code 1 on failures.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
@@ -42,6 +46,8 @@ export const PACING: { key: string; label: string; lo: number; hi: number; upTo:
   { key: 'inspection1', label: 'Inspektion ausgerufen', lo: 1320, hi: 1800, upTo: 30 },
 ];
 
+/** share of seeds that must meet a per-seed criterion (pacing rows, H2 random bot, H2 pressure, H3, keys) */
+export const SEED_QUOTA = 0.9;
 /** minutes covered by the tempo rule (Brief §4.3: first 15 minutes) */
 export const TEMPO_MIN = Number(process.env.TEMPO_MIN ?? 15);
 /** Brief §3.8 target corridors */
@@ -51,7 +57,7 @@ export interface Row {
   key: string; label: string; lo: number; hi: number; casual: number | null; optimal: number | null;
   /** casual median per seed base */
   perBase: (number | null)[];
-  /** seeds whose casual time lies outside ±20 % (informative; the brief's criterion is the median) */
+  /** seeds whose casual time lies outside ±20 % (verdict: ≤ 10 % of the seeds) */
   badSeeds: number; ok: boolean; note: string;
 }
 
@@ -103,8 +109,9 @@ export function evaluate(minutes: number, bases: number[][]) {
     let ok = true; const notes: string[] = [];
     if (c === null) { ok = false; notes.push('casual: nie erreicht'); }
     else if (c < p.lo * 0.8 || c > p.hi * 1.2) { ok = false; notes.push('casual außerhalb ±20 %'); }
-    // §4.1 optimal ≤ 35 % faster: from the first free play phase on (≥ 3:00); tutorial rows are reaction-gated (BALANCE.md)
-    if (p.lo >= 180 && c !== null && o !== null && o < c * 0.65) { ok = false; notes.push('optimal > 35 % schneller'); }
+    if (badSeeds > casual.length * (1 - SEED_QUOTA)) { ok = false; notes.push(`${casual.length - badSeeds}/${casual.length} Seeds in ±20 % (< 90 %)`); }
+    // §4.1 "Der Optimal-Bot darf höchstens 35 % schneller sein": every row (the old tutorial exemption was a loosening)
+    if (c !== null && o !== null && o < c * 0.65) { ok = false; notes.push(`optimal ${Math.round((1 - o / c) * 100)} % schneller (> 35 %)`); }
     rows.push({ key: p.key, label: p.label, lo: p.lo, hi: p.hi, casual: c, optimal: o, perBase, badSeeds, ok, note: notes.join('; ') });
   }
   const tempo = casual.map(r => ({ seed: r.seed, ...tempoOf(r, minutes) }));
@@ -131,18 +138,25 @@ export function evaluateH(seeds: number[], casual: BotReport[], long = 45) {
   const naive = seeds.map(s => runBot({ profile: 'naive', seed: s, minutes: long }));
   const random = seeds.map(s => runBot({ profile: 'random', seed: s, minutes: 30 }));
   const casLong = seeds.map(s => runBot({ profile: 'casual', seed: s, minutes: long }));
+  const callAt = (r: BotReport) => r.milestones.inspection1 ?? Infinity;
   const good = median(optLong.map(inspAt)), rnd = median(optRand.map(inspAt)), nai = median(naive.map(inspAt));
-  const h1b = { good, random: rnd, ok: good <= rnd * 0.75 };
-  const h2naive = { heuristic: good, naive: nai, ok: nai >= good * 1.3 };
+  const never = (rs: BotReport[]) => rs.filter(r => r.milestones.inspectionReady === undefined).length;
+  // a comparison bot that never gets there is NOT a pass (closer M5: both medians were ∞ and H1b/H2 passed on that)
+  const h1b = { good, random: rnd, neverRandom: never(optRand), goodCall: median(optLong.map(callAt)), randomCall: median(optRand.map(callAt)), ok: Number.isFinite(good) && Number.isFinite(rnd) && good <= rnd * 0.75 };
+  const h2naive = { heuristic: good, naive: nai, neverNaive: never(naive), ok: Number.isFinite(good) && Number.isFinite(nai) && nai >= good * 1.3 };
   const random2 = random.filter(r => r.final.maxStars >= 2).length;
-  // "Ein Zufalls-Bot erreicht in 30 min nicht 2★": judged on the median run like every bot criterion; seeds that do reach
-  // 2★ are counted in the report (honest outliers, e.g. a random run that happened to build a workshop and a classroom)
-  const h2random = { seeds: random.length, reached2: random2, maxStarsMed: median(random.map(r => r.final.maxStars)), ok: median(random.map(r => r.final.maxStars)) < 2 };
-  const noTunnel = casual.filter(r => r.pressure.tunnels < 1).length, noFight = casual.filter(r => r.pressure.foodFights < 1).length;
+  // "Ein Zufalls-Bot erreicht in 30 min nicht 2★": per seed, ≥ 90 % of the random runs stay below 2★ (the median hid
+  // that 2★ had been raised to get the count down – verifier M5); the strict all-seeds count is reported too
+  const h2random = { seeds: random.length, reached2: random2, maxStarsMed: median(random.map(r => r.final.maxStars)), ok: random2 <= random.length * (1 - SEED_QUOTA) };
+  // "Druckzustände treten auf: ≥ 1 Ausbruch und ≥ 1 Essensschlacht": the scripted 3:00 tunnel and 10:00 food fight
+  // always happen, so counting them proves nothing (verifier M5). Ausbruch = an escape attempt (a rascal tunnels out,
+  // caught or not) PICKED BY THE DIRECTOR; the food fight counts with the scripted one (the brief scripts it as pressure)
+  const noTunnel = casual.filter(r => r.pressure.tunnelsRandom < 1).length, noFight = casual.filter(r => r.pressure.foodFights < 1).length;
   const h2pressure = {
-    tunnels: median(casual.map(r => r.pressure.tunnels)), escaped: median(casual.map(r => r.final.escaped)),
+    tunnels: median(casual.map(r => r.pressure.tunnels)), tunnelsRandom: median(casual.map(r => r.pressure.tunnelsRandom)), escaped: median(casual.map(r => r.final.escaped)),
     seedsWithEscape: casual.filter(r => r.final.escaped >= 1).length, foodFights: median(casual.map(r => r.pressure.foodFights)),
-    noTunnel, noFight, ok: noTunnel === 0 && noFight === 0,
+    foodRandomSeeds: casual.filter(r => r.pressure.foodFightsRandom >= 1).length,
+    noTunnel, noFight, ok: noTunnel <= casual.length * (1 - SEED_QUOTA) && noFight === 0,
   };
   const ready = casual.map(r => r.milestones.inspectionReady ?? Infinity);
   const h3Med = median(ready);
@@ -154,14 +168,16 @@ export function evaluateH(seeds: number[], casual: BotReport[], long = 45) {
   });
   const h3 = {
     median: h3Med, inWindow: ready.filter(t => t >= 1320 && t <= 1800).length, inTol: ready.filter(t => t >= 1320 * 0.8 && t <= 1800 * 1.2).length, n: ready.length,
-    after, ok: h3Med >= 1320 * 0.8 && h3Med <= 1800 * 1.2 && after.every(a => a !== null && a.rufGain > 0),
+    // median strictly inside 22–30 (no tolerance) AND ≥ 90 % of the seeds inside ±20 %, and progression afterwards
+    after, ok: h3Med >= 1320 && h3Med <= 1800 && ready.filter(t => t >= 1320 * 0.8 && t <= 1800 * 1.2).length >= ready.length * SEED_QUOTA && after.every(a => a !== null && a.rufGain > 0),
   };
   const keys = casual.map(r => ({ seed: r.seed, k: keysOf(r) }));
   const kv = keys.map(x => x.k).filter(Boolean) as NonNullable<ReturnType<typeof keysOf>>[];
   const keyRes = {
     baseMed: median(kv.map(k => k.base)), lifeMed: median(kv.map(k => k.life)), perksMed: median(kv.map(k => k.perks)),
     out: keys.filter(x => !x.k || x.k.base < 4 || x.k.base > 6).length, wrongPerks: keys.filter(x => !x.k || x.k.perks !== 2).length, n: keys.length,
-    ok: kv.length > 0 && median(kv.map(k => k.base)) >= 4 && median(kv.map(k => k.base)) <= 6 && median(kv.map(k => k.perks)) === 2,
+    ok: kv.length > 0 && median(kv.map(k => k.base)) >= 4 && median(kv.map(k => k.base)) <= 6 && median(kv.map(k => k.perks)) === 2
+      && keys.filter(x => x.k && x.k.base >= 4 && x.k.base <= 6 && x.k.perks === 2).length >= keys.length * SEED_QUOTA,
   };
   return { h1b, h2naive, h2random, h2pressure, h3, keys: keyRes, optLong, optRand, naive, random, casLong };
 }
@@ -184,7 +200,7 @@ if (process.argv[1]?.endsWith('balance.ts')) {
   const L: string[] = [];
   L.push(`# Balance-Report (${minutes} min, ${ev.seeds.length} Seeds, Basen ${baseList.join(' / ')}) – ${new Date().toISOString().slice(0, 16)}`, '');
   L.push(`Seeds: ${bases.map(b => b.join(', ')).join(' | ')}`, '');
-  L.push('## H1 Pacing-Tabelle (§4.2): Casual-Median ±20 %, Optimal ≤ 35 % schneller', '');
+  L.push('## H1 Pacing-Tabelle (§4.2): Casual-Median ±20 % und ≥ 90 % der Seeds in ±20 %, Optimal ≤ 35 % schneller (jede Zeile)', '');
   L.push(`| Zeile | Soll | Casual (Median ${ev.seeds.length}) | je Basis | Seeds außerhalb ±20 % | Optimal (Median) | ok | Hinweis |`, '|---|---|---|---|---|---|---|---|');
   for (const r of ev.rows) L.push(`| ${r.label} | ${fmt(r.lo)}–${fmt(r.hi)} | ${fmt(r.casual)} | ${r.perBase.map(fmt).join(' / ')} | ${r.badSeeds}/${ev.seeds.length} | ${fmt(r.optimal)} | ${r.ok ? '✅' : '❌'} | ${r.note} |`);
   const tBad = ev.tempo.filter(t => !t.ok);
@@ -203,11 +219,11 @@ if (process.argv[1]?.endsWith('balance.ts')) {
   for (const r of ev.rufRate) L.push(`| ${r.k} | ${r.a.toFixed(1)} | ${r.b.toFixed(1)} |`);
   if (H) {
     L.push('', '## H1b / H2 / H3 / Schlüssel', '');
-    L.push(`- **H1b** Optimal, gutes Layout ${fmt(H.h1b.good)} vs. Zufallslayout ${fmt(H.h1b.random)} (Median bis „Inspektion möglich", 45-min-Läufe; Soll gut ≤ 75 % von zufällig): ${H.h1b.ok ? '✅' : '❌'}`);
-    L.push(`- **H2** Naiv-Bot ${fmt(H.h2naive.naive)} vs. Heuristik (Optimal) ${fmt(H.h2naive.heuristic)} bis zur Inspektion (Soll ≥ +30 %): ${H.h2naive.ok ? '✅' : '❌'}`);
-    L.push(`- **H2** Zufalls-Bot: ${H.h2random.reached2}/${H.h2random.seeds} Seeds erreichen in 30 min 2★ (Median höchster Stern ${H.h2random.maxStarsMed}★; Soll < 2★): ${H.h2random.ok ? '✅' : '❌'}`);
-    L.push(`- **H2** Druckzustände (Casual, 30 min): Ausbruchsversuche Median ${H.h2pressure.tunnels} (Seeds ohne: ${H.h2pressure.noTunnel}), gelungene Ausbrüche Median ${H.h2pressure.escaped} (${H.h2pressure.seedsWithEscape}/${ev.seeds.length} Seeds ≥ 1), Essensschlachten Median ${H.h2pressure.foodFights} (Seeds ohne: ${H.h2pressure.noFight}): ${H.h2pressure.ok ? '✅' : '❌'}`);
-    L.push(`- **H3** Inspektion möglich (Casual): Median ${fmt(H.h3.median)}; ${H.h3.inWindow}/${H.h3.n} Seeds in 22:00–30:00, ${H.h3.inTol}/${H.h3.n} in ±20 %; danach Ruf-Zuwachs bis 45:00 in ${H.h3.after.filter(a => a && a.rufGain > 0).length}/${H.h3.n} Seeds, bestanden (≥ 1★) bis 45:00 in ${H.h3.after.filter(a => a && a.passed !== null).length}/${H.h3.n}: ${H.h3.ok ? '✅' : '❌'}`);
+    L.push(`- **H1b** Optimal, gutes Layout ${fmt(H.h1b.good)} vs. Zufallslayout ${fmt(H.h1b.random)} (Median bis „Inspektion möglich", 45-min-Läufe, Zufallslayout nie erreicht: ${H.h1b.neverRandom}/${ev.seeds.length}; Soll gut ≤ 75 % von zufällig; zur Info Ausrufen mit Prognose ≥ 1★: gut ${fmt(H.h1b.goodCall)} / zufällig ${fmt(H.h1b.randomCall)}): ${H.h1b.ok ? '✅' : '❌'}`);
+    L.push(`- **H2** Naiv-Bot (folgt dem Klemmbrett-Ziel, kauft sonst immer das Billigste) ${fmt(H.h2naive.naive)} vs. Heuristik (Optimal) ${fmt(H.h2naive.heuristic)} bis zur Inspektion (nie erreicht: ${H.h2naive.neverNaive}/${ev.seeds.length}; Soll ≥ +30 %, endliche Zeit nötig): ${H.h2naive.ok ? '✅' : '❌'}`);
+    L.push(`- **H2** Zufalls-Bot: ${H.h2random.reached2}/${H.h2random.seeds} Seeds erreichen in 30 min 2★ (Median höchster Stern ${H.h2random.maxStarsMed}★; Soll: ≥ 90 % der Seeds < 2★): ${H.h2random.ok ? '✅' : '❌'}`);
+    L.push(`- **H2** Druckzustände (Casual, 30 min): vom Director gewählte Ausbruchsversuche Median ${H.h2pressure.tunnelsRandom} (Seeds ohne: ${H.h2pressure.noTunnel}; mit dem gescripteten Tunnel Median ${H.h2pressure.tunnels}), gelungene Ausbrüche Median ${H.h2pressure.escaped} (${H.h2pressure.seedsWithEscape}/${ev.seeds.length} Seeds ≥ 1), Essensschlachten Median ${H.h2pressure.foodFights} (Seeds ohne: ${H.h2pressure.noFight}; Seeds mit einer zusätzlichen, vom Director gewählten: ${H.h2pressure.foodRandomSeeds}); Soll: ≥ 90 % der Seeds mit ≥ 1 Director-Ausbruchsversuch, jede mit ≥ 1 Essensschlacht: ${H.h2pressure.ok ? '✅' : '❌'}`);
+    L.push(`- **H3** Inspektion möglich (Casual): Median ${fmt(H.h3.median)} (Soll 22:00–30:00 ohne Toleranz); ${H.h3.inWindow}/${H.h3.n} Seeds in 22:00–30:00, ${H.h3.inTol}/${H.h3.n} in ±20 % (Soll ≥ 90 %); danach Ruf-Zuwachs bis 45:00 in ${H.h3.after.filter(a => a && a.rufGain > 0).length}/${H.h3.n} Seeds, bestanden (≥ 1★) bis 45:00 in ${H.h3.after.filter(a => a && a.passed !== null).length}/${H.h3.n}: ${H.h3.ok ? '✅' : '❌'}`);
     L.push(`- **Schlüssel** (k/C): Casual Lebenszeit-Coins beim ersten Ausrufen Median ${(H.keys.lifeMed / 1000).toFixed(1)} K → Basis-Schlüssel Median ${H.keys.baseMed} (Soll 4–6; Seeds außerhalb ${H.keys.out}/${H.keys.n}), mit 2★ Perks Median ${H.keys.perksMed} (Soll 2; abweichend ${H.keys.wrongPerks}/${H.keys.n}): ${H.keys.ok ? '✅' : '❌'}`);
   }
   L.push('', '## Casual-Bot: Endstand je Seed', '');

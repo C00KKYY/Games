@@ -7,5 +7,6 @@
   "returnPanel.eff": "Your lockup earned at {pct} % (leads raise it).",
   "returnPanel.capped": "Counted up to {time} (perks raise the cap).",
   "returnPanel.pct": "{n} %",
-  "returnPanel.h": "{h} h"
+  "returnPanel.h": "{h} h",
+  "returnPanel.caughtUp": "Caught up – {time} played"
 }

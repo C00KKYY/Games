@@ -19,7 +19,7 @@ import { DIRECTOR } from '../content/balance';
 import { FERRY_POS } from '../content/site1';
 import { VIP_BOARD_TOP } from '../render/progressView';
 
-const LAYOUT_MS = 500;
+const LAYOUT_MS = 200;
 
 export function mountEventBanner(ctx: UICtx): Component {
   const d = domKit(ctx);
@@ -72,6 +72,7 @@ export function mountEventBanner(ctx: UICtx): Component {
   d.tip(vip.el, () => ({ title: t('eventBanner.vipTitle'), body: t('eventBanner.vipBody') }));
 
   let acc = WRITE_MS, lay = LAYOUT_MS;
+  let plaqueW = 270, plaqueH = 84;
   const render = () => {
     const w = ctx.w;
     const tut = !w.tutorial.done;
@@ -123,13 +124,16 @@ export function mountEventBanner(ctx: UICtx): Component {
       d.cls(plaque, 'ready', board === 'ready');
       // the text of the dock board art-m5 draws (render/progressView.ts): anchored on top of the board
       const p = ctx.cam.worldToScreen(VIP_BOARD_TOP.x * 32, VIP_BOARD_TOP.y * 32 - 4);
-      const pw = plaque.offsetWidth || 160, ph = plaque.offsetHeight || 40;
+      // a hidden plaque measures 0: use its last shown size (the 160×40 guess was narrower than the two-line plaque,
+      // so it came back half under a side panel at 907×510 – M5 flow audit)
+      if (plaque.offsetWidth) { plaqueW = plaque.offsetWidth; plaqueH = plaque.offsetHeight; }
+      const pw = plaqueW, ph = plaqueH;
       const x = Math.round(p.x - pw / 2), y = Math.round(p.y - ph);
       const top = parseFloat(ctx.root.style.getPropertyValue('--m5-top')) || 44, bot = parseFloat(ctx.root.style.getPropertyValue('--m5-bot')) || 0;
       // only while the dock itself is on screen; never under the top bar / build bar
       showPlaque = x > 4 && x + pw < window.innerWidth - 4 && y > top + 4 && y + ph < window.innerHeight - bot - 4;
-      // …and never under a banner chip or the clipboard
-      for (const el of ctx.root.querySelectorAll<HTMLElement>(':scope > .m5-banners:not([hidden]), .cb-card, .cb-chip, .m5-ret:not([hidden]), .m5p:not([hidden]), .tu-jit.on, .bb-menu:not([hidden])')) {
+      // …and never under a banner chip, the clipboard, a card, a toast or a rap-sheet card
+      for (const el of ctx.root.querySelectorAll<HTMLElement>(':scope > .m5-banners:not([hidden]), .cb-card, .cb-chip, .m5-ret:not([hidden]), .m5p:not([hidden]), .tu-jit.on, .bb-menu:not([hidden]), .ov-toasts > .ov-toast, .ac-card:not(.hid)')) {
         const r = el.getBoundingClientRect();
         if (r.width > 0 && x < r.right && x + pw > r.left && y < r.bottom && y + ph > r.top) showPlaque = false;
       }

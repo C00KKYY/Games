@@ -98,7 +98,8 @@ function onHour(w: World, hour: number) {
   if (hour === 6 && !staffOf(w, 'janitor').length) for (const r of w.rooms) r.clean = Math.max(r.clean, CLEAN.nightReset);
 }
 
-function onMidnight(w: World) {
+/** the wage bill of the next midnight: staff (pay grade = level of their room) + department leads (read-only, UI too) */
+export function wagesDue(w: World): number {
   let wages = 0;
   for (const s of staffOf(w)) {
     const role = s.role as StaffRole;
@@ -108,7 +109,12 @@ function onMidnight(w: World) {
     const lvl = own && own.type === type ? own.level : Math.max(1, ...roomsOf(w, type).map(r => r.level));
     wages += wageFor(role, lvl);
   }
-  wages += leadWages(w);
+  return wages + leadWages(w);
+}
+
+function onMidnight(w: World) {
+  const wages = wagesDue(w);
+  w.stats.wagesOwed = (w.stats.wagesOwed ?? 0) + wages; // the inspection's Profit counts what is owed (closer M5)
   if (w.coins >= wages) { spend(w, 'wages', wages); }
   else { spend(w, 'wages', w.coins); w.unpaidUntilT = w.t + TICKS_PER_DAY; emit(w, 'unpaid', { wages }); }
   for (const r of w.rooms) { r.usesToday = 0; r.moodSumToday = 0; }

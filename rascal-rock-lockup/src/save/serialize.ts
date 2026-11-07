@@ -9,8 +9,11 @@ import { flushEvents } from '../sim/sim';
 import { makeGrid } from '../sim/pathfield';
 import { OFFLINE } from '../content/balance';
 
-/** v1 = M4, v2 = M5 (projects, leads, taps, inspection, prestige, mail, vip, wall, offline – docs/M5_DESIGN.md §1.2) */
-export const SAVE_VERSION = 2;
+/**
+ * v1 = M4, v2 = M5 (projects, leads, taps, inspection, prestige, mail, vip, wall, offline – docs/M5_DESIGN.md §1.2),
+ * v3 = M5 closer: wall.maxSeenMs (high-water mark of the wall clock), mail.hiDay, stats.wagesOwed
+ */
+export const SAVE_VERSION = 3;
 export const SLOT_KEYS = ['rrl_save_a', 'rrl_save_b'] as const;
 export interface Settings { music: number; sfx: number; ambience: number; mute: boolean; lang: 'en' | 'de' | null; shake: boolean }
 export const DEFAULT_SETTINGS: Settings = { music: 0.7, sfx: 0.85, ambience: 0.6, mute: false, lang: null, shake: true };
@@ -63,6 +66,20 @@ const MIGRATIONS: Record<number, Migration> = {
     d.world = fillDefaults(d.world, m5Defaults(Number(d.world.site) || 1) as unknown as Record<string, unknown>);
     markFromStats(d.world);
     d.v = 2; return d;
+  },
+  // 2 → 3: the high-water mark starts at the furthest time the save knows (its save time, last wall sync, VIP session
+  // end); the mail high-water day at the current mail day
+  2: (d) => {
+    const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+    const wall = (d.world.wall ??= {}) as Record<string, unknown>;
+    const vip = (d.world.vip ?? {}) as Record<string, unknown>;
+    wall.maxSeenMs = Math.max(num(wall.maxSeenMs), num(d.savedAt), num(wall.nowMs), num(vip.sessionEndMs));
+    const mail = d.world.mail as Record<string, unknown> | undefined;
+    if (mail) mail.hiDay = Math.max(typeof mail.hiDay === 'number' ? mail.hiDay : -1, num(mail.day));
+    // wages owed start at what was paid (the inspection mark of v2 was taken from spend.wages – same base)
+    const st = (d.world.stats ?? {}) as { wagesOwed?: unknown; spend?: Record<string, unknown> };
+    if (typeof st.wagesOwed !== 'number') st.wagesOwed = num(st.spend?.wages);
+    d.v = 3; return d;
   },
 };
 /**

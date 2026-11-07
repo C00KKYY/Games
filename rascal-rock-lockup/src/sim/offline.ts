@@ -42,6 +42,15 @@ export function incomePerMin1x(w: World) {
   const r = w.offline.ring;
   return r.length ? r.reduce((a, b) => a + b, 0) / r.length : 0;
 }
+/**
+ * the rate the offline formula uses: the ring, or – with an empty ring (a save migrated from M4 starts its ring at load
+ * time) – the world's own average over its active time, so a returning M4 player still gets the return panel; 0 before
+ * the first full minute of play (e.g. right after a transfer)
+ */
+export function offlineRatePerMin(w: World) {
+  if (w.offline.ring.length) return incomePerMin1x(w);
+  return w.rtMs >= 60_000 ? incomeCounter(w) / (w.rtMs / 60_000) : 0;
+}
 
 /**
  * per tick: close a ring minute every 60 000 rtMs. Self-healing mark: if the mark is not within the last ~2 minutes
@@ -91,7 +100,7 @@ export function offlineCoins(w: World, awayMs: number) {
   const cap = offlineCapMs(w);
   const ms = Math.min(clampAway(awayMs), cap);
   const eff = offlineEff(w);
-  return { coins: Math.max(0, Math.floor((incomePerMin1x(w) * ms) / 60_000 * eff)), ms, eff, cap };
+  return { coins: Math.max(0, Math.floor((offlineRatePerMin(w) * ms) / 60_000 * eff)), ms, eff, cap };
 }
 
 /**

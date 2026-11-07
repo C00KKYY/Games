@@ -249,7 +249,7 @@ test('daily mail: no icon before it is visible, quiet icon with dot, never opens
 test('inspection: forecast, call, walk banner + follow, pausing result, keep optimising / transfer, paired gameplayStop/Start', async ({ page }) => {
   const { errors } = await fresh(page);
   expect(await visible(page, '.in-btn')).toBe(false);
-  await ctxDo(page, (_c, w) => { for (const id of ['workshop', 'classroom', 'guard', 'catch3', 'beds24', 'release15', 'workshop15']) w.obj.done[id] = true; });
+  await ctxDo(page, (_c, w) => { for (const id of ['workshop', 'classroom', 'guard', 'catch3', 'beds24', 'release20', 'workshop15']) w.obj.done[id] = true; });
   await step(page, 6);
   await expect.poll(() => visible(page, '.in-btn'), { message: '.in-btn' }).toBe(true);
   await expect.poll(() => visible(page, '.in-btn .m5-dot'), { message: '.in-btn .m5-dot' }).toBe(true);
@@ -343,13 +343,22 @@ test('return panel: non-pausing count-up, Collect, no ×2 in BASIC; catch-up chi
   await step(page, 4);
   expect(await ctxDo(page, (_c, w) => w.coins)).toBeGreaterThanOrEqual(c0 + 12_450);
   expect(await visible(page, '.m5-ret')).toBe(false);
-  await ctxDo(page, ctx => ctx.catchUp.set({ mode: 'catchup', left: 1200, total: 3000 }));
+  await ctxDo(page, ctx => ctx.catchUp.set({ mode: 'catchup', left: 1200, total: 3000, awayMs: 150_000 }));
   await step(page, 4);
   await expect(page.locator('.ret-catch')).toHaveText(/Catching up….*60 %/);
-  await ctxDo(page, ctx => ctx.catchUp.set({ mode: 'silent', left: 1200, total: 3000 }));
-  await step(page, 4);
-  expect(await visible(page, '.ret-catch')).toBe(false);                        // < 60 s: silent
+  // the resim is over in a few frames: the chip stays ~1.8 s and says what was played, then goes
   await ctxDo(page, ctx => ctx.catchUp.set(null));
+  await step(page, 4);
+  await expect(page.locator('.ret-catch')).toHaveText(/Caught up – 3 min played/);
+  await page.waitForTimeout(2000);
+  await step(page, 4);
+  expect(await visible(page, '.ret-catch')).toBe(false);
+  await ctxDo(page, ctx => ctx.catchUp.set({ mode: 'silent', left: 1200, total: 3000, awayMs: 40_000 }));
+  await step(page, 4);
+  expect(await visible(page, '.ret-catch')).toBe(false);                        // < 60 s: silent, no chip at all
+  await ctxDo(page, ctx => ctx.catchUp.set(null));
+  await step(page, 4);
+  expect(await visible(page, '.ret-catch')).toBe(false);
   await ctxDo(page, ctx => ctx.saved.set(performance.now()));
   await step(page, 4);
   expect(await page.evaluate(() => document.querySelector('.m5-save')!.classList.contains('on'))).toBe(true);
@@ -491,7 +500,7 @@ test('H6: every button on every M5 screen does something (no dead buttons)', asy
 
 test('clipboard follow-ups: after the 10 goals there is always a current goal, "Show me" opens its screen', async ({ page }) => {
   const { errors } = await fresh(page);
-  await ctxDo(page, (_c, w) => { for (const id of ['wash', 'workshop', 'classroom', 'guard', 'beds12', 'yard', 'canteen5', 'catch3', 'beds24', 'release15', 'workshop15']) w.obj.done[id] = true; });
+  await ctxDo(page, (_c, w) => { for (const id of ['wash', 'workshop', 'classroom', 'guard', 'beds12', 'yard', 'canteen5', 'catch3', 'beds24', 'release20', 'workshop15']) w.obj.done[id] = true; });
   await step(page, 6);
   await expect(page.locator('.cb-card .cb-goal-txt')).toHaveText('Call Inspection Day');
   await expect(page.locator('.cb-card .cb-prog-num')).toHaveText('0/1');

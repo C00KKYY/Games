@@ -12,7 +12,7 @@
  * Output: qa/m5/flow/<lang>-<size>/NN-<label>.jpg + log.json (clicks, events, overlaps, console errors, SDK calls).
  */
 import { test, expect } from '@playwright/test';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { setup, gotoGame } from '../../tests/e2e/helpers';
 
 const OUT = process.env.SR_OUT ?? 'qa/m5/flow';
@@ -36,6 +36,7 @@ for (const run of RUNS) {
     test(`site 1 → inspection → transfer → perk → absence ${tag}`, async ({ page }) => {
       test.setTimeout(1_800_000);
       const dir = `${OUT}/${tag}`;
+      rmSync(dir, { recursive: true, force: true });
       mkdirSync(dir, { recursive: true });
       const errors: string[] = [];
       page.on('pageerror', e => errors.push(String(e)));
@@ -74,8 +75,9 @@ for (const run of RUNS) {
         return [...out, ...off];
       }, WIDGETS);
       const shoot = async (label: string) => {
-        await step(2);
-        await page.waitForTimeout(450); // CSS fade-ins run on wall time
+        await step(8); // the HUD's throttled passes (10/s writes, 5/s layout) see the new state
+        await page.waitForTimeout(450); // CSS fade-ins / slides run on wall time
+        await step(4); await page.waitForTimeout(120); // …and the HUD's next pass sees where they ended
         const file = `${String(n++).padStart(2, '0')}-${label}.jpg`;
         await page.screenshot({ path: `${dir}/${file}`, type: 'jpeg', quality: 80, timeout: 120_000 });
         const ov = await overlaps();
@@ -100,11 +102,33 @@ for (const run of RUNS) {
         log.clicks.push({ what, sel, ...box });
         return true;
       };
+      /** close the open M5 panel: touch taps its × (a real tap on the new close button), desktop uses Esc */
+      const closePanel = async () => {
+        if (run.touch && await is('.m5p:not([hidden]) .m5-x')) await press('.m5p:not([hidden]) .m5-x', 'panel ×');
+        else { await page.keyboard.press('Escape'); await step(6); }
+      };
+      /** land: Rooms → Land card → two-tap buy (or the "coins short" reason) */
+      const landStep = async (tagl: string) => {
+        await press('.bb-rooms', 'Rooms button');
+        if ((await w<string | null>('ctx.menu.get()')) !== 'rooms') { note(`land ${tagl}: Rooms was open already (closed by the tap) – tapping again`); await press('.bb-rooms', 'Rooms button (again)'); }
+        // the sheet fades in (CSS animation; under ?capture its clock only moves with painted frames)
+        for (let i = 0; i < 12 && !(await is('.bb-buyland')); i++) { await page.waitForTimeout(200); await step(2); }
+        if (await is('.bb-buyland')) {
+          const p0 = await w<string>('JSON.stringify(w.parcels)');
+          await press('.bb-buyland', 'Buy land (1st tap)');
+          await shoot(`land-card-${tagl}`);
+          await press('.bb-buyland', 'Buy land (confirm)', { optional: true });
+          note(`land ${tagl}: parcels ${p0} → ${await w<string>('JSON.stringify(w.parcels)')}, coins ${Math.round(await w<number>('w.coins'))}`);
+          await stepSec(2);
+          await shoot(`land-bought-${tagl}`);
+        } else note(`no land card ${tagl}: ${await page.evaluate(() => JSON.stringify([...document.querySelectorAll('.bb-buyland')].map(b => ({ cls: b.closest('.bb-land')?.className, vis: (b as HTMLElement).checkVisibility({ opacityProperty: true, visibilityProperty: true }), w: b.getBoundingClientRect().width, hid: !!b.closest('[hidden]'), chain: (() => { const o: string[] = []; for (let e: HTMLElement | null = b as HTMLElement; e; e = e.parentElement) { const cs = getComputedStyle(e); if (cs.opacity !== '1' || cs.visibility !== 'visible' || cs.display === 'none' || cs.contentVisibility !== 'visible') o.push(`${e.className}:${cs.opacity}/${cs.visibility}/${cs.display}/${cs.contentVisibility}`); } return o; })() }))))}, menu ${await w<string>('String(ctx.menu.get())')}, parcels ${await w<string>('JSON.stringify(w.parcels)')}`);
+        if (await w<string | null>('ctx.menu.get()')) { await page.keyboard.press('Escape'); await step(6); }
+      };
       const sdkCalls = () => page.evaluate(() => ((window as any).__sdkCalls ?? []).filter((c: any) => !/^data\./.test(c.n)).map((c: any) => c.n + (c.a && c.a.length ? JSON.stringify(c.a) : '')));
       const is = (sel: string) => page.evaluate(s => [...document.querySelectorAll<HTMLElement>(s)].some(x => x.checkVisibility({ opacityProperty: true, visibilityProperty: true }) && x.getBoundingClientRect().width > 0), sel);
 
       // ------------------------------------------------------------ 1. fresh profile: casual bot plays the first 30 min
-      await gotoGame(page, `capture=1&keepsave&clock=${T0}&tz=0&lang=${run.lang}&bot=casual&warp=1800&botoff&seed=1`, 0);
+      await gotoGame(page, `capture=1&keepsave&clock=${T0}&tz=0&lang=${run.lang}&bot=casual&warp=1800&botoff&noleads&seed=1`, 0);
       await stepSec(3);
       const start = await w<any>(`({ fresh: w.rtMs, stars: Math.floor(0), mail: w.mail.visible, insp: w.inspection.phase })`);
       note(`after warp: ${JSON.stringify(start)}`);
@@ -121,7 +145,7 @@ for (const run of RUNS) {
         note(`project started: ${before} → ${await w<string>('JSON.stringify(w.projects.running)')}`);
         await shoot('project-started');
       } else note('no startable project card (running or all done / unaffordable)');
-      await page.keyboard.press('Escape'); await step(6);
+      await closePanel();
       if (await is('.m5p.pb')) note('BUG Esc did not close the project board');
 
       // ------------------------------------------------------------ 3. leads (staff menu → Warden's Office card)
@@ -130,13 +154,17 @@ for (const run of RUNS) {
       await press('.bb-office-open', 'Office card');
       await shoot('leads-panel');
       if (await is('.ld-hire:not([disabled])')) {
+        // the fee (LEADS) has to be saved up first: play on with the panel open (a real player would wait too)
+        for (let i = 0; i < 180 && (await w<number>('w.coins')) < 1250; i++) await stepSec(1);
         await press('.ld-hire:not([disabled])', 'Hire lead');
         await shoot('lead-dialog');
         await press('.ld-yes', 'confirm hire');
         note(`leads: ${await w<string>('JSON.stringify(w.leads.slots)')}`);
         await shoot('lead-hired');
       } else note(`no hire button enabled; leads ${await w<string>('JSON.stringify(w.leads.slots)')}`);
-      await page.keyboard.press('Escape'); await step(6);
+      await closePanel();
+
+      await landStep('site1');
 
       // ------------------------------------------------------------ 4. daily mail
       await stepSec(2);
@@ -144,7 +172,7 @@ for (const run of RUNS) {
         await press('.ml-btn', 'Mail');
         await shoot('mail');
         if (await is('.ml-claim:not([disabled])')) { await press('.ml-claim:not([disabled])', 'claim mail'); await shoot('mail-claimed'); }
-        await page.keyboard.press('Escape'); await step(6);
+        await closePanel();
       } else note(`mail icon not visible (mail.visible=${await w<boolean>('w.mail.visible')})`);
 
       // ------------------------------------------------------------ 5. Inspection Day
@@ -193,12 +221,16 @@ for (const run of RUNS) {
           note(`perk bought: keys ${k0} → ${await w<number>('w.keys')}, perks ${await w<string>('JSON.stringify(w.prestige.perks)')}`);
           await shoot('perk-bought');
         } else note('no affordable perk');
-        await page.keyboard.press('Escape'); await step(6);
+        if (run.touch && await is('.m5-card .m5-x')) await press('.m5-card .m5-x', 'perk shop ×');
+        else { await page.keyboard.press('Escape'); await step(6); }
+        expect(await w<boolean>('ctx.paused()')).toBe(false);
         await stepSec(20);
         await shoot('new-run-20s');
         // the transfer run's first goal is the Wash Hut (the fresh lockup has none)
         note(`new run goal: ${await w<string>('window.__ctx.w.obj.current')} / ${await page.evaluate(() => document.querySelector('.cb-goal')?.textContent ?? '')}`);
         await stepSec(150); // a few measured minutes of income, so the absence below has something to pay
+        for (let i = 0; i < 240 && (await w<number>('w.coins')) < 1600; i++) await stepSec(1);
+        await landStep('run2');
       }
 
       const sdk: string[] = await sdkCalls();

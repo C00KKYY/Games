@@ -53,8 +53,9 @@ export interface BotReport {
   /** §4.3 "no runaway": real seconds in which the coins exceeded the most expensive available purchase (no sink), and
    *  the longest such stretch (a few seconds are the reaction time before buying it) */
   noSinkSec: number; noSinkMax: number;
-  /** pressure states (H2): escape attempts (tunnels), food fights, ruckus */
-  pressure: { tunnels: number; foodFights: number; ruckus: number };
+  /** pressure states (H2): escape attempts (tunnels), food fights, ruckus; *Random = picked by the director (not the
+   *  scripted 3:00 tunnel / 10:00 food fight) */
+  pressure: { tunnels: number; foodFights: number; ruckus: number; tunnelsRandom: number; foodFightsRandom: number };
   /** lifetime coins when the first inspection was called (keys, Brief §3.17); -1 = never */
   lifeAtCall: number;
   final: { coins: number; ruf: number; stars: number; maxStars: number; released: number; rascals: number; beds: number; caught: number; escaped: number; teleports: number; inspectionAt: number };
@@ -67,7 +68,7 @@ class Rng { constructor(public s: number) {} next() { this.s = (this.s + 0x6d2b7
 export class BotDriver {
   rnd: Rng; nextActMs: number; ms: Record<string, number> = {}; newThings: number[] = []; idleGaps: number[] = [];
   at15: BotReport['at15'] = null; rufMin: Record<string, number>[] = []; noSinkSec = 0; lifeAtCall = -1; maxStars = 0;
-  pressure = { tunnels: 0, foodFights: 0, ruckus: 0 }; private lastSec = -1;
+  pressure = { tunnels: 0, foodFights: 0, ruckus: 0, tunnelsRandom: 0, foodFightsRandom: 0 }; private lastSec = -1;
   /** wages owed at the day ends (Brief §3.8 Lohnanteil – paid wages hide what a broke bot owes) and unpaid day ends */
   wagesDue = 0; unpaidDays = 0; noSinkRun = 0; noSinkMax = 0;
   private lastSeq = 0; private idleSince = -1; private layout: 'good' | 'random'; private pending: Record<string, number> = {};
@@ -90,8 +91,8 @@ export class BotDriver {
         if (t === 'tutorialDone') this.mark('tutorialDone');
         if (t === 'built') this.mark(`built:${e.rtype}`);
         if (t === 'milestone') this.mark(`milestone:${roomTypeOf(w, e.roomId as number)}${e.level}`);
-        if (t === 'tunnel') { this.mark('tunnel1'); this.pressure.tunnels++; }
-        if (t === 'foodFight') { this.mark('foodFight1'); this.pressure.foodFights++; }
+        if (t === 'tunnel') { this.mark('tunnel1'); this.pressure.tunnels++; if (!e.scripted) this.pressure.tunnelsRandom++; }
+        if (t === 'foodFight') { this.mark('foodFight1'); this.pressure.foodFights++; if (!e.scripted) this.pressure.foodFightsRandom++; }
         if (t === 'ruckus') this.pressure.ruckus++;
         if (t === 'dayEnd') this.wagesDue += Number(e.wages) || 0;
         if (t === 'unpaid') this.unpaidDays++;
@@ -205,8 +206,14 @@ function decide(w: World, p: Profile, rnd: Rng, layout: 'good' | 'random', skip:
     const pool = goal ? affordable.filter(c => c === goal || w.coins - c.cost >= goal.cost) : affordable;
     pick = pool[Math.floor(rnd.next() * pool.length)];
   }
-  if (p === 'naive') pick = affordable.slice().sort((a, b) => a.cost - b.cost)[0];
-  return pick.run();
+  // naive (H2, "kauft immer das Billigste"): the cheapest affordable thing – the clipboard goal is bought when it is
+  // affordable at decision time (a player follows the pointer), otherwise the cheapest upgrade/hire, no saving, no ROI
+  // (closer M5: a naive bot that never saved for the goal deadlocked before the workshop, and H2 passed on ∞)
+  if (p === 'naive') { const goal = affordable[0].prio >= 88 ? affordable[0] : null; pick = goal ?? affordable.slice().sort((a, b) => a.cost - b.cost)[0]; }
+  const ok = pick.run();
+  // the pick was a build that found no valid spot: buy the land the goal needs instead (random layouts, closer M5)
+  if (!ok) { const land = affordable.find(c => c.label.endsWith('(no spot)')); if (land) return land.run(); }
+  return ok;
 }
 
 interface Cand { label: string; cost: number; prio: number; run: () => boolean }
@@ -256,6 +263,16 @@ function candidates(w: World, p: Profile, layout: 'good' | 'random', rnd: Rng, m
   // from 20:00, with Lv15 done and the first lead hired, the casual's next big goal is more land (the Land card in the
   // Rooms menu; pacing §4.2 20:00–24:00) – it saves for it; inspection improvements (prio ≥ 90) still go first
   const bigGoal = w.rtMs > 1200000 && !!w.obj.done.workshop15 && w.leads.slots.some(x => x !== null);
+  // a build the goal needs has no valid spot left (a random layout fills the land early): the next parcel IS the goal
+  // (closer M5: the random-layout optimal bot sat on 28 K coins with the yard goal unbuildable – H1b passed on ∞)
+  // Only the random-layout comparison bot needs this; the good-layout bots' land rules are calibrated (pacing rows).
+  const nextParcel = w.parcels.findIndex(x => !x);
+  if (layout === 'random' && nextParcel > 0 && w.parcels[nextParcel - 1]) {
+    const stuck = want.some(t => !hasSpot(w, t, ROOMS[t].minW, ROOMS[t].minH));
+    // beds goal without a bunk spot: land only as the fallback when the expansion itself fails (decide())
+    const bedsStuck = !!cur?.id.startsWith('beds') && !hasSpot(w, 'bunk', 6, 3);
+    if (stuck || bedsStuck) add('parcel ' + nextParcel + ' (no spot)', PARCELS[nextParcel].price, stuck ? 99 : 1, () => cmd.buyParcel(w, nextParcel).ok);
+  }
   for (let k = 1; k < PARCELS.length; k++) if (!w.parcels[k] && w.parcels[k - 1] && (k === 1 ? beds >= 12 && w.rtMs > 600000 : w.rtMs > 1100000)) add('parcel ' + k, PARCELS[k].price, (noSpace && (waiting > 0 || cur?.id === 'beds24')) || roomSqueeze ? 94 : k >= 2 && bigGoal ? 96 : 70 - k * 5, () => cmd.buyParcel(w, k).ok);
   // react to the Flow Bar's red stage (that is what it is for); casual notices it with some delay (reaction already applied)
   const fb = flow(w).bottleneck;

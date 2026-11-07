@@ -112,7 +112,7 @@ export function mountInspection(ctx: UICtx): Component {
   const fcWhy = d.h('div', 'm5-why', fc.body);
   d.img(ctx.icon('lock'), fcWhy);
   const fcWhyTxt = d.h('span', '', fcWhy);
-  const fcRow = d.h('div', 'm5-btnrow', fc.body);
+  const fcRow = d.h('div', 'm5-btnrow m5-sticky', fc.body);
   const call = d.button('m5-btn gold in-call', fcRow, () => {
     const r = ctx.cmd.callInspection(ctx.w);
     if (!r.ok) { ctx.feedback(r); return; }
@@ -168,7 +168,7 @@ export function mountInspection(ctx: UICtx): Component {
   d.img(ctx.icon('ferry'), teaser);
   const teaserTxt = d.h('p', 'm5-p', teaser);
   const rsNext = d.h('p', 'm5-p', rs.body);
-  const rsRow = d.h('div', 'm5-btnrow', rs.body);
+  const rsRow = d.h('div', 'm5-btnrow m5-sticky', rs.body);
   const keep = d.button('m5-btn ghost in-keep', rsRow, close);
   const keepTxt = d.h('span', '', keep);
   const toTransfer = d.button('m5-btn gold in-transfer', rsRow, () => {

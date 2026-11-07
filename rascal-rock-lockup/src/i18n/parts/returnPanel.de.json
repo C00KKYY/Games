@@ -7,5 +7,6 @@
   "returnPanel.eff": "Dein Gefängnis hat mit {pct} % verdient (Leitungen erhöhen das).",
   "returnPanel.capped": "Gezählt bis {time} (Perks erhöhen die Grenze).",
   "returnPanel.pct": "{n} %",
-  "returnPanel.h": "{h} Std."
+  "returnPanel.h": "{h} Std.",
+  "returnPanel.caughtUp": "Aufgeholt – {time} nachgespielt"
 }
