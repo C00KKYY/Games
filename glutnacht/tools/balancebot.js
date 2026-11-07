@@ -54,7 +54,7 @@ function load() {
   src = rep(src, 'p.hp -= taken;', 'p.hp -= taken; { const _s = (typeof src !== "undefined" && src) || this._src || "?"; if (r.M) { r.M.taken += taken; r.M.src[_s] = (r.M.src[_s] || 0) + taken; } (r.hits = r.hits || []).push([Math.round(r.t * 10) / 10, _s, Math.round(taken), Math.round(p.hp)]); if (r.hits.length > 25) r.hits.shift(); if (r.B) { r.B.taken += taken; r.B.hits++; } }');
   src = rep(src, 'r.dmgBy[wid] = (r.dmgBy[wid] || 0) + Math.min(dmg, Math.max(0, e.hp));',
     'r.dmgBy[wid] = (r.dmgBy[wid] || 0) + Math.min(dmg, Math.max(0, e.hp)); if (r.M) { if (e.boss) r.M.bossDmg += Math.min(dmg, Math.max(0, e.hp)); else { r.M.dmg += Math.min(dmg, Math.max(0, e.hp)); if (wid !== "bomb" && wid !== "revive") r.M.raw += dmg; } } if (r.B) { if (e.boss) r.B.bossDmg += Math.min(dmg, Math.max(0, e.hp)); else { r.B.dmg += Math.min(dmg, Math.max(0, e.hp)); if (wid !== "bomb" && wid !== "revive") r.B.raw += dmg; } }');
-  src = rep(src, '    r.enemies.push(e);\n    return e;', '    r.enemies.push(e); if (r.M) { r.M.spawnHp += hp; r.M.spawnN++; } if (r.B) { r.B.spawnN++; r.B.spawnHp += hp; } e.born = r.t;\n    return e;');
+  src = rep(src, '    r.enemies.push(e);\n    return e;', '    r.enemies.push(e); if (r.M) { r.M.spawnHp += hp; r.M.spawnN++; } if (r.B) { const _b = r.t >= r.B.tE ? r.B.nx : r.B; _b.spawnN++; _b.spawnHp += hp; } e.born = r.t;\n    return e;');
   src = rep(src, '    const r = this.run, save = Store.data;\n    e.dead = true;', '    const r = this.run, save = Store.data;\n    e.dead = true; if (r.M && !e.swarm && !e.boss) { r.M.life += r.t - e.born; r.M.lifeN++; r.M.dd += Math.hypot(e.x - r.p.x, e.y - r.p.y); } if (r.B && !e.boss) { r.B.kills++; if (!e.swarm) { r.B.life += r.t - e.born; r.B.lifeN++; r.B.dd += Math.hypot(e.x - r.p.x, e.y - r.p.y); } }');
   // abgefeuerte Gegnergeschosse und Mörser-Markierungen je Quelle (für Trefferquoten im echten Spiel)
   src = opt(src, "    this.run.eshots.push({ x, y, vx: dx * speed, vy: dy * speed, dmg, r: rad, life: o.life || 3.5, kind: o.kind || 'orb', src: o.src || 'shot' });",
@@ -66,9 +66,9 @@ function load() {
   src = rep(src, 'if (alive >= cap) { r.spawnAcc = 0; break; }', 'if (alive >= cap) { r.spawnAcc = 0; if (r.M) r.M.capped++; break; }');
   // Telemetrie (TELEM, M10): Nachschub des Directors (Anzahl, Lebenspunkte), Erfahrung je Zeitabschnitt (r.B)
   src = opt(src, '      const pos = this.spawnPos();\n      this.spawnEnemy(this.pickType(wv), pos.x, pos.y);',
-    '      const pos = this.spawnPos();\n      { const _e = this.spawnEnemy(this.pickType(wv), pos.x, pos.y); if (r.B) { r.B.dirN++; r.B.dirHp += _e.maxHp; } }');
+    '      const pos = this.spawnPos();\n      { const _e = this.spawnEnemy(this.pickType(wv), pos.x, pos.y); if (r.B) { const _b = r.t >= r.B.tE ? r.B.nx : r.B; _b.dirN++; _b.dirHp += _e.maxHp; } }');
   src = opt(src, '      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y);',
-    '      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y); if (r.B) { r.B.dirN++; r.B.dirHp += e.maxHp; }');
+    '      const e = this.spawnEnemy(this.pickType(wvUse), pos.x, pos.y); if (r.B) { const _b = r.t >= r.B.tE ? r.B.nx : r.B; _b.dirN++; _b.dirHp += e.maxHp; }');
   src = opt(src, 'r.xp += v * r.stats.growth;', 'r.xp += v * r.stats.growth; if (r.B) r.B.xp += v * r.stats.growth;');
   if (process.env.PATCH) for (const [a, b] of JSON.parse(fs.readFileSync(process.env.PATCH, 'utf8'))) src = rep(src, a, b);
   src += '\n;this.__api = { Game, Store, Hooks, WEAPONS, PASSIVES, CHARS, HEAT, SHOP, ENEMIES, STAGES, fmtTime, xpFor };';
@@ -537,7 +537,9 @@ for (let i = 0; i < n; i++) {
   const bk = {}; const t0 = Date.now(); let evoT = []; const early = {};
   // Telemetrie je Zeitabschnitt (TELEM Sekunden)
   const buckets = [];
-  const newB = () => ({ t0: r.t, lv0: r.level, n: 0, taken: 0, hits: 0, dmg: 0, raw: 0, bossDmg: 0, spawnN: 0, dirN: 0, dirHp: 0, kills: 0, life: 0, lifeN: 0, dd: 0, xp: 0,
+  // Nachschub, der im selben Bild nach der Abschnittsgrenze erscheint (z. B. die Eröffnung des Ansturms bei 120,0 s),
+  // zählt zum nächsten Abschnitt (tE = Grenze, nx = Übertrag); der Abschnitt wird erst nach Game.update geschlossen
+  const newB = () => ({ tE: TELEM ? (Math.floor(r.t / TELEM + 1e-9) + 1) * TELEM : 1e12, nx: { spawnN: 0, spawnHp: 0, dirN: 0, dirHp: 0 }, t0: r.t, lv0: r.level, n: 0, taken: 0, hits: 0, dmg: 0, raw: 0, bossDmg: 0, spawnN: 0, dirN: 0, dirHp: 0, kills: 0, life: 0, lifeN: 0, dd: 0, xp: 0,
     shots: 0, shotsNear: 0, bossShots: 0, bossShotsNear: 0, spawnHp: 0, fieldHp: 0, minD: 0, close: 0, alive: 0, aliveN: 0, near300: 0, near150: 0, scr: 0, idle: 0, boss: 0, atCap: 0, boost: 0, hpf: 0, hpMin: 1, eshots: 0, nearDmg: 0, cd: 0 });
   if (TELEM) r.B = newB();
   let curB = 0;
@@ -593,7 +595,8 @@ for (let i = 0; i < n; i++) {
         ttk: avgHp === null ? null : +(avgHp / Math.max(1, ndps)).toFixed(3), kps: +(B.kills / dt0).toFixed(2), life: B.lifeN ? +(B.life / B.lifeN).toFixed(2) : null, dd: B.lifeN ? Math.round(B.dd / B.lifeN) : null,
         xps: +(B.xp / dt0).toFixed(2), taken: Math.round(B.taken), hits: B.hits, hpf: +(B.hpf / n).toFixed(3), hpMin: +B.hpMin.toFixed(3),
         shots: B.shots, shotsNear: B.shotsNear, bossShots: B.bossShots, bossShotsNear: B.bossShotsNear, eshots: +(B.eshots / n).toFixed(1), cd: +(B.cd / n).toFixed(3) });
-      r.B = newB(); curB = Math.floor(r.t / TELEM);
+      { const nb = newB(), c = B.nx; nb.spawnN += c.spawnN; nb.spawnHp += c.spawnHp; nb.dirN += c.dirN; nb.dirHp += c.dirHp; r.B = nb; }
+      curB = Math.floor(r.t / TELEM);
     }
     if (r.eshots.length > r.M.shotsMax) r.M.shotsMax = r.eshots.length;
     if (frame % 30 === 0) { // Gegner nach Typ (ohne Bosse und Schwärme), Anteil der Fernkämpfer
