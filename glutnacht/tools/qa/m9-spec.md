@@ -566,7 +566,7 @@ Names are for documentation and the README. There is no banner for attacks, whic
 | nightheart | Der Nachtmahr | ['dash','fan','dash','nova'] | fan 5 / 40° / 220 "Albtraumdornen / Nightmare thorns" |
 | nightheart | Mondfresser | ['slam','eclipse','summon','eclipse'] | rain track "Finsternis / Eclipse" |
 | nightheart | Der Sternlose | ['summon','starfall','nova','dash'] | rain stars "Sternensturz / Starfall" |
-| nightheart | Die Nacht (final) | ['dash','spiral','slam','lanes','summon','nova'] | spiral A=3 and lanes x |
+| nightheart | Die Nacht (final) | ['dash','spiral','slam','lanes','summon','nova'] | spiral A=3 and lanes x (nach der Prüfung: A=4, 450 000 LP, Schaden 75) |
 
 Endless mode picks from the non-final bosses, so it inherits these skills automatically.
 
