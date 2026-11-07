@@ -11,6 +11,10 @@
 // hostile (M9): zusätzlich immer 120 Gegnergeschosse (Kugeln und Nadeln), 8 Pfützen und 10 Warnzeichen
 // (Kreise mit Kohle, Bahnen, Ziellinien) im Bild.
 //   z. B. node tools/qa/perf.js 1 40 --cap=30   (wenig Last, nur die Obergrenze)
+// surge (M10): statt fester Gegnerzahl ein echter Lauf im Alten Friedhof (--stage) mit normalem Director: Sprung auf
+// 100 s, Einschwingen bis 112 s, dann Bildzeiten bis 150 s (Countdown, T-10-Banner, Ansturm-Eröffnung bei 120 s, Ansturm,
+// Ende 145 s). Held unverwundbar, keine Aufstiege/Truhen. --nosurge: derselbe Ablauf ohne Ansturm (Vergleichsbasis).
+// Ausgabe zusätzlich p99 und das längste Bild um die Eröffnung (119,5–121,5 s Spielzeit).
 'use strict';
 const { chromium } = require('playwright');
 const path = require('path');
@@ -26,6 +30,7 @@ const [VW, VH] = (opt('viewport') || '907x510').split('x').map(Number);
 const ALLW = opt('weapons') === 'all';
 const CAP = +(opt('cap') || 0);
 const HOSTILE = process.argv.includes('--hostile');
+const SURGE = process.argv.includes('--surge') || process.argv.includes('--nosurge'), NOSURGE = process.argv.includes('--nosurge');
 
 (async () => {
   const browser = await chromium.launch();
@@ -52,6 +57,50 @@ const HOSTILE = process.argv.includes('--hostile');
     UI.startRun('aron');
   }, { stage: STAGE });
   await page.waitForFunction(() => Game.state === 'play');
+  if (SURGE) {
+    await page.evaluate(({ q, allw, nosurge }) => {
+      const r = Game.run;
+      if (q !== 'auto' && typeof Render.setQuality === 'function') Render.setQuality(+q, true);
+      Game.hurtPlayer = () => {};
+      if (allw) {
+        for (const id of ['wand', 'whip', 'orbit', 'aura', 'lightning', 'fire', 'nova', 'knives']) if (!r.weapons.some(w => w.id === id) && WEAPONS[id] && r.weapons.length < 6) Game.addWeapon(id);
+        for (const w of r.weapons) { w.level = 8; Game.refreshWeapon(w); }
+      }
+      Game.gainXp = () => {};
+      Game.openChest = () => { Game.run.pendingChests = 0; };
+      if (nosurge) r.cdList = r.cdList.filter(c => c.kind !== 'surge');
+      const t = 100;
+      r.t = t; r.eliteT = 30 + 60 * Math.ceil((t - 30) / 60) - t;
+      r.eventIdx = r.stage.events.findIndex(e => e.t >= t); if (r.eventIdx < 0) r.eventIdx = 1e9;
+      r.bossIdx = r.bossList.findIndex(b => b.t >= t); if (r.bossIdx < 0) r.bossIdx = 1e9;
+      const prof = window.__prof = { upd: 0, draw: 0 };
+      const gu = Game.update.bind(Game), rd = Render.draw.bind(Render);
+      Game.update = dt => { const t = performance.now(); gu(dt); prof.upd += performance.now() - t; };
+      Render.draw = dt => { const t = performance.now(); rd(dt); prof.draw += performance.now() - t; };
+    }, { q: Q, allw: ALLW, nosurge: NOSURGE });
+    if (CPU > 1) { const cdp = await ctx.newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
+    await page.waitForFunction(() => Game.run.t >= 112, null, { timeout: 120000, polling: 200 });
+    const res = await page.evaluate(() => new Promise(res => {
+      const t = [], gt = []; let last = performance.now(); const P = window.__prof; P.upd = P.draw = 0;
+      let maxE = 0;
+      const f = now => {
+        t.push(now - last); gt.push(Game.run.t); last = now;
+        maxE = Math.max(maxE, Game.run.enemies.length);
+        if (Game.run.t < 150 && Game.state === 'play') requestAnimationFrame(f);
+        else {
+          const s = t.slice().sort((a, b) => a - b), q = k => s[Math.min(s.length - 1, Math.floor(s.length * k))];
+          let open = 0; for (let i = 0; i < t.length; i++) if (gt[i] >= 119.5 && gt[i] <= 121.5) open = Math.max(open, t[i]);
+          const nf = t.length;
+          res({ frames: nf, fps: +(nf / (s.reduce((a, b) => a + b, 0) / 1000)).toFixed(1), medMs: +q(0.5).toFixed(1), p95Ms: +q(0.95).toFixed(1), p99Ms: +q(0.99).toFixed(1), maxMs: +s[s.length - 1].toFixed(1),
+            openMaxMs: +open.toFixed(1), updMs: +(P.upd / nf).toFixed(2), drawMs: +(P.draw / nf).toFixed(2), maxEnemies: maxE, eshotsEnd: Game.run.eshots.length, quality: Render.quality, canvasW: Render.cv.width, state: Game.state, tEnd: +Game.run.t.toFixed(1) });
+        }
+      };
+      requestAnimationFrame(f);
+    }));
+    console.log(JSON.stringify({ mode: NOSURGE ? 'nosurge' : 'surge', cpu: CPU, stage: STAGE, quality: Q, weapons: ALLW ? 'all' : 'start', viewport: VW + 'x' + VH, ...res, errors: errs }));
+    await browser.close();
+    return;
+  }
   await page.evaluate(({ n, q, allw, hostile }) => {
     const r = Game.run;
     if (q !== 'auto' && typeof Render.setQuality === 'function') Render.setQuality(+q, true);
