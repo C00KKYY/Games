@@ -330,7 +330,7 @@ const STAGES = [
     bosses: [
       { id: 'hoarfrost', name: 'Raureif', t: 270, sprite: 'slime', tint: '#cfeaff', hp: 3600, speed: 44, dmg: 20, r: 54, xp: 150, skills: ['slam', 'icicle', 'dash', 'icicle'], cast: { icicle: { prim: 'rain', v: 'walk', k: 7 } } },
       { id: 'whitelady', name: 'Die Weiße Frau', t: 570, sprite: 'wraith', tint: '#ffffff', hp: 13000, speed: 64, dmg: 26, r: 42, xp: 320, skills: ['nova', 'summon', 'fan', 'dash', 'nova'], cast: { fan: { prim: 'fan', n: 9, spread: 70, spd: 150 } }, summon: 'ghost' },
-      { id: 'drownedking', name: 'Der Ertrunkene König', t: 900, sprite: 'skel', tint: '#5f9ea0', hp: 80000, speed: 56, dmg: 42, r: 60, xp: 1000, skills: ['summon', 'lances', 'slam', 'nova', 'icicle', 'dash'], cast: { lances: { prim: 'lances' }, icicle: { prim: 'rain', v: 'walk', k: 7 } }, summon: 'skel', final: true },
+      { id: 'drownedking', name: 'Der Ertrunkene König', t: 900, sprite: 'skel', tint: '#5f9ea0', hp: 90000, speed: 56, dmg: 42, r: 60, xp: 1000, skills: ['summon', 'lances', 'slam', 'nova', 'icicle', 'dash'], cast: { lances: { prim: 'lances' }, icicle: { prim: 'rain', v: 'walk', k: 7 } }, summon: 'skel', final: true },
     ],
   },
   {
@@ -340,7 +340,7 @@ const STAGES = [
     ground: { base: '#6a624e', speckle: ['#8e8572', '#3a3428'], grass: '#94aa6a' },
     decor: ['rock', 'rock', 'rock', 'grave', 'cross', 'bones', 'stump'],
     tints: { skel: '#c8a060', golem: '#a08a6a', brute: '#8a6a4a', ghoul: '#7a7a5a', slime: '#8a9a5a' }, mods: { skel: { hp: 1.25 }, spitter: { hp: 1.2 }, golem: { speed: 1.1 } },
-    mult: { hp: 1.2, dmg: 1.1, rate: 1.1 },
+    mult: { hp: 1.2, dmg: 1.05, rate: 1.1 },
     rangedFrom: 40,
     rangedCd: 1.2,
     waves: [
@@ -362,13 +362,13 @@ const STAGES = [
     ],
     events: [
       { t: 40, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker auf der Mauer!' },
+      { t: 48, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
       { t: 55, kind: 'swarm', type: 'bat', n: 32, text: 'Fledermausschwarm!' },
-      { t: 66, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
-      { t: 80, kind: 'arc', mix: { spitter: 2, moth: 1 }, text: 'Schützen auf der Mauer!' },
+      { t: 68, kind: 'arc', mix: { spitter: 2, moth: 1 }, text: 'Schützen auf der Mauer!' },
       { t: 195, kind: 'ring', type: 'skel', n: 36, text: 'Die Wache rückt an!' },
       { t: 300, kind: 'ring', mix: { spitter: 12, moth: 6 }, text: 'Kreuzfeuer!' },
       { t: 405, kind: 'swarm', type: 'ghost', n: 44, text: 'Geisterzug!' },
-      { t: 510, kind: 'ring', type: 'brute', n: 24, text: 'Die Oger kommen!' },
+      { t: 550, kind: 'ring', type: 'brute', n: 24, text: 'Die Oger kommen!' },
       { t: 600, kind: 'ring', mix: { spitter: 16, cinder: 6, moth: 6 }, text: 'Kreuzfeuer!' },
       { t: 705, kind: 'swarm', type: 'wraith', n: 50, text: 'Irrlichter!' },
       { t: 795, kind: 'ring', type: 'golem', n: 12, text: 'Die Mauern erwachen!' },
