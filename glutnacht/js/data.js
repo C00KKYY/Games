@@ -235,7 +235,7 @@ const STAGES = [
       { t: 315, kind: 'swarm', type: 'ghost', n: 44, text: 'Geisterzug!' },
       { t: 435, kind: 'ring', type: 'ghoul', n: 36, text: 'Umzingelt!' },
     ],
-    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.4, cap: 1.3, xp: 0.7, speed: 1, pool: { ghoul: 2, skel: 3, ghost: 2 }, open: { kind: 'ring', type: 'ghoul', n: 14 },
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.4, cap: 1.3, xp: 0.7, speed: 1.1, pool: { ghoul: 2, skel: 3, ghost: 2 }, open: { kind: 'ring', type: 'ghoul', n: 14 },
       icon: 'ghoul', text: 'Die Ghule erheben sich!', hint: 'Ghule: zäh und langsam', gold: 15 }],
     hpBridge: true,
     bosses: [
@@ -287,7 +287,7 @@ const STAGES = [
       { t: 860, kind: 'ring', type: 'brute', n: 30, text: 'Die Oger kommen!' },
       { t: 885, kind: 'swarm', type: 'bat', n: 100, text: 'Der Wald brennt …' },
     ],
-    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.3, cap: 1.3, xp: 0.7, speed: 1, pool: { ghost: 3, skel: 2, wraith: 1, ghoul: 1 }, open: { kind: 'swarm', type: 'ghost', n: 30 },
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.5, cap: 1.4, xp: 0.7, speed: 1, pool: { ghost: 3, skel: 2, wraith: 1, ghoul: 1 }, open: { kind: 'swarm', type: 'ghost', n: 30 },
       icon: 'wraith', text: 'Der Wald fängt Feuer!', hint: 'Irrlichter: schnell und zäh', gold: 15 }],
     hpBridge: true,
     bosses: [
@@ -310,8 +310,8 @@ const STAGES = [
     waves: [
       { pool: { slime: 3, ghost: 2, moth: 1 }, rate: 2.2, cap: 45 },
       { pool: { slime: 3, ghost: 2, skel: 1, moth: 1 }, rate: 2.6, cap: 60 },
-      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1 }, rate: 3.3, cap: 78 },
-      { pool: { ghost: 3, ghoul: 1, skel: 2, moth: 1, spitter: 1 }, rate: 3.4, cap: 85 },
+      { pool: { ghost: 3, skel: 2, slime: 2, moth: 1, ghoul: 1 }, rate: 3.3, cap: 78 },
+      { pool: { ghost: 3, ghoul: 2, skel: 2, moth: 1, spitter: 1 }, rate: 3.4, cap: 85 },
       { pool: { ghoul: 2, ghost: 3, wraith: 1, moth: 1, spitter: 1 }, rate: 3.6, cap: 100 },
       { pool: { ghoul: 3, wraith: 1, skel: 2, spitter: 1, moth: 1, bell: 1 }, rate: 4, cap: 115 },
       { pool: { wraith: 2, ghoul: 3, brute: 1, moth: 1, bell: 1 }, rate: 4.4, cap: 130 },
@@ -338,7 +338,7 @@ const STAGES = [
       { t: 795, kind: 'ring', type: 'brute', n: 30, text: 'Die Oger kommen!' },
       { t: 880, kind: 'ring', type: 'ghoul', n: 50, text: 'Der See erstarrt …' },
     ],
-    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.5, cap: 1.3, xp: 0.7, speed: 1.15, pool: { ghost: 3, skel: 3, ghoul: 1 }, open: { kind: 'ring', type: 'skel', n: 24 },
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.6, cap: 1.3, xp: 0.7, speed: 1.15, pool: { ghost: 3, skel: 3, ghoul: 2 }, open: { kind: 'ring', type: 'skel', n: 24 },
       icon: 'skel', text: 'Das Eis bricht!', hint: 'Skelette: zäh, sie kesseln dich ein', gold: 15 }],
     hpBridge: true,
     bosses: [
@@ -388,7 +388,7 @@ const STAGES = [
       { t: 795, kind: 'ring', type: 'golem', n: 12, text: 'Die Mauern erwachen!' },
       { t: 880, kind: 'ring', type: 'skel', n: 60, text: 'Die Wache rückt an!' },
     ],
-    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.3, cap: 1.2, xp: 0.7, speed: 1, pool: { skel: 3, ghoul: 1, slime: 2 }, open: { kind: 'ring', type: 'skel', n: 20 },
+    surges: [{ t: 120, lead: 30, dur: 25, rate: 1.5, cap: 1.3, xp: 0.7, speed: 1, pool: { skel: 3, ghoul: 1, slime: 2 }, open: { kind: 'ring', type: 'skel', n: 20 },
       icon: 'skel', text: 'Die Wache rückt an!', hint: 'Die Wache: zäh, von allen Seiten', gold: 15 }],
     hpBridge: false,
     bosses: [
