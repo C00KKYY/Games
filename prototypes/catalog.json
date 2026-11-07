@@ -18,5 +18,15 @@
     "path": "prototypes/2026-11-06-bricklash",
     "screenshot": "screenshot.png",
     "issue": 2
+  },
+  {
+    "id": "2026-11-07-swingwreck",
+    "name": "Swingwreck",
+    "date": "2026-11-07",
+    "genre": "Physik-Arcade (Abriss) + Upgrades",
+    "pitch": "Schwing eine Abrissbirne am Kran durch Holz, Glas, Beton und Stahl, zünde Fässer und reiß jedes Level für drei Sterne ab.",
+    "path": "prototypes/2026-11-07-swingwreck",
+    "screenshot": "screenshot.png",
+    "issue": null
   }
 ]
