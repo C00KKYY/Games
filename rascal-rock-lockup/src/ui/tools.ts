@@ -12,8 +12,9 @@ import type { UICtx, Component, TipContent, Tool } from './ctx';
 import { ROOM_ICON } from './ctx';
 import { GhostLayer, handlePos, type Rect, type Edge, type Line, type CrateStack } from '../render/ghost';
 import { TILE } from '../render/world';
-import { ROOMS, roomCost, roomSlots, GUARD_RADIUS, type RoomType } from '../content/balance';
-import { FERRY_POS, GATE_X, GATE_Y, BOOTH, DOCK } from '../content/site1';
+import { ROOMS, roomCost, roomSlots, GUARD_RADIUS, PARCELS, type RoomType } from '../content/balance';
+import { FERRY_POS, GATE_X, GATE_Y, BOOTH, DOCK, SALE_SIGNS } from '../content/site1';
+import { SHOW_LAND_EVENT } from './buildMenu';
 import { MAX_ROOM, LAYOUT, packRoom, adjacencyBonuses, noisePenalty } from '../sim/layout';
 import { tileReason, validatePlacement } from '../sim/rooms';
 import { guardRadiusBonus } from '../sim/effects';
@@ -473,6 +474,13 @@ export function mountTools(ctx: UICtx): Component {
     if (brawl) return tap(ctx.cmd.tapRangler(w, brawl.id), 'tap');
     const a = agentAt(tx, ty, pickR(PICK_TILES), selectable);
     if (a) { ctx.selection.set({ kind: 'agent', id: a.id }); lastClick = { t: 0, room: 0 }; return; }
+    // a "for sale" sign: the Rooms menu opens with the land card in view (G2: the signs were a dead affordance)
+    if (w.tutorial.done) for (const [id, s] of Object.entries(SALE_SIGNS)) {
+      const k = PARCELS.findIndex(p => p.id === id);
+      if (k > 0 && !w.parcels[k] && Math.hypot(tx - s.x, ty - (s.y - 0.6)) <= Math.max(0.9, cr)) {
+        ctx.sound('click'); ctx.selection.set(null); ctx.menu.set('rooms'); window.dispatchEvent(new Event(SHOW_LAND_EVENT)); return;
+      }
+    }
     const r = roomAt(tx, ty);
     if (!r) { ctx.selection.set(null); lastClick = { t: 0, room: 0 }; return; }
     const now = performance.now();

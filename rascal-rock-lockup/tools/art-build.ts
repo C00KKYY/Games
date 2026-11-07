@@ -11,6 +11,7 @@ import { svgDoc, resetIds, type Sprite } from './art/kit';
 import { worldSprites } from './art/world';
 import { charSprites } from './art/chars';
 import { uiIcons, wardenPortrait } from './art/ui';
+import { m5Sprites, m5Icons } from './art/m5';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const OUT = ROOT + 'public/atlas/';
@@ -19,7 +20,7 @@ const PAGE = 2048, GUTTER = 2;
 
 export function allSprites(): Sprite[] {
   resetIds();
-  const list = [...worldSprites(), ...charSprites()];
+  const list = [...worldSprites(), ...charSprites(), ...m5Sprites()];
   const seen = new Set<string>();
   for (const s of list) { if (seen.has(s.name)) throw new Error('duplicate sprite ' + s.name); seen.add(s.name); }
   return list;
@@ -52,7 +53,7 @@ async function main() {
   const UI = ROOT + 'public/ui/';
   rmSync(UI, { recursive: true, force: true }); mkdirSync(UI, { recursive: true });
   const heads = new Map(sprites.map(s => [s.name, s]));
-  for (const s of [...uiIcons(), wardenPortrait(heads)]) writeFileSync(UI + s.name + '.svg', svgDoc(s, 1));
+  for (const s of [...uiIcons(), wardenPortrait(heads), ...m5Icons()]) writeFileSync(UI + s.name + '.svg', svgDoc(s, 1));
 
   const browser = await chromium.launch();
   const page = await browser.newPage();

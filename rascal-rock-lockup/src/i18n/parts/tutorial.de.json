@@ -3,7 +3,7 @@
   "tutorial.progress": "Schritt {n} von {total}",
   "tutorial.skipTip": "Beendet Zeiger und Hinweise sofort. Deine Ziele gehen auf dem Klemmbrett weiter.",
   "tutorial.wait.build": "Wird gebaut…",
-  "tutorial.wait.earl": "Earl macht sich fertig…",
+  "tutorial.wait.earl": "Eine Dusche bessert ihn",
   "tutorial.ghost": "Waschhaus hier bauen",
   "tutorial.ghostTip": "Ein Tipp baut hier ein 3×3-Waschhaus für {cost} Münzen. Schlammige Neuankömmlinge duschen darin.",
   "tutorial.ctl.title": "Steuerung",
@@ -24,10 +24,14 @@
   "tutorial.jit.dragTouch": "Mit einem Finger ziehen, dann ✓ tippen",
   "tutorial.jit.beds": "Betten voll! Baue einen weiteren Zellentrakt",
   "tutorial.jit.queue": "Schlange! Mehr Sitzplätze bauen",
+  "tutorial.jit.janitor": "Essen überall! Hausmeister einstellen",
   "tutorial.jit.dirty": "Waschhaus dreckig! Stell einen Hausmeister ein",
   "tutorial.jit.crates": "Kisten stapeln sich! Antippen zum Verladen",
   "tutorial.jit.coins": "Genug Münzen! Baue: {room}",
   "tutorial.jit.mood": "Schlechte Laune! Prüfe die Bedürfnisse",
   "tutorial.jit.title": "Tipp",
-  "tutorial.jit.body": "Tippen: zeigt dir die Stelle. Verschwindet von selbst."
+  "tutorial.jit.body": "Tippen: zeigt dir die Stelle. Verschwindet von selbst.",
+  "tutorial.wait.earlGate": "Gebessert! Ab zum Tor",
+  "tutorial.flowIntro": "Fluss-Leiste: Rot zeigt deinen Engpass",
+  "tutorial.jit.earnFaster": "Kistenstapel antippen: schneller Münzen"
 }

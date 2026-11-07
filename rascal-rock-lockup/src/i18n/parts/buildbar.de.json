@@ -76,5 +76,21 @@
   "buildbar.more.teacher": "Ohne Lehrer fällt der Unterricht aus.",
   "buildbar.more.foreman": "Stationen ohne Vorarbeiter stricken mit {n} % Tempo.",
   "buildbar.more.clerk": "Hält das Freiheitstor besetzt.",
-  "buildbar.more.carter": "Ohne Karrenfahrer stapeln sich die Kisten."
+  "buildbar.more.carter": "Ohne Karrenfahrer stapeln sich die Kisten.",
+  "buildbar.why.bunk": "Betten für Neuankömmlinge",
+  "buildbar.why.canteen": "Essen – hält alle satt",
+  "buildbar.why.wash": "Duschen – hält alle sauber",
+  "buildbar.why.workshop": "Kisten stricken: Münzen + Besserung",
+  "buildbar.why.classroom": "Unterricht: bessert am schnellsten",
+  "buildbar.why.guard": "Stoppt Ausbrüche in der Nähe",
+  "buildbar.why.yard": "Spaß – hebt die Laune",
+  "buildbar.why.land": "Mehr Platz zum Bauen",
+  "buildbar.goalTag": "ZIEL",
+  "buildbar.land": "Land",
+  "buildbar.landSize": "{w}×{h} Felder Insel",
+  "buildbar.landBuy": "Kaufen ({n})",
+  "buildbar.landConfirm": "Nochmal tippen: −{n}",
+  "buildbar.landTip": "Der Zaun fällt, die Insel wächst um {w}×{h} Felder.",
+  "buildbar.landConfirmTip": "Zweimal tippen zum Kaufen – der erste Tipp fragt, der zweite zahlt.",
+  "buildbar.landAll": "Dir gehört die ganze Insel."
 }

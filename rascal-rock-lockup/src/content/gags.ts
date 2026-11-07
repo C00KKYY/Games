@@ -45,3 +45,22 @@ export const SPECIES_NAME: Record<string, { en: string; de: string }> = {
   raccoon: { en: 'Raccoon', de: 'Waschbär' }, weasel: { en: 'Weasel', de: 'Wiesel' }, cat: { en: 'Cat', de: 'Kater' },
   fox: { en: 'Fox', de: 'Fuchs' }, marten: { en: 'Marten', de: 'Marder' },
 };
+
+/**
+ * What a rascal says when walking out through the Parole Gate (G2 hook, src/ui/arrivalCards.ts). Earl and the petty
+ * offender pay off their files (cake, umbrella); the pool is for everyone else. Bureaucracy tone, PEGI 12.
+ */
+export const RELEASE_QUOTES = {
+  earl: { en: 'Thanks for everything! The cake is safe from me now.', de: 'Danke für alles! Der Kuchen ist jetzt vor mir sicher.' },
+  petty: { en: 'The umbrella goes back today. Mostly.', de: 'Der Schirm geht heute zurück. Größtenteils.' },
+  pool: [
+    { en: "I'll fill in Form 27b in the right colour now.", de: 'Formular 27b fülle ich ab jetzt in der richtigen Farbe aus.' },
+    { en: "Please stamp it twice. It's for my scrapbook.", de: 'Bitte zweimal stempeln. Fürs Fotoalbum.' },
+    { en: 'I knitted 40 socks. All for the right foot.', de: '40 Socken gestrickt. Alle für rechts.' },
+    { en: 'My file says reformed. In ink!', de: 'In meiner Akte steht resozialisiert. Mit Tinte!' },
+    { en: 'I have learned that cake has an owner.', de: 'Ich habe gelernt: Kuchen hat einen Besitzer.' },
+    { en: 'Lovely forms. Five stars. Will not return.', de: 'Schöne Formulare. Fünf Sterne. Komme nicht wieder.' },
+    { en: 'Thank you. I now understand queues.', de: 'Danke. Ich verstehe jetzt Warteschlangen.' },
+    { en: 'I promise to only honk during office hours.', de: 'Ich hupe ab jetzt nur noch zu Bürozeiten.' },
+  ],
+} as const;

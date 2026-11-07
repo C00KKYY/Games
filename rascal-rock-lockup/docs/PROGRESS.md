@@ -96,6 +96,13 @@
 15. Steuerungs-Overlay (Brief §6.2 „unten links“): Bei den Kompaktgrößen (≤ 900 px Breite, z. B. 800×450, 844×390) liegt die Fähre, also das Ziel von Tutorial-Schritt 1, in der Ecke unten links. Dort hat das Overlay keinen freien Platz, ohne Fähre und Zeigehand zu verdecken. Es steht dann links unter dem Klemmbrett-Chip (Slot `lc`). Bei den breiten Größen steht es unten links (`bl`). Der Test `m4-fixes-ui` lässt `lc` nur bei ≤ 900 px zu. Entscheidung bei G2 bestätigen lassen.
 16. Bau-Menüs auf kurzen Handy-Bildschirmen (844×390, 667×375, 800×450 Touch): Das Menü-Blatt beginnt rechts vom Klemmbrett-Chip und ist dafür schmaler (horizontal scrollbar wie bisher). So bleibt das Ziel-Widget sichtbar (D4). Findet die Tutorial-Blase dann keinen Platz, bleibt als letzte Form der Skip-Knopf allein stehen, auch neben der Bauleiste (§6.2 „dauerhaft sichtbar“).
 
+17. G2-Rückmeldung (docs/G2_FEEDBACK.md): Die Pacing-Tabelle §4.2 nennt „7:30–9:00 2. bis 4. Entlassung". Die 2. Entlassung
+    kommt jetzt bewusst früh (Bagatell-Täter, ~2:40 beim Casual-Bot), damit die Lücke 0:28–5:20 einen Moment bekommt. Die
+    gemessene Zeile „4. Entlassung" bleibt im ±20-%-Fenster (7:13). Strafmaß der ersten 12: 78–108 statt 70–100, übrige
+    Fahrgäste der ersten Fähre 110–140 (BALANCE.md §6). Bitte bei G3 bestätigen.
+18. Brief §4.2 „Strafakten-Kärtchen ploppen kurz auf" ist ab M5 gebaut (`src/ui/arrivalCards.ts`): alle Fahrgäste der ersten
+    Fähre, danach die ersten zwei jeder Fähre und der VIP – nicht jeder Neuankömmling (sonst bei 6er-Fähren zu viel Text).
+
 ## Bekannte Bugs / Schwächen
 - Profilköpfe wirken schnabelartig. Keine Cutaway-Wände. Video-Capture ist langsam (~1,8 s pro Frame unter SwiftShader).
 - Bei 800×450 verdeckt das Raum-Panel als Bottom-Sheet fast die ganze Welt.

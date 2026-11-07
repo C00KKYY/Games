@@ -53,14 +53,33 @@ export function transfer(w: World, toSite: number, fresh: (seed: number, site: n
   const n = fresh(w.seed + 7919 * (w.prestige.transfers + 1), toSite);
   const cache = { ...n.cache, evCursor: w.eventSeq };
   Object.assign(w, n, keep, { cache, site: toSite, firstSession: false });
-  // a transfer run starts after the tutorial (no pointers, no Earl script) – TODO(sim-progress): verify scripted beats
-  w.tutorial = { active: false, step: 4, skipped: true, done: true };
-  w.director.data.tutorialEndMs = 0;
-  w.unlocked.workshop = true;
+  applyTransferRunBeats(w);
   w.coins += startCapitalBonus(w);
   emit(w, 'keysEarned', { n: keys, source: 'transfer' });
   emit(w, 'transfer', { fromSite: from, toSite, keys, transfers: w.prestige.transfers });
   return { ok: true, cost: -keys };
+}
+
+/**
+ * Scripted beats of a transfer run (docs/M5_DESIGN.md §6): the player knows the game, so the run starts after the
+ * tutorial – no pointers, no Earl script, no scripted 3:00 spoon tunnel and no scripted
+ * 10:00 food fight. The normal director runs instead; its food-fight/ruckus lock counts from the run start
+ * (tutorialEndMs = 0 → locked for DIRECTOR.lockAfterTutorialSec). Unlocks that the tutorial grants are granted here;
+ * the optional Wash Hut goal of the skip path is offered (the new lockup has none).
+ * Earl himself (ferry.ts spawns him for the first passenger of a run) and the first-release happytime are guarded in
+ * ferry.ts via prestige.transfers (integrator).
+ */
+export function applyTransferRunBeats(w: World) {
+  w.tutorial = { active: false, step: 4, skipped: false, done: true };
+  const d = w.director.data;
+  d.tutorialEndMs = 0;
+  d.tunnelDone = 1;   // no scripted tutorial tunnel at 3:00
+  d.foodDone = 1;     // no scripted food fight at 10:00 (the director may still roll one after the lock)
+  d.transferRun = 1;
+  // the fresh lockup has no Wash Hut (the tutorial builds it on the first run): the clipboard's optional wash goal
+  // comes first, like on the skip path – otherwise the first goal ignores the red hygiene stage (M5 integration flow)
+  if (!w.rooms.some(r => r.type === 'wash')) d.skippedNoWash = 1;
+  w.unlocked.workshop = true;
 }
 
 /** cmd.buyPerk – reasons: invalid, max, keys */

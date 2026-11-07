@@ -99,5 +99,13 @@
   "overlays.reason.noFerry": "No ferry is arriving right now",
   "overlays.reason.empty": "No crates to collect yet",
   "overlays.reason.none": "Nobody needs that right now",
-  "overlays.reason.open": "Pay back the current loan first"
+  "overlays.reason.open": "Pay back the current loan first",
+  "overlays.toast.starNext": "{n}★ reached! New: {what}. Next: {next}★ at {at} reputation – {nextWhat}",
+  "overlays.toast.starMax": "{n}★ reached! New: {what}",
+  "overlays.starNew.1": "releases pay +5 %",
+  "overlays.starNew.2": "the Project Board",
+  "overlays.starNew.3": "3× speed and your first lead",
+  "overlays.starNew.4": "a second lead",
+  "overlays.starNew.5": "releases pay +25 %",
+  "overlays.toast.firstShipment": "First shipment! The cart sold your crates: +{n} coins"
 }

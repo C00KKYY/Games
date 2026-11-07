@@ -16,12 +16,17 @@ import {
 
 /** Behavioural assumptions of the aggregated model (casual player). */
 export const ASSUME = {
-  /** share of activity hours (08–20) a rascal spends in class/work/yard (rest: meals, shower, walking); measured 0.50 in casual-bot runs (M2) */
-  activeShare: 0.5,
-  /** before the first classroom there is nothing but work: measured higher share (agent bots, M2) */
-  activeSharePre: 0.62,
-  /** average mood of the population; measured 56.6 in casual-bot runs (M2) */
-  mood: 57,
+  /** share of residents in class / at a workshop station during activity hours (08–20), measured with the casual agent
+   *  bot (balance pass M5, 7 seeds × 30 min): after the workshop and before the classroom 0/0.4, until 15:00 0.27/0.14, after 0.20/0.08
+   *  (rascals pick the class first; at 24+ rascals more time goes to walking, queues and the yard) */
+  share: { pre: { cls: 0, wk: 0.4 }, mid: { cls: 0.27, wk: 0.14 }, late: { cls: 0.2, wk: 0.08 } },
+  /** average resident mood, measured likewise (final balance-pass config, 7 seeds): 75 before the classroom, 56 until 15:00, 41 after */
+  moodPre: 75,
+  mood: 56,
+  moodLate: 41,
+  /** share of the owed wages the casual actually pays: it spends down to ~0 and is short at ~5 of 12 day ends; the
+   *  insolvency protection (Brief §3.8) pays what is there – measured 0.80 (27 seeds). The wage SHARE check uses the owed sum. */
+  wagePaid: 0.8,
   /** real seconds a casual player needs to react to an affordable next step */
   reactSec: 5,
   /** share of crates sold per minute without supervisor (taps / auto at 6) */
@@ -31,41 +36,42 @@ export const ASSUME = {
 };
 
 interface Room { t: RoomType; w: number; h: number; lvl: number }
-interface Rascal { sentence: number; pts: number; arrived: number }
+interface Rascal { sentence: number; pts: number; arrived: number; petty?: boolean; short?: boolean; earl?: boolean }
 
-interface Step { at: number; label: string; kind: 'build' | 'upgrade' | 'hire' | 'parcel' | 'expand'; t?: RoomType; w?: number; h?: number; role?: StaffRole; parcel?: number; to?: number; objective?: string }
+interface Step { at: number; label: string; kind: 'build' | 'upgrade' | 'hire' | 'parcel' | 'expand' | 'project' | 'lead'; t?: RoomType; w?: number; h?: number; role?: StaffRole; parcel?: number; to?: number; objective?: string; cost?: number }
 
-/** Casual build order (pacing table §4.2). `at` = earliest real second. */
+/** Casual build order (pacing table §4.2), close to the casual agent bot's median times (balance pass M5, 27 seeds; the sheet
+ *  is ~1 min slower between 5 and 15 min, its cells/yard/parcel-2 steps are planned accordingly, all inside the ±20 % windows).
+ *  `at` = earliest real second. */
 const ORDER: Step[] = [
   { at: 15, label: 'Wash Hut 3x3 (tutorial)', kind: 'build', t: 'wash', w: 3, h: 3 },
   { at: 70, label: 'Canteen Lv2 (tutorial)', kind: 'upgrade', t: 'canteen', to: 2 },
   { at: 90, label: 'Workshop 4x4', kind: 'build', t: 'workshop', w: 4, h: 4, objective: 'workshop' },
   { at: 95, label: 'Hire foreman', kind: 'hire', role: 'foreman' },
-  { at: 255, label: 'Classroom 4x4', kind: 'build', t: 'classroom', w: 4, h: 4, objective: 'classroom' },
-  { at: 258, label: 'Hire teacher', kind: 'hire', role: 'teacher' },
-  { at: 270, label: 'Guard Post', kind: 'build', t: 'guard', w: 2, h: 2, objective: 'guard' },
-  { at: 275, label: 'Hire guard', kind: 'hire', role: 'guard' },
-  { at: 330, label: 'Cells 6x3 → 6x6 (12 beds)', kind: 'expand', t: 'bunk', w: 6, h: 6, objective: 'beds12' },
-  { at: 390, label: 'Yard 5x5', kind: 'build', t: 'yard', w: 5, h: 5, objective: 'yard' },
-  { at: 450, label: 'Canteen → Lv5 (milestone)', kind: 'upgrade', t: 'canteen', to: 5, objective: 'canteen5' },
-  { at: 560, label: 'Workshop → Lv5 (milestone)', kind: 'upgrade', t: 'workshop', to: 5 },
+  { at: 220, label: 'Classroom 4x4', kind: 'build', t: 'classroom', w: 4, h: 4, objective: 'classroom' },
+  { at: 223, label: 'Hire teacher', kind: 'hire', role: 'teacher' },
+  { at: 290, label: 'Guard Post', kind: 'build', t: 'guard', w: 2, h: 2, objective: 'guard' },
+  { at: 295, label: 'Hire guard', kind: 'hire', role: 'guard' },
+  { at: 400, label: 'Cells 6x3 → 6x6 (12 beds)', kind: 'expand', t: 'bunk', w: 6, h: 6, objective: 'beds12' },
+  { at: 410, label: 'Yard 4x4', kind: 'build', t: 'yard', w: 4, h: 4, objective: 'yard' },
+  { at: 470, label: 'Canteen → Lv5 (milestone)', kind: 'upgrade', t: 'canteen', to: 5, objective: 'canteen5' },
+  { at: 540, label: 'Project: Thicker Mattresses', kind: 'project', cost: 400 },
   { at: 620, label: 'Hire janitor', kind: 'hire', role: 'janitor' },
-  { at: 720, label: 'Parcel 2', kind: 'parcel', parcel: 1, objective: 'parcel2' },
-  { at: 760, label: 'Cells 2nd block 6x6 (+12 beds → 24)', kind: 'build', t: 'bunk', w: 6, h: 6, objective: 'beds24' },
-  { at: 800, label: 'Classroom → 5x5', kind: 'expand', t: 'classroom', w: 5, h: 5 },
-  { at: 900, label: 'Workshop 2 4x4', kind: 'build', t: 'workshop', w: 4, h: 4 },
-  { at: 905, label: 'Hire foreman 2', kind: 'hire', role: 'foreman' },
-  { at: 940, label: 'Depot → Lv5 (cart bottleneck)', kind: 'upgrade', t: 'dock', to: 5 },
-  { at: 960, label: 'Classroom → Lv5', kind: 'upgrade', t: 'classroom', to: 5 },
-  { at: 1080, label: 'Workshop → Lv10', kind: 'upgrade', t: 'workshop', to: 10 },
-  { at: 1200, label: 'Parcel 3', kind: 'parcel', parcel: 2 },
-  { at: 1290, label: 'Workshop → Lv15 (milestone)', kind: 'upgrade', t: 'workshop', to: 15, objective: 'workshop15' },
-  { at: 1300, label: 'Classroom 2 4x4', kind: 'build', t: 'classroom', w: 4, h: 4 },
-  { at: 1305, label: 'Hire teacher 2', kind: 'hire', role: 'teacher' },
-  { at: 1400, label: 'Depot → Lv10 (flow bar shows cart bottleneck)', kind: 'upgrade', t: 'dock', to: 10 },
-  { at: 1500, label: 'Workshop 3 5x4', kind: 'build', t: 'workshop', w: 5, h: 4 },
-  { at: 1505, label: 'Hire foreman 3', kind: 'hire', role: 'foreman' },
-  { at: 1620, label: 'Cells 3rd block 6x6 (36 beds)', kind: 'build', t: 'bunk', w: 6, h: 6 },
+  { at: 830, label: 'Parcel 2', kind: 'parcel', parcel: 1, objective: 'parcel2' },
+  { at: 835, label: 'Cells 2nd block 6x6 (+12 beds → 24)', kind: 'build', t: 'bunk', w: 6, h: 6, objective: 'beds24' },
+  { at: 860, label: 'Workshop → Lv5 (milestone)', kind: 'upgrade', t: 'workshop', to: 5 },
+  { at: 950, label: 'Logistics lead (3★)', kind: 'lead', cost: 1200 },
+  { at: 1010, label: 'Workshop 2 4x4', kind: 'build', t: 'workshop', w: 4, h: 4 },
+  { at: 1015, label: 'Hire foreman 2', kind: 'hire', role: 'foreman' },
+  { at: 1170, label: 'Workshop → Lv10', kind: 'upgrade', t: 'workshop', to: 10 },
+  { at: 1180, label: 'Classroom 2 4x4', kind: 'build', t: 'classroom', w: 4, h: 4 },
+  { at: 1185, label: 'Hire teacher 2', kind: 'hire', role: 'teacher' },
+  { at: 1320, label: 'Workshop → Lv15 (milestone)', kind: 'upgrade', t: 'workshop', to: 15, objective: 'workshop15' },
+  { at: 1600, label: 'Parcel 3', kind: 'parcel', parcel: 2 },
+  { at: 1610, label: 'Depot → Lv5 (flow bar shows cart bottleneck)', kind: 'upgrade', t: 'dock', to: 5 },
+  { at: 1640, label: 'Cells 3rd block 6x6 (36 beds)', kind: 'build', t: 'bunk', w: 6, h: 6 },
+  { at: 1680, label: 'Canteen 2 5x4', kind: 'build', t: 'canteen', w: 5, h: 4 },
+  { at: 1685, label: 'Hire cook 2', kind: 'hire', role: 'cook' },
 ];
 
 /** Objective → reached flag + Ruf (each objective +10 Ruf, coins scaled) */
@@ -91,8 +97,13 @@ export function run(verbose = true) {
   const wagesAt: Record<number, number> = {};
   const starAt: number[] = [];
   let lifetime = 0;
+  let leadHired = false;
+  const boughtAt: Record<string, number> = {};
+  let richSince = -1, runaway = 0;
   let workshopBuiltAt = -1, workshopCost = 0, workshopEarned = 0, paybackAt = -1;
   let inspectionAt = -1;
+  /** lifetime coins when the inspection becomes callable (Brief §3.17: base keys "bei der ersten Inspektion") */
+  let lifetimeAtInspection = -1;
   let gateCd = 0;
   let crateBuf = 0, cartCap = 0;
 
@@ -130,7 +141,10 @@ export function run(verbose = true) {
 
     // --- ferry
     if (t === 4) { // tutorial ferry: 4 rascals incl. Earl
-      for (let i = 0; i < 4; i++) rascals.push({ sentence: i === 0 ? SENTENCE.earl : SENTENCE.early[0] + ((i * 37) % (SENTENCE.early[1] - SENTENCE.early[0] + 1)), pts: 0, arrived: t });
+      // Earl, the petty offender (G2 hook), then the rest of the first ferry with its longer range (src/sim/agents.ts spawnRascal)
+      const ff = SENTENCE.firstFerryRange;
+      const th = SENTENCE.third;
+      for (let i = 0; i < 4; i++) rascals.push({ sentence: i === 0 ? SENTENCE.earl : i === SENTENCE.pettyIndex ? SENTENCE.petty : i === SENTENCE.thirdIndex ? (th[0] + th[1]) / 2 : ff[0] + ((i * 37) % (ff[1] - ff[0] + 1)), pts: 0, arrived: t, petty: i === SENTENCE.pettyIndex, short: i === SENTENCE.thirdIndex, earl: i === 0 });
       arrivedCount = 4; nextFerryIdx = 1;
     } else if (t > 4 && nextFerryIdx < ferryTimes.length && gameH >= ferryTimes[nextFerryIdx]) {
       nextFerryIdx++;
@@ -139,7 +153,7 @@ export function run(verbose = true) {
       const n = Math.max(0, Math.min(size, free + 0)); // waiting at dock not modelled as resident
       for (let i = 0; i < n; i++) {
         const early = arrivedCount < SENTENCE.earlyCount;
-        const [a, b] = early ? SENTENCE.early : SENTENCE.normal;
+        const [a, b] = arrivedCount < SENTENCE.firstFerry ? SENTENCE.firstFerryRange : early ? SENTENCE.early : SENTENCE.normal;
         rascals.push({ sentence: a + ((arrivedCount * 37) % (b - a + 1)), pts: 0, arrived: t });
         arrivedCount++;
       }
@@ -149,20 +163,20 @@ export function run(verbose = true) {
     if (t === 40 && rascals[0]) rascals[0].pts = rascals[0].sentence;
 
     // --- activities
-    const mf = moodFactor(ASSUME.mood);
     const active = hod >= TIME.activityHours[0] && hod < TIME.activityHours[1];
     const hasClass = rooms.some(r => r.t === 'classroom');
-    let avail = active ? rascals.length * (hasClass ? ASSUME.activeShare : ASSUME.activeSharePre) : 0;
+    const late = t >= 900;
+    const moodNow = !hasClass ? ASSUME.moodPre : late ? ASSUME.moodLate : ASSUME.mood;
+    const mf = moodFactor(moodNow);
+    const sh = !hasClass ? ASSUME.share.pre : late ? ASSUME.share.late : ASSUME.share.mid;
     // classroom
     const cls = rooms.filter(r => r.t === 'classroom');
     const desks = Math.min(cls.reduce((s, r) => s + roomSlots('classroom', r.w, r.h), 0), staff.teacher * 10);
     const ws = rooms.filter(r => r.t === 'workshop');
     const stations = ws.reduce((s, r) => s + roomSlots('workshop', r.w, r.h), 0);
-    // rascals spread over free slots proportionally (they pick whatever is free nearby)
-    const students = Math.min(desks, avail * desks / Math.max(1, desks + stations));
-    avail -= students;
-    const workers = Math.min(avail, stations);
-    avail -= workers;
+    // measured class/workshop shares (class first in src/sim/agents.ts chooseActivity)
+    const students = active ? Math.min(desks, rascals.length * sh.cls) : 0;
+    const workers = active ? Math.min(stations, rascals.length * sh.wk) : 0;
     const wsLvl = ws.length ? ws.reduce((s, r) => s + levelMult(r.lvl) * roomSlots('workshop', r.w, r.h), 0) / Math.max(1, stations) : 1;
     const supervised = Math.min(workers, staff.foreman * 4);
     const crateRate = (supervised + (workers - supervised) * RATE.workshopNoForemanFactor) * RATE.workshopCratesPerStation * wsLvl * mf;
@@ -170,7 +184,7 @@ export function run(verbose = true) {
     // cart: 6 crates per 20 s trip, faster with depot level (logistics bottleneck)
     const dock = rooms.find(r => r.t === 'dock')!;
     // logistics supervisor at 3 stars (no idle waiting), project "Speedy Carts" (+30 %) researched ~18:00
-    const cartEff = stars() >= 3 ? 1 : ASSUME.cartEfficiency;
+    const cartEff = leadHired ? 1 : ASSUME.cartEfficiency;
     const speedy = t >= 1080 ? 1.3 : 1;
     cartCap += (RATE.cartCrates / RATE.cartTripSec) * levelMult(dock.lvl) * cartEff * speedy;
     const sold = Math.floor(Math.min(crateBuf, cartCap)); crateBuf -= sold; cartCap = Math.min(cartCap - sold, RATE.cartCrates);
@@ -187,15 +201,18 @@ export function run(verbose = true) {
       if (s >= 1) { r.pts += RATE.reformClass * clsLvl * mf * dh; s--; }
       else if (s > 0) { r.pts += RATE.reformClass * clsLvl * mf * dh * s; s = 0; }
       else if (w >= 1) { r.pts += RATE.reformWorkshop * mf * dh; w--; }
-      if (ASSUME.mood >= RATE.reformPassiveMood) r.pts += RATE.reformPassive * mf * dh;
+      if (active && moodNow >= RATE.reformPassiveMood) r.pts += RATE.reformPassive * mf * dh; // activity hours only (balance pass M5)
     }
     // --- gate
     gateCd -= 1;
     const gate = rooms.find(r => r.t === 'gate')!;
     const ready = rascals.findIndex(r => r.pts >= r.sentence);
     if (ready >= 0 && gateCd <= 0 && (t >= 40)) {
+      const petty = !!rascals[ready].petty;
+      // src/sim/ferry.ts release(): petty offender and short-timer pay the petty bounty, Earl the brief's 100 coins
+      const mult = petty || rascals[ready].short ? SENTENCE.pettyBounty : rascals[ready].earl ? SENTENCE.earlBounty / releaseBounty(0) : 1;
       rascals.splice(ready, 1); released++;
-      addCoins(releaseBounty(stars()) * gateBountyMult(gate.lvl), 'release'); addRuf(RUF.release, t);
+      addCoins(releaseBounty(stars()) * gateBountyMult(gate.lvl) * mult, 'release'); addRuf(petty ? SENTENCE.pettyRuf : RUF.release, t);
       gateCd = RATE.gateSecPerRelease;
       log.push(`${fmt(t)}  release #${released} (pop ${rascals.length})  coins=${coins.toFixed(0)} ruf=${ruf}`);
       if (released >= 5) objective('release5', t);
@@ -207,9 +224,10 @@ export function run(verbose = true) {
 
     // --- scripted events: tunnel at ~180 s, then director every ~200 s (casual catches 70 %)
     if (t === 185) { caught++; addCoins(ECON.caughtCoins, 'events'); addRuf(RUF.caught + RUF.eventSolved, t); log.push(`${fmt(t)}  spoon tunnel caught ruf=${ruf}`); }
-    if (t === 600) { addRuf(RUF.eventSolved, t); log.push(`${fmt(t)}  food fight solved ruf=${ruf}`); }
-    if (t > 300 && t % 200 === 0 && t !== 600) {
-      if ((t / 200) % 10 < 7) { caught++; addCoins(ECON.caughtCoins, 'events'); addRuf(RUF.caught + RUF.eventSolved, t); }
+    if (t === 630) { addRuf(RUF.eventSolved, t); log.push(`${fmt(t)}  food fight solved ruf=${ruf}`); }
+    // director: first random slot 150 s after the scripted tunnel (5:30), then every ~200 s; food fight ~10:30
+    if (t === 330 || (t > 330 && (t - 330) % 200 === 0 && t !== 630)) {
+      if (((t - 330) / 200) % 10 < 7) { caught++; addCoins(ECON.caughtCoins, 'events'); addRuf(RUF.caught + RUF.eventSolved, t); }
       else addRuf(RUF.escaped, t);
       if (caught >= 3) objective('catch3', t);
     }
@@ -218,15 +236,18 @@ export function run(verbose = true) {
     const day = Math.floor(gameH / 24);
     if (day > lastDay) {
       lastDay = day;
-      let wsum = 0; for (const k of Object.keys(staff) as StaffRole[]) wsum += staff[k] * wageFor(k, roomLvlFor(k, rooms));
-      coins = Math.max(0, coins - wsum); wagesPaid += wsum;
+      // pay grade per staff member = level of the room it works in (k-th member → k-th best room of its type, src/sim/sim.ts onMidnight)
+      let wsum = 0; for (const k of Object.keys(staff) as StaffRole[]) for (let i = 0; i < staff[k]; i++) wsum += wageFor(k, roomLvlFor(k, rooms, i));
+      coins = Math.max(0, coins - wsum * ASSUME.wagePaid); wagesPaid += wsum;
     }
 
     // --- casual staffing (real game: queues/tips push the player to hire)
     if (t % 10 === 0 && t > 120) {
-      const needCooks = Math.ceil(rascals.length / 8);
-      const needGuards = staff.guard > 0 ? Math.ceil(rascals.length / 12) : 0;
-      const needJan = t > 600 ? Math.ceil(rooms.length / 4) : 0;
+      // the casual agent bot's staffing rules (tools/bots.ts): cooks for the served seats, one guard per post, janitors per 5 rooms
+      const seats = rooms.filter(r => r.t === 'canteen').reduce((n, r) => n + roomSlots('canteen', r.w, r.h), 0);
+      const needCooks = Math.ceil(Math.min(rascals.length, seats) / 8);
+      const needGuards = rooms.filter(r => r.t === 'guard').length;
+      const needJan = t > 480 ? Math.floor(rooms.length / 5) : 0;
       const needTeach = staff.teacher > 0 ? rooms.filter(r => r.t === 'classroom').length : 0;
       const wants: [StaffRole, number][] = [['cook', needCooks], ['guard', needGuards], ['janitor', needJan], ['teacher', needTeach]];
       for (const [role, n] of wants) if (staff[role] < n && coins > WAGES[role] * 3) { coins -= WAGES[role]; staff[role]++; }
@@ -238,6 +259,8 @@ export function run(verbose = true) {
       const cost = stepCost(next, rooms);
       if (coins >= cost) {
         coins -= cost; stepQueue.shift();
+        boughtAt[next.label] = t;
+        if (next.kind === 'lead') leadHired = true;
         applyStep(next, rooms, staff, (r) => { if (r === 'workshop' && workshopBuiltAt < 0) { workshopBuiltAt = t; workshopCost = cost + WAGES.foreman; } });
         if (next.kind === 'upgrade' && next.to && next.to >= UPGRADE.milestones[0]) { addRuf(RUF.milestone, t); }
         log.push(`${fmt(t)}  BUY ${next.label} (-${cost.toFixed(0)})  coins=${coins.toFixed(0)} ruf=${ruf} beds=${beds()} rascals=${rascals.length}`);
@@ -255,7 +278,9 @@ export function run(verbose = true) {
       }
     }
 
-    if (inspectionAt < 0 && MANDATORY.every(m => done.has(m))) inspectionAt = t;
+    // §4.3 no runaway: coins far above the next planned purchase for more than a minute
+    if (t > 120 && coins > nextCost + 3000) { if (richSince < 0) richSince = t; else if (t - richSince > 60) runaway++; } else richSince = -1;
+    if (inspectionAt < 0 && MANDATORY.every(m => done.has(m))) { inspectionAt = t; lifetimeAtInspection = lifetime; }
     if (t === 900 || t === 1800) { incomeAt[t] = { ...income }; wagesAt[t] = wagesPaid; }
     gameH += dh;
   }
@@ -269,6 +294,17 @@ export function run(verbose = true) {
   win(450, 540, starAt[1], '2 stars');
   win(840, 960, starAt[2], '3 stars');
   win(1320, 1800, inspectionAt, 'inspection ready (22–30 min)');
+  // purchases that are pacing rows themselves (§4.2)
+  const rowAt = (label: string) => boughtAt[label];
+  win(330, 390, rowAt('Cells 6x3 → 6x6 (12 beds)'), 'cells 12 beds');
+  win(390, 450, rowAt('Yard 4x4'), 'yard');
+  win(450, 540, rowAt('Canteen → Lv5 (milestone)'), 'canteen Lv5');
+  win(540, 600, rowAt('Project: Thicker Mattresses'), 'first project');
+  win(720, 840, rowAt('Parcel 2'), 'parcel 2');
+  win(840, 960, rowAt('Logistics lead (3★)'), 'first lead');
+  win(960, 1200, rowAt('Workshop → Lv15 (milestone)'), 'core room Lv15');
+  win(1200, 1440, rowAt('Parcel 3'), 'parcel 3');
+  if (runaway) errors.push(`runaway: coins > next purchase + 3000 for ${runaway} s`);
   for (const at of [900, 1800]) {
     const inc = incomeAt[at]; const tot = inc.release + inc.crates + inc.board;
     const mix = { release: inc.release / tot, crates: inc.crates / tot, board: inc.board / tot };
@@ -281,8 +317,9 @@ export function run(verbose = true) {
   }
   const payback = paybackAt - workshopBuiltAt;
   if (paybackAt < 0 || payback < 120 || payback > 240) errors.push(`workshop payback ${paybackAt < 0 ? 'never' : fmt(payback)} (target 2–4 min)`);
-  const keys = keysFor(lifetime, 1);
-  log.push(`lifetime coins @30:00 ${lifetime.toFixed(0)} → base keys ${keys}`);
+  // Brief §3.17: the casual player gets 4–6 base keys at the FIRST inspection (not at 30:00)
+  const keys = keysFor(lifetimeAtInspection < 0 ? lifetime : lifetimeAtInspection, 1);
+  log.push(`lifetime coins @inspection ${fmt(inspectionAt)} ${lifetimeAtInspection.toFixed(0)} (@30:00 ${lifetime.toFixed(0)}) → base keys ${keys}`);
   if (keys < 4 || keys > 6) errors.push(`base keys ${keys} (target 4–6)`);
   if (stepQueue.length) errors.push(`build order unfinished: ${stepQueue.map(s => s.label).join(', ')}`);
 
@@ -298,9 +335,9 @@ export function run(verbose = true) {
   return { errors, summary, log };
 }
 
-function roomLvlFor(role: StaffRole, rooms: Room[]) {
-  const rs = rooms.filter(r => r.t === STAFF_ROOM[role]);
-  return rs.length ? Math.max(...rs.map(r => r.lvl)) : 1;
+function roomLvlFor(role: StaffRole, rooms: Room[], k = 0) {
+  const rs = rooms.filter(r => r.t === STAFF_ROOM[role]).map(r => r.lvl).sort((a, b) => b - a);
+  return rs.length ? rs[Math.min(k, rs.length - 1)] : 1;
 }
 
 function stepCost(s: Step, rooms: Room[]): number {
@@ -317,6 +354,7 @@ function stepCost(s: Step, rooms: Room[]): number {
     }
     case 'hire': return WAGES[s.role!];
     case 'parcel': return PARCELS[s.parcel!].price;
+    case 'project': case 'lead': return s.cost!;
   }
 }
 
@@ -326,7 +364,7 @@ function applyStep(s: Step, rooms: Room[], staff: Record<StaffRole, number>, onB
     case 'expand': { const r = rooms.find(x => x.t === s.t)!; r.w = s.w!; r.h = s.h!; break; }
     case 'upgrade': { const r = rooms.find(x => x.t === s.t)!; r.lvl = Math.max(r.lvl, s.to!); break; }
     case 'hire': staff[s.role!]++; break;
-    case 'parcel': break;
+    case 'parcel': case 'project': case 'lead': break;
   }
 }
 

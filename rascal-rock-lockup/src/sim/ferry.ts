@@ -1,5 +1,5 @@
 /** Ferry intake (Brief §3.6, §3.11) and the Parole Gate (§3.4, §2.2 USP 1). */
-import { FERRY, RATE, RUF, releaseBounty, gateBountyMult } from '../content/balance';
+import { FERRY, RATE, RUF, SENTENCE, releaseBounty, gateBountyMult } from '../content/balance';
 import { TICKS_PER_HOUR, AF, type World, type Agent } from './types';
 import { spawnRascal, goTo, setState, releaseSlot, rascals } from './agents';
 import { roomsOf, emit, earn, addRuf, starsOf } from './world';
@@ -53,7 +53,7 @@ export function ferryTick(w: World) {
         const waiting = rascals(w).filter(a => a.state === 'waitingDock').length;
         const beds = freeBeds(w).length - waiting;
         if (beds > 0 || waiting < FERRY.dockQueueMax) {
-          const first = w.stats.arrived === 0;
+          const first = w.stats.arrived === 0 && !w.prestige.transfers; // no second Earl on a transfer run
           const vip = !!w.director.data.vipNext && f.aboard === 1;
           const a = spawnRascal(w, w.poi.ferryBerth.x, w.poi.ferryBerth.y, { earl: first, vip });
           if (vip) w.director.data.vipNext = 0;
@@ -111,13 +111,21 @@ export function release(w: World, a: Agent) {
   w.director.data.lastRelease = w.rtMs;
   const gate = roomsOf(w, 'gate')[0];
   const vip = !!(a.flags & AF.vip);
-  const bounty = releaseBounty(starsOf(w.ruf), vip) * gateBountyMult(gate?.level ?? 1) * releaseBountyMult(w);
+  // G2 hook: the petty offender (content/balance SENTENCE.petty) pays a petty bounty – the early second release is a
+  // celebration, not an economy jump (docs/BALANCE.md §6)
+  const petty = !(a.flags & (AF.earl | AF.vip)) && a.sentence === SENTENCE.petty ? SENTENCE.pettyBounty : 1;
+  // balance pass M5: short-timers (the 3rd passenger of the first ferry, sentence ≤ SENTENCE.third[1]) pay the petty
+  // bounty too, and Earl pays the brief's "+100 Coins" (§4.2) – the scripted early releases are celebrations; the full
+  // bounties pushed releases to 55–57 % of the income at 15:00 (Brief §3.8: 40–50 %)
+  const short = !(a.flags & (AF.earl | AF.vip)) && petty === 1 && a.sentence <= SENTENCE.third[1] ? SENTENCE.pettyBounty : 1;
+  const earl = a.flags & AF.earl ? SENTENCE.earlBounty / releaseBounty(0) : 1;
+  const bounty = releaseBounty(starsOf(w.ruf), vip) * gateBountyMult(gate?.level ?? 1) * releaseBountyMult(w) * petty * short * earl;
   releaseSlot(w, a);
   a.bed = 0; a.bedSlot = -1; a.act = null;
   earn(w, 'release', bounty, { x: a.x, y: a.y });
-  addRuf(w, 'release', RUF.release);
+  addRuf(w, 'release', petty < 1 ? SENTENCE.pettyRuf : RUF.release);
   w.stats.released++;
-  const firstEver = w.stats.released === 1;
+  const firstEver = w.stats.released === 1 && !w.prestige.transfers; // happytime only for the first release ever (§11.1)
   emit(w, 'release', { id: a.id, name: a.name, bounty, vip, first: firstEver });
   goTo(a, 'roadExit', w.poi.roadExit.x, w.poi.roadExit.y);
   setState(w, a, 'leaving');

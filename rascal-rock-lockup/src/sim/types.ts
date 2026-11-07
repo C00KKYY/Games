@@ -237,6 +237,8 @@ export interface InspectionState {
   startMs: number;
   /** goose inspector position (tile units) while walking; the renderer draws it, it is not an Agent */
   walker: { x: number; y: number; dir: Side; moving: boolean; wp: number };
+  /** waypoints of the walk (tile units), set by callInspection: dock → each built room door → gate; walker.wp indexes it */
+  route: Tile[];
   /** earliest game day a (re)inspection may be called; 0 = any */
   retryDay: number;
   /** rolling measurement window (≤ 48 buckets, oldest first) */

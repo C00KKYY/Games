@@ -8,8 +8,8 @@
 import { P } from '../../art/palette';
 import { T, shape, flat, strokeP, rr, ell, type Sprite, type Tone } from './kit';
 
-type Dir = 'S' | 'N' | 'E';
-const spr = (name: string, w: number, h: number, ax: number, ay: number, body: string): Sprite => ({ name, w, h, ax, ay, body, pad: 2 });
+export type Dir = 'S' | 'N' | 'E';
+export const spr = (name: string, w: number, h: number, ax: number, ay: number, body: string): Sprite => ({ name, w, h, ax, ay, body, pad: 2 });
 
 // ---------------------------------------------------------------- body (tintable overall)
 function body(dir: Dir): Sprite {
@@ -42,16 +42,16 @@ const paw = (): Sprite => spr('paw', 4.6, 4.6, 2.3, 2.3, shape(ell(2.3, 2.3, 2.3
 
 // ---------------------------------------------------------------- shared face bits
 /** half-lidded adult eye: small oval, pupil, heavy lid line */
-const eye = (x: number, y: number, lid: string, raised = false, white: string = P.cream300) =>
+export const eye = (x: number, y: number, lid: string, raised = false, white: string = P.cream300) =>
   `<ellipse cx="${x}" cy="${y}" rx="1.45" ry="1.15" fill="${white}"/><circle cx="${x + 0.15}" cy="${y + 0.25}" r="0.78" fill="${P.ink900}"/>`
   + `<path d="M${x - 1.7} ${y - (raised ? 0.7 : 0.15)}Q${x} ${y - (raised ? 1.9 : 1.0)} ${x + 1.7} ${y - (raised ? 0.5 : 0.1)}" stroke="${lid}" stroke-width="1.15" fill="none" stroke-linecap="round"/>`
   + `<path d="M${x - 1.6} ${y - 0.2}Q${x} ${y - 1.2} ${x + 1.6} ${y - 0.1}L${x + 1.6} ${y - 1.6}L${x - 1.6} ${y - 1.6}Z" fill="${lid}" opacity=".55"/>`;
-const eyeSide = (x: number, y: number, lid: string, white: string = P.cream300) =>
+export const eyeSide = (x: number, y: number, lid: string, white: string = P.cream300) =>
   `<ellipse cx="${x}" cy="${y}" rx="1.1" ry="1.1" fill="${white}"/><circle cx="${x + 0.4}" cy="${y + 0.25}" r="0.72" fill="${P.ink900}"/>`
   + `<path d="M${x - 1.3} ${y - 0.1}Q${x} ${y - 1.1} ${x + 1.4} ${y - 0.2}" stroke="${lid}" stroke-width="1.1" fill="none" stroke-linecap="round"/>`;
-const smirk = (x: number, y: number, c: string) => strokeP(`M${x - 1.6} ${y}Q${x} ${y + 0.9} ${x + 1.8} ${y - 0.5}`, c, 0.9);
+export const smirk = (x: number, y: number, c: string) => strokeP(`M${x - 1.6} ${y}Q${x} ${y + 0.9} ${x + 1.8} ${y - 0.5}`, c, 0.9);
 
-interface Species {
+export interface Species {
   id: string;
   fur: Tone; furDark: Tone; muzzle: Tone;
   lid: string;
@@ -103,7 +103,7 @@ function ears(sp: Species, w: number, h: number, dir: Dir): string {
   return b;
 }
 
-function headS(sp: Species): Sprite {
+export function headS(sp: Species): Sprite {
   const { w, h } = sp.head;
   let b = ears(sp, w, h, 'S');
   b += shape(`M${-w / 2} ${-h * 0.42}Q${-w / 2} ${-h} 0 ${-h}Q${w / 2} ${-h} ${w / 2} ${-h * 0.42}Q${w / 2 - 1} 0 0 0Q${-w / 2 + 1} 0 ${-w / 2} ${-h * 0.42}Z`, sp.fur, { s: 2.5, h: 1.2 });
@@ -119,7 +119,7 @@ function headS(sp: Species): Sprite {
   b += eye(-ex, ey, sp.lid, false, white) + eye(ex, ey, sp.lid, true, white);
   return spr(`head_${sp.id}_S`, w + 4, h + 8, (w + 4) / 2, h + 8, `<g transform="translate(${(w + 4) / 2} ${h + 8})">${b}</g>`);
 }
-function headN(sp: Species): Sprite {
+export function headN(sp: Species): Sprite {
   const { w, h } = sp.head;
   let b = ears(sp, w, h, 'N');
   b += shape(`M${-w / 2} ${-h * 0.42}Q${-w / 2} ${-h} 0 ${-h}Q${w / 2} ${-h} ${w / 2} ${-h * 0.42}Q${w / 2 - 1} 0 0 0Q${-w / 2 + 1} 0 ${-w / 2} ${-h * 0.42}Z`, sp.fur, { s: 2.5, h: 1.2 });
@@ -127,7 +127,7 @@ function headN(sp: Species): Sprite {
   if (sp.id === 'badger') b += `<path d="M-2.4 -${h - 0.6}H2.4L1.6 -2H-1.6Z" fill="${P.cream300}"/>`;
   return spr(`head_${sp.id}_N`, w + 4, h + 8, (w + 4) / 2, h + 8, `<g transform="translate(${(w + 4) / 2} ${h + 8})">${b}</g>`);
 }
-function headE(sp: Species): Sprite {
+export function headE(sp: Species): Sprite {
   const { w, h } = sp.head;
   const hw = w * 0.42, sn = sp.snoutE;
   let b = ears(sp, w, h, 'E');
@@ -141,7 +141,7 @@ function headE(sp: Species): Sprite {
   return spr(`head_${sp.id}_E`, W, h + 8, w * 0.5 + 2, h + 8, `<g transform="translate(${w * 0.5 + 2} ${h + 8})">${b}</g>`);
 }
 /** blink overlay: fur-coloured patch + closed lid line, placed over the eyes */
-function blink(sp: Species, dir: 'S' | 'E'): Sprite {
+export function blink(sp: Species, dir: 'S' | 'E'): Sprite {
   const { w, h } = sp.head;
   const furC = sp.id === 'raccoon' ? P.ink900 : sp.fur.base;
   let b = '';

@@ -99,5 +99,13 @@
   "overlays.reason.noFerry": "Gerade kommt keine Fähre an",
   "overlays.reason.empty": "Noch keine Kisten zum Abholen",
   "overlays.reason.none": "Gerade braucht das niemand",
-  "overlays.reason.open": "Zahl zuerst das laufende Darlehen zurück"
+  "overlays.reason.open": "Zahl zuerst das laufende Darlehen zurück",
+  "overlays.toast.starNext": "{n}★ erreicht! Neu: {what}. Nächster: {next}★ bei {at} Ruf – {nextWhat}",
+  "overlays.toast.starMax": "{n}★ erreicht! Neu: {what}",
+  "overlays.starNew.1": "Entlassungen bringen +5 %",
+  "overlays.starNew.2": "die Projekttafel",
+  "overlays.starNew.3": "3×-Tempo und deine erste Leitung",
+  "overlays.starNew.4": "eine zweite Leitung",
+  "overlays.starNew.5": "Entlassungen bringen +25 %",
+  "overlays.toast.firstShipment": "Erste Lieferung! Der Karren hat deine Kisten verkauft: +{n} Münzen"
 }

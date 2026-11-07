@@ -137,6 +137,7 @@ export function mountModals(ctx: UICtx): Component & { open(name: Name): void; c
 
     // reset with a two-step confirmation
     const rs = section(body, 'overlays.progress');
+    h('p', 'ov-p', rs, t('progress.awayHint')); // M5: offline earnings (Brief §3.15 "Pause-Panel-Hinweis")
     const resetWrap = h('div', 'ov-reset', rs);
     const renderReset = () => {
       resetWrap.replaceChildren();

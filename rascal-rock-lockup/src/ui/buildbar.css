@@ -105,3 +105,11 @@
 .hud .bb-menu.bb-compact .bb-head { margin-bottom: .3rem; }
 .hud .bb-menu.bb-compact .bb-card { width: 10.8rem; padding: .35rem .45rem .4rem; }
 .hud .bb-menu.bb-compact .bb-role { width: 11.8rem; }
+
+/* ---- G2 (docs/G2_FEEDBACK.md): purpose line, goal ribbon, land card */
+.hud .bb-why { font-weight: 600; color: var(--ink900); align-items: flex-start; }
+.hud .bb-goal { display: none; flex: 0 0 auto; margin-left: auto; padding: .05rem .3rem; border-radius: 5px; background: var(--gold500); border: 2px solid var(--wood700); font: 700 .86rem/1.15 Fredoka, Inter, sans-serif; letter-spacing: .03em; color: var(--wood900); transform: rotate(4deg); pointer-events: none; }
+.hud .bb-card.goal { border-color: var(--gold700); box-shadow: inset 0 0 0 2px var(--gold500), inset 0 -3px 0 var(--cream700); }
+.hud .bb-card.goal .bb-goal { display: block; }
+.hud .bb-land .bb-buyland { margin-top: auto; }
+.hud .bb-buyland.armed { background: var(--gold500); border-color: var(--wood700); color: var(--wood900); }

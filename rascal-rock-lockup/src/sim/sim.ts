@@ -203,6 +203,7 @@ export const cmd = {
   }),
   tapHorn: (w: World) => logged(w, 'tapHorn', [], (): CommandResult => {
     if (w.ferry.state !== 'arriving') return { ok: false, reason: 'noFerry' };
+    if (w.ferry.tapped) return { ok: false, reason: 'cooldown' }; // one counted tap per ferry
     w.ferry.tapped = true; w.stats.horntaps++; w.taps.horn++; w.taps.hornTotal++; emit(w, 'hornTap');
     return { ok: true };
   }),

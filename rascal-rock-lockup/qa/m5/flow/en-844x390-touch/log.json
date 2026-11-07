@@ -1,0 +1,598 @@
+{
+ "shots": [
+  {
+   "file": "00-site1-30min.jpg",
+   "label": "site1-30min",
+   "rt": 1803,
+   "coins": 10947,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "01-project-board.jpg",
+   "label": "project-board",
+   "rt": 1803,
+   "coins": 10947,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "projects",
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "02-project-started.jpg",
+   "label": "project-started",
+   "rt": 1803,
+   "coins": 10447,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "projects",
+   "paused": false,
+   "overlaps": [
+    ".m5-rail × .m5p (63×141)"
+   ]
+  },
+  {
+   "file": "03-staff-menu.jpg",
+   "label": "staff-menu",
+   "rt": 1804,
+   "coins": 10447,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": [
+    ".m5-rail × .bb-menu (115×121)",
+    ".ov-toasts × .bb-menu (282×31)"
+   ]
+  },
+  {
+   "file": "04-leads-panel.jpg",
+   "label": "leads-panel",
+   "rt": 1804,
+   "coins": 10466,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "leads",
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "05-mail.jpg",
+   "label": "mail",
+   "rt": 1806,
+   "coins": 10466,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "mail",
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "06-inspection-forecast.jpg",
+   "label": "inspection-forecast",
+   "rt": 1807,
+   "coins": 10466,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "forecast",
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "07-inspection-walk.jpg",
+   "label": "inspection-walk",
+   "rt": 1815,
+   "coins": 10845,
+   "ruf": 845,
+   "site": 1,
+   "keys": 0,
+   "phase": "walking",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "08-inspection-follow.jpg",
+   "label": "inspection-follow",
+   "rt": 1819,
+   "coins": 11261,
+   "ruf": 865,
+   "site": 1,
+   "keys": 0,
+   "phase": "walking",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "09-inspection-result.jpg",
+   "label": "inspection-result",
+   "rt": 1852,
+   "coins": 12852,
+   "ruf": 905,
+   "site": 1,
+   "keys": 0,
+   "phase": "result",
+   "panel": "inspection",
+   "paused": true,
+   "overlaps": []
+  },
+  {
+   "file": "10-transfer-dialog.jpg",
+   "label": "transfer-dialog",
+   "rt": 1852,
+   "coins": 12852,
+   "ruf": 905,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "transfer",
+   "paused": true,
+   "overlaps": []
+  },
+  {
+   "file": "11-transfer-confirm.jpg",
+   "label": "transfer-confirm",
+   "rt": 1852,
+   "coins": 12852,
+   "ruf": 905,
+   "site": 1,
+   "keys": 0,
+   "phase": "idle",
+   "panel": "transfer",
+   "paused": true,
+   "overlaps": []
+  },
+  {
+   "file": "12-after-transfer.jpg",
+   "label": "after-transfer",
+   "rt": 3,
+   "coins": 900,
+   "ruf": 0,
+   "site": 1,
+   "keys": 11,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": [
+    ".tu-jit.on × .m5-plaque (210×32)"
+   ]
+  },
+  {
+   "file": "13-perk-shop.jpg",
+   "label": "perk-shop",
+   "rt": 3,
+   "coins": 900,
+   "ruf": 0,
+   "site": 1,
+   "keys": 11,
+   "phase": "idle",
+   "panel": "transfer",
+   "paused": true,
+   "overlaps": []
+  },
+  {
+   "file": "14-perk-bought.jpg",
+   "label": "perk-bought",
+   "rt": 3,
+   "coins": 900,
+   "ruf": 0,
+   "site": 1,
+   "keys": 8,
+   "phase": "idle",
+   "panel": "transfer",
+   "paused": true,
+   "overlaps": []
+  },
+  {
+   "file": "15-new-run-20s.jpg",
+   "label": "new-run-20s",
+   "rt": 24,
+   "coins": 901,
+   "ruf": 0,
+   "site": 1,
+   "keys": 8,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "16-return-panel.jpg",
+   "label": "return-panel",
+   "rt": 176,
+   "coins": 862,
+   "ruf": 0,
+   "site": 1,
+   "keys": 8,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "17-catch-up.jpg",
+   "label": "catch-up",
+   "rt": 297,
+   "coins": 979,
+   "ruf": 0,
+   "site": 1,
+   "keys": 8,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": []
+  },
+  {
+   "file": "18-tab-return-panel.jpg",
+   "label": "tab-return-panel",
+   "rt": 297,
+   "coins": 979,
+   "ruf": 0,
+   "site": 1,
+   "keys": 8,
+   "phase": "idle",
+   "panel": null,
+   "paused": false,
+   "overlaps": [
+    ".m5-ret × .ov-toasts (308×7)"
+   ]
+  }
+ ],
+ "clicks": [
+  {
+   "what": "Projects button",
+   "sel": ".bb-projects",
+   "x": 522.5,
+   "y": 357.0625,
+   "hit": true,
+   "under": "button.bb-btn.bb-projects",
+   "disabled": false,
+   "label": "Project Board"
+  },
+  {
+   "what": "start project",
+   "sel": ".pb-start:not([disabled])",
+   "x": 600.6640625,
+   "y": 295.75,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Start 500 – Recipe Book"
+  },
+  {
+   "what": "Staff button",
+   "sel": ".bb-staff",
+   "x": 381.765625,
+   "y": 357.0625,
+   "hit": true,
+   "under": "button.bb-btn.bb-staff",
+   "disabled": false,
+   "label": "Staff"
+  },
+  {
+   "what": "Office card",
+   "sel": ".bb-office-open",
+   "x": 753.59375,
+   "y": 279.171875,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Open office – 2 of 2 slots filled"
+  },
+  {
+   "what": "Mail",
+   "sel": ".ml-btn",
+   "x": 813.953125,
+   "y": 179.421875,
+   "hit": true,
+   "under": "button.m5-rbtn.ml-btn",
+   "disabled": false,
+   "label": "Mayor's Mail – New mail or a reward to collect"
+  },
+  {
+   "what": "Inspection rail button",
+   "sel": ".in-btn",
+   "x": 813.953125,
+   "y": 80.046875,
+   "hit": true,
+   "under": "button.m5-rbtn.in-btn",
+   "disabled": false,
+   "label": "Inspection Day – Ready – call it now!"
+  },
+  {
+   "what": "Call Inspection Day",
+   "sel": ".in-call:not([disabled])",
+   "x": 567,
+   "y": 295.90625,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Call Inspection Day"
+  },
+  {
+   "what": "Follow the inspector",
+   "sel": ".in-walk",
+   "x": 422,
+   "y": 82.796875,
+   "hit": true,
+   "under": "div.m5-bar.gold",
+   "disabled": false,
+   "label": "Inspection walk 0:37 – Following"
+  },
+  {
+   "what": "Transfer…",
+   "sel": ".in-transfer",
+   "x": 547.4140625,
+   "y": 358.40625,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Transfer…"
+  },
+  {
+   "what": "Transfer (1st tap)",
+   "sel": ".tr-go",
+   "x": 422,
+   "y": 358.171875,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Transfer"
+  },
+  {
+   "what": "Transfer (confirm)",
+   "sel": ".tr-go",
+   "x": 315.140625,
+   "y": 358.171875,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Yes, transfer"
+  },
+  {
+   "what": "Keys / perk shop",
+   "sel": ".tr-keys",
+   "x": 810.5,
+   "y": 129.734375,
+   "hit": true,
+   "under": "button.m5-rbtn.tr-keys",
+   "disabled": false,
+   "label": "Golden keys: 11"
+  },
+  {
+   "what": "Buy perk",
+   "sel": ".tr-buy:not([disabled])",
+   "x": 366.8515625,
+   "y": 208.109375,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Buy 3 – Start Capital"
+  },
+  {
+   "what": "Collect",
+   "sel": ".ret-collect",
+   "x": 422,
+   "y": 243.09375,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Collect +151"
+  },
+  {
+   "what": "Collect (tab return)",
+   "sel": ".ret-collect",
+   "x": 422,
+   "y": 243.09375,
+   "hit": true,
+   "under": "span.",
+   "disabled": false,
+   "label": "Collect +79"
+  }
+ ],
+ "notes": [
+  "after warp: {\"fresh\":1803000,\"stars\":0,\"mail\":true,\"insp\":\"idle\"}",
+  "project started: 0 → {\"id\":\"recipeBook\",\"leftMs\":89800,\"totalMs\":90000}",
+  "overlap @project-started: .m5-rail × .m5p (63×141)",
+  "overlap @staff-menu: .m5-rail × .bb-menu (115×121); .ov-toasts × .bb-menu (282×31)",
+  "no hire button enabled; leads [\"logistics\",\"intake\"]",
+  "inspection result: stars 2 passed true grades {\"comfort\":\"C\",\"safety\":\"A\",\"reform\":\"A\",\"profit\":\"A\"}",
+  "after transfer: transfers 0 → 1, keys 11, paused false, tutorial {\"active\":false,\"step\":4,\"skipped\":false,\"done\":true}",
+  "overlap @after-transfer: .tu-jit.on × .m5-plaque (210×32)",
+  "perk bought: keys 11 → 8, perks {\"startCapital\":1}",
+  "new run goal: 0 / Build a Wash Hut",
+  "saved at rt 173700: {\"saveState\":\"ok\",\"available\":true,\"seq\":7,\"writes\":7,\"bytes\":8061,\"error\":null,\"sandbox\":false,\"loaded\":\"none\"}",
+  "after reload: rt 175700, pending {\"coins\":151,\"awayMs\":1805000,\"effPct\":40,\"capMs\":7200000,\"capped\":false}",
+  "collected: 862.2399999999996 → 1013.2399999999996",
+  "catch-up state: {\"mode\":\"catchup\",\"left\":600,\"total\":1500}",
+  "overlap @tab-return-panel: .m5-ret × .ov-toasts (308×7)"
+ ],
+ "events": [
+  {
+   "type": "offlinePending",
+   "rt": 173700
+  },
+  {
+   "type": "coins",
+   "rt": 175700
+  },
+  {
+   "type": "offlineCollected",
+   "rt": 175700
+  },
+  {
+   "type": "cmd",
+   "rt": 175700
+  },
+  {
+   "type": "coins",
+   "rt": 180000
+  },
+  {
+   "type": "coins",
+   "rt": 187500
+  },
+  {
+   "type": "coins",
+   "rt": 195000
+  },
+  {
+   "type": "coins",
+   "rt": 202500
+  },
+  {
+   "type": "coins",
+   "rt": 210000
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 210000
+  },
+  {
+   "type": "coins",
+   "rt": 217500
+  },
+  {
+   "type": "coins",
+   "rt": 225000
+  },
+  {
+   "type": "ferryDock",
+   "rt": 230000
+  },
+  {
+   "type": "arrive",
+   "rt": 230600
+  },
+  {
+   "type": "admit",
+   "rt": 230600
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 230600
+  },
+  {
+   "type": "coins",
+   "rt": 232500
+  },
+  {
+   "type": "coins",
+   "rt": 240000
+  },
+  {
+   "type": "coins",
+   "rt": 247500
+  },
+  {
+   "type": "coins",
+   "rt": 255000
+  },
+  {
+   "type": "coins",
+   "rt": 262500
+  },
+  {
+   "type": "coins",
+   "rt": 266250
+  },
+  {
+   "type": "coins",
+   "rt": 270000
+  },
+  {
+   "type": "dayEnd",
+   "rt": 270000
+  },
+  {
+   "type": "coins",
+   "rt": 273750
+  },
+  {
+   "type": "coins",
+   "rt": 277500
+  },
+  {
+   "type": "coins",
+   "rt": 281250
+  },
+  {
+   "type": "coins",
+   "rt": 285000
+  },
+  {
+   "type": "coins",
+   "rt": 288750
+  },
+  {
+   "type": "coins",
+   "rt": 292500
+  },
+  {
+   "type": "offlinePending",
+   "rt": 296900
+  },
+  {
+   "type": "coins",
+   "rt": 297100
+  },
+  {
+   "type": "offlineCollected",
+   "rt": 297100
+  },
+  {
+   "type": "cmd",
+   "rt": 297100
+  }
+ ],
+ "sdk": [
+  "init",
+  "getItem\"rrl_save_a\"",
+  "getItem\"rrl_save_b\"",
+  "reportGameCompletedPercentage",
+  "gameplayStart",
+  "setItem\"rrl_save_a\"",
+  "setItem\"rrl_save_b\"",
+  "setItem\"rrl_save_a\"",
+  "gameplayStop",
+  "reportGameCompletedPercentage",
+  "happytime",
+  "setItem\"rrl_save_b\"",
+  "gameplayStart",
+  "setItem\"rrl_save_a\"",
+  "gameplayStop",
+  "setItem\"rrl_save_b\"",
+  "gameplayStart",
+  "--- reload",
+  "init",
+  "getItem\"rrl_save_a\"",
+  "getItem\"rrl_save_b\"",
+  "reportGameCompletedPercentage",
+  "gameplayStart",
+  "getItem\"rrl_save_a\"",
+  "setItem\"rrl_save_b\"",
+  "getItem\"rrl_save_a\"",
+  "setItem\"rrl_save_a\""
+ ],
+ "errors": [],
+ "foreign": []
+}

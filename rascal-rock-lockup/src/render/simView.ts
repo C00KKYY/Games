@@ -1,7 +1,7 @@
 /** Renders a sim World: static island props, rooms (rebuilt when the grid version changes), agents with smoothing. */
 import { Sprite, Container, type Application } from 'pixi.js';
 import { WorldView, TILE } from './world';
-import { AgentView, SECURITY, type Look } from './agentsView';
+import { AgentView, SECURITY, type Look, type Held } from './agentsView';
 import { Ambient } from './fx';
 import { tex } from './atlas';
 import { rclock } from './rclock';
@@ -26,10 +26,20 @@ export function lookFor(a: Agent): Look {
     }
   }
   const sec = SECURITY[a.security];
+  // the Cat Burglar (Brief §3.12 / §5.4): cat with a top hat, high-security overall
+  if (a.kind === 'vip' || a.species === 'cat') return { species: 'cat', overall: SECURITY.high.overall, stripe: SECURITY.high.stripe, paw: hex(P.ink700), acc: 'tophat', tail: 'cat' };
   const species = a.species === 'weasel' ? 'weasel' : 'raccoon';
   const k = a.look % 7;
   const acc: Look['acc'] = k === 1 ? 'beanie' : k === 2 ? 'glasses' : k === 3 ? 'scarf' : k === 4 ? 'bandage' : undefined;
   return { species, overall: sec.overall, stripe: sec.stripe, paw: species === 'raccoon' ? hex(P.ink700) : hex(P.wood700), acc, accTint: ACC_TINTS[(a.look >> 3) % ACC_TINTS.length], tail: species };
+}
+
+/** M5 project props carried by staff: golden whistle (Whistle Training), mop (Squeaky Mops) */
+export function heldFor(a: Agent, w: World): Held | null {
+  if (a.kind !== 'staff') return null;
+  if (a.role === 'guard' && w.projects.done.whistle) return 'whistle';
+  if (a.role === 'janitor' && w.projects.done.squeakyMops) return 'mop';
+  return null;
 }
 
 interface Disp { v: AgentView | null; s: Sprite | null; x: number; y: number }
@@ -105,10 +115,14 @@ export class SimView {
     this.progress.update(dt);
     // ferry: away → off screen to the west, arriving/docked at the berth
     const f = w.ferry;
+    // Bigger Ferry project: the ferry with the extra deck (same berth anchor)
+    const ft = tex(w.projects.done.biggerFerry ? 'ferryBig' : 'ferry');
+    if (this.ferry.texture !== ft) { this.ferry.texture = ft; const fa = ft.defaultAnchor; this.ferry.anchor.set(fa?.x ?? 0.5, fa?.y ?? 1); }
     const targetX = f.state === 'away' ? -9 : f.state === 'leaving' ? -9 : FERRY_POS.x;
     this.ferry.x += ((targetX * TILE) - this.ferry.x) * Math.min(1, dt * (f.state === 'leaving' ? 0.8 : 1.6));
     this.ferry.y = FERRY_POS.y * TILE + Math.sin(rclock.t * 1.1) * 1.2;
     // agents
+    const cartTex = tex(w.projects.done.speedyCarts ? 'cartRacer' : 'cart');   // Speedy Carts: racing stripes
     const seen = new Set<number>();
     for (const a of w.agents) {
       seen.add(a.id);
@@ -125,12 +139,13 @@ export class SimView {
       const px = d.x, py = d.y;
       d.x += (tx - d.x) * k; d.y += (ty - d.y) * k;
       const sp = Math.hypot(d.x - px, d.y - py) / Math.max(1e-3, dt);
-      if (d.s) { d.s.position.set(d.x, d.y + 6); d.s.zIndex = d.y + 6; d.s.scale.x = a.dir === 'W' ? -1 : 1; continue; }
+      if (d.s) { if (d.s.texture !== cartTex) d.s.texture = cartTex; d.s.position.set(d.x, d.y + 6); d.s.zIndex = d.y + 6; d.s.scale.x = a.dir === 'W' ? -1 : 1; continue; }
       const v = d.v!;
       const dir = a.dir;
       if (v.dir !== dir && (a.moving || a.state === 'using')) v.setDir(dir);
       v.c.position.set(d.x, d.y); v.c.zIndex = d.y;
       v.c.visible = !(a.flags & 128);
+      if (a.kind === 'staff') v.setHeld(heldFor(a, w));
       v.update(dt, a.moving ? Math.max(sp, 20) : 0);
     }
     for (const [id, d] of this.agents) if (!seen.has(id)) { d.v?.c.destroy({ children: true }); d.s?.destroy(); this.agents.delete(id); }

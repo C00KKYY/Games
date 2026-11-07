@@ -4,6 +4,7 @@ import { AF, type World } from './types';
 import { roomsOf, emit, earn, addRuf, starsOf } from './world';
 import { totalBeds } from './ferry';
 import { rascals } from './agents';
+import { FOLLOWUPS, type FollowupId } from '../content/progress';
 
 export interface ObjectiveDef { id: string; mandatory: boolean; target: number; progress: (w: World) => number; unlocks?: string[]; onlyIfSkipped?: boolean }
 
@@ -16,16 +17,40 @@ export const OBJECTIVES: ObjectiveDef[] = [
   { id: 'beds12', mandatory: false, target: 12, progress: w => totalBeds(w), unlocks: ['yard'] },
   { id: 'yard', mandatory: false, target: 1, progress: w => roomsOf(w, 'yard').filter(r => r.built).length },
   { id: 'canteen5', mandatory: false, target: 5, progress: w => Math.max(0, ...roomsOf(w, 'canteen').map(r => r.level)) },
-  { id: 'catch3', mandatory: true, target: 3, progress: w => w.stats.caught },
   { id: 'beds24', mandatory: true, target: 24, progress: w => totalBeds(w) },
-  { id: 'release15', mandatory: true, target: 15, progress: w => w.stats.released },
+  // Lv15 before release 15 (balance pass M5): pacing §4.2 puts the core room Lv15 at 16:00–20:00, the 15th release
+  // comes with the inspection at 22–28 min; in the old order the clipboard asked for Lv15 last (casual 27:30)
   { id: 'workshop15', mandatory: true, target: 15, progress: w => Math.max(0, ...roomsOf(w, 'workshop').map(r => r.level)) },
+  { id: 'release15', mandatory: true, target: 15, progress: w => w.stats.released },
+  // catching is not something the player can start (the director sends the escapes): last on the clipboard, so the
+  // current goal is always one the player can work on (Brief §4.3 "verfolgbares Ziel"); it still completes any time
+  { id: 'catch3', mandatory: true, target: 3, progress: w => w.stats.caught },
 ];
 
 export interface ObjState { done: Record<string, boolean>; current: number }
 export const objState = (w: World): ObjState => w.obj;
 export const mandatoryDone = (w: World) => OBJECTIVES.filter(o => o.mandatory).every(o => objState(w).done[o.id]);
 export const objectiveReward = (n: number) => 100 + 40 * n;
+
+/**
+ * "Es gibt immer ein aktuelles Ziel" (Brief §3.16, docs/M5_DESIGN.md §4): the first open clipboard objective, and once
+ * all are done a follow-up (content/progress.ts FOLLOWUPS) – call the inspection, reach 2★ / 3★ on it, transfer.
+ * null only while the tutorial runs (the tutorial step is the goal widget then, D4). Pure read for clipboard/bots.
+ */
+export type Goal =
+  | { kind: 'objective'; id: string; k: number; progress: number; target: number; mandatory: boolean }
+  | { kind: 'followup'; id: FollowupId; progress: number; target: number };
+export function currentGoal(w: World): Goal | null {
+  if (!w.tutorial.done) return null;
+  const st = objState(w);
+  const k = OBJECTIVES.findIndex(o => !st.done[o.id] && !(o.onlyIfSkipped && !w.director.data.skippedNoWash));
+  if (k >= 0) { const o = OBJECTIVES[k]; return { kind: 'objective', id: o.id, k, progress: Math.min(o.target, o.progress(w)), target: o.target, mandatory: o.mandatory }; }
+  const best = w.inspection.best;
+  const id: FollowupId = best < 1 ? FOLLOWUPS[0] : best < 2 ? FOLLOWUPS[1] : best < 3 ? FOLLOWUPS[2] : FOLLOWUPS[3];
+  const progress = id === 'callInspection' ? (w.inspection.phase === 'idle' ? 0 : 1) : id === 'transfer' ? 0 : best;
+  const target = id === 'callInspection' || id === 'transfer' ? 1 : id === 'stars2' ? 2 : 3;
+  return { kind: 'followup', id, progress, target };
+}
 
 /** tutorial: 0 horn → 1 wash hut → 2 stamp Earl → 3 upgrade canteen → done */
 export const TUTORIAL_STEPS = ['horn', 'wash', 'stamp', 'upgrade'] as const;

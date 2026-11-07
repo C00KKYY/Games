@@ -1,0 +1,11 @@
+{
+  "returnPanel.collect": "Collect",
+  "returnPanel.collectBody": "Add {n} coins to your purse.",
+  "returnPanel.hm": "{h} h {m} min",
+  "returnPanel.m": "{m} min",
+  "returnPanel.away": "You were away for {time}.",
+  "returnPanel.eff": "Your lockup earned at {pct} % (leads raise it).",
+  "returnPanel.capped": "Counted up to {time} (perks raise the cap).",
+  "returnPanel.pct": "{n} %",
+  "returnPanel.h": "{h} h"
+}

@@ -118,3 +118,29 @@ describe('tutorial end announces the Knitting Nook unlock', () => {
     }
   });
 });
+
+describe('janitor hint after a food fight (Brief §4.2 row ~10:00 "Hausmeister-Hinweis")', () => {
+  it('shows within 2 min after a food fight while no janitor works, points at that canteen, then goes', () => {
+    const w = afterSkip();
+    const canteen = roomsOf(w, 'canteen')[0];
+    expect(jitStillValid(w, 'janitor')).toBe(false);                 // no food fight yet
+    w.director.data.foodRoom = canteen.id; w.director.data.foodEndMs = w.rtMs;
+    expect(jitStillValid(w, 'janitor')).toBe(true);
+    const m = newJitMemo();
+    const pick = jitPick(w, m, 100_000, { buildTool: false });
+    expect(pick).toMatchObject({ kind: 'janitor', roomId: canteen.id });
+    w.director.active = 'food';                                       // during a fight: the fight banner speaks
+    expect(jitStillValid(w, 'janitor')).toBe(false);
+    w.director.active = null;
+    run(w, 121_000);
+    expect(jitStillValid(w, 'janitor')).toBe(false);                 // stale after 2 min
+  });
+  it('the director marks the end of a solved food fight', () => {
+    const w = afterSkip();
+    const c = roomsOf(w, 'canteen')[0];
+    w.director.active = 'food'; w.director.activeSinceMs = w.rtMs; w.director.data.foodRoom = c.id;
+    run(w, 200);                                                      // nobody brawls → solved at once
+    expect(w.director.active).toBe(null);
+    expect(w.director.data.foodEndMs).toBeGreaterThan(0);
+  });
+});
