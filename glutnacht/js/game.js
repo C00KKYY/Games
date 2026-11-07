@@ -253,8 +253,9 @@ const Game = {
       const pool = first ? [[Object.keys(wv.pool).filter(k => !ENEMIES[k].ranged).sort((a, b) => ENEMIES[b].speed - ENEMIES[a].speed)[0], 1]]
         : rk.length ? rk.map(k => [k, wv.pool[k]])
         : Object.entries(wv.pool).map(([k, v]) => [k, v * ENEMIES[k].hp]);
-      // der erste erscheint sichtbar im Bild, ist schwächer und fast so schnell wie der Held
-      const a = rand(0, TAU), pos = first ? { x: r.p.x + Math.cos(a) * this.view.hw * 0.6, y: r.p.y + Math.sin(a) * this.view.hh * 0.6 } : this.spawnPos();
+      // der erste erscheint sichtbar im Bild, ist schwächer und fast so schnell wie der Held – nicht im oberen Band,
+      // wo gleichzeitig das Elite-Banner steht (Winkel −30° … 210°: seitlich oder unterhalb, höchstens 0,3 über dem Helden)
+      const a = rand(-Math.PI / 6, Math.PI * 7 / 6), pos = first ? { x: r.p.x + Math.cos(a) * this.view.hw * 0.6, y: r.p.y + Math.sin(a) * this.view.hh * 0.6 } : this.spawnPos();
       const e = this.spawnEnemy(weightedPick(pool), pos.x, pos.y);
       e.elite = true;
       e.hp = e.maxHp = first ? Math.max(90, e.maxHp * 3) : Math.max(160, e.maxHp * 14);
