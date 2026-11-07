@@ -145,7 +145,7 @@ const Promo = {
     g.globalCompositeOperation = 'source-over';
 
     // Horde: Positionen mit Abstand zum Helden und zum Titel
-    const types = ['brute', 'wraith', 'ghoul', 'skel', 'bat', 'golem', 'ghost', 'spitter', 'slime', 'wraith', 'skel', 'bat'];
+    const types = ['brute', 'wraith', 'ghoul', 'skel', 'bat', 'golem', 'ghost', 'spitter', 'slime', 'moth', 'cinder', 'wraith', 'skel', 'bat', 'bell'];
     const mobs = [];
     for (let i = 0; i < 260 && mobs.length < 120; i++) {
       const x = rnd() * CW * 1.1 - CW * 0.05, y = rnd() * CH * 1.1 - CH * 0.05;
@@ -367,7 +367,7 @@ const Promo = {
       dur: 3.0,
       setup(P) {
         P.fresh('mira', 300, [['wand', 6], ['orbit', 5], ['lightning', 5], ['knives', 5], ['sickle', 4]], [['might', 2], ['lens', 2], ['hourglass', 2]], {});
-        P.spawnRing(['skel', 'ghost', 'ghoul', 'bat', 'spitter'], 150, 150, 600);
+        P.spawnRing(['skel', 'ghost', 'spitter', 'ghoul', 'moth', 'bat', 'cinder', 'skel', 'bell'], 150, 150, 600);
         P.prewarm(1.4);
         P.say('Stack your *weapons*', 0.12, 2.9, 20, 60);
       },
@@ -398,7 +398,7 @@ const Promo = {
           const b = Game.run.bosses[0];
           if (b) { b.x = Game.run.p.x + 170; b.y = Game.run.p.y - 230; b.skillIdx = 0; b.skillT = 0.35; }
         }],
-        [1.15, P => P.say('A *BOSS* in | every land', 1.15, 3.5, 14, 54)],
+        [1.15, P => P.say('A *BOSS* in | every land', 1.15, 3.5, 62, 54)], // unter dem Helden: oben stehen Bossleiste und Banner
       ],
     },
     { // Höhepunkt: Die Nacht
@@ -408,14 +408,14 @@ const Promo = {
           [['might', 5], ['lens', 5], ['candle', 5], ['clover', 5], ['wing', 5], ['hourglass', 5]]);
         P.spawnRing(['wraith', 'brute', 'golem', 'bat', 'ghoul', 'ghost'], 300, 170, 650);
         P.prewarm(0.4);
-        P.say('Survive *15* minutes.', 0.15, 3.5, 16, 56);
+        P.say('Survive *15* minutes.', 0.15, 3.5, 60, 56); // unter dem Helden: oben steht die Bossleiste
       },
       events: [
         [0.75, P => {
           const b = Game.run.bosses.find(x => x.boss.final);
           if (b) { b.x = Game.run.p.x - 120; b.y = Game.run.p.y - 300; }
         }],
-        [1.7, P => P.say('_If_ _you_ _can._', 1.7, 3.5, 44, 64)],
+        [1.7, P => P.say('_If_ _you_ _can._', 1.7, 3.5, 72, 64)],
       ],
     },
     { // Endkarte
@@ -502,7 +502,7 @@ const Promo = {
     } },
     { dur: 3.2, setup(P) {
       P.fresh('mira', 300, [['wand', 6], ['orbit', 5], ['lightning', 5], ['knives', 5], ['sickle', 4]], [['might', 2], ['lens', 2], ['hourglass', 2]], {});
-      P.spawnRing(['skel', 'ghost', 'ghoul', 'bat', 'spitter'], 170, 150, 650);
+      P.spawnRing(['skel', 'ghost', 'spitter', 'ghoul', 'moth', 'bat', 'cinder', 'skel', 'bell'], 170, 150, 650);
       P.prewarm(1.4);
     } },
     { dur: 3.3, setup(P) {
