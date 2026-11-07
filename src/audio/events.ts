@@ -42,6 +42,20 @@ export function cueFor(e: SimEvent): Cue | null {
     case 'dayEnd': return { id: 'ledgerRegister' };
     case 'loan': case 'loanRepaid': return { id: 'ledgerRegister', opts: { vol: 0.8 } };
     case 'unpaid': return { id: 'deny' };
+    // M5 (docs/M5_DESIGN.md §11): existing sounds only
+    case 'projectStart': return { id: 'buildStart', opts: { vol: 0.7 } };
+    case 'projectDone': return { id: 'objective' };                                   // small fanfare
+    case 'leadHired': return { id: 'hire' };
+    case 'leadAutoTap': return { id: 'ferryHorn', opts: { vol: 0.75 } };               // Olli taps the horn
+    case 'inspectionCalled': return { id: 'whistle', opts: { vol: 0.8, rate: 0.9 } };  // + music switch (audio.ts setMusic)
+    case 'inspectorAt': return { id: 'stamp', opts: { vol: 0.55, rate: 1.1 } };
+    case 'inspectionResult': return { id: 'inspectStamp' };
+    case 'keysEarned': return { id: 'coin', opts: { vol: 0.9, rate: 1.35 } };          // key jingle
+    case 'perkBought': return { id: 'upgrade' };
+    case 'siteCompleted': case 'transfer': return { id: 'milestone' };
+    case 'vipArrived': return { id: 'releaseFanfare', opts: { vol: 0.8, rate: 1.12 } };
+    case 'mailClaimed': case 'offlineCollected': return { id: 'coin', opts: { vol: 0.85 } };
+    case 'mailDayComplete': return { id: 'objective', opts: { vol: 0.85 } };
     default: return null;
   }
 }

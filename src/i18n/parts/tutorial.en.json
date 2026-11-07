@@ -3,7 +3,7 @@
   "tutorial.progress": "Step {n} of {total}",
   "tutorial.skipTip": "Ends the hand pointer and the hints right away. Your goals continue on the clipboard.",
   "tutorial.wait.build": "Building…",
-  "tutorial.wait.earl": "Earl gets ready…",
+  "tutorial.wait.earl": "A shower reforms him",
   "tutorial.ghost": "Build a Wash Hut here",
   "tutorial.ghostTip": "One tap builds a 3×3 Wash Hut here for {cost} coins. Muddy arrivals shower in it.",
   "tutorial.ctl.title": "Controls",
@@ -24,10 +24,14 @@
   "tutorial.jit.dragTouch": "Drag with one finger, then tap ✓",
   "tutorial.jit.beds": "Beds full! Build another Bunk Block",
   "tutorial.jit.queue": "Queue! Build more seats",
+  "tutorial.jit.janitor": "Food everywhere! Hire a Janitor",
   "tutorial.jit.dirty": "Dirty Wash Hut! Hire a Janitor",
   "tutorial.jit.crates": "Crates piling up! Tap them to ship",
   "tutorial.jit.coins": "Enough coins! Build: {room}",
   "tutorial.jit.mood": "Grumpy rascals! Check their needs",
   "tutorial.jit.title": "Hint",
-  "tutorial.jit.body": "Tap: shows you where. Disappears by itself."
+  "tutorial.jit.body": "Tap: shows you where. Disappears by itself.",
+  "tutorial.wait.earlGate": "Reformed! Off to the gate",
+  "tutorial.flowIntro": "Flow bar: red shows your bottleneck",
+  "tutorial.jit.earnFaster": "Tap crate stacks: coins sooner"
 }

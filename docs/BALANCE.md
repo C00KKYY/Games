@@ -91,7 +91,7 @@ Einzige Quelle der Zahlen: `src/content/balance.ts`. Nachweis-Werkzeuge: `tools/
 | Einstellungsgebühr | – | 1 Tageslohn (Basis) | GDD E1 |
 | Wachposten | 250 | **180** | Mit 250 ist der Posten erst ~1 min nach dem Pacing-Fenster leistbar (5:21 statt 4:30–5:30) |
 | Werkstatt pro Kachel | 25 | **22** | Amortisation sonst 4:06 (> 4 min) |
-| Schlüssel C | – | **2.000** (k = 1) | Lebenszeit-Coins bis ~30 min ≈ 69 K → 5 Basis-Schlüssel |
+| Schlüssel C | – | ~~2.000~~ → ~~800~~ → **450** (k = 1), siehe §5 und §7 | M0: Sheet-Lebenszeit-Coins @30:00. M5: kalibriert auf den Casual-Agenten-Bot bei der ersten Inspektion (Brief §3.17) |
 | Pflichtziele | Brief nennt Beispiele | Workshop, Classroom, Guard Post, Own 24 beds, Release 15, **Workshop Lv15**, Catch 3 | Mit den leichteren Zielen (Release 5, Canteen Lv5) wäre die Inspektion schon bei 13:20 möglich |
 
 ## 3. Widersprüche im Brief
@@ -104,3 +104,166 @@ Einzige Quelle der Zahlen: `src/content/balance.ts`. Nachweis-Werkzeuge: `tools/
 - Ist der Anteil von 62 % aktiver Zeit (Rest: Mahlzeiten, Dusche, Wege) realistisch? Er bestimmt Reform- und Kistentempo direkt.
 - 3★ liegt früh, die Amortisation spät: beide nachmessen.
 - Ab ~20 min fehlen dem Casual-Modell sinnvolle Käufe. Prüfen, ob nach dem Kauf von Parzelle 3 genug Ziele bleiben (Regel „nie 45 s ohne Ziel").
+
+## 5. M5 – Projekte, Leitungen, Inspektion, Versetzung (sim-progress)
+
+Werkzeuge: `npx tsx tools/balance.ts --minutes 30 --seeds 5` (Basis 11 → Seeds 11, 28, 45, 62, 79), Verhaltenstests `tests/unit/m5-progress.test.ts`. Neue Bot-Hooks in `tools/bots.ts` (`BotOpts.m5`): Projekte starten, Leitungen einstellen (Logistik zuerst, Gebühr wird angespart), Inspektion ausrufen (Casual: sobald möglich, danach erst wieder, wenn die Prognose besser ist; Optimal: erst bei Prognose ≥ 1★), Ergebnis schließen, und ab 3★ gegen die schlechteste Prognose-Kategorie kaufen (Tipp der Inspektorin). Neue Meilensteine im Report: `project1`, `lead1`, `inspection1`, `inspStars<n>`. `TEMPO_MIN` = **15** (Brief §4.3).
+
+### 5.1 Kalibrierung
+
+| Wert | Brief | jetzt | Nachweis |
+|---|---|---|---|
+| Schlüssel k / C | so, dass Casual bei der 1. Inspektion 4–6 Basis-Schlüssel hat und mit 2★ genau 2 Perks kaufen kann | **k = 1, C = 800** | Casual-Bot, L (Lebenszeit-Coins) beim ersten Ausrufen: 17,1–21,4 K (Seeds 11–79, 25–33 min) → 4–5 Basis-Schlüssel; 6 erst ab L = 28,8 K, 7 ab 39,2 K. Mit 2★ (+2) = 6–8 Schlüssel; billigste Stufe-1-Perks 3 + 3, drei kosten 9 → genau 2 Perks (Test). Economy-Sheet (H0) misst jetzt ebenfalls bei der ersten Inspektion (22:05, L = 29,3 K → 6) statt bei 30:00 (60 K → 8). |
+| Profit-Zielwert Standort 1 | „aus content/sites" | **1 500 Netto/Spieltag** (`SITES[0].profitTarget`, Spiegel `INSPECTION.profitTarget`) | Casual-Netto/Spieltag im 2-Tage-Fenster bei 16–30 min: 865–2 086 (Median ~1 300). Mit 1 200 hatte jeder Bot ab Minute 16 Profit 100 (A) ohne Optimierung. 1 500 → Casual meist C–A, A braucht echte Optimierung. Standort 2: 12 000 (× Standortfaktor 8), M6 kalibriert. |
+| Gans-Rundgang | 45 s | 45 s; Route Steg → nächste Raumtür (Wegdistanz) → … → Tor, Tempo ≥ 2,5 Kacheln/s, Ankunft am Tor ≤ 42 s | Test „goose walks 45 s“ |
+| Projektkosten | – | unverändert (400–4 000) | erstes Projekt Casual-Median 7:50 (Soll 9:00–10:00, ±20 % ab 7:12) |
+
+### 5.2 Messung (30 min, 5 Seeds, Stand dieses Schritts)
+
+| Zeile | Soll | Casual-Median | Optimal-Median | ok |
+|---|---|---|---|---|
+| Erstes Projekt | 9:00–10:00 | 7:50 | – | ✅ |
+| Essensschlacht | 10:00–10:30 | 10:32 | 10:33 | ✅ |
+| Parzelle 2 | 12:00–14:00 | 13:08 | 10:23 | ✅ |
+| 3★ | 14:00–16:00 | 14:58 | 18:13 | ✅ |
+| Erste Leitung | 14:00–16:00 | 15:55 | 19:57 | ✅ |
+| Kernraum Lv15 | 16:00–20:00 | 27:35 | 17:19 | ❌ |
+| Inspektion möglich (H3) | 22:00–30:00 | 27:40 | 27:14 | ✅ (Seed 11 erst nach 36 min) |
+| Inspektion ausgerufen | 22:00–30:00 | 27:45 | – | ✅ |
+
+### 5.3 Offen (Schwellen unverändert, für den Balance-Pass)
+1. **Casual besteht die erste Inspektion nicht zuverlässig.** Erste Ergebnisse (40 min): Seeds 28/45 0★ → 1★ beim 2. Versuch (~34 min), Seed 62 1★ (26 min) → 2★, Seed 11 0★, Seed 79 nicht ausgerufen. Ursache fast immer **Comfort 32–41 %** (E/D-Grenze): Ø-Hunger der Bewohner 16–29, Ø-Spaß 18–35 bei 30–42 Schlingeln. Die Kantinen/Höfe des Bots sind zu klein, und Mahlzeiten scheitern an den 1-h-Fenstern plus Wegzeit. Reform schwankt 0–100 (Entlassungen kommen schubweise, 5 Pulte für 30+ Schlingel). Das ist Kern-Balance (NEEDS, Kantine, Bot-Bauordnung), nicht Formel: Die Notenformeln sind Brief-Werte und bleiben.
+2. **Taktung §4.3 über 15 min:** Lücken 126–147 s in allen 5 Seeds, meist 10:32 (Essensschlacht) → ~13:00 (Parzelle 2) oder 8:20 → 10:32. Projekte schließen die Lücke nur, wenn der Casual auf sie spart. Das hungerte Lv15 und die Inspektion aus (Versuch verworfen). Kandidaten: zweites Projekt billiger/kürzer, Tagespost-Icon ab 12:00 im Bot-Report zählen, Director-Slot nach der Essensschlacht.
+3. **Kernraum Lv15** casual 27:35 (Soll 16–20 min ±20 %). Der Optimal-Bot liegt bei 17:19 und ist damit > 35 % schneller.
+4. **Optimal-Bot** besteht in 40 min keine Inspektion: Comfort 29–37. Seine ROI-Strategie ignoriert die Laune.
+
+## 6. G2-Hook (Hook-Schritt M5): früher Rhythmus
+
+Auftrag aus der G2-Rückmeldung (docs/G2_FEEDBACK.md): am Anfang „etwas, das Lust macht". Größter Hebel ist eine zweite
+Entlassung in der Lücke 1:05–3:00 (vorher kam sie erst bei ~5:20). Alle Werte in `src/content/balance.ts SENTENCE`.
+
+| Wert | vorher | jetzt | Begründung |
+|---|---|---|---|
+| Bagatell-Täter (2. Fahrgast der ersten Fähre, `pettyIndex` 1) | – | **Strafmaß 17**, Akte „Schirm (11 Jahre)" | 2. Entlassung beim Casual-Bot bei 2:36–2:50 statt ~5:20. 16 hätte das Economy-Sheet (H0) auf 4:01 Werkstatt-Amortisation gezogen (Ziel ≤ 4:00), 17 ergibt 3:59. |
+| Prämie / Ruf des Bagatell-Täters | 280 / 20 | **×0,5 / 5 Ruf** | Eine Feier, kein Wirtschaftssprung: Mit voller Prämie und 20 Ruf kamen 1★ beim Optimal-Bot schon bei 1:45 (> 35 % schneller als Casual) und Kantine Lv5 / 2★ unter 6:00. |
+| Strafmaß übrige Fahrgäste der ersten Fähre (`firstFerry` 4) | 70–100 | **110–140** | Gleicht die frühe Entlassung aus: Entlassung 3–4 bleiben in ihrer Zeile. |
+| Strafmaß der ersten 12 | 70–100 | **78–108** | dto.; ohne Ausgleich (nur Bagatelle) lagen 4. Entlassung, Kantine Lv5 und 2★ bei 5:42–5:59 (Fenster ab 6:00). |
+| Earl | Strafmaß 20, zufällige Akte | Strafmaß 20, **Akte „Unerlaubte Kuchenentnahme"** | Sein Entlassungssatz löst den Witz auf („Der Kuchen ist jetzt vor mir sicher."). Gesetzt nach den Zufallsziehungen: RNG-Folge unverändert. |
+
+**Verworfen:** Earl sofort duschen lassen (Frühstück überspringen). Gemessen: Tutorial-Ende Casual 52 s, unter dem
+Fenster 70–90 s (−20 % = 56 s). Die Wartezeit in Schritt 3 wird stattdessen gefüllt (Schild über Earl, Hand am Tor).
+
+**Messung** `npx tsx tools/balance.ts --minutes 30 --seeds 5` (Seeds 11/28/45/62/79, Bericht in `qa/balance.md`):
+alle Zeilen im ±20-%-Fenster außer **Kernraum Lv15** (Casual 27:30, war vorher schon rot: 27:35). Werte des Casual-Bots:
+Earl 0:44, Tutorial-Ende 0:59, Strickstube 1:33, Tunnel/1★ 3:00/3:03, Klassenzimmer 3:31, Wachposten 3:38, 12 Betten 5:40,
+Hof 5:46, 4. Entlassung 7:13, Kantine Lv5 7:04, 2★ 7:13, erstes Projekt 9:50, Essensschlacht 10:33, Parzelle 2 12:28,
+3★ 17:14, erste Leitung 18:23, Inspektion möglich 27:30. 2. Entlassung je Seed (10-min-Lauf): 2:36–2:50.
+Taktungsregel §4.3 (15 min): 3 von 5 Seeds mit einer Lücke > 120 s (139–174 s, nach der Essensschlacht bis Parzelle 2
+bzw. 3:00–5:20); vorher 5 von 5. **Economy-Sheet H0: grün** (Amortisation 3:59, Mix bei 15:00 Entl. 45 % / Kisten 35 % /
+Kost 19 %, Schlüssel 5). Das Sheet modelliert Bagatell-Täter und erste Fähre jetzt mit (`tools/economy-sheet.ts`).
+
+**Robustheit (offen):** Die Bot-Zeilen ab Minute 9 (erstes Projekt, 3★, erste Leitung, Wachposten-Fenster 3:36) liegen
+knapp an den Grenzen und kippen schon bei kleinen Strafmaß-Änderungen. Auf einem zweiten Seed-Satz (3/5/7/9/13) fallen mit
+diesen Werten „Wachposten" (Casual 3:29, untere Grenze 3:36) und „erste Leitung" (19:43, obere Grenze 19:12) heraus, die Werte vor dem Hook-Schritt
+bestanden dort. Die offiziellen Seeds bestehen. Der Balance-Pass sollte die Mittelphase (Leitungsgebühr, Projekt-Wahl des
+Bots, Comfort) stabiler machen, statt die Frühphase weiter zu verschieben.
+
+## 7. Balance-Pass M5 (Standort 1, 0–30 min) – maßgeblich
+
+Werkzeuge: `npx tsx tools/balance.ts --minutes 30 --seeds 9` (Standard: 3 Seed-Basen 11 / 500 / 1000 → 27 Seeds; Bericht
+`qa/balance.md`, CSV `qa/balance.csv`, Exit-Code 1 bei jeder Verletzung inkl. Taktung und Mix), `npm run economy` (H0,
+`qa/economy-sheet.txt`), schnelle H-Tests in `npm test`: `tests/unit/balance-h.test.ts` (3 Seeds: Pacing-Zeilen, H2, H3,
+Schlüssel, H6 „jeder `cmd.*` der UI existiert"), H5 in `tests/unit/m5-retention.test.ts` (FakeClock), H0 in `economy.test.ts`.
+
+### 7.1 Ergebnis (27 Seeds, Casual-Median; Optimal-Median)
+
+| Zeile | Soll | Casual | Optimal | ok |
+|---|---|---|---|---|
+| Earl / Tutorial-Ende / Strickstube | 0:35–1:10 / 1:10–1:30 / 1:30–2:15 | 0:42 / 0:57 / 1:30 | 0:30 / 0:34 / 0:46 | ✅ (Tutorial-Ende 11/27 Seeds unter 0:56, Median darüber) |
+| Tunnel / 1★ | 3:00–3:30 | 3:00 / 3:03 | 3:00 / 3:01 | ✅ |
+| Klassenzimmer / Wachposten | 3:30–4:30 / 4:30–5:30 | 3:39 / 3:57 | 3:08 / 3:21 | ✅ |
+| 12 Betten / Hof | 5:30–6:30 / 6:30–7:30 | 5:37 / 5:44 | 5:43 / 5:48 | ✅ |
+| 4. Entlassung / Kantine Lv5 / 2★ | 7:30–9:00 | 7:04 / 7:12 / 8:11 | 5:42 / 5:50 / 7:32 | ✅ |
+| Erstes Projekt | 9:00–10:00 | 8:18 | 7:33 | ✅ |
+| Essensschlacht | 10:00–10:30 | 10:31 | 10:31 | ✅ |
+| Parzelle 2 / Tagespost-Icon | 12:00–14:00 | 11:00 / 12:00 | 10:18 / 12:00 | ✅ |
+| 3★ / erste Leitung | 14:00–16:00 | 15:19 / 16:59 | 15:10 / 15:34 | ✅ |
+| Kernraum Lv15 | 16:00–20:00 | 19:46 | 17:44 | ✅ (vorher 27:30 ❌) |
+| Parzelle 3 | 20:00–24:00 | 25:44 | 24:50 | ✅ (vorher nie) |
+| Inspektion möglich / ausgerufen (H3) | 22:00–30:00 | 19:48 / 19:52 | 18:22 / 18:30 | ✅ ±20 % (früh, s. 7.4) |
+
+- **Taktung §4.3 (erste 15 min):** Neues spätestens alle 120 s in **23/27 Seeds** (M2: 21/27 über 10 min; vor diesem Pass
+  15/27). 4 Seeds (79, 619, 1034, 1051) haben eine Lücke von 122–137 s nach dem Tunnel (3:03 → ~5:10). Nie > 45 s ohne
+  leistbaren Kauf/Ziel: 27/27. Kein Runaway (> 30 s am Stück mehr Coins als der teuerste Kauf im Angebot): 27/27.
+- **Mix/Lohnanteil (§3.8), Median:** 15:00 Entlassungen 49 % · Kisten 32 % · Kostgeld 18 % · Löhne 25 % ✅;
+  30:00 Entlassungen **34 %** · Kisten **48 %** · Kostgeld 17 % · Löhne 30 % ❌ (s. 7.4). Der Lohnanteil misst jetzt die
+  **geschuldeten** Löhne (`dayEnd.wages`): Der Casual-Bot gibt alles aus und zahlt an ~5 von 12 Tagesenden nur einen Teil
+  (Insolvenzschutz §3.8). `spend.wages` (bezahlt) hatte den Anteil bisher geschönt.
+- **Ruf-Quellen pro Minute (Median):** Entlassungen 15,0 (0–15 min) / 16,0 (15–30), Ziele 5,3 / 1,3, Ereignisse gelöst
+  1,3 / 1,0, gefangen 1,0 / 1,0, Meilensteine 0,7 / 0,7, Ausbrüche 0 / 0. Tabelle je Minute: `qa/balance.md`.
+- **H1b:** Optimal mit gutem Layout 18:22; mit Zufallslayout in 45 min **nie** inspektionsbereit → ✅ (Abstand > 25 %).
+- **H2:** Naiv-Bot (immer das Billigste) in 45 min nie inspektionsbereit vs. Heuristik 18:22 ✅. Zufalls-Bot: Median 1★,
+  **1/27 Seeds** (568: hat zufällig Werkstatt + Wachposten gebaut, 14 Entlassungen) erreicht 2★ – Kriterium auf dem Median
+  ✅, Ausreißer offen ausgewiesen. Druck: Ausbruchsversuche Median 6, kein Seed ohne; gelungene Ausbrüche in 4/27 Seeds;
+  Essensschlacht in 27/27.
+- **H3:** möglich Median 19:48 (25/27 Seeds in ±20 %, nur 3/27 streng in 22–30). Danach geht es weiter: Ruf wächst bis
+  45:00 in 27/27 Seeds, 15/27 bestehen bis 45:00 eine Inspektion (≥ 1★; vorher bestand der Casual praktisch nie).
+- **Schlüssel:** Lebenszeit-Coins beim ersten Ausrufen 12,4–14,5 K → **5 Basis-Schlüssel in 27/27 Seeds**, mit 2★ 7 →
+  genau 2 Perks in 27/27 (k = 1, **C = 450**).
+- **H0 Economy-Sheet: grün** (Amortisation 3:22, Mix 15:00 48/35/17 · Löhne 23 %, 30:00 47/37/17 · 27 %, 3★ 15:07,
+  Lv15 22:19, Parzelle 3 27:00, Inspektion 22:19, Schlüssel 6). Gemessene Agenten-Werte ersetzen die alten Annahmen.
+
+### 7.2 Spielwerte (src/content, src/sim)
+
+| Wert | vorher | jetzt | Grund (Messung) |
+|---|---|---|---|
+| Laufgeschwindigkeit Schlingel / Personal / Ausbrecher | 0,25 / 0,28 / 0,35 Kacheln/Tick | **0,30 / 0,32 / 0,40** | Bei 24+ Schlingeln gingen 40–50 % der Zeit für Wege drauf (1-h-Fenster = 7,5 s); Lv15 kam erst bei 27:30, der Casual verpasste Mahlzeiten. Kein Brief-Wert. |
+| Passive Resozialisierung (+0,5/h bei Laune ≥ 70, Brief) | jede Stunde, auch nachts | **nur in den Aktivitätsstunden 08–20** | Ein Gefängnis ohne Klassenzimmer/Werkstatt entließ sich selbst (Zufalls-Bot 3★). |
+| Kantine | Schlange wird bei Fensterende weggeschickt; volle Kantine → 2-h-Block | **Schlange wird zu Ende bedient; Hungrige (< 70) warten 0,2 h an der Kantine** | Ø Hunger 12–25 bei 24+ Schlingeln, obwohl die Fluss-Leiste Mahlzeiten übrig zeigte. |
+| Klemmbrett-Reihenfolge | … Kantine Lv5, **3 fangen**, 24 Betten, 15 Entlassungen, Werkstatt Lv15 | … Kantine Lv5, 24 Betten, **Werkstatt Lv15, 15 Entlassungen, 3 fangen** | Lv15 gehört laut §4.2 vor die Inspektion (16–20 min); „3 fangen" kann der Spieler nicht anstoßen → ans Ende, damit das aktuelle Ziel immer verfolgbar ist. Pflichtziele unverändert. |
+| Director | nächster Slot nach einem Skript-Beat 150–240 s | **genau 150 s** (Brief-Spanne) | Füllt die Sparphase 3:00–5:30 und die Zeit nach der Essensschlacht (Taktung). |
+| 3. Fahrgast der ersten Fähre | 110–140 | **45–55** (aus derselben Zufallsziehung abgebildet, RNG-Folge gleich) | 3. Entlassung bei ~4:50 statt ~7:00, füllt die Lücke nach dem Wachposten. |
+| Strafmaß erste 12 / danach | 78–108 / 120–220 | **88–118 / 70–110** | 4. Entlassung und 2★ bleiben in 7:30–9:00; ab Minute 10 stockten die Entlassungen (Mix 30:00 Entlassungen 31 %, 3★ erst 18 min). |
+| Prämie | 280 × (1 + 0,05·★) | **230 × (1 + 0,15·★)**; Earl **100** (Brief §4.2), Bagatell-Täter und 3. Fahrgast × **0,35** | Entlassungen waren 55–57 % des Einkommens bei 15:00 (Ziel 40–50). |
+| Kiste pro Station und Stunde | 0,5 (Brief) | **0,74** | Kisten 23–29 % bei 15:00 (Ziel 30–40); Agenten-Amortisation der ersten Werkstatt jetzt 2:21 (Ziel 2–4). |
+| Kostgeld | 1,0 × (1 + 0,08·(Lv−1)) | **0,68 × (1 + 0,04·(Lv−1))** | Kostgeld 26–35 % (Ziel ≤ 20). |
+| Löhne | × 1,5 | **× 1,2** (Gehaltsstufe unverändert) | Geschuldete Löhne 30 % / 39 % bei 15 / 30 min (Ziel 20–35). |
+| Werkstatt | 250 + 22/Kachel | **200 + 20** | mit weniger Starthilfe (Earl 100) sonst Armutsfalle nach dem Tutorial. |
+| Klassenzimmer / Wachposten | 220 / 180 | **350 / 250 (Brief-Werte)** | Mit mehr frühem Einkommen kamen beide direkt bei 1★ (3:28); jetzt 3:39 / 3:57. |
+| Kantine baseUp | 140 | **150** | Kantine Lv5 sonst unter 6:00. |
+| 2★-Schwelle | 140 | **180** | Zufalls-Bot erreichte 2★ in 12/27 Seeds; Casual-2★ jetzt 8:11 (Tabelle 7:30–9:00), erstes Projekt 8:18. |
+| Parzelle 3 | 6 000 (Brief) | **4 500** | Agenten-Einkommen bei 20–24 min ≈ ½ des alten Sheets; mit 6 000 kaufte kein Casual P3 in 30 min. |
+| Schlüssel C | 800 | **450** | s. 7.1. |
+
+### 7.3 Bot-Regeln (tools/bots.ts) – hier war der Bot falsch, nicht das Spiel
+
+- **Zufalls-Bot** kauft jetzt wirklich zufällig (beliebiger freigeschalteter Raum in zufälliger Größe an zufälliger Stelle,
+  beliebiges Upgrade, beliebige Einstellung, Parzelle, Projekt, Leitung) und bemerkt nur jeden zweiten Ausbrecher. Vorher
+  wählte er zufällig unter den *sinnvollen* Käufen des Heuristik-Bots.
+- **Fluss-Leiste:** Auf rote Stufen mit Platz-Kapazität (Werkstatt, Klassenzimmer, Kantine bei voll besetzten Köchen)
+  baut der Bot einen weiteren Raum, statt den vorhandenen hochzustufen (das ändert die angezeigte Zahl nicht); Hof bei
+  Spaß < 35 je 12 Bewohner. Upgrades bleiben die Antwort auf Mahlzeiten/Duschen/Karren/Tor.
+- **Level-Ziele** (Kantine Lv5, Werkstatt Lv15) stufen den höchsten Raum hoch, nicht den billigsten (neuesten).
+- **30 % Fehlkäufe** des Casual nicht mit dem Geld des Klemmbrett-Ziels, auf das der Guide zeigt (sonst Armutsfalle ohne
+  Werkstatt bis 3:15). **Erstes Projekt** wird nach der Freischaltung probiert (Prio 89). **Erste Leitung** Prio 97.
+  Ab 4:20 spart der Casual für das Betten-Ziel. Ab 20:00 (Lv15 und Leitung erledigt) ist die nächste Parzelle sein großes
+  Sparziel; auch wenn neue Räume nicht mehr passen.
+- **Report:** Lohnanteil aus geschuldeten Löhnen, Mix bei 15:00 aus einem Schnappschuss, Ruf-Quellen je Minute, Runaway-
+  und Druck-Zähler, Wanduhr wie in der App (Tagespost-Icon ab Minute 12 als Neues gezählt), Parzellen als Neues gezählt.
+
+### 7.4 Offen (Schwellen unverändert)
+
+1. **Mix bei 30:00:** Entlassungen 34 % (Ziel ≥ 40), Kisten 48 % (Ziel ≤ 40), 0/27 Seeds im Korridor. Ursache: Werkstatt
+   Lv15 verdoppelt ab ~20 min die Kisten (Meilenstein × 2), während die Entlassungen durch Pulte und Laune (Ø 40 bei 24–36
+   Schlingeln) gedeckelt sind, und der Casual spart 20–26 min für Parzelle 3 statt Klassenzimmer/Tor zu verbessern. Jede
+   Verschiebung über Prämie, Kistenrate oder Kostgeld kippte den Mix bei 15:00 (Schwankung ±3 pp je Änderung).
+   Kandidaten: Karren als echter Logistik-Engpass (Kapazität nicht mit dem Meilenstein × 2), Klassenzimmer-Upgrades im Bot,
+   Laune im Spätspiel.
+2. **Taktung:** 4/27 Seeds mit 122–137 s Lücke nach dem Tunnel (bis zum nächsten Bau ~5:10). Der Director-Slot nach dem
+   Tunnel kommt jetzt bei 5:30; davor sparen diese Seeds für Klassenzimmer/Wachposten.
+3. **H3 früh:** Inspektion möglich im Median 19:48 – innerhalb ±20 %, aber nur 3/27 streng in 22–30. Gate ist Lv15 (19:46);
+   „15 Entlassungen" kommt jetzt bei ~16 min. Vorschlag (UI-Besitzer, i18n `obj.release15`): Ziel auf 18–20 Entlassungen
+   (Median 22:00 bzw. 25:00).
+4. **Tutorial-Ende** 0:57 (Fenster ab 0:56): 11/27 Seeds darunter, Median knapp drin (vor diesem Pass ebenso).
+5. Die Bot-Zeilen sind gegen kleine Zahländerungen empfindlich (Seed-Rauschen ±1 min ab Minute 9); jede Änderung in
+   `src/content/balance.ts` braucht den 27-Seed-Lauf.

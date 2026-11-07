@@ -28,6 +28,9 @@ export const BOOTH = { x: 13, y: 22, w: 2, h: 1 };
 /** tutorial ghost of the Wash Hut: next to the dock, where the muddy arrivals come in */
 export const TUTORIAL_WASH = { x: 1, y: 13, w: 3, h: 3 };
 
+/** "for sale" sign of each unowned parcel (tile coords of its foot; drawn by render/progressView.ts, tapped in tools.ts) */
+export const SALE_SIGNS: Readonly<Record<string, { x: number; y: number }>> = { p2: { x: 19.3, y: 16.4 }, p3: { x: 9.3, y: 9.2 }, p4: { x: 20.2, y: 23.4 } };
+
 /** pre-built rooms of the start parcel (interior rects, tiles) */
 export const START_ROOMS: RoomDesc[] = [
   { id: 'canteen', type: 'canteen', x: 5, y: 17, w: 4, h: 3, door: { x: 6, side: 'S' }, stage: 1, level: 1 },

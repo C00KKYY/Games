@@ -1,0 +1,870 @@
+{
+ "tag": "de-907x510",
+ "end": {
+  "rt": 360150,
+  "coins": 768,
+  "ruf": 130,
+  "released": 3,
+  "rooms": [
+   "canteen",
+   "bunk",
+   "gate",
+   "dock",
+   "office",
+   "wash",
+   "workshop",
+   "classroom",
+   "guard",
+   "bunk",
+   "bunk",
+   "yard"
+  ],
+  "obj": {
+   "wash": true,
+   "workshop": true,
+   "classroom": true,
+   "guard": true,
+   "beds12": true,
+   "yard": true,
+   "canteen5": true
+  }
+ },
+ "longestBeatGapMs": 50600,
+ "longestBeatGapFrom": 126000,
+ "actions": [
+  {
+   "rt": 1200,
+   "what": "ring-step0"
+  },
+  {
+   "rt": 2400,
+   "what": "ring-step1"
+  },
+  {
+   "rt": 28400,
+   "what": "ring-step2"
+  },
+  {
+   "rt": 29600,
+   "what": "ring-step3"
+  },
+  {
+   "rt": 30800,
+   "what": "ring-step3"
+  },
+  {
+   "rt": 33000,
+   "what": "Build it"
+  },
+  {
+   "rt": 34900,
+   "what": "drag workshop at 4,10 4×4"
+  },
+  {
+   "rt": 40700,
+   "what": "click staff:foreman"
+  },
+  {
+   "rt": 42600,
+   "what": "click hire:foreman"
+  },
+  {
+   "rt": 62700,
+   "what": "horn"
+  },
+  {
+   "rt": 124700,
+   "what": "horn"
+  },
+  {
+   "rt": 168700,
+   "what": "click rooms:classroom"
+  },
+  {
+   "rt": 170700,
+   "what": "click card:classroom"
+  },
+  {
+   "rt": 172600,
+   "what": "drag classroom at 8,10 4×4"
+  },
+  {
+   "rt": 178300,
+   "what": "click staff:teacher"
+  },
+  {
+   "rt": 180100,
+   "what": "catch escapee"
+  },
+  {
+   "rt": 180300,
+   "what": "click hire:teacher"
+  },
+  {
+   "rt": 184600,
+   "what": "horn"
+  },
+  {
+   "rt": 185000,
+   "what": "click rooms:guard"
+  },
+  {
+   "rt": 186900,
+   "what": "click card:guard"
+  },
+  {
+   "rt": 188900,
+   "what": "drag guard at 7,15 2×2"
+  },
+  {
+   "rt": 193000,
+   "what": "click staff:guard"
+  },
+  {
+   "rt": 194900,
+   "what": "click hire:guard"
+  },
+  {
+   "rt": 197300,
+   "what": "Build it"
+  },
+  {
+   "rt": 199200,
+   "what": "drag bunk at 4,14 3×3"
+  },
+  {
+   "rt": 246700,
+   "what": "horn"
+  },
+  {
+   "rt": 283100,
+   "what": "click rooms:bunk"
+  },
+  {
+   "rt": 285100,
+   "what": "click card:bunk"
+  },
+  {
+   "rt": 287000,
+   "what": "drag bunk at 1,10 3×3"
+  },
+  {
+   "rt": 292100,
+   "what": "Build it"
+  },
+  {
+   "rt": 294100,
+   "what": "drag yard at 12,10 4×4"
+  },
+  {
+   "rt": 299800,
+   "what": "click room:canteen"
+  },
+  {
+   "rt": 304500,
+   "what": "click room:canteen"
+  },
+  {
+   "rt": 306500,
+   "what": "click upgrade:canteen"
+  },
+  {
+   "rt": 306800,
+   "what": "horn"
+  },
+  {
+   "rt": 309400,
+   "what": "click room:canteen"
+  },
+  {
+   "rt": 311300,
+   "what": "click upgrade:canteen"
+  },
+  {
+   "rt": 314100,
+   "what": "click room:canteen"
+  },
+  {
+   "rt": 316000,
+   "what": "click upgrade:canteen"
+  },
+  {
+   "rt": 348900,
+   "what": "catch escapee"
+  }
+ ],
+ "guide": [
+  {
+   "rt": 33300,
+   "kind": "spot:workshop"
+  },
+  {
+   "rt": 39100,
+   "kind": "staff:foreman"
+  },
+  {
+   "rt": 41000,
+   "kind": "hire:foreman"
+  },
+  {
+   "rt": 167100,
+   "kind": "rooms:classroom"
+  },
+  {
+   "rt": 169100,
+   "kind": "card:classroom"
+  },
+  {
+   "rt": 171000,
+   "kind": "spot:classroom"
+  },
+  {
+   "rt": 176700,
+   "kind": "staff:teacher"
+  },
+  {
+   "rt": 178700,
+   "kind": "hire:teacher"
+  },
+  {
+   "rt": 183400,
+   "kind": "rooms:guard"
+  },
+  {
+   "rt": 185300,
+   "kind": "card:guard"
+  },
+  {
+   "rt": 187300,
+   "kind": "spot:guard"
+  },
+  {
+   "rt": 191400,
+   "kind": "staff:guard"
+  },
+  {
+   "rt": 193300,
+   "kind": "hire:guard"
+  },
+  {
+   "rt": 197600,
+   "kind": "spot:bunk"
+  },
+  {
+   "rt": 281500,
+   "kind": "rooms:bunk"
+  },
+  {
+   "rt": 283500,
+   "kind": "card:bunk"
+  },
+  {
+   "rt": 285400,
+   "kind": "spot:bunk"
+  },
+  {
+   "rt": 292500,
+   "kind": "spot:yard"
+  },
+  {
+   "rt": 298200,
+   "kind": "room:canteen"
+  },
+  {
+   "rt": 302900,
+   "kind": "room:canteen"
+  },
+  {
+   "rt": 304900,
+   "kind": "upgrade:canteen"
+  },
+  {
+   "rt": 307800,
+   "kind": "room:canteen"
+  },
+  {
+   "rt": 309700,
+   "kind": "upgrade:canteen"
+  },
+  {
+   "rt": 312500,
+   "kind": "room:canteen"
+  },
+  {
+   "rt": 314400,
+   "kind": "upgrade:canteen"
+  }
+ ],
+ "events": [
+  {
+   "type": "ferryHorn",
+   "rt": 100
+  },
+  {
+   "type": "hornTap",
+   "rt": 1200
+  },
+  {
+   "type": "ferryDock",
+   "rt": 1300
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 1300
+  },
+  {
+   "type": "arrive",
+   "rt": 1900,
+   "id": 11
+  },
+  {
+   "type": "admit",
+   "rt": 1900,
+   "id": 11
+  },
+  {
+   "type": "build",
+   "rt": 2400
+  },
+  {
+   "type": "arrive",
+   "rt": 2500,
+   "id": 13
+  },
+  {
+   "type": "admit",
+   "rt": 2500,
+   "id": 13
+  },
+  {
+   "type": "arrive",
+   "rt": 3100,
+   "id": 14
+  },
+  {
+   "type": "admit",
+   "rt": 3100,
+   "id": 14
+  },
+  {
+   "type": "arrive",
+   "rt": 3700,
+   "id": 15
+  },
+  {
+   "type": "admit",
+   "rt": 3700,
+   "id": 15
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 3700
+  },
+  {
+   "type": "built",
+   "rt": 5500
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 5500
+  },
+  {
+   "type": "ruf",
+   "rt": 28400
+  },
+  {
+   "type": "release",
+   "rt": 28400,
+   "id": 11,
+   "name": "Earl"
+  },
+  {
+   "type": "happytime",
+   "rt": 28400
+  },
+  {
+   "type": "tutorialStep",
+   "rt": 28400
+  },
+  {
+   "type": "upgrade",
+   "rt": 30800
+  },
+  {
+   "type": "unlock",
+   "rt": 30800,
+   "what": "workshop"
+  },
+  {
+   "type": "tutorialDone",
+   "rt": 30800
+  },
+  {
+   "type": "build",
+   "rt": 35000
+  },
+  {
+   "type": "built",
+   "rt": 39000
+  },
+  {
+   "type": "ruf",
+   "rt": 39000
+  },
+  {
+   "type": "unlock",
+   "rt": 39000,
+   "what": "classroom"
+  },
+  {
+   "type": "objective",
+   "rt": 39000,
+   "id": "workshop"
+  },
+  {
+   "type": "hire",
+   "rt": 42600,
+   "id": 17
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 60000
+  },
+  {
+   "type": "hornTap",
+   "rt": 62800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 62800
+  },
+  {
+   "type": "arrive",
+   "rt": 63400,
+   "id": 18
+  },
+  {
+   "type": "admit",
+   "rt": 63400,
+   "id": 18
+  },
+  {
+   "type": "arrive",
+   "rt": 64000,
+   "id": 19
+  },
+  {
+   "type": "admit",
+   "rt": 64000,
+   "id": 19
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 64000
+  },
+  {
+   "type": "cartDepart",
+   "rt": 79500
+  },
+  {
+   "type": "crateSold",
+   "rt": 92200
+  },
+  {
+   "type": "ruf",
+   "rt": 109700
+  },
+  {
+   "type": "release",
+   "rt": 109700,
+   "id": 13,
+   "name": "Wren"
+  },
+  {
+   "type": "dayEnd",
+   "rt": 114500
+  },
+  {
+   "type": "vipTeased",
+   "rt": 114500
+  },
+  {
+   "type": "nightSkip",
+   "rt": 114500
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 122000
+  },
+  {
+   "type": "hornTap",
+   "rt": 124800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 124800
+  },
+  {
+   "type": "arrive",
+   "rt": 125400,
+   "id": 20
+  },
+  {
+   "type": "admit",
+   "rt": 125400,
+   "id": 20
+  },
+  {
+   "type": "arrive",
+   "rt": 126000,
+   "id": 21
+  },
+  {
+   "type": "admit",
+   "rt": 126000,
+   "id": 21
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 126000
+  },
+  {
+   "type": "cartDepart",
+   "rt": 145000
+  },
+  {
+   "type": "crateSold",
+   "rt": 157700
+  },
+  {
+   "type": "cartDepart",
+   "rt": 170600
+  },
+  {
+   "type": "build",
+   "rt": 172700
+  },
+  {
+   "type": "built",
+   "rt": 176600
+  },
+  {
+   "type": "ruf",
+   "rt": 176600
+  },
+  {
+   "type": "star",
+   "rt": 176600
+  },
+  {
+   "type": "objective",
+   "rt": 176600,
+   "id": "classroom"
+  },
+  {
+   "type": "tunnel",
+   "rt": 180000,
+   "id": 19
+  },
+  {
+   "type": "ruf",
+   "rt": 180100
+  },
+  {
+   "type": "ruf",
+   "rt": 180100
+  },
+  {
+   "type": "caught",
+   "rt": 180100,
+   "id": 19
+  },
+  {
+   "type": "hire",
+   "rt": 180300,
+   "id": 23
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 182000
+  },
+  {
+   "type": "crateSold",
+   "rt": 183300
+  },
+  {
+   "type": "hornTap",
+   "rt": 184600
+  },
+  {
+   "type": "ferryDock",
+   "rt": 184700
+  },
+  {
+   "type": "arrive",
+   "rt": 185300,
+   "id": 24
+  },
+  {
+   "type": "arrive",
+   "rt": 185900,
+   "id": 25
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 185900
+  },
+  {
+   "type": "build",
+   "rt": 188900
+  },
+  {
+   "type": "built",
+   "rt": 191400
+  },
+  {
+   "type": "ruf",
+   "rt": 191400
+  },
+  {
+   "type": "objective",
+   "rt": 191400,
+   "id": "guard"
+  },
+  {
+   "type": "hire",
+   "rt": 195000,
+   "id": 27
+  },
+  {
+   "type": "build",
+   "rt": 199300
+  },
+  {
+   "type": "built",
+   "rt": 202300
+  },
+  {
+   "type": "admit",
+   "rt": 202300,
+   "id": 24
+  },
+  {
+   "type": "admit",
+   "rt": 202300,
+   "id": 25
+  },
+  {
+   "type": "unpaid",
+   "rt": 236500
+  },
+  {
+   "type": "dayEnd",
+   "rt": 236500
+  },
+  {
+   "type": "nightSkip",
+   "rt": 236500
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 244000
+  },
+  {
+   "type": "hornTap",
+   "rt": 246800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 246800
+  },
+  {
+   "type": "arrive",
+   "rt": 247400,
+   "id": 29
+  },
+  {
+   "type": "admit",
+   "rt": 247400,
+   "id": 29
+  },
+  {
+   "type": "arrive",
+   "rt": 248000,
+   "id": 30
+  },
+  {
+   "type": "arrive",
+   "rt": 248600,
+   "id": 31
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 248600
+  },
+  {
+   "type": "cartDepart",
+   "rt": 260000
+  },
+  {
+   "type": "crateSold",
+   "rt": 276900
+  },
+  {
+   "type": "build",
+   "rt": 287100
+  },
+  {
+   "type": "built",
+   "rt": 290100
+  },
+  {
+   "type": "admit",
+   "rt": 290100,
+   "id": 30
+  },
+  {
+   "type": "admit",
+   "rt": 290100,
+   "id": 31
+  },
+  {
+   "type": "ruf",
+   "rt": 290100
+  },
+  {
+   "type": "unlock",
+   "rt": 290100,
+   "what": "yard"
+  },
+  {
+   "type": "objective",
+   "rt": 290100,
+   "id": "beds12"
+  },
+  {
+   "type": "build",
+   "rt": 294100
+  },
+  {
+   "type": "built",
+   "rt": 298100
+  },
+  {
+   "type": "ruf",
+   "rt": 298100
+  },
+  {
+   "type": "objective",
+   "rt": 298100,
+   "id": "yard"
+  },
+  {
+   "type": "ferryHorn",
+   "rt": 304000
+  },
+  {
+   "type": "ruf",
+   "rt": 304300
+  },
+  {
+   "type": "release",
+   "rt": 304300,
+   "id": 19,
+   "name": "Archie"
+  },
+  {
+   "type": "cartDepart",
+   "rt": 305400
+  },
+  {
+   "type": "upgrade",
+   "rt": 306500
+  },
+  {
+   "type": "hornTap",
+   "rt": 306800
+  },
+  {
+   "type": "ferryDock",
+   "rt": 306900
+  },
+  {
+   "type": "arrive",
+   "rt": 307500,
+   "id": 34
+  },
+  {
+   "type": "admit",
+   "rt": 307500,
+   "id": 34
+  },
+  {
+   "type": "arrive",
+   "rt": 308100,
+   "id": 35
+  },
+  {
+   "type": "admit",
+   "rt": 308100,
+   "id": 35
+  },
+  {
+   "type": "arrive",
+   "rt": 308700,
+   "id": 36
+  },
+  {
+   "type": "ferryLeave",
+   "rt": 308700
+  },
+  {
+   "type": "upgrade",
+   "rt": 311400
+  },
+  {
+   "type": "upgrade",
+   "rt": 316000
+  },
+  {
+   "type": "ruf",
+   "rt": 316000
+  },
+  {
+   "type": "milestone",
+   "rt": 316000
+  },
+  {
+   "type": "ruf",
+   "rt": 316000
+  },
+  {
+   "type": "objective",
+   "rt": 316000,
+   "id": "canteen5"
+  },
+  {
+   "type": "crateSold",
+   "rt": 322300
+  },
+  {
+   "type": "tunnel",
+   "rt": 348800,
+   "id": 20
+  },
+  {
+   "type": "ruf",
+   "rt": 349000
+  },
+  {
+   "type": "ruf",
+   "rt": 349000
+  },
+  {
+   "type": "caught",
+   "rt": 349000,
+   "id": 20
+  }
+ ],
+ "errors": []
+}

@@ -10,13 +10,17 @@
  * - need plaques over rascals (hungry / tired / dirty / bored), sparingly: the lowest needs only, at most 8
  * - spoon-tunnel escapee (USP 4): a pulsing coral ring at its feet + a coral "!" plaque above it from 'tunnel' until
  *   'caught' / 'escaped' (constant screen size, follows the smoothed agent position) – the player sees whom to tap
+ * - M5 (docs/M5_DESIGN.md §13): project finished → dust + sparkles at every changed prop and a small confetti burst;
+ *   inspector stamps (ring at the goose), inspection passed → approval seal + confetti + shake, perk bought → golden
+ *   key pop, keys earned → keys fly to the key counter, lead hired / auto-tap, Cat Burglar arrival. All world visuals of
+ *   the M5 systems live in progressView.ts; every sim event is forwarded to it first.
  * Fixed pools (no per-frame allocation), all sprites from the one atlas (+ one BitmapFont page), no DOM writes.
  * Test hooks: window.__fxLog [{kind, t, frame}] (cap 300), window.__fxFrame (index of the frame being prepared),
  * window.__fxInput {t, frame} (last pointer input).
  */
 import { BitmapFont, BitmapText, Container, Sprite, type Texture } from 'pixi.js';
 import type { UICtx, Component } from '../ui/ctx';
-import type { SimEvent, Need } from '../sim/types';
+import type { SimEvent, Need, ProjectId } from '../sim/types';
 import type { SimView } from './simView';
 import { tex } from './atlas';
 import { TILE } from './world';
@@ -38,6 +42,8 @@ const PLAQUE_PX = 22, NEED_PX = 24, BADGE_PX = 34;
 const ALERT_PX = 26, ESC_RING_PX = 44;
 const MAX_ESC = 2;
 const MAX_NEEDS = 8;
+/** G2: gold "almost free" stars over rascals with ≥ 80 % reform (the release pipeline made visible) */
+const MAX_FREE = 6, FREE_AT = 0.8, FREE_PX = 20;
 const TAP_CMDS = new Set(['tapHorn', 'stamp', 'tapCrates', 'tapEscapee', 'tapRangler']);
 const NEED_TEX: Record<Need, string> = { hunger: 'needHunger', energy: 'needEnergy', hygiene: 'needHygiene', fun: 'needFun' };
 const NEED_KEYS: Need[] = ['hunger', 'energy', 'hygiene', 'fun'];
@@ -163,6 +169,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
   const tx = {
     ring: T('fxRing'), spark: T('sparkle'), star: T('fxStar'), hat: T('hatToss'), puff: T('puff'), conf: T('confetti'), coin: T('coin'),
     scaffold: T('scaffold'), badge: T('lvlBadge'), plqL: T('plqL'), plqM: T('plqM'), plqR: T('plqR'), alert: T('alertMark'),
+    seal: T('stampSeal'), key: T('fxKey'),
   };
   const needTex: Record<Need, Texture> = { hunger: T(NEED_TEX.hunger), energy: T(NEED_TEX.energy), hygiene: T(NEED_TEX.hygiene), fun: T(NEED_TEX.fun) };
 
@@ -419,7 +426,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
   };
 
   // ------------------------------------------------------------------ celebrations (screen space, ≤ 1.5 s, non-blocking)
-  const celebrate = (kind: 'star' | 'unlock' | 'objective' | 'milestone' | 'first', at?: { x: number; y: number } | null) => {
+  const celebrate = (kind: 'star' | 'unlock' | 'objective' | 'milestone' | 'first' | 'project' | 'inspection' | 'perk' | 'keys', at?: { x: number; y: number } | null) => {
     const W = ctx.cam.viewW, H = ctx.cam.viewH;
     const ox = at?.x ?? W / 2, oy = at?.y ?? H * 0.3;
     if (kind === 'star') {
@@ -444,6 +451,19 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       sparkles(sp, ox, oy, 6, 30, C.mint, 0.6, 1.4);
     } else if (kind === 'first') {
       confetti(sp, W * 0.5, H * 0.2, 44, 640, 950, Math.PI * 1.1, 2.2, 1.45);
+    } else if (kind === 'project') {
+      confetti(sp, ox, oy, 22, 420, 900, Math.PI * 0.8, 1.9, 1.15);
+      sparkles(sp, ox, oy, 6, 26, C.gold, 0.6, 1.3);
+    } else if (kind === 'inspection') {
+      // the result screen is DOM above the canvas: confetti rains from both top corners around it, the seal thumps once
+      confetti(sp, W * 0.12, H * 0.08, 36, 620, 900, Math.PI * 0.7, 2.3, 1.5);
+      confetti(sp, W * 0.88, H * 0.08, 36, 620, 900, Math.PI * 0.7, 2.3, 1.5);
+      shake(6);
+    } else if (kind === 'perk' || kind === 'keys') {
+      const k = sp.spawn(tx.key, M.Pop, ox, oy, 1.1); k.s1 = 2.2; k.vy = 10; k.rot = -0.25; sp.prime(k);
+      ring(sp, ox, oy, kind === 'perk' ? C.teal : C.gold, 0.5, 3, 0.6);
+      sparkles(sp, ox, oy, 10, 40, C.gold, 0.8, 1.5);
+      if (kind === 'perk') confetti(sp, ox, oy, 20, 420, 900, Math.PI * 0.9, 1.9, 1.2);
     } else {
       confetti(sp, ox, oy, 32, 500, 900, Math.PI, 2.1, 1.4);
       shake(4);
@@ -484,6 +504,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
 
   // ------------------------------------------------------------------ sim events
   const onEvent = (e: SimEvent) => {
+    view.progress.onEvent(e);
     switch (e.type) {
       case 'cmd': {
         const name = String(e.name);
@@ -512,7 +533,13 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
         if (typeof e.x === 'number' && typeof e.y === 'number') {
           const x = e.x * TILE, y = e.y * TILE - 34;
           floatText(x, y, amount, `coins:${String(e.kind)}`);
-          if (amount >= 40) { const s = toScreen(x, y); flyCoins(s.x, s.y, Math.max(2, Math.min(8, Math.round(amount / 40)))); }
+          // G2: the first shipment of crates is a coin fountain into the coin pill (Brief §4.2 2:15–3:00 "Münzregen")
+          if (e.kind === 'crates' && !firstCrates) {
+            firstCrates = true;
+            const s = toScreen(x, y);
+            flyCoins(s.x, s.y, 14); sparkles(wp, x, y + 10, 8, 26, C.gold, 0.8, 1.3); ring(wp, x, y + 20, C.gold, 0.4, 2.2, 0.6);
+            fx('firstShipment');
+          } else if (amount >= 40) { const s = toScreen(x, y); flyCoins(s.x, s.y, Math.max(2, Math.min(8, Math.round(amount / 40)))); }
         } else if (amount >= 40) {
           // objective rewards etc. come from the clipboard
           const cb = hudPoint('.cb-card', '.cb-chip', '.cb') ?? { x: ctx.cam.viewW / 2, y: ctx.cam.viewH / 2 };
@@ -571,7 +598,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
         sparkles(wp, a.x, a.y - 16, 5, 14, C.gold, 0.7, 1);
         fx('release'); return;
       }
-      case 'happytime': if (e.reason === 'firstRelease') celebrate('first'); return;
+      case 'happytime': if (e.reason === 'firstRelease') celebrate('first'); return; // inspection: see 'inspectionResult'
       case 'admit': { const a = agentPt(e.id); if (a) { sparkles(wp, a.x, a.y - 10, 2, 6, C.mint, 0.5, 0.8); } return; }
       case 'caught': case 'calmed': {
         if (e.type === 'caught' && typeof e.id === 'number') unmarkEscapee(e.id);
@@ -595,6 +622,61 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
         return;
       case 'escaped': if (typeof e.id === 'number') unmarkEscapee(e.id); return;
       case 'foodFight': { const c = roomCentre(Number(e.roomId)); if (c) { puffs(c.x, c.y, 8, c.r.w * TILE / 3, c.r.h * TILE / 3, C.creamD, 18); fx('foodFight'); } return; }
+      // ------------------------------------------------------------------ M5
+      case 'projectDone': {
+        const id = String(e.id);
+        const pts = view.progress.spots(id as ProjectId);
+        if (id === 'biggerFerry') pts.push(ferryPt());
+        for (const a of w.agents) if (pts.length < 6 && ((id === 'speedyCarts' && a.kind === 'cart') || (a.kind === 'staff' && ((id === 'whistle' && a.role === 'guard') || (id === 'squeakyMops' && a.role === 'janitor'))))) { const q = agentPt(a.id); if (q) pts.push(q); }
+        for (const q of pts) { puffs(q.x, q.y + 8, 7, 12, 5, 0xffffff, 16); sparkles(wp, q.x, q.y - 4, 6, 14, C.gold, 0.8, 1.1); ring(wp, q.x, q.y, C.cream, 0.4, 1.6, 0.5, 0, 0.8); }
+        const bb = hudPoint('[data-hud="bottom"]');
+        celebrate('project', { x: ctx.cam.viewW / 2, y: (bb ? bb.y : ctx.cam.viewH) - 60 });
+        fx('projectDone'); return;
+      }
+      case 'leadHired': {
+        const q = view.progress.leadPos(String(e.id));
+        if (q) { puffs(q.x, q.y + 4, 8, 12, 4, 0xffffff, 14); sparkles(wp, q.x, q.y - 16, 6, 12, C.mint, 0.7, 1.1); ring(wp, q.x, q.y - 8, C.mint, 0.3, 1.6, 0.5); }
+        fx('leadHired'); return;
+      }
+      case 'leadAutoTap': {
+        const q = view.progress.leadPos(String(e.id));
+        if (q) ring(wp, q.x + 10, q.y - 26, C.gold, 0.25, 1.1, 0.4);
+        const f = ferryPt(); for (let i = 0; i < 2; i++) ring(seaPool, f.x, f.y + 30, C.cream, 0.6, 3.2, 1.0, i * 0.18, 0.7);
+        squash(view.ferry, 0.08);
+        fx('leadAutoTap'); return;
+      }
+      case 'inspectorAt': {
+        const q = view.progress.goosePos();
+        if (q) { ring(wp, q.x, q.y - 40, C.coral, 0.3, 1.2, 0.4); sparkles(wp, q.x, q.y - 44, 3, 8, C.cream, 0.5, 0.9, false); }
+        fx('inspectorAt'); return;
+      }
+      case 'inspectionResult': {
+        const q = view.progress.goosePos() ?? gatePt();
+        if (e.passed) {
+          const s = wp.spawn(tx.seal, M.Pop, q.x, q.y - 52, 1.6); s.s1 = 1.5; s.vy = 6; s.rot = -0.18; wp.prime(s);
+          ring(wp, q.x, q.y - 52, C.coral, 0.4, 2.6, 0.5);
+          confetti(wp, q.x, q.y - 40, 30, 260, 420, Math.PI, 1.4, 1.4);
+          celebrate('inspection');
+        } else { puffs(q.x, q.y, 6, 10, 4, C.stone, 12); ring(wp, q.x, q.y - 20, C.coral, 0.3, 1.2, 0.4, 0, 0.7); }
+        fx(e.passed ? 'inspectionPassed' : 'inspectionFailed'); return;
+      }
+      case 'perkBought': { const c = ctx.cam.centreScreen(); celebrate('perk', { x: c.x, y: c.y - 60 }); return; }
+      case 'keysEarned': {
+        const pill = hudPoint('.tr-keys', '.pill.keys', '.tb-keys');
+        const c = ctx.cam.centreScreen();
+        celebrate('keys', { x: c.x, y: c.y - 40 });
+        if (pill) for (let i = 0; i < Math.min(6, Math.max(1, Number(e.n) || 1)); i++) {
+          const h = sp.spawn(tx.key, M.Home, c.x, c.y - 40, 0.7); h.delay = 0.5 + i * 0.07; h.x0 = c.x; h.y0 = c.y - 40; h.tx = pill.x; h.ty = pill.y;
+          h.cx = (c.x + pill.x) / 2; h.cy = Math.min(c.y, pill.y) - 40; h.s0 = 1.6; h.s1 = 0.7; h.a0 = 0.99; sp.prime(h);
+        }
+        return;
+      }
+      case 'vipArrived': {
+        const a = agentPt(e.id);
+        if (a) { sparkles(wp, a.x, a.y - 14, 10, 18, C.gold, 0.9, 1.2); ring(wp, a.x, a.y, C.gold, 0.4, 2.2, 0.6); confetti(wp, a.x, a.y - 20, 18, 220, 400, Math.PI * 0.9, 1.2, 1.2); }
+        fx('vipArrived'); return;
+      }
+      case 'parcel': fx('parcel'); return;
       case 'star': celebrate('star', hudPoint('.pill.stars')); return;
       case 'unlock': { const bb = hudPoint('[data-hud="bottom"]'); celebrate('unlock', { x: ctx.cam.viewW / 2, y: (bb ? bb.y : ctx.cam.viewH) - 60 }); return; }
       case 'objective': celebrate('objective', hudPoint('.cb-card', '.cb-chip', '.cb')); return;
@@ -625,11 +707,50 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
     for (; k < scaffolds.length; k++) if (scaffolds[k].visible) scaffolds[k].visible = false;
   };
 
+  let firstCrates = (w.stats.income.crates ?? 0) > 0;
+
+  // ------------------------------------------------------------------ "almost free" stars (G2: visible release pipeline)
+  const freeSpr: Sprite[] = [], freeId = new Int32Array(MAX_FREE).fill(-1), freeAge = new Float32Array(MAX_FREE);
+  let freeAcc = 1;
+  const pickFree = () => {
+    const want: number[] = [];
+    if (!w.tutorial.active) for (const a of w.agents) {
+      if ((a.kind !== 'rascal' && a.kind !== 'vip') || (a.flags & 192) || a.state === 'leaving' || !(a.sentence > 0)) continue;
+      if (a.reform / a.sentence >= FREE_AT) want.push(a.id);
+      if (want.length >= MAX_FREE) break;
+    }
+    for (let k = 0; k < MAX_FREE; k++) if (freeId[k] >= 0 && !want.includes(freeId[k])) freeId[k] = -1;
+    for (const id of want) {
+      if (freeId.includes(id)) continue;
+      const k = freeId.indexOf(-1); if (k < 0) break;
+      freeId[k] = id; freeAge[k] = 0;
+      fx('almostFree');
+    }
+  };
+  const updateFree = (dt: number) => {
+    freeAcc += dt;
+    if (freeAcc >= 0.5) { freeAcc = 0; pickFree(); }
+    const z = zoom(), base = FREE_PX / 34 / z;
+    for (let k = 0; k < MAX_FREE; k++) {
+      const spr = freeSpr[k], id = freeId[k];
+      const d = id >= 0 ? view.agentPos(id) : null;
+      if (!d) { if (spr.visible) spr.visible = false; continue; }
+      freeAge[k] += dt;
+      const age = freeAge[k], pop = age < 0.3 ? Math.sin((age / 0.3) * Math.PI / 2) * 1.2 : 1;
+      spr.scale.set(base * pop * (1 + Math.sin(age * 3 + id) * 0.06));
+      spr.rotation = Math.sin(age * 1.7 + id) * 0.12;
+      // above the head; need plaques sit at −42, so the star goes higher
+      spr.position.set(d.x + 9 / z, d.y - 56 + Math.sin(age * 2.2 + id) * 1.5);
+      spr.visible = true;
+    }
+  };
+
   // ------------------------------------------------------------------ need plaques
   const needSpr: Sprite[] = [];
   const needId = new Int32Array(MAX_NEEDS).fill(-1), needK = new Int8Array(MAX_NEEDS), needV = new Float32Array(MAX_NEEDS), needAge = new Float32Array(MAX_NEEDS);
   const candId = new Int32Array(MAX_NEEDS), candK = new Int8Array(MAX_NEEDS), candV = new Float32Array(MAX_NEEDS);
   for (let i = 0; i < MAX_NEEDS; i++) { const s = new Sprite(needTex.hunger); s.visible = false; needLayer.addChild(s); needSpr.push(s); }
+  for (let i = 0; i < MAX_FREE; i++) { const s = new Sprite(tx.star); s.anchor.set(0.5); s.tint = C.gold; s.visible = false; needLayer.addChild(s); freeSpr.push(s); }
   let needAcc = 1;
   const pickNeeds = () => {
     let n = 0;
@@ -760,6 +881,7 @@ export function mountJuice(ctx: UICtx, view: SimView): Juice {
       for (const q of props) stepSquash(q, dt);
       updateScaffolds(dt);
       updateNeeds(dt);
+      updateFree(dt);
       updateEscapees(dt);
       if (shakeT < 0.4) {
         shakeT += dt;

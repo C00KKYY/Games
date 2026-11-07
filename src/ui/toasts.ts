@@ -8,10 +8,11 @@ import type { UICtx, Component } from './ctx';
 import { ROOM_ICON, ROLE_ICON } from './ctx';
 import type { SimEvent } from '../sim/types';
 import type { Key } from '../i18n/i18n';
-import { ECON, RUF, UPGRADE, type RoomType, type StaffRole } from '../content/balance';
+import { ECON, RUF, UPGRADE, STARS, type RoomType, type StaffRole } from '../content/balance';
 import { hireFee } from '../sim/staff';
 import { objectiveReward, OBJECTIVES } from '../sim/objectives';
 import { roomById } from '../sim/world';
+import { sideAnchor } from './m5kit';
 
 type Kind = 'info' | 'good' | 'bad';
 interface ToastOpts { icon?: string; kind?: Kind; ms?: number }
@@ -46,6 +47,8 @@ interface Entry {
   shownText?: string;
   shownCount?: number;
   outAt?: number;
+  /** not shown before this time (a toast queued behind another one, e.g. the Daily Ledger behind "Next morning…") */
+  startAt?: number;
 }
 
 export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?: ToastOpts): void } {
@@ -88,6 +91,7 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
   /** stats snapshot for the Daily Ledger (income / releases since the previous midnight) */
   const totalIncome = () => Object.values(w.stats.income).reduce((s, v) => s + (v || 0), 0);
   let ledger = { income: totalIncome(), released: w.stats.released };
+  let firstShipment = (w.stats.income.crates ?? 0) > 0;
 
   const onEvent = (e: SimEvent) => {
     switch (e.type) {
@@ -132,8 +136,21 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
         break;
       }
       case 'star': {
+        // G2: every star says what it brings and what the next one will (the star was an empty "level up" before)
         const s = Number(e.stars) || 0;
-        push('star', () => t('overlays.toast.star', { n: s }), { kind: 'good', icon: 'star', ms: 3500 });
+        const next = s < STARS.length ? s + 1 : 0;
+        push('star', () => (next
+          ? t('overlays.toast.starNext', { n: s, what: t(`overlays.starNew.${s}`), next, at: ctx.fmt(STARS[next - 1]), nextWhat: t(`overlays.starNew.${next}`) })
+          : t('overlays.toast.starMax', { n: s, what: t(`overlays.starNew.${s}`) })), { kind: 'good', icon: 'star', ms: 5000 });
+        break;
+      }
+      case 'coins': {
+        // G2: the very first crate sale is a moment ("Münzregen", Brief §4.2 2:15–3:00) – juice.ts adds the coin fountain
+        if (e.kind === 'crates' && !firstShipment && Math.round(w.stats.income.crates ?? 0) <= Math.round(Number(e.amount) || 0) + 0.5) {
+          firstShipment = true;
+          const n = Math.round(Number(e.amount) || 0);
+          push('firstShipment', () => t('overlays.toast.firstShipment', { n: ctx.fmt(n) }), { kind: 'good', icon: 'coin', ms: 3500 });
+        }
         break;
       }
       case 'dayEnd': {
@@ -150,9 +167,14 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
         push('unpaid', () => t('overlays.toast.unpaid', { wages: ctx.fmt(wages) }), { kind: 'bad', icon: 'staff', ms: 3500 });
         break;
       }
-      case 'nightSkip':
-        push('nightSkip', () => t('toast.nextMorning'), { kind: 'info', icon: 'sun', ms: 2200 });
+      case 'nightSkip': {
+        // the skipped night settles midnight in the same tick: "Next morning…" first, the Daily Ledger right after it
+        // (one at a time – two fresh toasts sliding in together read as one on top of the other, M4 self-review)
+        const ms = 2200, now = performance.now();
+        for (const x of entries) if (/^dayEnd:/.test(x.key) && !x.el && x.outAt === undefined) { x.startAt = now + ms + OUT_MS; x.until = x.startAt + x.ms; x.last = x.startAt; }
+        push('nightSkip', () => t('toast.nextMorning'), { kind: 'info', icon: 'sun', ms });
         break;
+      }
       case 'loan': {
         const amount = Number(e.amount) || 0;
         push('loan', () => t('loan.text', { n: ctx.fmt(amount) }), { kind: 'info', icon: 'coin', ms: 3500 });
@@ -210,20 +232,36 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
       if (acc < STEP_S) return;
       acc = 0;
       const now = performance.now();
-      // position below the top bar (fallback 48 px)
+      // position below the top bar (fallback 48 px) – and below the M5 event banner while one shows (m5kit.ts banners)
       const top = document.querySelector<HTMLElement>('[data-hud="top"]');
-      const y = Math.round(top ? top.getBoundingClientRect().bottom + 6 : 48);
-      const ty = `translate3d(-50%,${y}px,0)`;
+      let y = Math.round(top ? top.getBoundingClientRect().bottom + 6 : 48);
+      const ban = ctx.root.querySelector<HTMLElement>(':scope > .m5-banners');
+      if (ban && !ban.hidden) { const b = ban.getBoundingClientRect(); if (b.height > 0) y = Math.max(y, Math.round(b.bottom + 6)); }
+      // … and below the return panel (it sits top-centre too; a toast on it hid its headline, M5 integration flow)
+      const ret = ctx.root.querySelector<HTMLElement>(':scope > .m5-ret');
+      if (ret && !ret.hidden) { const b = ret.getBoundingClientRect(); if (b.height > 0) y = Math.max(y, Math.round(b.bottom + 14)); }
+      // a side panel in the way (narrow screens): above the banner stack in the free area left of it (m5kit sideAnchor)
+      let ty = `translate3d(-50%,${y}px,0)`;
+      const side = sideAnchor(ctx);
+      if (side) {
+        let b = side.bottom;
+        if (ban && !ban.hidden && ban.classList.contains('m5-side')) { const r = ban.getBoundingClientRect(); if (r.height > 0) b = Math.min(b, r.top - 6); }
+        const h = stack.getBoundingClientRect().height;
+        ty = `translate3d(calc(-50% + ${Math.round(side.cx - window.innerWidth / 2)}px),${Math.round(b - h)}px,0)`;
+      }
+      const mw = side ? `${Math.round(side.width)}px` : '';
+      if (stack.style.maxWidth !== mw) stack.style.maxWidth = mw;
       if (ty !== lastTop) { lastTop = ty; stack.style.transform = ty; }
       const compact = ctx.compact.get();
       if (compact !== lastCompact) { lastCompact = compact; stack.classList.toggle('compact', compact); stack.classList.toggle('touch', ctx.touch); }
       const langChanged = lastLang !== ctx.lang();
       lastLang = ctx.lang();
 
+      const waiting = (e: Entry) => e.startAt !== undefined && now < e.startAt;
       // expire
-      for (const e of entries) if (e.outAt === undefined && now >= e.until) e.outAt = now;
+      for (const e of entries) if (e.outAt === undefined && !waiting(e) && now >= e.until) e.outAt = now;
       // max 3 visible: the oldest live ones drop
-      const live = entries.filter(e => e.outAt === undefined);
+      const live = entries.filter(e => e.outAt === undefined && !waiting(e));
       for (let i = 0; i < live.length - MAX; i++) live[i].outAt = now;
       // create / refresh / fade out
       for (const e of entries) {
@@ -231,6 +269,7 @@ export function mountToasts(ctx: UICtx): Component & { toast(text: string, opts?
           if (e.el && !e.el.classList.contains('out')) e.el.classList.add('out');
           continue;
         }
+        if (waiting(e)) continue;
         if (!e.el) make(e);
         write(e, langChanged);
       }

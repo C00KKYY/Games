@@ -1,0 +1,18 @@
+{
+  "eventBanner.rail": "Gefängnis-Aufgaben",
+  "eventBanner.close": "Schließen",
+  "eventBanner.closeBody": "Schließt diese Tafel. Das Spiel läuft weiter.",
+  "eventBanner.food": "Essensschlacht! Tipp die Raufbolde an",
+  "eventBanner.left": "noch {n}",
+  "eventBanner.flyTo": "Tippen, um hinzufliegen",
+  "eventBanner.tunnel": "Ausbruch! Fang den Ausbrecher",
+  "eventBanner.vip": "Der Cat Burglar kommt mit der nächsten Fähre",
+  "eventBanner.ruckus": "Tumult: Laune zu tief, Arbeit steht",
+  "eventBanner.sec": "{n} s",
+  "eventBanner.foodTitle": "Essensschlacht",
+  "eventBanner.foodBody": "Tipp jeden Raufbold an, um ihn zu beruhigen. Ist die Leiste voll ({sec} s), schließt die Kantine 30 s und verdreckt. Wachen in der Nähe helfen.",
+  "eventBanner.tunnelTitle": "Ausbruchsversuch",
+  "eventBanner.tunnelBody": "Tipp den Ausbrecher an, bevor er den Zaun erreicht: Coins und Ruf. Ein Ausbruch kostet Ruf. Tipp diesen Chip, um hinzufliegen.",
+  "eventBanner.vipTitle": "VIP: der Cat Burglar",
+  "eventBanner.vipBody": "Ein berühmter Gast mit hohem Ausbruchsrisiko. Seine Entlassung bringt die 5-fache Prämie. Halte Wachen am Zaun."
+}

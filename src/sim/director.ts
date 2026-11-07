@@ -1,5 +1,18 @@
-/** Shenanigans director (Brief §3.12): spoon tunnel, food fight, VIP, ruckus. Never game over. */
+/**
+ * Shenanigans director (Brief §3.12, docs/M5_DESIGN.md §4.2): spoon tunnel, food fight, VIP, ruckus. Never game over.
+ * Owner: sim-retention. Rules (brief):
+ *  - never two at once (`director.active` ∈ tunnel | food | ruckus blocks every other start), none in the tutorial
+ *  - food fight AND ruckus locked until 5 min after the tutorial end (`tutorialEndMs`) – the scripted one too
+ *  - a slot every 150–240 s (1x); weights tunnel ∝ Σ escape scores, food ∝ max(0, 50 − canteen mood)
+ *  - scripted beats replace their slot: spoon tunnel ~3:00, food fight ~10:00 (next meal from 10:00 with ≥ 3 eaters);
+ *    random slots keep clear of a scripted beat that is about to come, and random food fights only start after the
+ *    scripted one (the first food fight is the ~10:00 beat)
+ *  - a picked event that cannot start yet (food fight outside a meal, nobody to tunnel) waits for its moment
+ *    (≤ DIRECTOR_RET.pendingMaxSec) instead of silently wasting the slot; empty slots only from minute 15 at 20 %
+ * New fine values live in content/retention.ts DIRECTOR_RET (balance.ts DIRECTOR keeps the brief's core numbers).
+ */
 import { DIRECTOR, ECON, RUF, GUARD_RADIUS } from '../content/balance';
+import { DIRECTOR_RET } from '../content/retention';
 import { AF, type World, type Agent } from './types';
 import { rascals, goTo, setState, releaseSlot, isResident, moveAgent, promoteQueue } from './agents';
 import { roomsOf, emit, earn, addRuf, roomById, field } from './world';
@@ -10,48 +23,104 @@ import { staffOf } from './staff';
 import { guardRadiusBonus } from './effects';
 
 const D = DIRECTOR;
+const R = DIRECTOR_RET;
 export const guardRadius = (w: World) => GUARD_RADIUS + guardRadiusBonus(w);
 
-function tutorialEndMs(w: World) { return w.director.data.tutorialEndMs ?? (w.tutorial.done ? 0 : Infinity); }
+/** pending / pick codes in director.data (numbers only) */
+const EV = { tunnel: 1, food: 2, vip: 3 } as const;
+type EvCode = typeof EV[keyof typeof EV];
+
+export function tutorialEndMs(w: World) { return w.director.data.tutorialEndMs ?? (w.tutorial.done ? 0 : Infinity); }
+/** food fight and ruckus are locked until 5 min after the tutorial end (brief §3.12) */
+export const foodRuckusLocked = (w: World) => w.rtMs < tutorialEndMs(w) + D.lockAfterTutorialSec * 1000;
 
 export function directorTick(w: World) {
   const d = w.director;
   if (w.tutorial.active) return;
   if (d.active) { updateActive(w); return; }
+  if (ruckusCheck(w)) return;
   if (!d.nextMs) d.nextMs = w.rtMs + gap(w);
-  // scripted beats replace the director slot
   // scripted beats replace (consume) the director slot (Brief §3.12)
-  if (!d.data.tunnelDone && w.rtMs >= D.scriptedTunnelSec * 1000) { if (startTunnel(w, true)) { d.nextMs = w.rtMs + gap(w); return; } }
-  if (!d.data.foodDone && w.rtMs >= D.scriptedFoodFightSec * 1000 && inMeal(hourOf(w.t))) { if (startFoodFight(w)) { d.nextMs = w.rtMs + gap(w); return; } }
-  if (w.rtMs < d.nextMs) { ruckusCheck(w); return; }
+  if (!d.data.tunnelDone && w.rtMs >= D.scriptedTunnelSec * 1000) { if (startTunnel(w, true)) { slotUsed(w, true); return; } }
+  if (scriptedFoodDue(w)) { if (startFoodFight(w, true)) { slotUsed(w, true); return; } }
+  // an event picked earlier that waits for its moment
+  let exclude = 0;
+  if (d.data.pending) {
+    if (tryStart(w, d.data.pending as EvCode)) { slotUsed(w); return; }
+    if (w.rtMs - (d.data.pendingMs ?? 0) < R.pendingMaxSec * 1000) return;
+    exclude = d.data.pending; d.data.pending = 0; d.nextMs = w.rtMs; // timed out: re-pick the slot without it
+  }
+  if (w.rtMs < d.nextMs) return;
+  if (holdForScripted(w)) return;
+  const pick = pickEvent(w, exclude);
+  if (pick < 0) { d.nextMs = w.rtMs + 5000; return; } // nothing unlocked yet: look again shortly, the slot is not lost
   d.nextMs = w.rtMs + gap(w);
-  const lockFF = w.rtMs < tutorialEndMs(w) + D.lockAfterTutorialSec * 1000;
-  const weights: [string, number][] = [];
-  const tunnelW = rascals(w).filter(isResident).reduce((s, a) => s + escapeScore(w, a), 0);
-  weights.push(['tunnel', tunnelW]);
-  if (!lockFF) weights.push(['food', Math.max(0, 50 - canteenMood(w)) / 10]);
-  if (w.rtMs > 480000 && !d.data.vipNext) weights.push(['vip', 0.15 * (tunnelW + 1)]);
-  if (w.rtMs >= D.emptySlotsFromSec * 1000) weights.push(['none', D.emptyWeight * weights.reduce((s, [, v]) => s + v, 0) / (1 - D.emptyWeight)]);
-  const total = weights.reduce((s, [, v]) => s + v, 0);
-  if (total <= 0) return;
-  let r = rngNext(w) * total, pick = 'none';
-  for (const [k, v] of weights) { if ((r -= v) <= 0) { pick = k; break; } }
-  if (pick === 'tunnel') startTunnel(w, false);
-  else if (pick === 'food' && inMeal(hourOf(w.t))) startFoodFight(w);
-  else if (pick === 'vip') { d.data.vipNext = 1; emit(w, 'vipAnnounced'); }
-  ruckusCheck(w);
+  if (pick === 0) { d.data.emptySlots = (d.data.emptySlots ?? 0) + 1; return; } // empty slot (from minute 15 only)
+  if (!tryStart(w, pick as EvCode)) { d.data.pending = pick; d.data.pendingMs = w.rtMs; }
 }
 const gap = (w: World) => (D.minGapSec + rngNext(w) * (D.maxGapSec - D.minGapSec)) * 1000;
+/**
+ * After a scripted beat the next slot comes at the short end of the brief's 150–240 s (balance pass M5): the scripted
+ * beats sit before the two long saving phases (1★ → cell expansion at ~5:30, food fight → parcel 2 at ~13:00), and a
+ * slot at the long end left 2.5–3 min without anything new (tempo rule §4.3, docs/BALANCE.md §7).
+ */
+function slotUsed(w: World, scripted = false) { w.director.nextMs = w.rtMs + (scripted ? D.minGapSec * 1000 : gap(w)); w.director.data.pending = 0; }
+
+/** the scripted food fight is due: not happened yet, ≥ 10:00, not locked, a meal is on */
+function scriptedFoodDue(w: World) {
+  return !w.director.data.foodDone && w.rtMs >= D.scriptedFoodFightSec * 1000 && !foodRuckusLocked(w) && inMeal(hourOf(w.t));
+}
+/** random slots keep clear of a scripted beat that is about to come (the beat replaces that slot) */
+function holdForScripted(w: World) {
+  const d = w.director.data, t = w.rtMs;
+  const near = (at: number) => t >= (at - R.scriptedClearSec) * 1000 && t < (at + R.scriptedWaitSec) * 1000;
+  return (!d.tunnelDone && near(D.scriptedTunnelSec)) || (!d.foodDone && near(D.scriptedFoodFightSec));
+}
+
+/** weighted pick of the slot: EV code, 0 = empty slot, −1 = nothing in the pool */
+function pickEvent(w: World, exclude: number): number {
+  const d = w.director;
+  const weights: [number, number][] = [];
+  const tunnelW = rascals(w).filter(isResident).reduce((s, a) => s + escapeScore(w, a), 0);
+  if (exclude !== EV.tunnel) weights.push([EV.tunnel, tunnelW]);
+  // random food fights only after the scripted first one; locked like the scripted one
+  if (exclude !== EV.food && d.data.foodDone && !foodRuckusLocked(w) && roomsOf(w, 'canteen').some(r => r.built)) weights.push([EV.food, Math.max(0, 50 - canteenMood(w)) / 10]);
+  if (exclude !== EV.vip && w.rtMs > 480000 && !d.data.vipNext) weights.push([EV.vip, 0.15 * (tunnelW + 1)]);
+  const sum = weights.reduce((s, [, v]) => s + v, 0);
+  if (sum <= 0) return -1;
+  if (w.rtMs >= D.emptySlotsFromSec * 1000) weights.push([0, D.emptyWeight * sum / (1 - D.emptyWeight)]);
+  const total = weights.reduce((s, [, v]) => s + v, 0);
+  let r = rngNext(w) * total;
+  for (const [k, v] of weights) { if (v > 0 && (r -= v) <= 0) return k; }
+  return weights.filter(([, v]) => v > 0).at(-1)![0];
+}
+function tryStart(w: World, code: EvCode): boolean {
+  if (code === EV.tunnel) return startTunnel(w, false);
+  if (code === EV.food) return !foodRuckusLocked(w) && inMeal(hourOf(w.t)) && startFoodFight(w, false);
+  if (code === EV.vip) {
+    if (w.director.data.vipNext) return true; // a VIP is already on its way (e.g. the morning VIP): one Cat Burglar
+    w.director.data.vipNext = 1; emit(w, 'vipAnnounced'); return true;
+  }
+  return false;
+}
 
 function guardCovers(w: World, x: number, y: number) {
-  const R = guardRadius(w);
-  return staffOf(w, 'guard').some(g => !(g.flags & AF.offDuty) && Math.hypot(g.x - x, g.y - y) <= R);
+  const R2 = guardRadius(w);
+  return staffOf(w, 'guard').some(g => !(g.flags & AF.offDuty) && Math.hypot(g.x - x, g.y - y) <= R2);
 }
+/** Brief §3.12: (1 − cover) × sneaky factor × (1 + (50 − mood)/100); the Cat Burglar on top × DIRECTOR_RET.vipEscapeMult */
 export function escapeScore(w: World, a: Agent) {
   if (a.flags & AF.earl) return 0;
   const cover = guardCovers(w, a.x, a.y) ? 0.85 : 0;
   const sneaky = a.traits.includes('sneaky') ? 2 : 1;
-  return (1 - cover) * sneaky * (1 + (50 - a.mood) / 100);
+  const vip = a.flags & AF.vip ? R.vipEscapeMult : 1;
+  return (1 - cover) * sneaky * vip * (1 + (50 - a.mood) / 100);
+}
+/** escape risk label for the UI (rascal card, VIP chip): the Cat Burglar is always "high" (brief "hohes Ausbruchsrisiko") */
+export function escapeRisk(w: World, a: Agent): 'low' | 'mid' | 'high' {
+  if (a.flags & AF.vip) return 'high';
+  const s = escapeScore(w, a);
+  return s >= R.highRiskScore ? 'high' : s >= 1.2 ? 'mid' : 'low';
 }
 function canteenMood(w: World) {
   const c = roomsOf(w, 'canteen')[0]; if (!c || !c.usesToday) return 60;
@@ -93,27 +162,44 @@ function startTunnel(w: World, scripted: boolean): boolean {
   return true;
 }
 
-// ------------------------------------------------------------------ food fight
-function startFoodFight(w: World): boolean {
-  const c = roomsOf(w, 'canteen')[0]; if (!c) return false;
-  const eaters = rascals(w).filter(a => a.state === 'using' && a.act?.roomId === c.id);
-  if (eaters.length < 3) return false;
-  const n = Math.min(4, eaters.length);
-  const ids: number[] = [];
-  for (let k = 0; k < n; k++) { const a = eaters[(k * 3 + rngInt(w, 0, eaters.length - 1)) % eaters.length]; if (!ids.includes(a.id)) { ids.push(a.id); setState(w, a, 'brawling'); } }
-  w.director.active = 'food'; w.director.activeSinceMs = w.rtMs;
-  w.director.data.foodRoom = c.id; w.director.data.foodDone = 1; w.director.data.guardCalmMs = w.rtMs;
-  w.director.data.brawlers = ids.length;
-  emit(w, 'foodFight', { roomId: c.id, ids });
+// ------------------------------------------------------------------ food fight (Brief §3.12, M5_DESIGN §4.2)
+/** the canteen a food fight can start in: built, not blocked, ≥ DIRECTOR_RET.minEaters rascals eating right now */
+function fightCanteen(w: World) {
+  for (const c of roomsOf(w, 'canteen')) {
+    if (!c.built || w.rtMs < c.blockedUntilMs) continue;
+    const eaters = rascals(w).filter(a => a.state === 'using' && a.act?.roomId === c.id);
+    if (eaters.length >= R.minEaters) return { c, eaters };
+  }
+  return null;
+}
+function startFoodFight(w: World, scripted: boolean): boolean {
+  if (foodRuckusLocked(w)) return false;
+  const f = fightCanteen(w); if (!f) return false;
+  const { c, eaters } = f;
+  // 2–4 brawlers (the scripted beat is the full show: as many as possible, up to 4)
+  const n = Math.min(eaters.length, scripted ? R.brawlersMax : rngInt(w, R.brawlersMin, R.brawlersMax));
+  const pool = eaters.slice(), ids: number[] = [];
+  for (let k = 0; k < n; k++) {
+    const j = rngInt(w, k, pool.length - 1);
+    [pool[k], pool[j]] = [pool[j], pool[k]];
+    ids.push(pool[k].id); setState(w, pool[k], 'brawling');
+  }
+  const d = w.director;
+  d.active = 'food'; d.activeSinceMs = w.rtMs;
+  d.data.foodRoom = c.id; d.data.foodDone = 1; d.data.guardCalmMs = w.rtMs;
+  d.data.brawlers = ids.length; d.data.foodFights = (d.data.foodFights ?? 0) + 1;
+  ids.forEach((id, k) => { d.data[`foodB${k}`] = id; });
+  for (let k = ids.length; k < R.brawlersMax; k++) d.data[`foodB${k}`] = 0;
+  emit(w, 'foodFight', { roomId: c.id, ids, scripted });
   return true;
 }
+const brawlerIds = (w: World) => { const out: number[] = []; for (let k = 0; k < R.brawlersMax; k++) { const id = w.director.data[`foodB${k}`]; if (id) out.push(id); } return out; };
 
 function updateActive(w: World) {
   const d = w.director;
   if (d.active === 'tunnel') {
     const a = w.agents.find(x => x.id === d.data.tunnelId);
     if (!a || a.state !== 'escaping') { d.active = null; return; }
-    // sprint speed so that the fence is reached after 8 s
     // sprint along the fence field so that the fence is reached after ~8 s (walls respected)
     const ticks8s = (D.tunnelSprintSec * 1000) / tickMs(w.t);
     moveAgent(w, a, Math.max(0.08, (d.data.tunnelDist * 1.15) / ticks8s));
@@ -130,21 +216,28 @@ function updateActive(w: World) {
     }
   } else if (d.active === 'food') {
     const brawlers = w.agents.filter(a => a.state === 'brawling');
-    // guards in the canteen calm one rascal every 3 s
+    // guards covering the canteen calm one brawler every DIRECTOR_RET.guardCalmSec (brief "Wachen helfen")
     const c = roomById(w, d.data.foodRoom);
-    if (c && brawlers.length && guardCovers(w, c.x + c.w / 2, c.y + c.h / 2) && w.rtMs - d.data.guardCalmMs >= 3000) { calm(w, brawlers[0], 'guard'); d.data.guardCalmMs = w.rtMs; }
+    if (c && brawlers.length && guardCovers(w, c.x + c.w / 2, c.y + c.h / 2) && w.rtMs - d.data.guardCalmMs >= R.guardCalmSec * 1000) { calm(w, brawlers[0], 'guard'); d.data.guardCalmMs = w.rtMs; }
     if (!w.agents.some(a => a.state === 'brawling')) {
+      // solved: +5 Ruf, +mood (fun) for the canteen guests and the calmed brawlers
       addRuf(w, 'eventSolved', RUF.eventSolved);
-      for (const a of rascals(w)) if (a.act?.roomId === d.data.foodRoom) a.needs.fun = Math.min(100, a.needs.fun + 5);
-      emit(w, 'foodSolved'); d.active = null; return;
+      const ids = brawlerIds(w);
+      for (const a of rascals(w)) if (a.act?.roomId === d.data.foodRoom || ids.includes(a.id)) a.needs.fun = Math.min(100, a.needs.fun + R.solvedFun);
+      d.data.foodEndMs = w.rtMs; // the UI's janitor hint follows a food fight (Brief §4.2 ~10:00 row)
+      emit(w, 'foodSolved', { roomId: d.data.foodRoom, ms: w.rtMs - d.activeSinceMs }); d.active = null; return;
     }
     if (w.rtMs - d.activeSinceMs >= D.foodFightFillSec * 1000) {
+      // unsolved: canteen blocked 30 s, cleanliness −50, every guest stands up (counts against Safety)
       if (c) { c.blockedUntilMs = w.rtMs + 30000; c.clean = Math.max(0, c.clean - 50); }
-      for (const a of w.agents) if (a.state === 'brawling' || (a.act?.roomId === d.data.foodRoom && a.state === 'using')) { releaseSlot(w, a); a.act = null; setState(w, a, 'idle'); }
+      for (const a of w.agents) if (a.state === 'brawling' || (a.act?.roomId === d.data.foodRoom && (a.state === 'using' || a.state === 'queued'))) { releaseSlot(w, a); a.act = null; setState(w, a, 'idle'); }
       w.stats.unsolved++;
+      d.data.foodEndMs = w.rtMs;
       emit(w, 'foodLost', { roomId: d.data.foodRoom }); d.active = null;
     }
-  }
+  } else if (d.active === 'ruckus') {
+    if (w.rtMs - d.activeSinceMs >= D.ruckusDurationSec * 1000) d.active = null;
+  } else d.active = null; // unknown leftovers (old saves): never block the director
 }
 
 export function catchEscapee(w: World, a: Agent, by: 'tap' | 'guard') {
@@ -176,16 +269,18 @@ export function dazedTick(w: World, a: Agent) {
 }
 
 // ------------------------------------------------------------------ ruckus: mood < 20 for 30 s → 30 s work stop
-function ruckusCheck(w: World) {
+/** returns true when a ruckus started (it is an active event: nothing else starts during its 30 s) */
+function ruckusCheck(w: World): boolean {
   const rs = rascals(w).filter(isResident);
-  if (!rs.length) return;
-  const avg = rs.reduce((s, a) => s + a.mood, 0) / rs.length;
   const d = w.director.data;
-  if (avg < D.ruckusMoodBelow) {
-    d.lowMoodSince = d.lowMoodSince || w.rtMs;
-    if (w.rtMs - d.lowMoodSince >= D.ruckusAfterSec * 1000 && w.rtMs >= tutorialEndMs(w) + D.lockAfterTutorialSec * 1000) {
-      for (const r of w.rooms) if (r.type === 'workshop' || r.type === 'classroom') { r.blockedUntilMs = w.rtMs + D.ruckusDurationSec * 1000; r.clean = Math.max(0, r.clean - 20); }
-      emit(w, 'ruckus'); d.lowMoodSince = 0;
-    }
-  } else d.lowMoodSince = 0;
+  if (!rs.length) { d.lowMoodSince = 0; return false; }
+  const avg = rs.reduce((s, a) => s + a.mood, 0) / rs.length;
+  if (avg >= D.ruckusMoodBelow) { d.lowMoodSince = 0; return false; }
+  d.lowMoodSince = d.lowMoodSince || w.rtMs;
+  if (w.rtMs - d.lowMoodSince < D.ruckusAfterSec * 1000 || foodRuckusLocked(w)) return false;
+  for (const r of w.rooms) if (r.type === 'workshop' || r.type === 'classroom') { r.blockedUntilMs = w.rtMs + D.ruckusDurationSec * 1000; r.clean = Math.max(0, r.clean - 20); }
+  d.lowMoodSince = 0; d.ruckuses = (d.ruckuses ?? 0) + 1;
+  w.director.active = 'ruckus'; w.director.activeSinceMs = w.rtMs;
+  emit(w, 'ruckus');
+  return true;
 }

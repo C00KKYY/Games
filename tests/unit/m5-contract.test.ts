@@ -8,16 +8,17 @@ import { newGame, cmd, runFor, flushEvents } from '../../src/sim/sim';
 import { stateHash } from '../../src/sim/hash';
 import { m5Defaults } from '../../src/sim/world';
 import { encode, decode, plainToWorld, worldToPlain, crc32, fillDefaults, SAVE_VERSION, DEFAULT_SETTINGS, type SaveDoc } from '../../src/save/serialize';
-import { PROJECTS, PERKS, LEADS, LEAD_SLOT_STARS, SITES, COMPLETION } from '../../src/content/progress';
+import { PROJECTS, PERKS, LEADS, LEAD_SLOT_STARS, SITES, COMPLETION, FOLLOWUPS } from '../../src/content/progress';
 import { MAIL_POOL } from '../../src/content/retention';
 import { STARS, keysFor } from '../../src/content/balance';
 import { FakeClock, localDayOf, localDay } from '../../src/sim/clock';
 import * as fx from '../../src/sim/effects';
-import { vipAvailable } from '../../src/sim/vip';
-import { syncWall } from '../../src/sim/wall';
+import { vipAvailable, vipBoard } from '../../src/sim/vip';
+import { syncWall, beginSession } from '../../src/sim/wall';
 import { advanceProjects } from '../../src/sim/projects';
 import { completionPercent } from '../../src/sim/prestige';
-import { gradeOf, starsFor } from '../../src/sim/inspection';
+import { gradeOf, starsFor, inspectionHour, inspectionCounters, forecast } from '../../src/sim/inspection';
+import { currentGoal, OBJECTIVES } from '../../src/sim/objectives';
 import { planAway } from '../../src/sim/offline';
 import en from '../../src/i18n/parts/progress.en.json';
 import type { World } from '../../src/sim/types';
@@ -265,5 +266,58 @@ describe('M5 wall clock', () => {
     expect(planAway(w, 120_000).mode).toBe('catchup');
     expect(planAway(w, 300_000).mode).toBe('formula');
     expect(planAway(w, 10 * 365 * 86_400_000).mode).toBe('formula');
+  });
+});
+
+describe('M5 contract additions (architect pass 2)', () => {
+  it('currentGoal: null in the tutorial, then clipboard objectives, then follow-ups – never empty after the tutorial', () => {
+    const w = newGame(1);
+    expect(currentGoal(w)).toBeNull();
+    cmd.skipTutorial(w);
+    const g = currentGoal(w)!;
+    expect(g.kind).toBe('objective');
+    for (const o of OBJECTIVES) w.obj.done[o.id] = true;
+    expect(currentGoal(w)).toMatchObject({ kind: 'followup', id: 'callInspection' });
+    w.inspection.best = 1; expect(currentGoal(w)).toMatchObject({ kind: 'followup', id: 'stars2', progress: 1, target: 2 });
+    w.inspection.best = 2; expect(currentGoal(w)).toMatchObject({ kind: 'followup', id: 'stars3' });
+    w.inspection.best = 3; expect(currentGoal(w)).toMatchObject({ kind: 'followup', id: 'transfer' });
+    for (const f of FOLLOWUPS) expect((en as Record<string, string>)[`progress.followup.${f}`], f).toBeTruthy();
+  });
+  it('inspection window: one bucket per game hour, ≤ 48, differences of the cumulative counters', () => {
+    const w = newGame(2);
+    runFor(w, 150_000, x => { if (x.ferry.state === 'arriving') cmd.tapHorn(x); if (x.tutorial.active) cmd.skipTutorial(x); });
+    const I = w.inspection;
+    expect(I.hours.length).toBeGreaterThan(10);
+    expect(I.hours.length).toBeLessThanOrEqual(48);
+    expect(I.hours.reduce((s, b) => s + b.released, 0)).toBe(w.stats.released);
+    expect(I.mark).toEqual(inspectionCounters(w));
+    w.inspection.hours = Array.from({ length: 60 }, (_, h) => ({ h, moodSum: 0, moodN: 0, escaped: 0, unsolved: 0, released: 0, income: 0, wages: 0, beds: 6 }));
+    inspectionHour(w, 99);
+    expect(w.inspection.hours.length).toBe(48);
+    const f = forecast(w);
+    for (const c of ['comfort', 'safety', 'reform', 'profit'] as const) { expect(Number.isFinite(f.scores[c])).toBe(true); expect(f.scores[c]).toBeGreaterThanOrEqual(0); expect(f.scores[c]).toBeLessThanOrEqual(100); }
+  });
+  it('v1 → v2 migration starts the inspection window at the load (mark = cumulative counters of the M4 save)', () => {
+    const w = newGame(5);
+    runFor(w, 200_000, x => { if (x.ferry.state === 'arriving') cmd.tapHorn(x); if (x.tutorial.active) cmd.skipTutorial(x); });
+    expect(w.stats.released).toBeGreaterThan(0);
+    const w2 = plainToWorld(decode(v1Save(w))!.world);
+    expect(w2.inspection.mark).toEqual(inspectionCounters(w2));
+    expect(w2.inspection.hours).toEqual([]);
+    expect(w2.inspection.route).toEqual([]);
+  });
+  it('beginSession: a returning session ends the session-1 quiet rules; a fresh one keeps them', () => {
+    const a = newGame(1), b = newGame(1);
+    beginSession(a, Date.UTC(2026, 10, 5, 9), 0, false);
+    beginSession(b, Date.UTC(2026, 10, 5, 9), 0, true);
+    expect(a.firstSession).toBe(true);
+    expect(b.firstSession).toBe(false);
+    expect(a.wall.sessions).toBe(1);
+  });
+  it('morning VIP is teased at the end of the first game day (day index 0)', () => {
+    const w = newGame(3);
+    runFor(w, 170_000, x => { if (x.ferry.state === 'arriving') cmd.tapHorn(x); if (x.tutorial.active) cmd.skipTutorial(x); });
+    expect(w.vip.phase).toBe('teased');
+    expect(vipBoard(w)).toBe('teaser');
   });
 });

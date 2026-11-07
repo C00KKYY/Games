@@ -8,10 +8,13 @@ import './clipboard.css';
 import { ROOM_ICON, type UICtx, type Component } from './ctx';
 import type { Key } from '../i18n/i18n';
 import type { World, Room } from '../sim/types';
-import { OBJECTIVES, TUTORIAL_STEPS, objectiveReward, type ObjectiveDef } from '../sim/objectives';
+import { OBJECTIVES, TUTORIAL_STEPS, objectiveReward, currentGoal, type ObjectiveDef } from '../sim/objectives';
+import type { FollowupId } from '../content/progress';
+import { M5_ICON } from './m5icons';
 import { roomsOf } from '../sim/world';
 import { RUF, PARCELS, type RoomType } from '../content/balance';
 import { GATE_X, GATE_Y, FERRY_POS, TUTORIAL_WASH } from '../content/site1';
+import { buildGoal, savingsEta } from './guide';
 
 /** room type an objective is about (camera target + icon) */
 const OBJ_ROOM: Record<string, RoomType> = {
@@ -20,6 +23,8 @@ const OBJ_ROOM: Record<string, RoomType> = {
 };
 const OBJ_ICON: Record<string, string> = { catch3: 'staff', release15: 'gate' };
 const TUT_ICON: Record<string, string> = { horn: 'ferry', wash: 'shower', stamp: 'gate', upgrade: 'meal' };
+/** M5 follow-ups after the 10 clipboard goals (Brief §3.16 "always a current objective", objectives.ts currentGoal) */
+const FOLLOW_ICON: Record<FollowupId, string> = { callInspection: M5_ICON.inspect, stars2: 'star', stars3: 'star', transfer: M5_ICON.transfer };
 const objIcon = (id: string) => OBJ_ICON[id] ?? ROOM_ICON[OBJ_ROOM[id]] ?? 'clipboard';
 const TICK_MS = 100;
 const NEW_MS = 6000;
@@ -30,7 +35,10 @@ type Mode = 'tut' | 'obj' | 'done';
 export function mountClipboard(ctx: UICtx): Component {
   const w: World = ctx.w;
   const t = (k: Key, v?: Record<string, string | number>) => ctx.t(k, v);
-  const objText = (id: string) => { const k = `obj.${id}`; const s = t(k); return s === k ? t(`clipboard.obj.${id}`) : s; };
+  /** action wording first (G2: "Build beds: 12 in total" says how), then the base table, then the clipboard part */
+  const objText = (id: string) => { for (const k of [`clipboard.goal.${id}`, `obj.${id}`, `clipboard.obj.${id}`]) { const s = t(k); if (s !== k) return s; } return id; };
+  /** why this goal matters (G2: goals said WHAT but never WHY) */
+  const whyText = (id: string) => { const k = `clipboard.why.${id}`; const s = t(k); return s === k ? '' : s; };
   const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // ------------------------------------------------------------------ DOM (built once)
@@ -49,6 +57,9 @@ export function mountClipboard(ctx: UICtx): Component {
   const chipTxt = h('span', 'cb-chip-txt', chip);
   const chipNum = h('span', 'cb-chip-num num', chip);
   const chipFlash = h('span', 'cb-chip-flash', chip);
+  // saving up for the goal room: a small coin ring around the chip icon (compact)
+  const chipSave = h('span', 'cb-chip-save', chip);
+  chipSave.setAttribute('aria-hidden', 'true');
 
   // full card (permanent on desktop, overlay when expanded from the chip)
   const card = h('section', 'cb-card', root);
@@ -58,18 +69,31 @@ export function mountClipboard(ctx: UICtx): Component {
   const head = h('h3', 'cb-h', card);
   img('clipboard', 'cb-h-ic', head);
   const headTxt = h('span', '', head);
+  // the core loop in one line, until the player has seen it work three times (G2: "you don't know what to do")
+  const loop = h('div', 'cb-loop', card);
+  const loopTxt = h('span', '', loop);
   const goal = h('div', 'cb-goal', card);
   const goalIc = img('clipboard', 'cb-goal-ic', goal);
   const goalTxt = h('span', 'cb-goal-txt', goal);
+  const why = h('p', 'cb-why', card);
   const req = h('span', 'cb-req', card);
   const prog = h('div', 'cb-prog', card);
   const bar = h('div', 'cb-bar', prog);
   const barFill = h('i', '', bar);
   const progNum = h('span', 'cb-prog-num num', prog);
+  // saving up for the goal room (separate from the goal progress: the D4 probe reads .cb-prog-num as "n/m")
+  const save = h('div', 'cb-save', card);
+  img('coin', 'cb-rew-ic', save);
+  const saveBar = h('div', 'cb-bar cb-savebar', save);
+  const saveFill = h('i', '', saveBar);
+  const saveTxt = h('span', 'cb-save-txt num', save);
   const rew = h('div', 'cb-rew', card);
   img('coin', 'cb-rew-ic', rew);
   const rewTxt = h('span', '', rew);
   const row = h('div', 'cb-row', card);
+  const buildBtn = h('button', 'cb-btn cb-build', row); buildBtn.type = 'button';
+  img('rooms', 'cb-btn-ic', buildBtn);
+  const buildTxt = h('span', '', buildBtn);
   const showBtn = h('button', 'cb-btn cb-show', row); showBtn.type = 'button';
   const showTxt = h('span', '', showBtn);
   const moreBtn = h('button', 'cb-btn cb-more', row); moreBtn.type = 'button';
@@ -148,8 +172,19 @@ export function mountClipboard(ctx: UICtx): Component {
     const md = vs.filter(o => o.mandatory);
     return { total: vs.length, done: vs.filter(o => w.obj.done[o.id]).length, req: md.length, reqDone: md.filter(o => w.obj.done[o.id]).length };
   };
+  /** the follow-up goal once all clipboard goals are done (null while one is open, or in the tutorial) */
+  const followup = () => { const g = currentGoal(w); return g && g.kind === 'followup' ? g : null; };
+  /** "Show me" on a follow-up opens its screen: the inspection forecast, or the transfer dialog */
+  const openFollowup = () => { const g = followup(); if (!g) return; ctx.sound('click'); ctx.panel.set(g.id === 'transfer' ? 'transfer' : 'forecast'); };
   const tutStep = () => Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, w.tutorial.step));
-  const rewardText = (k: number) => t('clipboard.reward', { coins: ctx.fmt(objectiveReward(k)), rep: RUF.objective });
+  const rewardText = (k: number) => {
+    const base = t('clipboard.reward', { coins: ctx.fmt(objectiveReward(k)), rep: RUF.objective });
+    const un = (OBJECTIVES[k]?.unlocks ?? []).map(u => t(`room.${u}`)).filter(x => !x.startsWith('room.'));
+    return un.length ? `${base} ${t('clipboard.rewardNew', { room: un.join(', ') })}` : base;
+  };
+  /** the goal room the player can build right now (the "Build it" shortcut opens its build tool) */
+  const buildNow = () => { const g = mode() === 'obj' ? buildGoal(w) : null; return g && g.unlocked && g.affordable && !g.building ? g : null; };
+  const saving = () => { const g = mode() === 'obj' ? buildGoal(w) : null; return g && g.unlocked && !g.affordable && !g.building ? g : null; };
 
   // ------------------------------------------------------------------ camera targets
   const centre = (r: Room) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2 });
@@ -204,7 +239,14 @@ export function mountClipboard(ctx: UICtx): Component {
     const cur = rows.find(r => r.k === currentIdx());
     if (listOpen && cur) items.scrollTop = Math.max(0, cur.el.offsetTop - items.offsetTop - items.clientHeight / 3);
   });
+  buildBtn.addEventListener('click', () => {
+    const g = buildNow(); if (!g) return;
+    ctx.sound('click');
+    if (ctx.compact.get()) setOpen(false, false);
+    ctx.tool.set({ kind: 'build', type: g.type });
+  });
   showBtn.addEventListener('click', () => {
+    if (mode() === 'done') { openFollowup(); if (ctx.compact.get()) setOpen(false, false); return; }
     fly(curTarget());
     if (ctx.compact.get()) setOpen(false, false);
   });
@@ -255,14 +297,17 @@ export function mountClipboard(ctx: UICtx): Component {
   const curGoalLine = () => {
     const m = mode();
     if (m === 'tut') { const s = TUTORIAL_STEPS[tutStep()]; return { title: t(`tut.${s}`), body: t('clipboard.tutorial', { n: tutStep() + 1, total: TUTORIAL_STEPS.length }) }; }
-    if (m === 'done') return { title: t('clipboard.allDone'), body: '' };
+    if (m === 'done') { const g = followup(); return g ? { title: t(`progress.followup.${g.id}`), body: t(`clipboard.fbody.${g.id}`) } : { title: t('clipboard.allDone'), body: '' }; }
     const k = currentIdx(), o = OBJECTIVES[k];
-    return { title: objText(o.id), body: tipBody(t('clipboard.progressTip', { cur: ctx.fmt(progOf(o)), target: ctx.fmt(o.target) }), rewardText(k) + '.', o.mandatory && t('clipboard.requiredTip')) };
+    const y = whyText(o.id);
+    return { title: objText(o.id), body: tipBody(y && y + '.', t('clipboard.progressTip', { cur: ctx.fmt(progOf(o)), target: ctx.fmt(o.target) }), rewardText(k) + '.', o.mandatory && t('clipboard.requiredTip')) };
   };
   tip(chip, () => { const g = curGoalLine(); return { title: g.title, body: tipBody(g.body, t('clipboard.chipTip')) }; });
   tip(cardX, () => ({ title: t('clipboard.close'), body: t('clipboard.closeCardTip'), hotkey: 'Esc' }));
   tip(listX, () => ({ title: t('clipboard.close'), body: t('clipboard.closeTip'), hotkey: 'Esc' }));
-  tip(showBtn, () => { const tg = curTarget(); const g = curGoalLine(); return { title: t('clip.show'), body: tipBody(tg && t('clipboard.flyTo', { place: tg.place }), g.title + ':', g.body) }; });
+  tip(showBtn, () => { if (mode() === 'done') { const g = curGoalLine(); return { title: t('clip.show'), body: tipBody(g.title + ':', g.body) }; } const tg = curTarget(); const g = curGoalLine(); return { title: t('clip.show'), body: tipBody(tg && t('clipboard.flyTo', { place: tg.place }), g.title + ':', g.body) }; });
+  tip(buildBtn, () => { const g = buildNow(); const room = g ? t(`room.${g.type}`) : ''; return { title: t('clipboard.build'), body: t('clipboard.buildTip', { room, cost: ctx.fmt(g?.cost ?? 0) }) }; });
+  tip(loop, () => ({ title: t('clipboard.loopTitle'), body: t('clipboard.loopTip') }));
   tip(moreBtn, () => { const c = counts(); return { title: t('clipboard.allGoals'), body: t('clipboard.allGoalsTip', { total: c.total, req: c.req, done: c.done }) }; });
   tip(skipBtn, () => ({ title: t('tut.skip'), body: t('clipboard.skipTip', { left: TUTORIAL_STEPS.length - tutStep(), total: TUTORIAL_STEPS.length }) }));
   for (const r of rows) tip(r.el, () => ({
@@ -308,7 +353,7 @@ export function mountClipboard(ctx: UICtx): Component {
     attr(moreBtn, 'aria-expanded', listOpen ? 'true' : 'false');
     text(stamp, t('clip.new'));
 
-    let header: string, goalS: string, icon: string, chipS: string, num: string, frac: number, mand = false, rewardS = '';
+    let header: string, goalS: string, icon: string, chipS: string, num: string, frac: number, mand = false, rewardS = '', whyS = '';
     if (m === 'tut') {
       const k = tutStep(), s = TUTORIAL_STEPS[k];
       header = t('clipboard.tutorial', { n: k + 1, total: TUTORIAL_STEPS.length });
@@ -317,14 +362,37 @@ export function mountClipboard(ctx: UICtx): Component {
     } else if (m === 'obj') {
       const k = currentIdx(), o = OBJECTIVES[k], p = progOf(o);
       header = t('clip.title'); goalS = objText(o.id); icon = objIcon(o.id); chipS = t(`clipboard.short.${o.id}`);
-      num = `${ctx.fmt(p)}/${ctx.fmt(o.target)}`; frac = p / o.target; mand = o.mandatory; rewardS = rewardText(k);
+      num = `${ctx.fmt(p)}/${ctx.fmt(o.target)}`; frac = p / o.target; mand = o.mandatory; rewardS = rewardText(k); whyS = whyText(o.id);
     } else {
-      const c = counts();
-      header = t('clip.title'); goalS = t('clipboard.allDone'); icon = 'check'; chipS = t('clipboard.allDoneShort');
-      num = `${c.done}/${c.total}`; frac = 1;
+      const c = counts(), g = followup();
+      header = t('clip.title');
+      if (g) {
+        goalS = t(`progress.followup.${g.id}`); icon = FOLLOW_ICON[g.id]; chipS = t(`clipboard.fshort.${g.id}`);
+        num = `${g.progress}/${g.target}`; frac = g.progress / g.target;
+      } else { goalS = t('clipboard.allDone'); icon = 'check'; chipS = t('clipboard.allDoneShort'); num = `${c.done}/${c.total}`; frac = 1; }
     }
     text(headTxt, header);
+    const showLoop = m !== 'tut' && w.stats.released < 3;
+    cls(loop, 'cb-hide', !showLoop);
+    if (showLoop) text(loopTxt, t('clipboard.loop'));
     text(goalTxt, goalS);
+    cls(why, 'cb-hide', !whyS);
+    text(why, whyS);
+    // saving up for the goal room / "Build it" once it is affordable
+    const sv = saving(), bn = buildNow();
+    cls(save, 'cb-hide', !sv);
+    cls(chipSave, 'cb-hide', !sv);
+    if (sv) {
+      const f = Math.max(0, Math.min(1, w.coins / sv.cost));
+      css(saveFill, 'transform', `scaleX(${Math.round(f * 100) / 100})`);
+      const eta = savingsEta(w, sv.cost);
+      text(saveTxt, t(eta ? 'clipboard.saveEta' : 'clipboard.save', { have: ctx.fmt(Math.floor(Math.max(0, w.coins))), cost: ctx.fmt(sv.cost), min: eta ?? 0 }));
+      attr(save, 'aria-label', t('clipboard.save', { have: ctx.fmt(Math.floor(Math.max(0, w.coins))), cost: ctx.fmt(sv.cost) }));
+      attr(chipSave, 'style', `--f:${Math.round(f * 100)}%`);
+    }
+    cls(buildBtn, 'cb-hide', !bn);
+    cls(showBtn, 'cb-alt', !!bn);
+    if (bn) { text(buildTxt, t('clipboard.build')); attr(buildBtn, 'aria-label', `${t('clipboard.build')}: ${t(`room.${bn.type}`)}`); }
     src(goalIc, icon);
     cls(req, 'cb-hide', !mand);
     text(req, t('clipboard.required'));
@@ -332,7 +400,7 @@ export function mountClipboard(ctx: UICtx): Component {
     text(progNum, num);
     cls(rew, 'cb-hide', !rewardS);
     text(rewTxt, rewardS);
-    cls(showBtn, 'cb-hide', m === 'done');
+    cls(showBtn, 'cb-hide', m === 'done' && !followup());
     text(showTxt, `${t('clip.show')} ›`);
     attr(showBtn, 'aria-label', `${t('clip.show')}: ${goalS}`);
     cls(moreBtn, 'cb-hide', m === 'tut');

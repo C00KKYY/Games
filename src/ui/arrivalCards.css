@@ -1,0 +1,19 @@
+/* Rap-sheet cards and release lines (src/ui/arrivalCards.ts): paper look of the clipboard, never interactive */
+.hud .ac { position: fixed; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.ac > * { position: absolute; left: 0; top: 0; }
+.ac-card { display: flex; flex-direction: column; max-width: 13.5rem; padding: .3rem .5rem .35rem; background: var(--cream300); border: 2px solid var(--wood500);
+  border-radius: 6px; box-shadow: 0 0 0 1px var(--cream700) inset, var(--shadow); color: var(--ink900); animation: ac-in .3s cubic-bezier(.2,.9,.3,1.3); transition: opacity .25s; }
+.ac-name { font: 700 1rem/1.2 Fredoka, Inter, sans-serif; white-space: nowrap; }
+.ac-off { font: 600 1rem/1.25 Inter, sans-serif; color: var(--ink700); }
+.ac-meta { font: 600 .86rem/1.2 Inter, sans-serif; color: var(--wood700); margin-top: .1rem; }
+.ac-line { font: 600 1rem/1.2 Inter, sans-serif; white-space: nowrap; max-width: 15rem; overflow: hidden; text-overflow: ellipsis; }
+.ac-stamp { position: absolute; right: -.4rem; top: -.6rem; padding: 0 .3rem; font: 700 .86rem/1.3 Fredoka, Inter, sans-serif; letter-spacing: .04em;
+  color: var(--coral700); background: var(--cream300); border: 2px solid var(--coral700); border-radius: 5px; transform: rotate(8deg); }
+.ac-stamp--vip { color: var(--gold700); border-color: var(--gold700); }
+.ac-quote { max-width: 15rem; padding: .35rem .6rem; background: #fffaf0; border: 2px solid var(--ink700); border-radius: 12px; box-shadow: var(--shadow);
+  font: 600 1rem/1.25 Inter, sans-serif; color: var(--ink900); animation: ac-in .3s cubic-bezier(.2,.9,.3,1.3); transition: opacity .25s; }
+.ac-quote::after { content: ''; position: absolute; left: 50%; bottom: -.45rem; width: .7rem; height: .7rem; margin-left: -.35rem; background: #fffaf0;
+  border-right: 2px solid var(--ink700); border-bottom: 2px solid var(--ink700); transform: rotate(45deg); }
+.ac .out, .ac .hid { opacity: 0; }
+@keyframes ac-in { from { opacity: 0; scale: .85; } }
+@media (prefers-reduced-motion: reduce) { .ac-card, .ac-quote { animation: none; } }

@@ -1,0 +1,18 @@
+{
+  "eventBanner.rail": "Lockup tasks",
+  "eventBanner.close": "Close",
+  "eventBanner.closeBody": "Closes this panel. The game keeps running.",
+  "eventBanner.food": "Food fight! Tap the brawlers",
+  "eventBanner.left": "{n} left",
+  "eventBanner.flyTo": "Tap to fly there",
+  "eventBanner.tunnel": "Escape! Catch the escapee",
+  "eventBanner.vip": "The Cat Burglar is on the next ferry",
+  "eventBanner.ruckus": "Ruckus: mood too low, work stopped",
+  "eventBanner.sec": "{n} s",
+  "eventBanner.foodTitle": "Food fight",
+  "eventBanner.foodBody": "Tap each brawler to calm them. If the meter fills ({sec} s), the canteen closes for 30 s and gets dirty. Guards nearby help.",
+  "eventBanner.tunnelTitle": "Escape attempt",
+  "eventBanner.tunnelBody": "Tap the escapee before they reach the fence: +coins and reputation. An escape costs reputation. Tap this chip to fly there.",
+  "eventBanner.vipTitle": "VIP: the Cat Burglar",
+  "eventBanner.vipBody": "A famous guest with a high escape risk. Release him for a 5× bounty. Keep guards near the fence."
+}

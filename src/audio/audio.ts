@@ -166,6 +166,7 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
 
   // ---------------------------------------------------------------- music + ambience (≤ 4×/s)
   let musicOverride: string | null = null;
+  let inspLoaded = false;
   let acc = 0;
   let lastStack = -1, lastStackSnd = -1e9;
   function tick() {
@@ -181,7 +182,11 @@ export function mountAudio(ctx: UICtx, platform: Platform): Audio {
     if (!mixer.unlocked) return;
     const h = hourOf(w.t), night = isNight(w.t), evening = night || h >= 18;
     // music: day ↔ evening crossfade; the evening track waits until it is loaded
-    let want: string = musicOverride ?? (evening ? 'musicEvening' : 'musicDay');
+    // Inspection Day (M5_DESIGN §11): the inspection theme from the call until the result screen closes. Read from
+    // the world each tick, so a save loaded mid-walk and a world swap (transfer) pick the right track by themselves.
+    const inspecting = w.inspection?.phase === 'walking' || w.inspection?.phase === 'result';
+    if (inspecting && !inspLoaded) { inspLoaded = true; load(['musicInspection']); }
+    let want: string = musicOverride ?? (inspecting ? 'musicInspection' : evening ? 'musicEvening' : 'musicDay');
     if (!mixer.buffers.has(want) && !musicOverride) want = mixer.buffers.has('musicDay') ? 'musicDay' : want;
     // not decoded yet: its low-quality stand-in plays (also as the fallback while the evening track is loading)
     const lo = LO_OF[want as keyof typeof LO_OF] ?? (musicOverride ? undefined : LO_OF.musicDay);

@@ -1,0 +1,11 @@
+{
+  "returnPanel.collect": "Einsammeln",
+  "returnPanel.collectBody": "Pack {n} Coins in deine Kasse.",
+  "returnPanel.hm": "{h} Std. {m} Min.",
+  "returnPanel.m": "{m} Min.",
+  "returnPanel.away": "Du warst {time} weg.",
+  "returnPanel.eff": "Dein Gefängnis hat mit {pct} % verdient (Leitungen erhöhen das).",
+  "returnPanel.capped": "Gezählt bis {time} (Perks erhöhen die Grenze).",
+  "returnPanel.pct": "{n} %",
+  "returnPanel.h": "{h} Std."
+}

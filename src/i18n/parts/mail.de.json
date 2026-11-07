@@ -1,0 +1,15 @@
+{
+  "mail.title": "Post vom Bürgermeister",
+  "mail.tipNew": "Neue Post oder eine Belohnung zum Abholen",
+  "mail.tip": "Die 3 Aufgaben des Bürgermeisters für heute",
+  "mail.claim": "Abholen",
+  "mail.claimBody": "Hol dir {n} Coins für diese Aufgabe.",
+  "mail.hm": "{h} Std. {m} Min.",
+  "mail.keyToast": "3 Post-Tage geschafft: +1 Goldener Schlüssel!",
+  "mail.sub": "{n} Aufgaben am Tag, neue Post um Mitternacht",
+  "mail.intro": "Erledige eine Aufgabe und hol dir hier die Belohnung.",
+  "mail.claimed": "✓ Abgeholt",
+  "mail.streak": "Alle 3 erledigten Post-Tage: 1 Goldener Schlüssel ({n}/{total})",
+  "mail.tomorrow": "Alles erledigt! Neue Post kommt morgen – in {time}.",
+  "mail.first": "Der erste Brief kommt gleich."
+}

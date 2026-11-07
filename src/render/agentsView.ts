@@ -12,18 +12,25 @@ export const SECURITY = {
   high: { overall: hex(P.brick700), stripe: hex(P.coral500) },
 } as const;
 
+export type Held = 'clipboard' | 'whistle' | 'mop' | 'horn';
 export interface Look {
-  species: string;            // raccoon | weasel | bear | bulldog | beaver | badger
+  species: string;            // raccoon | weasel | bear | bulldog | beaver | badger | cat (VIP) | goose (inspector)
   overall: number;            // tint
   stripe: number | null;      // tint or none (staff)
   paw: number;
-  acc?: 'beanie' | 'glasses' | 'scarf' | 'bandage' | 'chef' | 'guardcap';
+  acc?: 'beanie' | 'glasses' | 'scarf' | 'bandage' | 'chef' | 'guardcap' | 'tophat';
   accTint?: number;
-  tail?: 'raccoon' | 'weasel';
+  tail?: 'raccoon' | 'weasel' | 'cat' | 'goose';
   furTint?: number;           // subtle individual variation
+  /** item in the right paw (clipboard, horn, mop) or on the chest (whistle) – M5 projects, leads, inspector */
+  held?: Held | null;
+  /** foot sprite override (goose: webbed feet) */
+  foot?: string;
 }
 
 const ACC_DIRS: Record<string, Dir[]> = { glasses: ['S', 'E'], bandage: ['S', 'E'] };
+/** held items: grip at the right paw (or the chest for the whistle); hidden in the N view except the mop stick */
+const HELD_CHEST: Partial<Record<Held, boolean>> = { whistle: true };
 
 export class AgentView {
   c = new Container();
@@ -34,6 +41,7 @@ export class AgentView {
   private pawL = new Sprite(); private pawR = new Sprite();
   private head = new Sprite(); private blink = new Sprite();
   private tail = new Sprite(); private acc = new Sprite();
+  private held = new Sprite();
   private inner = new Container();
   private texCache: Record<string, Texture> = {};
   dir: Dir = 'S';
@@ -42,7 +50,7 @@ export class AgentView {
   moving = false;
   private blinkT = 2 + Math.random() * 4;
   private blinkLeft = 0;
-  idle: 'none' | 'scratch' | 'yawn' | 'stretch' = 'none';
+  idle: 'none' | 'scratch' | 'yawn' | 'stretch' | 'raise' = 'none';
   private idleT = 0;
   private idleCd = 4 + Math.random() * 8;
   seed = Math.random() * 10;
@@ -51,7 +59,7 @@ export class AgentView {
 
   constructor(public look: Look) {
     this.c.addChild(this.inner);
-    const parts = [this.tail, this.footL, this.footR, this.legL, this.legR, this.armL, this.body, this.stripes, this.armR, this.pawL, this.pawR, this.head, this.blink, this.acc];
+    const parts = [this.tail, this.footL, this.footR, this.legL, this.legR, this.armL, this.body, this.stripes, this.armR, this.pawL, this.pawR, this.head, this.blink, this.acc, this.held];
     for (const p of parts) this.inner.addChild(p);
     this.c.eventMode = 'none';
     this.applyLook();
@@ -70,7 +78,9 @@ export class AgentView {
     this.pawL.tint = this.pawR.tint = L.paw;
     this.head.tint = this.blink.tint = L.furTint ?? 0xffffff;
     this.acc.tint = L.accTint ?? 0xffffff;
-    this.set(this.footL, 'foot'); this.set(this.footR, 'foot');
+    const foot = L.foot ?? 'foot';
+    this.set(this.footL, foot); this.set(this.footR, foot);
+    this.held.visible = false;
     this.set(this.legL, 'leg'); this.set(this.legR, 'leg');
     this.set(this.armL, 'arm'); this.set(this.armR, 'arm');
     this.set(this.pawL, 'paw'); this.set(this.pawR, 'paw');
@@ -100,11 +110,31 @@ export class AgentView {
       this.acc.visible = !!ad && hasTex(name);
       if (this.acc.visible) this.set(this.acc, name);
     } else this.acc.visible = false;
+    this.applyHeld();
     this.armL.visible = this.pawL.visible = true;
     // E view: far arm behind body
     this.inner.setChildIndex(this.armL, td === 'E' ? Math.max(0, this.inner.getChildIndex(this.body) - 0) : this.inner.getChildIndex(this.body));
     this.layout(0, 0);
   }
+
+  /** item in the paw / on the chest (null = none); cheap when unchanged */
+  setHeld(h: Held | null) {
+    if ((this.look.held ?? null) === h) return;
+    this.look.held = h;
+    this.applyHeld();
+    this.layout(0, 0);
+  }
+  private applyHeld() {
+    const h = this.look.held, td = this.dir === 'W' ? 'E' : this.dir;
+    this.held.visible = !!h && (td !== 'N' || h === 'mop');
+    if (!h) return;
+    this.set(this.held, `held_${h}`);
+    // N view: the mop stick shows behind the body; everything else is hidden there
+    const bodyIdx = this.inner.getChildIndex(this.body);
+    this.inner.setChildIndex(this.held, td === 'N' ? Math.max(0, bodyIdx - 1) : this.inner.children.length - 1);
+  }
+  /** raise the right paw (with whatever it holds) for ~0.9 s – a lead's visible auto-tap, the inspector's clipboard */
+  raise() { this.idle = 'raise'; this.idleT = 0; }
 
   /** happy jump(s) – release celebration */
   hop(n = 2) { this.hopN = n; this.hopT = 0; }
@@ -126,7 +156,7 @@ export class AgentView {
     if (this.squashT < 0.3) this.squashT += dt;
     this.applyJuice();
     this.moving = speed > 1;
-    if (this.moving) { this.phase += dt * Math.min(16, 5 + speed * 0.22); this.idle = 'none'; this.idleT = 0; }
+    if (this.moving) { this.phase += dt * Math.min(16, 5 + speed * 0.22); if (this.idle !== 'raise') { this.idle = 'none'; this.idleT = 0; } }
     else {
       this.phase += (Math.round(this.phase / Math.PI) * Math.PI - this.phase) * Math.min(1, dt * 10);
       this.idleCd -= dt;
@@ -164,13 +194,15 @@ export class AgentView {
     let lift = 0;
     if (this.idle === 'scratch') { lift = Math.sin(Math.min(1, this.idleT / 0.3) * Math.PI / 2) * (this.idleT < 1.3 ? 1 : 0); armSwing = 0; }
     if (this.idle === 'stretch') { lift = Math.sin(Math.min(1, this.idleT / 0.5) * Math.PI / 2) * (this.idleT < 1.2 ? 1 : 0); }
+    let raise = 0;
+    if (this.idle === 'raise') { raise = this.idleT < 0.9 ? Math.sin(Math.min(1, this.idleT / 0.18) * Math.PI / 2) : Math.max(0, 1 - (this.idleT - 0.9) / 0.2); armSwing = 0; }
     if (td === 'E') {
       this.armL.position.set(-CHAR.shoulderXE - 1, CHAR.shoulderY + bob); this.armL.rotation = -armSwing;
-      this.armR.position.set(CHAR.shoulderXE + 1, CHAR.shoulderY + bob); this.armR.rotation = armSwing - lift * 2.4;
+      this.armR.position.set(CHAR.shoulderXE + 1, CHAR.shoulderY + bob); this.armR.rotation = armSwing - lift * 2.4 - raise * 2.2;
       this.pawL.visible = false;
     } else {
       this.armL.position.set(-CHAR.shoulderX - 0.6, CHAR.shoulderY + bob); this.armL.rotation = 0.16 + (td === 'N' ? -armSwing : armSwing) * 0.4 + (this.idle === 'stretch' ? lift * 2.6 : 0);
-      this.armR.position.set(CHAR.shoulderX + 0.6, CHAR.shoulderY + bob); this.armR.rotation = -0.16 - (td === 'N' ? -armSwing : armSwing) * 0.4 - lift * 2.6;
+      this.armR.position.set(CHAR.shoulderX + 0.6, CHAR.shoulderY + bob); this.armR.rotation = -0.16 - (td === 'N' ? -armSwing : armSwing) * 0.4 - lift * 2.6 - raise * 2.5;
       this.pawL.visible = true;
     }
     // paws at arm ends
@@ -185,6 +217,11 @@ export class AgentView {
     this.blink.position.copyFrom(this.head.position); this.blink.scale.copyFrom(this.head.scale);
     this.acc.position.set(hx, this.look.acc === 'scarf' ? CHAR.neckY + 1.5 + bob : hy);
     this.acc.scale.copyFrom(this.look.acc === 'scarf' ? { x: 1, y: 1 } : this.head.scale);
+    if (this.held.visible) {
+      if (this.look.held && HELD_CHEST[this.look.held]) this.held.position.set(td === 'E' ? 2.6 : 0, CHAR.neckY + 0.5 + bob);
+      else this.held.position.copyFrom(this.pawR.position);
+      this.held.rotation = this.look.held === 'mop' ? 0.12 + this.armR.rotation * 0.4 : this.armR.rotation * 0.35;
+    }
     const tp = td === 'N' ? CHAR.tailN : td === 'E' ? CHAR.tailE : CHAR.tailS;
     this.tail.position.set(tp.x, tp.y + bob * 0.6);
     this.tail.rotation = Math.sin(rclock.t * 1000 / 500 + this.seed) * 0.08 + (mv ? s * 0.12 : 0);

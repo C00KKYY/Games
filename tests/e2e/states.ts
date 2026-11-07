@@ -19,13 +19,18 @@ export const MID = 'bot=casual&warp=300';
 
 export type StateName =
   | 'base' | 'rooms' | 'staff' | 'room' | 'rascal' | 'build' | 'demolish' | 'settings' | 'help' | 'clipList' | 'stageList'
-  | 'roomConfirm' | 'demoBubble' | 'touchConfirm' | 'resetConfirm' | 'tip' | 'toast' | 'clipCard';
+  | 'roomConfirm' | 'demoBubble' | 'touchConfirm' | 'resetConfirm' | 'tip' | 'toast' | 'clipCard'
+  // M5 (docs/M5_DESIGN.md §12): the four B1 screens, the non-pausing panels and the event banner with edge hints
+  | 'm5Projects' | 'm5Return' | 'm5Result' | 'm5Transfer' | 'm5Mail' | 'm5Leads' | 'm5Forecast' | 'm5Banner';
 
 /** every main state and every confirmation sub-state */
 export const ALL_STATES: StateName[] = [
   'base', 'rooms', 'staff', 'room', 'rascal', 'build', 'demolish', 'settings', 'help', 'clipList', 'stageList',
   'roomConfirm', 'demoBubble', 'touchConfirm', 'resetConfirm',
+  'm5Projects', 'm5Return', 'm5Result', 'm5Transfer', 'm5Mail', 'm5Leads', 'm5Forecast', 'm5Banner',
 ];
+/** the M5 states (planted world state, docs/M5_DESIGN.md §12) */
+export const M5_STATES: StateName[] = ['m5Projects', 'm5Return', 'm5Result', 'm5Transfer', 'm5Mail', 'm5Leads', 'm5Forecast', 'm5Banner'];
 /** transient layers: a visible hover tooltip and a stack of toasts */
 export const TRANSIENT: StateName[] = ['tip', 'toast'];
 /** states that exist in a fresh game (tutorial clipboard with step 1/4 and the Skip button) */
@@ -36,6 +41,8 @@ export const STATE_PROBE: Partial<Record<StateName, string>> = {
   rooms: '.bb-menu--rooms', staff: '.bb-menu--staff', room: '.pn', rascal: '.pn', build: '.tl-label', settings: '.ov-modal',
   help: '.ov-modal', clipList: '.cb-list', stageList: '.tb-list', roomConfirm: '.pn-yes', demoBubble: '.tl-bubble',
   touchConfirm: '.tl-confirm', resetConfirm: '[data-fid="reset-yes"]', tip: '.ov-tip.on', toast: '.ov-toast', clipCard: '.cb-card',
+  m5Projects: '.m5p.pb', m5Return: '.m5-ret', m5Result: '.m5-card.in-res', m5Transfer: '.m5-card.tr', m5Mail: '.m5p.ml', m5Leads: '.ld-quote',
+  m5Forecast: '.m5p.in-fc', m5Banner: '.in-walk',
 };
 
 export const ctxEval = <T>(page: Page, fn: (ctx: any) => T) => page.evaluate(`(${fn.toString()})(window.__ctx)`) as Promise<T>;
@@ -67,6 +74,12 @@ export async function load(page: Page, query = MID) {
 export async function reset(page: Page) {
   await page.mouse.move(2, 2);
   await ctxEval(page, ctx => { ctx.closeModal(); ctx.menu.set(null); ctx.tool.set({ kind: 'none' }); ctx.selection.set(null); });
+  // M5: close the panel, drop a planted offline result, undo a planted walk / escape (m5Banner)
+  await ctxEval(page, ctx => {
+    ctx.panel.set(null); ctx.w.offline.pending = null;
+    const g = window as any, b = g.__m5banner;
+    if (b) { ctx.w.inspection.phase = 'idle'; const a = ctx.w.agents.find((x: any) => x.id === b.id); if (a) Object.assign(a, b.was); g.__m5banner = null; }
+  });
   // the clipboard list/card and the topbar stage list close on Esc (capture phase)
   for (let i = 0; i < 3; i++) {
     if (!(await visible(page, '.cb-list, .tb-list')) && !(await page.evaluate(() => !!document.querySelector('.cb--open, .cb-card.open')))) break;
@@ -181,6 +194,39 @@ export async function enter(page: Page, s: StateName): Promise<boolean> {
       await expect.poll(() => visible(page, '.ov-modal'), { message: `${s} modal opens` }).toBe(true);
       if (s === 'resetConfirm') { await settleCss(page); await page.locator('.ov-modal [data-fid="reset"]').click(); }
       break;
+    case 'm5Projects': case 'm5Return': case 'm5Result': case 'm5Transfer':
+      await plantM5(page, ({ m5Projects: 'projects', m5Return: 'returnPanel', m5Result: 'inspectionResult', m5Transfer: 'transfer' } as const)[s]);
+      break;
+    case 'm5Mail':
+      await ctxEval(page, ctx => {
+        const w = ctx.w;
+        w.mail.visible = true; w.mail.day = Math.max(5, w.mail.day); w.mail.seenDay = w.mail.day - 1; w.mail.streak = 2; w.mail.count.released = (w.mail.count.released ?? 0);
+        w.mail.tasks = [
+          { id: 'release', target: 3, base: w.mail.count.released - 3, done: true, claimed: false, reward: 240 },
+          { id: 'crates', target: 40, base: (w.mail.count.cratesSold ?? 0) - 12, done: false, claimed: false, reward: 240 },
+          { id: 'earn', target: 5000, base: 0, done: false, claimed: true, reward: 240 },
+        ];
+        ctx.panel.set('mail');
+      });
+      break;
+    case 'm5Leads':
+      await ctxEval(page, ctx => { const w = ctx.w; w.ruf = Math.max(w.ruf, 380); w.coins = Math.max(w.coins, 5000); w.taps.horn = 34; ctx.panel.set('leads'); });
+      await expect.poll(() => visible(page, '.ld-hire'), { message: 'lead candidates' }).toBe(true);
+      await page.locator('.ld-hire').first().click();
+      break;
+    case 'm5Forecast':
+      await ctxEval(page, ctx => { ctx.w.unlocked.inspection = true; ctx.panel.set('forecast'); });
+      break;
+    case 'm5Banner':
+      // the inspection walk chip + an escape chip in the banner, and the off-screen edge hint of that escapee
+      await ctxEval(page, ctx => {
+        const w = ctx.w, g = window as any;
+        w.inspection.phase = 'walking'; w.inspection.startMs = w.rtMs - 12_000;
+        const d = w.poi.officeDoor; w.inspection.walker = { x: d.x, y: d.y, dir: 'E', moving: true, wp: 0 }; w.inspection.route = [d, w.poi.gateOut];
+        const a = w.agents.find((x: any) => x.kind === 'rascal' && x.state !== 'leaving' && !(x.flags & (4 | 64)));
+        if (a) { g.__m5banner = { id: a.id, was: { state: a.state, x: a.x, y: a.y } }; a.state = 'escaping'; a.x = 30.5; a.y = 2.5; }
+      });
+      break;
     case 'clipCard':
       // the expanded clipboard card (compact: the chip opens it; wide: it is always open). In the tutorial its Skip shows
       // only when the warden bubble (which carries the one Skip on screen) is not shown – compact expanded card
@@ -233,4 +279,52 @@ export async function eachState(page: Page, states: StateName[], fn: (s: StateNa
   }
   await reset(page);
   return done;
+}
+
+// ====================================================================== M5 screens (Brief §12.3 B1, docs/M5_DESIGN.md §12)
+/**
+ * The four B1 screens of M5. The world state each one needs is planted through window.__ctx (the UI reads the same
+ * fields the sim fills): a running + a finished project for the board, a waiting offline result for the return panel,
+ * a 2★ result for the inspection screen and a passed site with keys and a perk for the transfer dialog.
+ */
+export type M5Screen = 'projects' | 'returnPanel' | 'inspectionResult' | 'transfer';
+export const M5_PROBE: Record<M5Screen, string> = { projects: '.m5p.pb', returnPanel: '.m5-ret', inspectionResult: '.m5-card.in-res', transfer: '.m5-card.tr' };
+
+export async function plantM5(page: Page, s: M5Screen) {
+  await page.evaluate(name => {
+    const ctx = (window as any).__ctx, w = ctx.w;
+    w.tutorial.done = true;
+    const passed = () => { if (!w.prestige.completedSites.includes(w.site)) w.prestige.completedSites.push(w.site); };
+    switch (name) {
+      case 'projects':
+        w.ruf = Math.max(w.ruf, 200); w.coins = Math.max(w.coins, 700); // 2★ (STARS[1] = 180)
+        w.projects.done.mattresses = true;
+        w.projects.running = { id: 'recipeBook', leftMs: 54_000, totalMs: 90_000 };
+        ctx.panel.set('projects');
+        break;
+      case 'returnPanel':
+        w.offline.pending = { coins: 12_450, awayMs: 3 * 3_600_000 + 12 * 60_000, effPct: 50, capMs: 2 * 3_600_000, capped: true };
+        break;
+      case 'inspectionResult':
+        w.inspection.phase = 'result'; w.inspection.count = Math.max(1, w.inspection.count); w.inspection.best = Math.max(2, w.inspection.best);
+        w.inspection.last = { day: 2, scores: { comfort: 78, safety: 90, reform: 61, profit: 88 }, grades: { comfort: 'B', safety: 'A', reform: 'C', profit: 'A' }, stars: 2, worst: 'reform', keysPreview: 7 };
+        passed();
+        ctx.panel.set('inspection');
+        break;
+      case 'transfer':
+        w.inspection.best = Math.max(2, w.inspection.best); passed();
+        w.keys = Math.max(w.keys, 6); w.prestige.perks.startCapital = Math.max(1, w.prestige.perks.startCapital ?? 0);
+        ctx.panel.set('transfer');
+        break;
+    }
+  }, s);
+}
+
+/** plant + let the throttled DOM writes, the count-up and the open animations finish (game time via __step when stepped) */
+export async function enterM5(page: Page, s: M5Screen) {
+  await plantM5(page, s);
+  const stepped = await page.evaluate(() => typeof (window as any).__step === 'function' && new URLSearchParams(location.search).has('capture'));
+  if (stepped) await page.evaluate(() => (window as any).__step(60)); else await page.waitForTimeout(1800);
+  await expect.poll(() => visible(page, M5_PROBE[s]), { message: `M5 screen ${s}: ${M5_PROBE[s]} visible`, timeout: 10_000 }).toBe(true);
+  await settleCss(page);
 }

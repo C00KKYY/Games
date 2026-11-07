@@ -2,7 +2,8 @@
  * Game app: sim + renderer + DOM UI wired through one UICtx (docs/UI_DESIGN.md), plus saving (Brief §9.2, §9.7).
  * Dev params: ?bot=casual|optimal, ?warp=<s>, ?speed=n, ?seed=n, ?debug, ?lang=de, ?capture,
  *   ?fresh (ignore an existing save, start a new game that overwrites it), ?nosave (no load, no save).
- *   ?bot / ?warp / ?capture imply ?nosave (deterministic sandboxes never touch the player's save).
+ *   ?bot / ?warp / ?capture imply ?nosave (deterministic sandboxes never touch the player's save) unless ?keepsave
+ *   (e2e flow: save + load + absence handling on a warped world); ?botoff stops the bot after the warp.
  *
  * World replacement (late SDK init with an existing save, Brief §9.2.4): the UICtx object, its stores and the audio
  * component live for the whole session; everything bound to one World (SimView, overlay, stepper, all other
@@ -49,6 +50,8 @@ import { mountTransfer } from './ui/transfer';
 import { mountReturnPanel } from './ui/returnPanel';
 import { mountSaveIndicator } from './ui/saveIndicator';
 import { mountEdgeHints } from './ui/edgeHints';
+import { mountEventBanner } from './ui/eventBanner';
+import { mountArrivalCards } from './ui/arrivalCards';
 
 /** every CommandResult reason the sim returns (src/sim/rooms.ts, src/sim/sim.ts cmd) → its localised message */
 const REASON_KEY: Record<string, Key> = {
@@ -83,7 +86,8 @@ interface Gen { w: World; view: SimView; overlay: Container; stepper: Stepper; b
 
 export async function createApp(app: Application, cam: Camera, platform: Platform, params: URLSearchParams): Promise<App> {
   // ------------------------------------------------------------------ save read (platform.ready has resolved: §9.2.4)
-  const sandbox = params.has('bot') || params.has('warp') || params.has('capture') || params.has('nosave');
+  // ?keepsave (e2e flow only): a bot/warp/capture world that still saves and loads like a player's (return panel, H4)
+  const sandbox = (params.has('bot') || params.has('warp') || params.has('capture') || params.has('nosave')) && !params.has('keepsave');
   // wall clock (Brief §5): the real one, or a FakeClock for tests (?clock=<epoch ms>&tz=<min east of UTC>; window.__clock.advance(ms))
   const clock: Clock = params.has('clock') ? new FakeClock(Number(params.get('clock')) || 0, Number(params.get('tz') ?? 0) || 0) : systemClock;
   const tzNow = () => clock.tzOffsetMin?.(clock.now()) ?? 0;
@@ -217,7 +221,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       late.modals = mountModals(ctx);
       const comps: Component[] = [late.tip, late.toasts, mountTopbar(ctx), mountClipboard(ctx), mountBuildbar(ctx), mountBuildMenu(ctx), mountStaffMenu(ctx), mountPanels(ctx), late.modals, mountTools(ctx), mountTutorial(ctx), mountJuice(ctx, view), late.audio!,
         // M5 (ui-m5): capture-phase Esc listeners register after modals.ts, so an open modal still wins (docs/M5_DESIGN.md §12)
-        mountProjectBoard(ctx), mountLeads(ctx), mountMail(ctx), mountInspection(ctx), mountTransfer(ctx), mountReturnPanel(ctx), mountSaveIndicator(ctx), mountEdgeHints(ctx)];
+        mountProjectBoard(ctx), mountLeads(ctx), mountMail(ctx), mountInspection(ctx), mountTransfer(ctx), mountReturnPanel(ctx), mountSaveIndicator(ctx), mountEdgeHints(ctx), mountEventBanner(ctx), mountArrivalCards(ctx)];
       (window as unknown as Record<string, unknown>).__sim = w;
       (window as unknown as Record<string, unknown>).__view = view; // test hook (E): agent views (walk phase, facing)
       return { w, view, overlay, stepper: new Stepper(w), bot, comps, offs };
@@ -232,10 +236,12 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
   };
 
   let bot: { step(): void } | null = null;
-  if (params.get('bot')) { const m = await import('../tools/bots'); bot = new m.BotDriver(w0, { profile: params.get('bot') as 'casual', seed: 1 }); }
+  // ?botoff: the bot only plays the warp (and leaves Inspection Day to the player), then hands over (e2e flow)
+  const botOff = params.has('botoff');
+  if (params.get('bot') && loaded.kind !== 'ok') { const m = await import('../tools/bots'); bot = new m.BotDriver(w0, { profile: params.get('bot') as 'casual', seed: 1, ...(botOff ? { m5: { inspect: false } } : {}) }); }
   const warp = Number(params.get('warp') ?? 0) * 1000;
-  if (warp > 0) while (w0.rtMs < warp) { tick(w0); bot?.step(); }
-  let gen = mountGen(w0, bot);
+  if (warp > 0 && loaded.kind !== 'ok') while (w0.rtMs < warp) { tick(w0); bot?.step(); }
+  let gen = mountGen(w0, botOff ? null : bot);
 
   (window as unknown as Record<string, unknown>).__ctx = ctx;
   // test hook (D5): the tooltip content actually bound to an element through ctx.tip (null when none is bound)
@@ -262,6 +268,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
       if (!params.get('lang') && settings.lang && settings.lang !== getLang()) { setLang(settings.lang); document.documentElement.lang = settings.lang; }
       ctx.settings.set(settings);
       gen = mountGen(nw, null);
+      frameStart(); // the new world starts at the dock view (after a transfer the camera still followed the goose)
     } catch (e) { console.error('[app] world swap failed', e); }
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     fade.style.opacity = '0';
@@ -303,6 +310,8 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     state: () => ({ saveState: platform.saveState(), available: store.available(), seq: store.seq, writes: store.writes, bytes: store.lastBytes, error: store.lastError, sandbox, loaded: loaded.kind }),
   };
 
+  function frameStart() { cam.fit(-3.2 * 32, 10.0 * 32, 18.4 * 32, 23.6 * 32, 4); }
+
   // ------------------------------------------------------------------ M5: sessions, absence, platform hooks (docs/M5_DESIGN.md §10)
   /** a running catch-up resim: the normal stepper waits until it is done (the resim stands for the past) */
   let catchUp: CatchUp | null = null;
@@ -313,6 +322,8 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     const plan = planAway(ctx.w, away);
     if (plan.mode === 'formula') { applyOfflineFormula(ctx.w, plan.awayMs); return; }
     if (plan.mode === 'silent' || plan.mode === 'catchup') {
+      // a second absence while a catch-up still runs: append its ticks instead of dropping the rest of the first one
+      if (catchUp && plan.ticks) { catchUp.extend(plan.ticks); if (plan.mode === 'catchup') catchMode = 'catchup'; return; }
       catchUp = new CatchUp(ctx.w, plan.ticks, tick); catchMode = plan.mode;
       ctx.catchUp.set({ mode: plan.mode, left: catchUp.left, total: catchUp.total });
     }
@@ -322,7 +333,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     if (!wallOn) return;
     const now = clock.now();
     if (savedAt !== null) handleAway(awayMs(savedAt, now, AWAY_MAX_MS));
-    beginSession(ctx.w, now, tzNow());
+    beginSession(ctx.w, now, tzNow(), savedAt !== null);
     platform.reportProgress(completionPercent(ctx.w));
   };
   startSession(loaded.kind === 'ok' ? loaded.doc.savedAt : null);
@@ -363,7 +374,7 @@ export async function createApp(app: Application, cam: Camera, platform: Platfor
     get container() { return gen.view.container; },
     get groundCull() { return gen.view.world.ground; },
     ctx, input, insets,
-    frameStart: () => cam.fit(-3.2 * 32, 10.0 * 32, 18.4 * 32, 23.6 * 32, 4),
+    frameStart,
     frame(dt: number) {
       if (fly.on) {
         const k = Math.min(1, dt * 5);

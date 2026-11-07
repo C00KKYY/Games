@@ -63,7 +63,7 @@ export function m5Defaults(site: number): Pick<World, M5Keys> {
     projects: { done: {}, running: null },
     leads: { slots: (LEAD_SLOT_STARS[site] ?? []).map(() => null), hiredMs: {} },
     taps: { horn: 0, crates: 0, hornTotal: 0, cratesTotal: 0 },
-    inspection: { phase: 'idle', startMs: 0, walker: { x: 0, y: 0, dir: 'S', moving: false, wp: 0 }, retryDay: 0, hours: [], mark: { released: 0, escaped: 0, unsolved: 0, income: 0, wages: 0 }, last: null, best: 0, count: 0 },
+    inspection: { phase: 'idle', startMs: 0, walker: { x: 0, y: 0, dir: 'S', moving: false, wp: 0 }, route: [], retryDay: 0, hours: [], mark: { released: 0, escaped: 0, unsolved: 0, income: 0, wages: 0 }, last: null, best: 0, count: 0 },
     prestige: { perks: {}, lifetimeCoins: 0, completedSites: [], bestStars: [], transfers: 0, keysEarned: 0 },
     mail: { day: -1, tasks: [], streak: 0, daysCompleted: 0, seenDay: -1, visible: false, count: {} },
     vip: { phase: 'none', sessionEndMs: 0, sessionEndDay: 0, boardPermanent: false, arrivals: 0 },

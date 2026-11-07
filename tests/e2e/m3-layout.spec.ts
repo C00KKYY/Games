@@ -19,7 +19,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { setup, gotoGame } from './helpers';
-import { load, reset, enter, type StateName } from './states';
+import { load, reset, enter, plantM5, M5_PROBE, type StateName, type M5Screen } from './states';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const QA = join(ROOT, 'qa/m3');
@@ -59,14 +59,14 @@ const SCREENS: Screen[] = [
   },
   { name: 'settings', query: MID, prep: p => p.evaluate(() => (window as any).__ctx.openModal('settings')), check: '.ov-modal' },
   { name: 'help', query: MID, prep: p => p.evaluate(() => (window as any).__ctx.openModal('help')), check: '.ov-modal' },
+  // Brief §12.3 B1 screens of M5 (docs/M5_DESIGN.md §12): the world state each needs is planted (tests/e2e/states.ts plantM5)
+  ...(['projects', 'returnPanel', 'inspectionResult', 'transfer'] as M5Screen[]).map(m5 => ({
+    name: ({ projects: 'project-board', returnPanel: 'return-panel', inspectionResult: 'inspection-result', transfer: 'transfer' } as const)[m5],
+    query: MID, check: M5_PROBE[m5],
+    // + 1 s of game time: the return panel's count-up (1.4 s) has finished when the shot is taken
+    prep: async (p: Page) => { await plantM5(p, m5); await step(p, 30); },
+  })),
 ];
-/** Brief §12.3 B1 screens whose systems do not exist yet – reported as pending, never faked */
-const PENDING = [
-  ['project board (Projekttafel)', 'M5: projects system'],
-  ['return panel (Rückkehr-Panel)', 'M6: return / offline progress'],
-  ['inspection result (Inspektionsergebnis)', 'M5: inspections'],
-  ['transfer (Versetzung)', 'M6: transfer to the next site'],
-] as const;
 
 const shotPath = (lang: string, screen: string, w: number, h: number) =>
   join(KEEP.has(`${w}x${h}`) ? join(QA, 'b1', lang) : join(QA_TMP, lang), `${screen}-${w}x${h}.png`);
@@ -347,11 +347,6 @@ async function settleCss(page: Page) {
 }
 
 test.describe('B1 screenshot matrix', () => {
-  test('B1 pending screens (systems from M5/M6 not implemented yet)', async () => {
-    for (const [screen, why] of PENDING) test.info().annotations.push({ type: 'pending', description: `${screen} – ${why}` });
-    test.skip(true, `pending, not counted as passed: ${PENDING.map(p => p[0]).join(', ')}`);
-  });
-
   test('B1 audit self-check: the DOM audit detects planted defects', async ({ page }) => {
     await setup(page);
     await page.setViewportSize({ width: 800, height: 450 });
@@ -490,7 +485,9 @@ test.describe('B1 screenshot matrix', () => {
  * hover tooltip and a stack of toasts (tests/e2e/states.ts). EN and DE at the three reviewed sizes, the 1280×720
  * default and the 844×390 touch size. Toast / tooltip / label text is running text when it has ≥ 6 words (≥ 14 px).
  */
-const EXTRA_STATES: StateName[] = ['clipList', 'stageList', 'build', 'touchConfirm', 'demoBubble', 'roomConfirm', 'resetConfirm', 'tip', 'toast'];
+// + the M5 panels that are not B1 screens of their own: daily mail, the lead hire dialog, the inspection forecast, and the
+//   event banner (inspection walk + escape chip) with the off-screen edge hint (tests/e2e/states.ts)
+const EXTRA_STATES: StateName[] = ['clipList', 'stageList', 'build', 'touchConfirm', 'demoBubble', 'roomConfirm', 'resetConfirm', 'tip', 'toast', 'm5Mail', 'm5Leads', 'm5Forecast', 'm5Banner'];
 const EXTRA_SIZES = [
   { tag: '800x450', viewport: { width: 800, height: 450 }, touch: false },
   { tag: '907x510', viewport: { width: 907, height: 510 }, touch: false },

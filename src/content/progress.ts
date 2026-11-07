@@ -117,8 +117,8 @@ export interface SiteDef {
   factor: number;
 }
 export const SITES: readonly SiteDef[] = [
-  { id: 1, available: true,  profitTarget: 1200, factor: 1 },
-  { id: 2, available: false, profitTarget: 9600, factor: 8 },
+  { id: 1, available: true,  profitTarget: 1500, factor: 1 },   // casual ≈ 900–2100 net/day at 24–30 min → C–A (BALANCE.md §5)
+  { id: 2, available: false, profitTarget: 12000, factor: 8 },  // × site factor; M6 calibrates
 ] as const;
 export const siteDef = (id: number) => SITES.find(s => s.id === id) ?? SITES[0];
 export const siteFactor = (id: number) => siteDef(id).factor;

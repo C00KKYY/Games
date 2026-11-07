@@ -11,7 +11,8 @@ import { leadHired } from './effects';
 
 /** stars needed for slot k on the current site (Infinity when the site has no such slot) */
 export const slotStars = (w: World, k: number) => LEAD_SLOT_STARS[w.site]?.[k] ?? Infinity;
-export const slotOpen = (w: World, k: number) => starsOf(w.ruf) >= slotStars(w, k);
+/** open once its star level was reached on this run (stays open if escapes push the Ruf down; objectives.ts sets supSlot1/2) */
+export const slotOpen = (w: World, k: number) => starsOf(w.ruf) >= slotStars(w, k) || (w.site === 1 && !!w.unlocked[`supSlot${k + 1}`]);
 /** leads offered on the current site */
 export const leadsForSite = (w: World) => LEADS.filter(l => l.site <= w.site);
 

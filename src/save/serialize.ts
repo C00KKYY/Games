@@ -7,6 +7,7 @@ import type { World } from '../sim/types';
 import { rebuild, m5Defaults } from '../sim/world';
 import { flushEvents } from '../sim/sim';
 import { makeGrid } from '../sim/pathfield';
+import { OFFLINE } from '../content/balance';
 
 /** v1 = M4, v2 = M5 (projects, leads, taps, inspection, prestige, mail, vip, wall, offline – docs/M5_DESIGN.md §1.2) */
 export const SAVE_VERSION = 2;
@@ -58,8 +59,27 @@ export function plainToWorld(p: Record<string, unknown>): World {
 type Migration = (doc: SaveDoc) => SaveDoc;
 const MIGRATIONS: Record<number, Migration> = {
   // 1 → 2 (M5): every new top-level field gets its default; a field that already exists (partially) is filled up
-  1: (d) => { d.world = fillDefaults(d.world, m5Defaults(Number(d.world.site) || 1) as unknown as Record<string, unknown>); d.v = 2; return d; },
+  1: (d) => {
+    d.world = fillDefaults(d.world, m5Defaults(Number(d.world.site) || 1) as unknown as Record<string, unknown>);
+    markFromStats(d.world);
+    d.v = 2; return d;
+  },
 };
+/**
+ * v1 → v2: the inspection window starts at the moment of the migration – `inspection.mark` takes the current
+ * cumulative counters, so the first hour bucket is not the whole M4 history (inspection.ts inspectionCounters).
+ */
+function markFromStats(world: Record<string, unknown>) {
+  const st = (world.stats ?? {}) as { released?: number; escaped?: number; unsolved?: number; income?: Record<string, number>; spend?: Record<string, number> };
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  let income = 0;
+  for (const [k, v] of Object.entries(st.income ?? {})) if (!OFFLINE.nonIncomeKinds.includes(k)) income += num(v);
+  const insp = world.inspection as { mark: Record<string, number> };
+  insp.mark = { released: num(st.released), escaped: num(st.escaped), unsolved: num(st.unsolved), income, wages: num(st.spend?.wages) };
+  // the offline income ring starts now too (offline.ts offlineTick would repair ringMs = 0 itself, one minute late)
+  const off = world.offline as { ringMs: number; ringLife: number } | undefined;
+  if (off) { off.ringMs = num(world.rtMs); off.ringLife = income; }
+}
 /** deep-fill missing keys of plain objects (arrays and values that exist are kept as they are) */
 export function fillDefaults(o: Record<string, unknown>, dflt: Record<string, unknown>): Record<string, unknown> {
   for (const [k, v] of Object.entries(dflt)) {

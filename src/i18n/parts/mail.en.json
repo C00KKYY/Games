@@ -1,0 +1,15 @@
+{
+  "mail.title": "Mayor's Mail",
+  "mail.tipNew": "New mail or a reward to collect",
+  "mail.tip": "Today's 3 tasks from the mayor",
+  "mail.claim": "Claim",
+  "mail.claimBody": "Collect {n} coins for this task.",
+  "mail.hm": "{h} h {m} min",
+  "mail.keyToast": "3 mail days done: +1 golden key!",
+  "mail.sub": "{n} tasks a day, new mail at midnight",
+  "mail.intro": "Finish a task, then claim its reward here.",
+  "mail.claimed": "✓ Claimed",
+  "mail.streak": "Every 3 finished mail days: 1 golden key ({n}/{total})",
+  "mail.tomorrow": "All done! New mail tomorrow – in {time}.",
+  "mail.first": "The first letter arrives in a moment."
+}

@@ -10,7 +10,7 @@ import { rngNext, rngInt, rngPick, rngChance } from './rng';
 import { AF } from './types';
 
 const PER_TICK = 1 / TICKS_PER_HOUR;
-export const SPEED = { rascal: 0.25, staff: 0.28, escape: 0.35, crew: 0.3 } as const;
+export const SPEED = { rascal: 0.3, staff: 0.32, escape: 0.4, crew: 0.3 } as const;
 
 // ------------------------------------------------------------------ spawning
 const SPECIES_S1 = ['raccoon', 'weasel'] as const;
@@ -32,9 +32,15 @@ export function spawnRascal(w: World, x: number, y: number, opts: { earl?: boole
   const n = w.stats.arrived;
   a.species = opts.earl ? 'raccoon' : opts.vip ? 'cat' : rngPick(w, SPECIES_S1);
   a.name = opts.earl ? 'Earl' : opts.vip ? 'Cat Burglar' : NAMES[(n * 7 + rngInt(w, 0, 3)) % NAMES.length];
-  const [lo, hi] = n < SENTENCE.earlyCount ? SENTENCE.early : SENTENCE.normal;
+  const [lo, hi] = n < SENTENCE.firstFerry ? SENTENCE.firstFerryRange : n < SENTENCE.earlyCount ? SENTENCE.early : SENTENCE.normal;
   a.sentence = opts.earl ? SENTENCE.earl : opts.vip ? SENTENCE.vip : rngInt(w, lo, hi);
   a.crime = rngInt(w, 0, 63); a.caseNo = 1000 + rngInt(w, 0, 8999); a.look = rngInt(w, 0, 1 << 20);
+  // G2 hook (docs/G2_FEEDBACK.md): Earl's file is the cake joke his release line pays off; the second passenger of the
+  // first ferry is the petty offender (short sentence) who gives the second release at ~2:40 instead of ~5:20.
+  // Set after the normal draws, so the RNG sequence is unchanged.
+  if (opts.earl) a.crime = SENTENCE.earlCrime;
+  else if (!opts.vip && n === SENTENCE.pettyIndex) { a.sentence = SENTENCE.petty; a.crime = SENTENCE.pettyCrime; }
+  else if (!opts.vip && n === SENTENCE.thirdIndex) { const [l, h] = SENTENCE.firstFerryRange, [l3, h3] = SENTENCE.third; a.sentence = l3 + Math.round((a.sentence - l) * (h3 - l3) / (h - l)); }
   a.security = a.sentence > 180 ? 'high' : a.sentence > 130 ? 'mid' : 'low';
   const nt = rngChance(w, 0.4) ? 2 : 1;
   while (a.traits.length < nt) { const t = rngPick(w, TRAITS); if (!a.traits.includes(t)) a.traits.push(t); }
@@ -155,7 +161,9 @@ export function openSlots(w: World, r: Room): number {
   if (!r.built || !r.reachable || r.blockedUntilMs > w.rtMs) return 0;
   const h = hourOf(w.t);
   switch (r.type) {
-    case 'canteen': { if (!inMeal(h)) return 0; const cooks = staffIn(w, r, 'cook').length; return Math.min(r.slots.length, cooks * 8); }
+    // the kitchen serves everyone already in line when the meal window closes (balance pass M5: with 1-h windows of 7.5 s
+    // real time the line was sent away hungry – Ø hunger 12–25 at 24+ rascals although the Flow Bar showed spare meals)
+    case 'canteen': { if (!inMeal(h) && !r.queueUsers.length) return 0; const cooks = staffIn(w, r, 'cook').length; return Math.min(r.slots.length, cooks * 8); }
     case 'classroom': { if (!inActivity(h)) return 0; const t = staffIn(w, r, 'teacher').length; return Math.min(r.slots.length, t * 10); }
     case 'workshop': return inActivity(h) ? r.slots.length : 0;
     case 'yard': return h >= 8 && h < 22 ? r.slots.length : 0;
@@ -229,7 +237,12 @@ export function chooseActivity(w: World, a: Agent) {
   // reformed → gate
   if (a.reform >= a.sentence && a.sentence > 0) { toGate(w, a); return; }
   if (isNight(w.t) || h >= 21.5) { if (start(w, a, 'sleep')) return; }
-  if (inMeal(h) && N.hunger < 85 && start(w, a, 'eat')) return;
+  if (inMeal(h) && N.hunger < 85) {
+    if (start(w, a, 'eat')) return;
+    // canteen full (4 seats + 1 waiting tile): a hungry rascal waits by the canteen and tries again shortly instead of
+    // leaving for a 2-h class/work block and missing the meal (balance pass M5, docs/BALANCE.md §7)
+    if (N.hunger < MEAL_WAIT_BELOW && waitForMeal(w, a)) return;
+  }
   // most urgent unlocked need below the seek threshold
   const urgent = (['hygiene', 'fun', 'hunger'] as Need[]).filter(n => needActive(w, n) && N[n] < NEEDS.seekBelow).sort((x, y) => N[x] - N[y]);
   for (const n of urgent) {
@@ -244,6 +257,32 @@ export function chooseActivity(w: World, a: Agent) {
   if (needActive(w, 'fun') && N.fun < 90 && start(w, a, 'yard')) return;
   if (N.hygiene < 70 && start(w, a, 'shower')) return;
   hang(w, a);
+}
+
+/** a hungry rascal waits near the nearest open canteen for a short while (then chooses again) */
+const MEAL_WAIT_BELOW = 70;
+const MEAL_WAIT_H = 0.2;
+function waitForMeal(w: World, a: Agent): boolean {
+  const ci = idx(Math.floor(a.x), Math.floor(a.y));
+  let best: Room | null = null, bd = Infinity;
+  for (const r of roomsUsable(w, 'canteen')) {
+    if (!openSlots(w, r)) continue;
+    const d = field(w, '#' + r.id)[ci];
+    if (d !== UNREACHABLE && d < bd) { bd = d; best = r; }
+  }
+  if (!best) return false;
+  const g = w.grid, dx = best.door.side === 'S' ? 0 : best.door.side === 'N' ? 0 : best.door.side === 'E' ? 1.5 : -1.5;
+  const dy = best.door.side === 'S' ? 1.5 : best.door.side === 'N' ? -1.5 : 0;
+  let x = best.door.x + 0.5 + dx, y = best.door.y + 0.5 + dy;
+  for (let k = 0; k < 6; k++) {
+    const ox = x + (rngNext(w) - 0.5) * 2.4, oy = y + (rngNext(w) - 0.5) * 1.2;
+    const i = idx(Math.floor(ox), Math.floor(oy));
+    if (ox > 0 && oy > 0 && ox < g.w && oy < g.h && walkable(g, i) && !g.roomAt[i] && g.ground[i] !== Ground.Water) { x = ox; y = oy; break; }
+  }
+  a.act = { kind: 'hang', roomId: 0, slot: -1, untilT: w.t + hoursToTicks(MEAL_WAIT_H) };
+  goTo(a, `t:${Math.floor(x)},${Math.floor(y)}`, x, y);
+  setState(w, a, 'walking');
+  return true;
 }
 
 /** loiter near the bunk door / on the path for a short while */
@@ -274,7 +313,9 @@ export function toGate(w: World, a: Agent) {
 // ------------------------------------------------------------------ per-tick rascal update
 export function rascalTick(w: World, a: Agent, ctx: { mf: (a: Agent) => number; noiseBunks: Set<number> }) {
   decayNeeds(w, a);
-  if (a.bed && a.mood >= RATE.reformPassiveMood && a.state !== 'leaving') a.reform += RATE.reformPassive * ctx.mf(a) * (a.traits.includes('clever') ? 1.4 : 1) * PER_TICK;
+  // passive reform (Brief §3.10 +0.5/h at mood ≥ 70) counts the activity hours 08–20 only, like class and work: good
+  // conduct during the day, not while asleep (balance pass M5, docs/BALANCE.md §7 – an idle prison released itself)
+  if (a.bed && a.mood >= RATE.reformPassiveMood && a.state !== 'leaving' && inActivity(hourOf(w.t))) a.reform += RATE.reformPassive * ctx.mf(a) * (a.traits.includes('clever') ? 1.4 : 1) * PER_TICK;
   switch (a.state) {
     case 'waitingDock': moveAgent(w, a, SPEED.rascal); break;
     case 'arriving': case 'idle':

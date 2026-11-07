@@ -76,5 +76,21 @@
   "buildbar.more.teacher": "Without a teacher, class is cancelled.",
   "buildbar.more.foreman": "Stations without a foreman knit at {n} % speed.",
   "buildbar.more.clerk": "Keeps the Parole Gate staffed.",
-  "buildbar.more.carter": "Without a cart driver, crates pile up."
+  "buildbar.more.carter": "Without a cart driver, crates pile up.",
+  "buildbar.why.bunk": "Beds for new arrivals",
+  "buildbar.why.canteen": "Meals – keeps rascals fed",
+  "buildbar.why.wash": "Showers – keeps rascals clean",
+  "buildbar.why.workshop": "Knit crates: coins + reform",
+  "buildbar.why.classroom": "Lessons: fastest reform",
+  "buildbar.why.guard": "Stops escapes nearby",
+  "buildbar.why.yard": "Fun – keeps the mood up",
+  "buildbar.why.land": "More room to build",
+  "buildbar.goalTag": "GOAL",
+  "buildbar.land": "Land",
+  "buildbar.landSize": "{w}×{h} tiles of island",
+  "buildbar.landBuy": "Buy ({n})",
+  "buildbar.landConfirm": "Tap again: −{n}",
+  "buildbar.landTip": "The fence falls and the island grows by {w}×{h} tiles.",
+  "buildbar.landConfirmTip": "Tap twice to buy – the first tap asks, the second one pays.",
+  "buildbar.landAll": "You own the whole island."
 }

@@ -9,6 +9,8 @@ import { ROOMS, RATE, GUARD_RADIUS, STAFF_ROOM, levelMult, type StaffRole, type 
 import { staffOf, hireFee, defaultRoomFor, cartCapacity } from '../sim/staff';
 import { roomsOf, roomById } from '../sim/world';
 import { domKit, menuShell, nextWage, wagesPerDay } from './buildbar';
+import { slotOpen, slotStars } from '../sim/leads';
+import { LEAD_OFFLINE_PP } from '../content/progress';
 
 const ROLES: StaffRole[] = ['cook', 'janitor', 'teacher', 'foreman', 'guard', 'clerk', 'carter'];
 /** janitor cleaning per game hour at staff level 1 (staff.ts staffTick: 30 · levelMult · PER_TICK · 4) */
@@ -89,8 +91,37 @@ export function mountStaffMenu(ctx: UICtx): Component {
     return { role, el, name, count, does: desc, wage, wageNum, btn, btnTxt, why, whyTxt };
   });
 
+  // M5: the Warden's Office card – department leads (Brief §3.11) open in their own panel (leads.ts)
+  const office = d.h('div', 'bb-card bb-role bb-office', row);
+  const oTop = d.h('span', 'bb-card-top', office);
+  const oPlaque = d.h('span', 'bb-plaque', oTop);
+  d.img(ctx.icon('warden'), oPlaque);
+  const oName = d.h('span', 'bb-name', oTop);
+  const oDoes = d.h('span', 'bb-does', office);
+  const oState = d.h('span', 'bb-line', office);
+  const oBtn = d.button('bb-hire bb-office-open', office, () => { ctx.menu.set(null); ctx.panel.set('leads'); });
+  d.img(ctx.icon('warden'), oBtn, 'bb-li');
+  const oBtnTxt = d.h('span', '', oBtn);
+  d.tip(oBtn, () => ({ title: t('leads.title'), body: `${t('leads.intro', { pp: Math.round(LEAD_OFFLINE_PP * 100) })}\n${officeState()}` }));
+  const officeState = () => {
+    const w = ctx.w, sl = w.leads.slots;
+    const hired = sl.filter(Boolean).length, free = sl.filter((s, k) => s === null && slotOpen(w, k)).length;
+    if (free > 0) return t('leads.cardFree', { n: free });
+    if (hired > 0) return t('leads.cardHired', { n: hired, total: sl.length });
+    const k = sl.findIndex(s => s === null);
+    return t('leads.unlocksAt', { s: slotStars(w, Math.max(0, k)) });
+  };
+
   const render = () => {
     const w = ctx.w;
+    d.cls(office, 'bb-hide', !w.tutorial.done);
+    if (w.tutorial.done) {
+      d.text(oName, t('leads.title'));
+      d.text(oDoes, t('leads.card'));
+      d.text(oState, officeState());
+      d.text(oBtnTxt, t('leads.open'));
+      d.attr(oBtn, 'aria-label', `${t('leads.open')} – ${officeState()}`);
+    }
     d.text(shell.sub, t('buildbar.staffSub', { n: staffOf(w).length }));
     d.text(wagesTxt, t('buildbar.wages', { n: ctx.fmt(Math.round(wagesPerDay(ctx))) }));
     for (const r of rows) {

@@ -20,7 +20,12 @@ export type ProjectCard =
   /** needs a built room of this type */
   | { state: 'needsRoom'; room: string };
 
-export const projectsUnlocked = (w: World) => starsOf(w.ruf) >= PROJECT_UNLOCK_STARS;
+/** unlocked at 2★ (brief); stays unlocked if escapes push the Ruf below 2★ again (objectives.ts sets unlocked.projects) */
+export const projectsUnlocked = (w: World) => !!w.unlocked.projects || starsOf(w.ruf) >= PROJECT_UNLOCK_STARS;
+/** finished projects with their render hint, board order (renderer: one visible prop/animation per entry) */
+export const doneProjects = (w: World) => PROJECTS.filter(p => w.projects.done[p.id]);
+/** remaining seconds of the running project at 1x (HUD chip), 0 when none */
+export const projectLeftSec = (w: World) => (w.projects.running ? Math.max(0, Math.ceil(w.projects.running.leftMs / 1000)) : 0);
 
 /** card state for the board UI (pure read) */
 export function projectCard(w: World, id: ProjectId): ProjectCard {
@@ -44,7 +49,7 @@ export function startProject(w: World, id: ProjectId): CommandResult {
   if (def.requires && !roomsOf(w, def.requires).some(r => r.built)) return { ok: false, reason: 'noRoom' };
   if (!spend(w, 'project', def.cost)) return { ok: false, reason: 'coins', cost: def.cost };
   w.projects.running = { id, leftMs: def.sec * 1000, totalMs: def.sec * 1000 };
-  emit(w, 'projectStart', { id, cost: def.cost, sec: def.sec });
+  emit(w, 'projectStart', { id, cost: def.cost, sec: def.sec, effect: def.effect, v: def.v });
   return { ok: true, cost: def.cost };
 }
 
@@ -66,7 +71,11 @@ export function advanceProjects(w: World, ms: number) {
 
 function finishProject(w: World) {
   const run = w.projects.running!;
+  const def = projectDef(run.id);
   w.projects.done[run.id] = true;
   w.projects.running = null;
-  emit(w, 'projectDone', { id: run.id });
+  // x/y: where the visible change appears (first room of the required type, else the Warden's Office) – juice/camera hint
+  const r = def.requires ? roomsOf(w, def.requires).find(x => x.built) : undefined;
+  const at = r ? { x: r.x + r.w / 2, y: r.y + r.h / 2 } : w.poi.officeDoor;
+  emit(w, 'projectDone', { id: run.id, effect: def.effect, v: def.v, visual: def.visual, x: at.x, y: at.y });
 }

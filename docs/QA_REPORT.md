@@ -183,3 +183,83 @@ billig, 3 = mindestens ein Element wirkt wie ein Platzhalter)
 4. ~~Toasts beim Nachtsprung nicht überlappen lassen.~~ Nachgeprüft: keine Überlappung, nur Ein- und Ausblenden (siehe „Stand M4“). Die Tagesbilanz kürzer zu fassen bleibt eine Stilfrage.
 5. Tutorial-Schritt 3: Wartezeit verkürzen oder mit einer Mini-Aufgabe füllen (z. B. „Tippe auf Earl“).
 6. Viel ungenutztes Geld ab Minute 6: Kosten oder Ziele der Ausbauten prüfen, sobald die Projekttafel (M5) da ist.
+
+## G2-Rückmeldung (Hook-Schritt M5, 2026-11-07)
+
+**Rückmeldung des Auftraggebers** (wörtlich): (1) „anfang hat zwar das tutorial aber man weiss trotzdem nicht richtig was man
+machen soll so richtig" (2) „das spiel hat nicht einen grossen reiz, am anfang soll ncoh so wie ein bisschen was sein zum lust
+bekommen". Plan, Diagnose und was wir bewusst nicht tun: `docs/G2_FEEDBACK.md`. Balance-Belege: `docs/BALANCE.md` §6.
+
+### Was geändert wurde
+| Punkt | Änderung | Dateien |
+|---|---|---|
+| (1) Was tun? | Klemmbrett mit Warum-Zeile, Handlungswortlaut („Baue Betten: 12 insgesamt"), Freischaltung in der Belohnung, Kreislauf-Zeile bis zur 3. Entlassung, Sparbalken mit Zeitschätzung, „Jetzt bauen" | `src/ui/clipboard.ts`, `clipboard.css`, `src/i18n/parts/clipboard.*` |
+| (1) | Geführte erste Ziele: Ring + Hand auf genau eine nächste Bedienung (Räume → Ziel-Karte → Grundriss an gutem Platz mit Zieh-Vorführung → Personal → Einstellen; bei „Kantine auf Stufe 5": Raum → Ausbauen), endet nach „Kantine Stufe 5"; Grundriss-Vorschlag danach für jedes Bau-Ziel | `src/ui/guide.ts` (neu), `src/ui/tutorial.ts`, `tutorial.css` |
+| (1) | Räume-Menü: Zweck-Zeile je Karte, ZIEL-Schild, Ziel-Karte wird ins Bild gescrollt (907×510 schnitt sie ab) | `src/ui/buildMenu.ts`, `buildbar.css`, `src/i18n/parts/buildbar.*` |
+| (1) | Tutorial-Schritt 3: Schild über Earl (Dusche → Balken → ✓), Wartezeilen „Eine Dusche bessert ihn" / „Gebessert! Ab zum Tor", Hand wartet am Tor | `src/ui/tutorial.ts`, `src/i18n/parts/tutorial.*` |
+| (1) | Übergabe: Kantinen-Panel schließt, Fluss-Leiste leuchtet einmal mit Erklärung (Brief §4.2), dann erst die Führung | `src/ui/tutorial.ts` |
+| (1) | Tipp „Kistenstapel antippen: schneller Münzen" beim Sparen; „Genug Münzen!" schweigt, solange die Führung zeigt | `src/ui/tutorial.ts` |
+| (2) Reiz | Strafakten-Kärtchen bei der Ankunft (Brief §4.2), Entlassungs-Sätze (Earl: Kuchen) | `src/ui/arrivalCards.ts` (neu), `arrivalCards.css`, `src/content/gags.ts`, `src/app.ts` (Mount) |
+| (2) | Bagatell-Täter: 2. Entlassung bei ~2:00–3:00 statt ~5:20 (halbe Prämie, 5 Ruf), Ausgleich im Strafmaß | `src/sim/agents.ts`, `src/sim/ferry.ts`, `src/content/balance.ts`, `tools/economy-sheet.ts` |
+| (2) | Stern-Toast nennt, was der Stern bringt und was der nächste bringt; „Erste Lieferung!" mit Münzfontäne | `src/ui/toasts.ts`, `src/render/juice.ts` |
+| (2) | „Fast frei"-Sterne über Schlingeln ab 80 % (vorhandenes Sprite im Need-Layer, kein neuer Draw-Call-Container) | `src/render/juice.ts` |
+| (2) | VIP-Schild-Unterzeile „Komm morgen wieder – dann ist er da." | `src/ui/eventBanner.ts`, `src/i18n/parts/progress.*` |
+| Fertig machen | Land kaufen: Land-Karte im Räume-Menü (Zwei-Tipp-Bestätigung), Tipp auf ein „Zu verkaufen"-Schild öffnet sie | `src/ui/buildMenu.ts`, `src/ui/tools.ts`, `src/content/site1.ts` |
+
+### Nachweis: als neuer Spieler gespielt
+`tools/selfreview/hook.spec.ts`: frisches Profil, `?capture=1`, 6 Minuten. Der „Neuling" tippt nur, was das Spiel zeigt
+(Tutorial-Ring, danach Führungsring/-hand, „Jetzt bauen", Fähre, Ausbrecher) und entscheidet nichts selbst. Bilder alle 15 s
+(+ 0:05, Übergabe 0:34): `qa/m5/hook/<lang>-<größe>/`, je Lauf `log.json` mit Aktionen, Führungsschritten und Ereignissen.
+
+| Lauf | Entlassungen (s) | Ziele erledigt (s) | längste Strecke ohne Moment | Fehler |
+|---|---|---|---|---|
+| EN 1280×720 | 28 · 111 · 307 | 39 · 177 · 191 · 226 · 234 · 316 (7 von 10 inkl. Kantine Stufe 5) | 59 s (ab 4:08) | 0 |
+| EN 907×510 | 28 · 111 · 307 | dto. | 59 s | 0 |
+| DE 1280×720 | 28 · 110 · 304 | 39 · 177 · 191 · 290 · 298 · 316 | 51 s (ab 2:06) | 0 |
+| DE 907×510 | 28 · 110 · 304 | dto. | 51 s | 0 |
+
+„Moment" = Bau fertig, Entlassung, Ziel, Freischaltung, Stern, Ausbrecher, Einstellung, Ankunft (mit Kärtchen), Meilenstein.
+Vorher (Selbst-Review M4, Bot-Gehirn statt Neuling): 117 s ohne Neues (1:03–3:00) und 2. Entlassung bei 5:12–5:20; ein
+passiver Spieler bekam nach dem Tutorial genau einen Hinweis bis 3:00.
+
+**Kritischer Blick auf die Bilder** (ich habe alle Übergabe-Bilder, 0:05–1:00, 3:00 und 5:00–6:00 der vier Läufe angesehen):
+- Gut: Die Kärtchen lesen sich auf einen Blick, der BAGATELLE-Stempel macht neugierig; das Schild über Earl erklärt die
+  Wartezeit; nach dem Tutorial steht immer genau ein Ring auf dem nächsten Knopf; die Ziel-Karte ist auch bei 907×510 im Bild;
+  Sparbalken und „Jetzt bauen" nehmen die Sparphase vor dem Klassenzimmer die Leere.
+- Behoben während der Läufe: Ziel-Karte und Vorarbeiter-Karte lagen bei 907×510 außerhalb der schmalen Leiste (die Leiste wird
+  erst nach dem Rendern schmaler) → Einblenden nach `fit()` bzw. in der Führung; ZIEL-Schild quetschte „Strickstube" →
+  in die Preiszeile; die Führung zeigte schon während der Tutorial-Feier → wartet jetzt das Fluss-Leisten-Intro ab; das
+  Fluss-Leisten-Kärtchen lag über dem Grundriss-Vorschlag → weicht, sobald ein Werkzeug oder Menü offen ist; die Vorführhand
+  zog von der Ecke aus, das Werkzeug zentriert aber auf dem ersten Feld → Hand startet dort, wo der Mindestraum passt.
+- Schwächen, die bleiben: Das VIP-Schild ist bei 907×510 groß und steht ab Tag 2 dauerhaft über dem Büro. Der Klemmbrett-Kasten
+  ist mit Warum-Zeile bei 907×510 höher (bis ~320 px), verdeckt aber kein Ziel und kein Menü. Bei der Übergabe kommen
+  Freischalt-Toast, „NEU"-Stempel, Fluss-Leiste und „Jetzt bauen"-Puls gleichzeitig – das ist ein bewusster Feier-Moment,
+  wirkt aber dicht.
+
+### Tests
+Produktions-Build im eigenen Scratch-Ordner, `vite preview` auf Port 5380 (`--strictPort`, danach gestoppt), `--workers=1`,
+`--reporter=list` (qa/playwright-results.json unverändert):
+- `tsc --noEmit -p .` und `eslint src tests` sauber; `vitest run` **22 Dateien, 303/303** (neu: `tests/unit/g2-hook.test.ts`, 7 Tests:
+  Bagatell-Täter und Earls Akte deterministisch, Bagatell-Prämie/-Ruf, Führungskette Räume → Karte → Platz → Personal → Einstellen,
+  Platz gültig und `suggestSpot` ändert den State-Hash nicht, Sparbalken-ETA, Kistenstapel-Tipp nur beim Sparen, Stufen-Ziel
+  Kantine → Ausbauen, Entlassungs-Sätze EN/DE). D1 (≤ 8 Wörter) prüft jetzt Schritttext + längste Wartezeile.
+- `m4-onboarding.spec.ts` 8/8 (D8 erste Entlassung 28,5 s, D1 je Schritt ≤ 8 Wörter, z. B. „Stamp to release! Reformed! Off to the
+  gate" = 8, D4 0 schlechte Proben, D6 kein Modal, D9 Skip 26,5 s, D10 USP 4 bei 180 s), `m4-fixes-ui.spec.ts` 17/17,
+  `m3-ui.spec.ts` 23/23 (B3 brauchte einen Fix: der rote „Kaufen"-Knopf der Land-Karte hatte Deckkraft 0,8 → 3,76:1; jetzt ohne),
+  `m4-accept.spec.ts` 6/6 (A6 ohne Fehler), `m3-layout.spec.ts` 45/45 (B1 brauchte einen Fix: Warum-Zeile, Kreislauf-Zeile,
+  Belohnungszeile mit Freischaltung und VIP-Unterzeile sind Fließtext ≥ 6 Wörter → 1rem = 14 px; die Sperr-Zeile im Räume-Menü
+  nutzt wieder den kurzen Basis-Text), `m5-ui.spec.ts` 17/17. Die B1-PNGs in `qa/m3/b1` wurden dabei neu geschrieben.
+- Balance: `tools/balance.ts --minutes 30 --seeds 5` alle Zeilen grün außer Kernraum Lv15 (vorher schon rot), Economy-Sheet H0 grün
+  (Details BALANCE.md §6).
+
+### Offen (Ursache, keine Schwelle gelockert)
+- **Taktungsregel §4.3** (≤ 120 s ohne Neues, 15 min, Casual-Bot): 3 von 5 Seeds verletzt (139–174 s; vorher 5 von 5). Die Lücken
+  liegen nach der Essensschlacht (~10:33) bis Parzelle 2 und bei zwei Seeds zwischen Tunnel (3:00) und Klassenzimmer. Ursache ist die
+  Mittelphase des Bots (spart auf Parzelle 2, keine Entlassungen bei vollen Betten), nicht der Anfang. Beim Neuling mit Führung ist die
+  längste Strecke ohne Moment in den ersten 6 min 51–59 s.
+- **Kernraum Lv15** (Casual 27:30 statt 16:00–20:00) war schon vor diesem Schritt rot (Balance-Pass).
+- **Robustheit**: auf einem zweiten Seed-Satz (3/5/7/9/13) fallen „Wachposten" (3:29 < 3:36) und „erste Leitung" (19:43 > 19:12)
+  heraus; vor dem Hook-Schritt bestanden sie dort. Die offiziellen Seeds bestehen (BALANCE.md §6).
+- Ein menschlicher Playtest (G-artig) steht aus; der „Neuling" ist ein Skript, gehört hat niemand etwas.
+- Nicht gebaut: Stern-Tooltip in der Topbar mit nächster Belohnung (die Info steht im Stern-Toast), „Nächste Entlassung in ~40 s"
+  an der Tor-Stufe der Fluss-Leiste (ersetzt durch die „Fast frei"-Sterne).

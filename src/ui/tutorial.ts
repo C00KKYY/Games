@@ -33,6 +33,7 @@ import { TUTORIAL_STEPS, OBJECTIVES } from '../sim/objectives';
 import { tileReason } from '../sim/rooms';
 import { ROOMS, roomCost, CLEAN, type RoomType } from '../content/balance';
 import { FERRY_POS, GATE_X, GATE_Y, TUTORIAL_WASH } from '../content/site1';
+import { buildGoal, guideStep, suggestSpot, type GuideStep } from './guide';
 
 const TILE = 32;                       // world units per tile (render/world.ts)
 const TICK_MS = 100;                   // throttled DOM work (≤ 10/s)
@@ -45,17 +46,19 @@ const JIT_AFTER_TUTORIAL_MS = 6000;    // first tip a few seconds after the tuto
 
 // ------------------------------------------------------------------------------------------------ pure helpers
 type Step = typeof TUTORIAL_STEPS[number];
-/** the optional wait line shown under the step text (counted for D1 together with the step text) */
-export const STEP_WAIT: Partial<Record<Step, Key>> = { wash: 'tutorial.wait.build', stamp: 'tutorial.wait.earl' };
-export const stepKeys = (s: Step): Key[] => [`tut.${s}`, ...(STEP_WAIT[s] ? [STEP_WAIT[s]!] : [])];
-/** words a player reads in one tutorial step (step text + wait line), D1 */
-export const stepWords = (s: Step, t: (k: Key) => string) => stepKeys(s).reduce((n, k) => n + t(k).split(/\s+/).filter(Boolean).length, 0);
+/** the optional wait lines shown under the step text, one at a time (counted for D1 together with the step text):
+ *  stamp – while Earl showers ("a shower reforms him"), then while the reformed Earl walks to the gate */
+export const STEP_WAIT: Partial<Record<Step, Key[]>> = { wash: ['tutorial.wait.build'], stamp: ['tutorial.wait.earl', 'tutorial.wait.earlGate'] };
+export const stepKeys = (s: Step): Key[] => [`tut.${s}`, ...(STEP_WAIT[s] ?? [])];
+const words = (x: string) => x.split(/\s+/).filter(Boolean).length;
+/** most words a player reads at once in one tutorial step (step text + the longest wait line), D1 */
+export const stepWords = (s: Step, t: (k: Key) => string) => words(t(`tut.${s}`)) + Math.max(0, ...(STEP_WAIT[s] ?? []).map(k => words(t(k))));
 
-export type JitKind = 'escape' | 'horn' | 'drag' | 'beds' | 'queue' | 'dirty' | 'crates' | 'coins' | 'mood';
+export type JitKind = 'escape' | 'horn' | 'drag' | 'beds' | 'queue' | 'dirty' | 'janitor' | 'crates' | 'earnFaster' | 'coins' | 'mood';
 /** priority order: urgent world taps first, then build advice */
-export const JIT_ORDER: JitKind[] = ['escape', 'horn', 'drag', 'beds', 'queue', 'dirty', 'crates', 'coins', 'mood'];
+export const JIT_ORDER: JitKind[] = ['escape', 'horn', 'drag', 'beds', 'queue', 'dirty', 'janitor', 'crates', 'earnFaster', 'coins', 'mood'];
 /** how long a condition must hold before it counts (ms) */
-const SUSTAIN: Partial<Record<JitKind, number>> = { queue: 5000, dirty: 3000, crates: 5000, coins: 15000, mood: 10000, beds: 3000 };
+const SUSTAIN: Partial<Record<JitKind, number>> = { queue: 5000, dirty: 3000, crates: 5000, earnFaster: 4000, coins: 15000, mood: 10000, beds: 3000 };
 /** kinds that may come back more often (short, urgent world taps) */
 const REPEATABLE: Partial<Record<JitKind, number>> = { escape: 60000, horn: 60000 };
 export interface JitMemo { lastMs: number; count: Partial<Record<JitKind, number>>; kindMs: Partial<Record<JitKind, number>>; since: Partial<Record<JitKind, number>> }
@@ -82,8 +85,17 @@ function jitConditions(w: World, buildTool: boolean): JitPick[] {
   const janitors = w.agents.some(a => a.kind === 'staff' && a.role === 'janitor');
   const dirty = !janitors && w.rooms.find(r => r.type === 'wash' && r.built && r.clean < CLEAN.dirtyBelow);
   if (dirty) out.push({ kind: 'dirty', roomId: dirty.id, ...centreOf(dirty) });
+  // janitor hint after a food fight (Brief §4.2 row ~10:00 "Hausmeister-Hinweis"): up to 2 min after it ended, while
+  // no janitor works here – points at the canteen it happened in
+  const fEnd = w.director.data.foodEndMs;
+  const foodRoom = !janitors && w.director.active !== 'food' && fEnd && w.rtMs - fEnd < 120_000 ? w.rooms.find(r => r.id === w.director.data.foodRoom) : undefined;
+  if (foodRoom) out.push({ kind: 'janitor', roomId: foodRoom.id, ...centreOf(foodRoom) });
   const crates = w.rooms.find(r => r.type === 'workshop' && r.built && r.stack >= 4);
   if (crates) out.push({ kind: 'crates', roomId: crates.id, ...centreOf(crates) });
+  // saving up for the goal room (G2): a crate stack is the fastest money – say so before it is a pile
+  const bg = buildGoal(w);
+  const stack = bg && bg.unlocked && !bg.affordable ? w.rooms.find(r => r.type === 'workshop' && r.built && r.stack >= 2) : undefined;
+  if (stack) out.push({ kind: 'earnFaster', roomId: stack.id, ...centreOf(stack) });
   const goal = OBJECTIVES[w.obj.current];
   const type = goal && !w.obj.done[goal.id] ? GOAL_ROOM[goal.id] : undefined;
   if (type && w.unlocked[type] && !w.rooms.some(r => r.type === type && !r.built) && w.coins >= minCost(type) + 40
@@ -100,9 +112,10 @@ function jitConditions(w: World, buildTool: boolean): JitPick[] {
  * sustain time, ≤ 1 tip per JIT_GAP_MS, the same tip at most JIT_KIND_MAX times with a cooldown (urgent taps repeat).
  * The caller marks a tip as shown with jitShown().
  */
-export function jitPick(w: World, m: JitMemo, nowMs: number, opts: { buildTool: boolean }): JitPick | null {
+export function jitPick(w: World, m: JitMemo, nowMs: number, opts: { buildTool: boolean; guide?: boolean }): JitPick | null {
   if (!w.tutorial.done) return null;
-  const conds = jitConditions(w, opts.buildTool);
+  // while the guide points at the Rooms button, "Enough coins! Build …" would say the same thing twice
+  const conds = jitConditions(w, opts.buildTool).filter(c => !(opts.guide && c.kind === 'coins'));
   const live = new Set(conds.map(c => c.kind));
   for (const k of JIT_ORDER) {
     if (!live.has(k)) delete m.since[k];
@@ -131,6 +144,7 @@ export function jitStillValid(w: World, kind: JitKind, pick?: Pick<JitPick, 'roo
   if (kind === 'escape' && pick?.agentId !== undefined) return w.agents.some(a => a.id === pick.agentId && a.state === 'escaping');
   if (kind === 'queue' && pick?.roomId !== undefined) return w.rooms.some(r => r.id === pick.roomId && r.built && r.queueUsers.length >= 3);
   if (kind === 'crates' && pick?.roomId !== undefined) return w.rooms.some(r => r.id === pick.roomId && r.built && r.stack >= 4);
+  if (kind === 'earnFaster' && pick?.roomId !== undefined) { const bg = buildGoal(w); return !!bg && !bg.affordable && w.rooms.some(r => r.id === pick.roomId && r.built && r.stack >= 1); }
   return jitConditions(w, !!opts?.buildTool).some(c => c.kind === kind);
 }
 export function jitShown(m: JitMemo, kind: JitKind, nowMs: number) { m.lastMs = nowMs; m.kindMs[kind] = nowMs; m.count[kind] = (m.count[kind] ?? 0) + 1; }
@@ -244,6 +258,32 @@ export function mountTutorial(ctx: UICtx): Component {
   const jitIc = h('img', 'tu-jit-ic', jit); jitIc.src = ctx.icon('warden'); jitIc.alt = ''; jitIc.draggable = false;
   const jitTxt = h('span', 'tu-jit-txt', jit);
 
+  // step 3: Earl's "ready for release" plate over his head – shower first, then reformed ✓ (G2: the wait taught nothing)
+  const earlPlate = h('div', 'tu-earl', stage);
+  earlPlate.setAttribute('aria-hidden', 'true');
+  const earlIc = h('img', 'tu-earl-ic', earlPlate); earlIc.src = ctx.icon('shower'); earlIc.alt = ''; earlIc.draggable = false;
+  const earlBar = h('span', 'tu-earl-bar', earlPlate);
+  const earlFill = h('i', '', earlBar);
+  const earlOk = h('img', 'tu-earl-ok', earlPlate); earlOk.src = ctx.icon('check'); earlOk.alt = ''; earlOk.draggable = false;
+  let earlShown = 0;                      // displayed fill (tweened: Earl's reform jumps when his shower ends)
+
+  // guided first builds after the tutorial (src/ui/guide.ts): a ring + hand on the one next control, a dashed footprint
+  // at a good spot while the build tool is on, and once a looping hand that drags it out (Brief §6.2 "Zieh-Geste … per
+  // Animation"). Own classes (not .tu-ring / .tu-hand): the e2e drivers read those as the tutorial pointer.
+  const gRing = h('div', 'tu-gring', stage);
+  const gHand = h('div', 'tu-ghand', stage);
+  const gHandIn = h('div', 'tu-hand-in', gHand);
+  gHandIn.innerHTML = ctx.touch ? HAND_SVG : MOUSE_SVG;
+  gHandIn.style.transformOrigin = `${tipX}px ${tipY}px`;
+  const gSpot = h('div', 'tu-gspot', stage);
+  const gDrag = h('div', 'tu-gdrag', stage);
+  for (const el of [gRing, gHand, gSpot, gDrag]) el.setAttribute('aria-hidden', 'true');
+  // tutorial end: the flow bar is highlighted once (Brief §4.2 row 1:10–1:30) with a one-line explanation
+  const flowChip = h('div', 'tu-flowchip', stage);
+  flowChip.setAttribute('role', 'note');
+  const flowChipIc = h('img', 'tu-jit-ic', flowChip); flowChipIc.src = ctx.icon('warden'); flowChipIc.alt = ''; flowChipIc.draggable = false;
+  const flowChipTxt = h('span', 'tu-jit-txt', flowChip);
+
   // ---------------------------------------------------------------- state
   let clock = 0;                          // visible ms since mount (wall clock of update dt)
   let acc = TICK_MS, lastLang = '';
@@ -272,6 +312,15 @@ export function mountTutorial(ctx: UICtx): Component {
   let skipped = false;
   let ctlBusy = false;
   let clipOpen = false;                   // compact: the clipboard card is expanded over the world (it has its own Skip)
+  // guide (after the tutorial)
+  let gStep: GuideStep | null = null;
+  let gEl: { key: string; box: DOMRect } | null = null;
+  let gSpotCache: { type: RoomType; ver: number; w: number; h: number; rect: { x: number; y: number; w: number; h: number } | null } | null = null;
+  let demoDone = false;                   // the drag demo plays until the first guided room is placed
+  let gScrolled = '';                     // the card the guide scrolled into view in this opening of a menu
+  let ptrDown = false;
+  let gDemoT = 0;
+  let handoverAt = -1, flowIntroUntil = -1, flowEl: HTMLElement | null = null;
 
   const step = (): Step => TUTORIAL_STEPS[Math.max(0, Math.min(TUTORIAL_STEPS.length - 1, w.tutorial.step))];
   const active = () => w.tutorial.active && !skipped;
@@ -312,17 +361,22 @@ export function mountTutorial(ctx: UICtx): Component {
     const c = jitCur; if (!c) return;
     ctx.sound('click');
     if (c.kind === 'beds' || c.kind === 'coins') ctx.menu.set('rooms');
-    else if (c.kind === 'dirty') ctx.menu.set('staff');
+    else if (c.kind === 'dirty' || c.kind === 'janitor') ctx.menu.set('staff');
     else if (c.roomId) { const r = w.rooms.find(x => x.id === c.roomId); if (r) { ctx.focusTile(r.x + r.w / 2, r.y + r.h / 2); ctx.selection.set({ kind: 'room', id: r.id }); } }
     else if (c.agentId && c.kind === 'mood') { const a = w.agents.find(x => x.id === c.agentId); if (a) { ctx.focusTile(a.x, a.y); ctx.selection.set({ kind: 'agent', id: a.id }); } }
     else if (c.x !== undefined && c.y !== undefined) ctx.focusTile(c.x, c.y);
     jitCur = null; cls(jit, 'on', false);
   });
   const offEvent = ctx.onEvent(e => {
-    if (e.type === 'tutorialDone') { doneAt = clock; if (!e.skipped) ending = 900; acc = TICK_MS; }
+    if (e.type === 'tutorialDone') { doneAt = clock; if (!e.skipped) { ending = 900; handoverAt = clock + 900; } acc = TICK_MS; }
+    if (e.type === 'build' && w.tutorial.done && gStep?.kind === 'spot') demoDone = true;
     if (e.type === 'tutorialStep') acc = TICK_MS;
   });
-  const offTool = ctx.tool.on(v => { if (v.kind === 'build' && w.tutorial.done) buildToolSeen = true; });
+  const offTool = ctx.tool.on(v => { if (v.kind === 'build' && w.tutorial.done) buildToolSeen = true; acc = TICK_MS; });
+  const onPtrDown = () => { ptrDown = true; }, onPtrUp = () => { ptrDown = false; };
+  ctx.canvas.addEventListener('pointerdown', onPtrDown, { passive: true });
+  window.addEventListener('pointerup', onPtrUp, { passive: true });
+  window.addEventListener('pointercancel', onPtrUp, { passive: true });
 
   tip(skip, () => ({ title: t('tut.skip'), body: t('tutorial.skipTip') }));
   tip(ghost, () => ({ title: t('tutorial.ghost'), body: t('tutorial.ghostTip', { cost: ctx.fmt(washCost()) }) }));
@@ -386,6 +440,8 @@ export function mountTutorial(ctx: UICtx): Component {
       case 'stamp': {
         if (w.agents.some(a => a.state === 'atGate')) return worldAim('gate', GATE_X + 1, GATE_Y - 1.3, 1.9, true);
         const earl = w.agents.find(a => (a.flags & AF.earl) && isRascal(a) && a.state !== 'leaving');
+        // reformed and on his way: the hand already waits at the gate (the player sees where the stamp will be)
+        if (earl && earl.reform >= earl.sentence) return worldAim('gate', GATE_X + 1, GATE_Y - 1.3, 1.9, false);
         return earl ? worldAim('earl', earl.x, earl.y - 0.55, 1, false) : worldAim('gate', GATE_X + 1, GATE_Y - 1.3, 1.9, false);
       }
       case 'upgrade': {
@@ -400,7 +456,10 @@ export function mountTutorial(ctx: UICtx): Component {
     if (!active()) return null;
     const s = step();
     if (s === 'wash' && w.rooms.some(r => r.type === 'wash' && !r.built)) return 'tutorial.wait.build';
-    if (s === 'stamp' && !w.agents.some(a => a.state === 'atGate')) return 'tutorial.wait.earl';
+    if (s === 'stamp' && !w.agents.some(a => a.state === 'atGate')) {
+      const earl = w.agents.find(a => (a.flags & AF.earl) && isRascal(a));
+      return earl && earl.reform >= earl.sentence ? 'tutorial.wait.earlGate' : 'tutorial.wait.earl';
+    }
     return null;
   };
 
@@ -558,6 +617,133 @@ export function mountTutorial(ctx: UICtx): Component {
     put(jit, 'transform', `translate(${Math.round(x)}px,${Math.round(below)}px)`);
   }
 
+  // ---------------------------------------------------------------- guide (after the tutorial, ≤ 10/s)
+  /** the guide points through the first goals (up to Canteen level 5); the spot ghost helps with every build goal */
+  const guideEra = () => w.tutorial.done && !w.obj.done.canteen5;
+  function measureGuide() {
+    gEl = null;
+    const tool = ctx.tool.get();
+    const toolType = tool.kind === 'build' ? tool.type : undefined;
+    // suggested spot for the goal room while its build tool is on (re-searched when the layout changes)
+    let spot: { x: number; y: number; w: number; h: number } | null = null;
+    const bg = toolType ? buildGoal(w) : null;
+    if (bg && toolType === bg.type && bg.affordable && !bg.building) {
+      const c = gSpotCache;
+      if (!c || c.type !== bg.type || c.ver !== w.cache.version || c.w !== bg.size.w || c.h !== bg.size.h) gSpotCache = { type: bg.type, ver: w.cache.version, w: bg.size.w, h: bg.size.h, rect: suggestSpot(w, bg.type, bg.size.w, bg.size.h) };
+      spot = gSpotCache!.rect && tileReason(w, bg.type, gSpotCache!.rect.x, gSpotCache!.rect.y, gSpotCache!.rect.w, gSpotCache!.rect.h) === 'ok' ? gSpotCache!.rect : null;
+    }
+    const pending = !!document.querySelector('.tl-confirm:not([hidden]) .tl-yes');
+    // the tutorial end gets its moment first (unlock toast, new goal, flow-bar intro), then the guide points
+    const settled = handoverAt < 0 && flowIntroUntil < 0;
+    const sel = ctx.selection.get();
+    let st = w.tutorial.done ? guideStep(w, { menu: ctx.menu.get(), tool: { kind: tool.kind, type: toolType }, pending, spot, selRoom: sel?.kind === 'room' ? sel.id : undefined }) : null;
+    if (st && !settled && st.kind !== 'spot' && st.kind !== 'confirm') st = null;
+    if (st && !guideEra() && st.kind !== 'spot' && st.kind !== 'confirm') st = null;
+    if (st && (st.kind === 'staff' || st.kind === 'hire' || st.kind === 'room' || st.kind === 'upgrade') && !guideEra()) st = null;
+    // pointing at a room: only while no other panel is open (a rascal's card would hide it)
+    if (st && st.kind === 'room' && sel && !(sel.kind === 'room' && sel.id === st.roomId)) st = null;
+    // never on top of a modal, an open M5 panel, the clipboard overlays or a just-in-time tip
+    if (modal || ctx.panel.get() !== null || !!document.querySelector('.cb--open, .cb--list') || !!jitCur) st = st && st.kind === 'spot' ? st : null;
+    gStep = st;
+    if (!st) return;
+    let el: Element | null = null;
+    if (st.kind === 'rooms') el = document.querySelector('.bb-rooms');
+    else if (st.kind === 'card') el = document.querySelector(`.bb-card[data-room="${st.type}"]`);
+    else if (st.kind === 'staff') el = document.querySelector('.bb-staff');
+    else if (st.kind === 'hire') el = document.querySelector(`.bb-role[data-role="${st.role}"] .bb-hire`);
+    else if (st.kind === 'confirm') el = document.querySelector('.tl-confirm:not([hidden]) .tl-yes');
+    else if (st.kind === 'upgrade') el = [...document.querySelectorAll('.pn:not([hidden]) .pn-upbtn')].find(shown) ?? null;
+    if (el && shown(el)) {
+      // a card in a narrow, sideways-scrolling sheet (phones, 907 px with the clipboard beside it): bring it into view once
+      // per opening, then only point at it while it is in view (the player may scroll on)
+      const sc = el.closest<HTMLElement>('.bb-scroll');
+      let b = el.getBoundingClientRect();
+      const rb = sc?.getBoundingClientRect();
+      const out = !!rb && (b.left < rb.left - 1 || b.right > rb.right + 1);
+      const scrollKey = `${ctx.menu.get()}:${st.kind}:${'type' in st ? st.type : st.role}`;
+      if (sc && rb && out && gScrolled !== scrollKey) {
+        sc.scrollLeft += b.right > rb.right ? b.right - rb.right + 8 : b.left - rb.left - 8;
+        gScrolled = scrollKey;
+        b = el.getBoundingClientRect();
+      }
+      if (!rb || (b.left >= rb.left - 1 && b.right <= rb.right + 1)) gEl = { key: st.kind, box: b };
+    }
+    if (ctx.menu.get() === null) gScrolled = '';
+  }
+  function frameGuide(dt: number) {
+    const st = gStep;
+    let aim: Aim | null = gEl ? boxAim(gEl.key, gEl.box, true) : null;
+    if (st && st.kind === 'room') { const r = w.rooms.find(x => x.id === st.roomId); if (r) aim = worldAim('groom', r.x + r.w / 2, r.y + r.h / 2, Math.max(r.w, r.h) * 0.45, true); }
+    // spot: dashed footprint (projected every frame) + the drag demo until the first guided build
+    let spotOn = false, dragOn = false;
+    if (st && st.kind === 'spot') {
+      const z = ctx.cam.zoom, p = ctx.cam.worldToScreen(st.x * TILE, st.y * TILE);
+      const sw = st.w * TILE * z, sh = st.h * TILE * z;
+      put(gSpot, 'transform', `translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`);
+      put(gSpot, '$width', `${Math.round(sw)}px`); put(gSpot, '$height', `${Math.round(sh)}px`);
+      spotOn = true;
+      if (!demoDone && !ptrDown) {
+        gDemoT = (gDemoT + dt) % 2.4;
+        const k = Math.min(1, Math.max(0, (gDemoT - 0.35) / 1.3)), e = k * k * (3 - 2 * k);
+        // the build tool centres a minimum-size room on the pressed tile and grows it towards the drag (tools.ts
+        // dragRect): press where that minimum room is the spot's top-left part, drag to the spot's far corner
+        const mw = ROOMS[st.type].minW, mh = ROOMS[st.type].minH, T = TILE * z;
+        const x0 = p.x + (((mw - 1) >> 1) + 0.5) * T, y0 = p.y + (((mh - 1) >> 1) + 0.5) * T, x1 = p.x + sw - 0.5 * T, y1 = p.y + sh - 0.5 * T;
+        aim = { key: 'drag', x: x0 + (x1 - x0) * e, y: y0 + (y1 - y0) * e, r: 0, tap: false };
+        put(gDrag, 'transform', `translate(${Math.round(p.x)}px,${Math.round(p.y)}px)`);
+        put(gDrag, '$width', `${Math.round((mw + (st.w - mw) * e) * T)}px`); put(gDrag, '$height', `${Math.round((mh + (st.h - mh) * e) * T)}px`);
+        dragOn = gDemoT > 0.3 && gDemoT < 2.0;
+      }
+    }
+    if (aim) {
+      const flipY = aim.y > innerHeight - 80 ? -1 : 1, flipX = aim.x > innerWidth - 70 ? -1 : 1;
+      put(gHand, 'transform', `translate(${Math.round(aim.x)}px,${Math.round(aim.y)}px) scale(${flipX},${flipY}) translate(${-tipX}px,${-tipY}px)`);
+      cls(gHand, 'tap', aim.tap);
+      const demo = aim.r === 0 && !aim.tap;
+      cls(gHand, 'drag', demo);
+      if (aim.tap) put(gRing, 'transform', `translate(${Math.round(aim.x)}px,${Math.round(aim.y)}px)`);
+    }
+    cls(gHand, 'on', !!aim);
+    cls(gRing, 'on', !!aim && aim.tap);
+    cls(gSpot, 'on', spotOn);
+    cls(gDrag, 'on', dragOn);
+  }
+  /** tutorial end: close the panel the tutorial opened, highlight the flow bar once with its one-line explanation */
+  function handover() {
+    if (handoverAt >= 0 && clock >= handoverAt) {
+      handoverAt = -1;
+      const c = bestRoom('canteen'), sel = ctx.selection.get();
+      if (c && sel?.kind === 'room' && sel.id === c.id) ctx.selection.set(null);
+      flowEl = document.querySelector<HTMLElement>('.tb .pill.flow');
+      if (flowEl) { flowEl.classList.add('tu-flow-intro'); flowIntroUntil = clock + 6000; }
+    }
+    if (flowIntroUntil >= 0 && clock >= flowIntroUntil) { flowIntroUntil = -1; flowEl?.classList.remove('tu-flow-intro'); }
+    // the player already acts (a menu or a build tool is open): the chip makes room – it would sit on the build spot
+    const on = flowIntroUntil >= 0 && !modal && ctx.menu.get() === null && ctx.tool.get().kind === 'none';
+    if (on && flowEl) {
+      const b = flowEl.getBoundingClientRect();
+      const x = Math.max(8, Math.min(innerWidth - 8 - flowChip.offsetWidth, b.left + b.width / 2 - flowChip.offsetWidth / 2));
+      // below the toast stack (the unlock / new-goal toasts of the tutorial end sit right under the top bar)
+      const ts = document.querySelector('.ov-toasts'), tb = ts && ts.childElementCount ? ts.getBoundingClientRect() : null;
+      const y = Math.max(b.bottom + 8, tb && tb.height > 0 && tb.right > x && tb.left < x + flowChip.offsetWidth ? tb.bottom + 8 : 0);
+      put(flowChip, 'transform', `translate(${Math.round(x)}px,${Math.round(y)}px)`);
+    }
+    cls(flowChip, 'on', on);
+  }
+  /** step 3: the plate over Earl (shower icon, fill, ✓) – tweened so his reform jump reads as a bar filling up */
+  function frameEarl(dt: number) {
+    const earl = active() && step() === 'stamp' ? w.agents.find(a => (a.flags & AF.earl) && isRascal(a) && a.state !== 'leaving' && a.state !== 'atGate') : undefined;
+    if (!earl || modal) { cls(earlPlate, 'on', false); return; }
+    const want = Math.max(0, Math.min(1, earl.reform / Math.max(1, earl.sentence)));
+    earlShown += (want - earlShown) * Math.min(1, dt * 4);
+    if (Math.abs(want - earlShown) < 0.01) earlShown = want;
+    const p = ctx.cam.worldToScreen(earl.x * TILE, (earl.y - 1.55) * TILE);
+    put(earlPlate, 'transform', `translate(${Math.round(p.x)}px,${Math.round(p.y)}px) translate(-50%,-100%)`);
+    put(earlFill, 'transform', `scaleX(${Math.round(earlShown * 100) / 100})`);
+    cls(earlPlate, 'done', earlShown >= 0.99);
+    cls(earlPlate, 'on', true);
+  }
+
   // ---------------------------------------------------------------- text (on change / language switch)
   function renderText() {
     const lang = ctx.lang();
@@ -585,6 +771,7 @@ export function mountTutorial(ctx: UICtx): Component {
     }
     if (langChanged || ctlLeft > 0) for (const it of ctlItems) { put(it.cap, 'text', t(it.capK)); put(it.desc, 'text', t(it.descK)); }
     put(ctl, 'aria-label', t('tutorial.ctl.title'));
+    put(flowChipTxt, 'text', t('tutorial.flowIntro'));
     if (jitCur) {
       const txt = jitText(jitCur);
       put(jitTxt, 'text', txt);
@@ -611,15 +798,28 @@ export function mountTutorial(ctx: UICtx): Component {
     if (w.tutorial.done && clock - doneAt >= JIT_AFTER_TUTORIAL_MS) {
       const buildTool = buildToolSeen && ctx.tool.get().kind === 'build';
       if (jitCur && (clock >= jitCur.until || !jitStillValid(w, jitCur.kind, jitCur, { buildTool }))) jitCur = null;
-      const busy = modal || ctx.paused() || w.speed === 0 || !!document.querySelector('.cb--open, .cb--list');
+      const busy = modal || ctx.paused() || w.speed === 0 || !!document.querySelector('.cb--open, .cb--list') || jitCovered();
       if (!jitCur && !busy) {
-        const pick = jitPick(w, jm, clock, { buildTool });
+        const pick = jitPick(w, jm, clock, { buildTool, guide: guideEra() });
         if (pick) { jitShown(jm, pick.kind, clock); jitCur = { ...pick, until: clock + JIT_SHOW_MS }; renderText(); }
       }
       if (jitCur && busy) jitCur.until = Math.min(jitCur.until, clock); // a modal / open clipboard list hides it
       cls(jit, 'on', !!jitCur);
       if (jitCur) placeJit();
     } else cls(jit, 'on', false);
+    measureGuide();
+  }
+
+  /** an open menu sheet / M5 side panel lies on the tip's spot (compact layouts): the tip steps aside (M5 flow audit) */
+  function jitCovered() {
+    if (ctx.menu.get() === null && ctx.panel.get() === null) return false;
+    const r = jit.getBoundingClientRect();
+    if (!(r.width > 0)) return ctx.compact.get(); // not shown yet: on compact layouts a sheet / panel covers its corner
+    for (const el of ctx.root.querySelectorAll<HTMLElement>('.bb-menu:not([hidden]), .m5p:not([hidden])')) {
+      const o = el.getBoundingClientRect();
+      if (o.width > 0 && r.left < o.right && r.right > o.left && r.top < o.bottom && r.bottom > o.top) return true;
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------- per frame: follow the camera (transform only)
@@ -676,10 +876,20 @@ export function mountTutorial(ctx: UICtx): Component {
     // controls overlay
     if (ctlLeft > 0) ctlLeft -= dt * 1000;
     cls(ctl, 'on', ctlLeft > 0 && !ctlBusy);
+    frameEarl(dt);
+    if (!on) { handover(); frameGuide(dt); }
+    else { for (const el of [gRing, gHand, gSpot, gDrag, flowChip]) cls(el, 'on', false); }
   }
 
   // test hook (tests/e2e/m4-fixes-ui.spec.ts): the current target in screen px and where the layers went
-  (window as unknown as Record<string, unknown>).__tutorial = { aim: () => (curAim ? { ...curAim } : null), mini: () => bubMode !== 'full', mode: () => bubMode, away: () => bubAway, ctlSlot: () => ctlSlot };
+  (window as unknown as Record<string, unknown>).__tutorial = { aim: () => (curAim ? { ...curAim } : null), mini: () => bubMode !== 'full', mode: () => bubMode, away: () => bubAway, ctlSlot: () => ctlSlot,
+    guide: () => {
+      if (!gStep) return null;
+      const st = gStep;
+      const r = st.kind === 'room' ? w.rooms.find(x => x.id === st.roomId) : undefined;
+      const el = gEl ? { x: gEl.box.left + gEl.box.width / 2, y: gEl.box.top + gEl.box.height / 2 } : r ? ctx.cam.worldToScreen((r.x + r.w / 2) * TILE, (r.y + r.h / 2) * TILE) : null;
+      return { ...st, el };
+    } };
 
   return {
     update(dt: number) {
@@ -690,6 +900,9 @@ export function mountTutorial(ctx: UICtx): Component {
       if (acc >= TICK_MS || ctx.lang() !== lastLang) { acc = 0; tick(); }
       frame(dt);
     },
-    destroy() { offEvent(); offTool(); stage.remove(); ctx.root.classList.remove('tu-bub-on'); },
+    destroy() {
+      offEvent(); offTool(); stage.remove(); ctx.root.classList.remove('tu-bub-on'); flowEl?.classList.remove('tu-flow-intro');
+      ctx.canvas.removeEventListener('pointerdown', onPtrDown); window.removeEventListener('pointerup', onPtrUp); window.removeEventListener('pointercancel', onPtrUp);
+    },
   };
 }
