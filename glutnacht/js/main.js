@@ -19,6 +19,11 @@
   // weiter; die Abweichung wird gesammelt (debt) und in kleinen Raten (höchstens 10 % je Bild) nachgeholt, so geht
   // keine Zeit verloren. Echte Aussetzer (ab dem 1,6-Fachen) laufen unverändert durch, gedeckelt auf 50 ms.
   let last = performance.now(), sdt = 1 / 60, debt = 0;
+  // Nach einem Dialog (Stufenaufstieg, Truhe, Pause) läuft das Spiel 0,45 s lang von 30 % auf volles Tempo an, wenn
+  // gerade Gegnergeschosse fliegen oder Warnzeichen stehen: Zeit, sich zu orientieren (der Daumen liegt noch nicht
+  // wieder auf dem Stick). Held und Gegner werden gleich gebremst – leichter wird dadurch nichts.
+  const RESUME = 0.45;
+  let prevSt = Game.state, resume = 0;
   function frame(now) {
     const raw = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
@@ -31,10 +36,16 @@
       dt += pay; debt -= pay;
     } else if (raw >= sdt * 1.6) { dt = clamp(raw + debt, 0, 0.05); debt = 0; }
     if (booted) Input.update();
-    if (Game.state === 'play') {
-      const steps = dt > 1 / 45 ? 2 : 1;
-      for (let i = 0; i < steps; i++) Game.update(dt / steps);
-    }
+    const st = Game.state, r0 = Game.run;
+    if (st === 'play' && st !== prevSt && (prevSt === 'levelup' || prevSt === 'chest' || prevSt === 'paused') &&
+      r0 && (r0.eshots.length || r0.tele.length)) resume = RESUME;
+    prevSt = st;
+    if (st === 'play') {
+      let gdt = dt;
+      if (resume > 0) { gdt = dt * (0.3 + 0.7 * (1 - resume / RESUME)); resume = Math.max(0, resume - dt); }
+      const steps = gdt > 1 / 45 ? 2 : 1;
+      for (let i = 0; i < steps; i++) Game.update(gdt / steps);
+    } else resume = 0;
     Render.rafNow = now;
     Render.draw(dt);
     if (booted) UI.updateHud();
@@ -70,12 +81,15 @@
   // Optional mit Weltposition x: leicht nach links/rechts im Stereobild (relativ zur Kamera)
   Hooks.sfx = (n, a, x) => Sfx.play(n, a, x === undefined || !Game.view.hw ? 0 : clamp((x - Render.cam.x) / Game.view.hw, -1, 1) * 0.6);
   Hooks.shake = a => Render.addShake(a);
-  // Stufenaufstieg: Lichtstoß um den Helden, 150 ms stehendes Bild (Treffer-Stopp), dann die Karten
+  // Stufenaufstieg: Lichtstoß um den Helden, 150 ms stehendes Bild (Treffer-Stopp), dann die Karten. Folgt der
+  // Dialog direkt auf einen anderen (mehrere Aufstiege, Truhe), steht das Bild schon: kein neuer Lichtstoß – er
+  // müsste die ganze Szene erneut zeichnen (bei 450 Gegnern 5 Bilder à 50–80 ms), die Karten kämen ruckelnd.
   let lvlT = 0;
   Hooks.levelUp = () => {
-    Render.levelUp();
+    const chained = Render.still;
+    if (!chained) Render.levelUp();
     clearTimeout(lvlT);
-    lvlT = setTimeout(() => { if (Game.state === 'levelup') UI.levelUp(Game.lastLevelOptions); }, 150);
+    lvlT = setTimeout(() => { if (Game.state === 'levelup') UI.levelUp(Game.lastLevelOptions); }, chained ? 60 : 150);
   };
   Hooks.kill = e => Render.onKill(e);
   Hooks.chest = r => UI.chest(r);

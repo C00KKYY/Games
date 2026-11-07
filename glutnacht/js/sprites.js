@@ -139,7 +139,27 @@ const Sprites = (() => {
     }
     // 3. Umriss hinter die Figur
     const ow = (o.w === undefined ? STYLE.outline : o.w) * SC;
-    if (ow > 0) {
+    if (ow >= 8 && W * H > 200000) {
+      // Große Bilder (Bosse in Hochauflösung, Titelbilder): Umriss in halber Auflösung aufbauen und geglättet
+      // vergrößert hinterlegen – bei einem 8+ Bildpunkte breiten dunklen Rand kaum zu sehen, aber statt ~67
+      // Kopien des ganzen Bildes (Endboss auf hochauflösenden Anzeigen: 170–180 ms je Bild) nur ein Achtel der Arbeit
+      const w2 = Math.ceil(W / 2), h2 = Math.ceil(H / 2), o2 = ow / 2;
+      const sc = cpuCanvas(w2, h2), sg = sc.getContext('2d');
+      sg.drawImage(m, 0, 0, w2, h2);
+      sg.globalCompositeOperation = 'source-in'; sg.fillStyle = o.ink || STYLE.ink; sg.fillRect(0, 0, w2, h2);
+      const dc = cpuCanvas(w2, h2), dg = dc.getContext('2d');
+      const n = clamp(Math.ceil(o2 * 3), 16, 72), n2 = Math.max(8, n >> 1);
+      for (let i = 0; i < n; i++) { const a = i / n * TAU; dg.drawImage(sc, Math.cos(a) * o2, Math.sin(a) * o2); }
+      for (let i = 0; i < n2; i++) { const a = (i + 0.5) / n2 * TAU; dg.drawImage(sc, Math.cos(a) * o2 * 0.55, Math.sin(a) * o2 * 0.55); }
+      // vergrößern und die Kante wieder schärfen (Alpha steiler), sonst wirkt der Rand weich
+      const uc = blank(c), ug = uc.getContext('2d');
+      ug.drawImage(dc, 0, 0, w2 * 2, h2 * 2);
+      const ud = ug.getImageData(0, 0, W, H), ua = ud.data;
+      for (let i = 3; i < ua.length; i += 4) { const v = (ua[i] - 128) * 3 + 128; ua[i] = v < 0 ? 0 : v > 255 ? 255 : v; }
+      ug.putImageData(ud, 0, 0);
+      g.globalCompositeOperation = 'destination-over';
+      g.drawImage(uc, 0, 0);
+    } else if (ow > 0) {
       const oc = blank(c), og = oc.getContext('2d');
       og.drawImage(m, 0, 0);
       og.globalCompositeOperation = 'source-in'; og.fillStyle = o.ink || STYLE.ink; og.fillRect(0, 0, W, H);

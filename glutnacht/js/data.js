@@ -221,7 +221,7 @@ const STAGES = [
       { pool: { brute: 2, ghoul: 3, wraith: 2, bell: 2 }, rate: 6.8, cap: 215 },
     ],
     events: [
-      { t: 40, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
+      { t: 34, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
       { t: 50, kind: 'ring', type: 'slime', n: 24, text: 'Umzingelt!' },
       { t: 72, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker in Stellung!' },
       { t: 105, kind: 'swarm', type: 'bat', n: 36, text: 'Fledermausschwarm!' },
@@ -341,7 +341,7 @@ const STAGES = [
     decor: ['rock', 'rock', 'rock', 'grave', 'cross', 'bones', 'stump'],
     tints: { skel: '#c8a060', golem: '#a08a6a', brute: '#8a6a4a', ghoul: '#7a7a5a', slime: '#8a9a5a' }, mods: { skel: { hp: 1.25 }, spitter: { hp: 1.2 }, golem: { speed: 1.1 } },
     mult: { hp: 1.2, dmg: 1.05, rate: 1.1 },
-    rangedFrom: 40,
+    rangedFrom: 36,
     rangedCd: 1.2,
     waves: [
       { pool: { skel: 3, slime: 2, spitter: 1 }, rate: 2.4, cap: 50 },
@@ -361,7 +361,7 @@ const STAGES = [
       { pool: { golem: 3, brute: 3, spitter: 3, wraith: 3, skel: 2, cinder: 1, moth: 1 }, rate: 10.6, cap: 325 },
     ],
     events: [
-      { t: 40, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker auf der Mauer!' },
+      { t: 36, kind: 'arc', type: 'spitter', n: 3, text: 'Spucker auf der Mauer!' },
       { t: 48, kind: 'arc', type: 'cinder', n: 2, text: 'Die Aschenkessel brodeln!' },
       { t: 55, kind: 'swarm', type: 'bat', n: 32, text: 'Fledermausschwarm!' },
       { t: 68, kind: 'arc', mix: { spitter: 2, moth: 1 }, text: 'Schützen auf der Mauer!' },
@@ -387,7 +387,7 @@ const STAGES = [
     ground: { base: '#5a4c86', speckle: ['#7660b2', '#2c2248', '#6b4cff'], grass: '#9682d0' },
     decor: ['cross', 'grave', 'bones', 'bones', 'rock', 'rock', 'flower'], decorTint: '#3a2a6a',
     tints: { bat: '#6b4cff', slime: '#6b4cff', skel: '#8a7cff', ghost: '#9a8cff', ghoul: '#5a3cc0', wraith: '#7a4cff', brute: '#5a3cc0', golem: '#4a3a9a' }, mods: { all: { hp: 1.15, speed: 1.05 } },
-    mult: { hp: 1.1, dmg: 1, rate: 1.05 },
+    mult: { hp: 1.1, dmg: 1.08, rate: 1.05 },
     rangedFrom: 40,
     waves: [
       { pool: { bat: 3, ghost: 2, skel: 1, moth: 1 }, rate: 2.8, cap: 55 },
@@ -425,7 +425,7 @@ const STAGES = [
       { id: 'nightmare', name: 'Der Nachtmahr', t: 210, sprite: 'wraith', tint: '#4a2cff', hp: 3200, speed: 84, dmg: 22, r: 42, xp: 150, skills: ['dash', 'fan', 'dash', 'nova'], cast: { fan: { prim: 'fan', n: 5, spread: 40, spd: 220 } } },
       { id: 'mooneater', name: 'Mondfresser', t: 450, sprite: 'golem', tint: '#2e2366', hp: 14000, speed: 52, dmg: 32, r: 58, xp: 350, skills: ['slam', 'eclipse', 'summon', 'eclipse'], cast: { eclipse: { prim: 'rain', v: 'track', k: 1 } }, summon: 'ghost' },
       { id: 'starless', name: 'Der Sternlose', t: 690, sprite: 'skel', tint: '#9a8cff', hp: 24000, speed: 66, dmg: 34, r: 48, xp: 450, skills: ['summon', 'starfall', 'nova', 'dash'], cast: { starfall: { prim: 'rain', v: 'stars', k: 9 } }, summon: 'skel' },
-      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 230000, speed: 72, dmg: 45, r: 64, xp: 1000, skills: ['dash', 'spiral', 'slam', 'lanes', 'summon', 'nova'], cast: { spiral: { prim: 'spiral', arms: 3 }, lanes: { prim: 'lanes', pat: 'x' } }, summon: 'skel', final: true },
+      { id: 'night', name: 'Die Nacht', t: 900, sprite: 'night', hp: 450000, speed: 72, dmg: 75, r: 64, xp: 1000, skills: ['dash', 'spiral', 'slam', 'lanes', 'summon', 'nova'], cast: { spiral: { prim: 'spiral', arms: 4 }, lanes: { prim: 'lanes', pat: 'x' } }, summon: 'skel', final: true },
     ],
   },
 ];

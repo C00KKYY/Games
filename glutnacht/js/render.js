@@ -67,6 +67,7 @@ const Render = {
     // Glut des Helden: weicher, warmer Schein, der über das Licht hinaus aufhellt (additiv)
     this.spr.ember = this.poolSprite(['rgba(255,176,96,0.5)', 'rgba(255,140,60,0.16)', 'rgba(255,110,40,0)']);
     for (let i = 0; i < 40; i++) this.embers.push({ x: Math.random(), y: Math.random(), s: rand(1, 3), v: rand(10, 40), ph: rand(0, TAU) });
+    this.quality = this.loadQuality();
     this.resize();
   },
 
@@ -142,6 +143,9 @@ const Render = {
       this.perf.last = 0;
       return;
     }
+    // Unter einem frisch geöffneten Dialog keine Boss-Bilder (je Bild bis zu einige zehn ms), solange die Karten
+    // noch hereinfahren
+    if (q[0].boss && this.dialogOpen() && this.time - this.dlgSince < 0.45) return;
     // außerhalb des Spiels: bis zu 6 ms je Bild
     const t0 = performance.now();
     while (q.length && performance.now() - t0 < 6) q.shift().fn();
@@ -265,6 +269,20 @@ const Render = {
     this.still = false; // ein stehendes Bild unter einem Dialog muss nach dem Leeren des Canvas neu gezeichnet werden
   },
 
+  // Zuletzt stabile Darstellungsstufe dieses Geräts (Bildschirmgröße und Pixeldichte): Ein langsames Gerät beginnt
+  // so nicht jede Sitzung wieder mit 5–10 s ruckelnder Stufe 0. Hochgeschaltet wird von dort wie gewohnt.
+  qKey() {
+    const sc = window.screen || {};
+    return 'glutnacht.q.' + (sc.width || 0) + 'x' + (sc.height || 0) + '@' + (window.devicePixelRatio || 1);
+  },
+  loadQuality() {
+    try { const v = +localStorage.getItem(this.qKey()); return v > 0 && v < QUALITY.length ? Math.round(v) : 0; } catch (e) { return 0; }
+  },
+  saveQuality(q) {
+    this.perf.saved = q;
+    try { localStorage.setItem(this.qKey(), String(q)); } catch (e) { /* privat/gesperrt: dann eben nicht */ }
+  },
+
   // Stufe fest setzen (fixed = keine automatische Umschaltung mehr) – für Tests und Einstellungen
   setQuality(q, fixed) {
     this.quality = clamp(Math.round(q), 0, QUALITY.length - 1);
@@ -288,7 +306,7 @@ const Render = {
   applyQuality(q) {
     const P = this.perf, o = QUALITY[this.quality], n = QUALITY[q], res = this.resAt(q) !== this.resAt(this.quality);
     P.log.push('q' + this.quality + '>' + q + (this.dialogOpen() ? ' (Dialog)' : ''));
-    this.quality = q; P.pend = -1; P.acc = 0; P.ft.length = 0; P.last = 0;
+    this.quality = q; P.pend = -1; P.acc = 0; P.ft.length = 0; P.last = 0; P.qT = 0;
     if (res) this.resize();
     else if (n.lm !== o.lm) this.makeLightMap();
   },
@@ -332,6 +350,9 @@ const Render = {
     let long = 0, sum = 0;
     for (let i = 0; i < n; i++) { if (ft[i] > P.disp * 1.5 + 1) long++; if (i < m) sum += ft[i]; }
     const share = long / n, avg = sum / m; // avg ohne die langsamsten 10 % (einzelne Hänger)
+    // 20 s Spiel ohne Wechsel auf dieser Stufe: als Startstufe der nächsten Sitzung merken
+    P.qT = (P.qT || 0) + P.acc;
+    if (P.qT >= 20000 && P.pend < 0 && P.saved !== this.quality) this.saveQuality(this.quality);
     P.acc = 0; ft.length = 0;
     const last = QUALITY.length - 1, q0 = this.quality;
     // Obergrenze vergessen, sobald es klar schneller läuft (z. B. Stromsparmodus beendet)
@@ -386,8 +407,8 @@ const Render = {
 
   // Lichtkarte in geringer Auflösung; der Randabfall (Vignette) steckt schon darin
   // Die Lichtkarte hat genau 1/f der Canvas-Auflösung (f ganzzahlig, 2–4, so nah wie möglich an QUALITY.lm) und wird
-  // ohne Glätten um f vergrößert: Ihre Verläufe sind so weich, dass die f×f-Blöcke nicht zu sehen sind (verglichen
-  // in 3-facher Vergrößerung), aber das Filtern beim Vergrößern kostete ohne Grafikkarte 3 ms je Bild.
+  // um f vergrößert: auf Stufe 0 geglättet, ab Stufe 1 ohne Glätten (das Filtern kostet ohne Grafikkarte 3 ms je
+  // Bild; bei f = 4 auf hochauflösenden Anzeigen sieht man dann am Rand heller Lichthöfe Stufen).
   makeLightMap() {
     const f = this.lmF = clamp(Math.round(this.dpr / QUALITY[this.quality].lm), 2, 4);
     const w = Math.max(1, Math.ceil(this.cv.width / f)), h = Math.max(1, Math.ceil(this.cv.height / f));
@@ -421,6 +442,19 @@ const Render = {
     if (Store.data.settings.shake) this.shake = Math.max(this.shake, a);
   },
 
+  // Handys: Zeit, Bossleiste und Bossname bedecken oben einen großen Teil des Bildes. Game.view.top (Weltpixel ab
+  // Oberkante) hält Schützen und zaubernde Bosse darunter (Game.inViewRect). Gemessen nur bei Größenwechsel und
+  // wenn die Bossleiste erscheint oder verschwindet.
+  hudTop() {
+    const el = typeof UI !== 'undefined' && UI.el;
+    if (!el || !el.bossbar) return;
+    const bv = !el.bossbar.hidden;
+    if (bv === this.hudBV && this.hudW === this.W && this.hudH === this.H) return;
+    this.hudBV = bv; this.hudW = this.W; this.hudH = this.H;
+    const phone = this.H < 500 || this.W < 560, b = bv ? el.bossbar : el.timer;
+    Game.view.top = phone && b ? (b.offsetTop + b.offsetHeight + 6) / this.zoom : 0;
+  },
+
   // Welt → Bildschirm
   toScreen(x, y) {
     return { x: (x - this.cam.x) * this.zoom + this.W / 2, y: (y - this.cam.y) * this.zoom + this.H / 2 };
@@ -431,21 +465,23 @@ const Render = {
     this.time += dt;
     const inRun = r && Game.state !== 'menu';
     if (r && r.stage.id !== this.stageId) this.setStage(r.stage);
-    if (r !== this.runRef) { this.runRef = r; this.corpses.length = 0; this.vfx.length = 0; this.lvlFx = null; }
+    // neuer Lauf: gescheiterte Hochschalt-Versuche vergessen (ein schwerer Kampf soll nicht die ganze Sitzung bremsen)
+    if (r !== this.runRef) { this.runRef = r; this.corpses.length = 0; this.vfx.length = 0; this.lvlFx = null; this.perf.fails = {}; }
     this.autoQuality(inRun && Game.state === 'play');
     // Unter Dialogen steht das Spielbild: einmal zeichnen (nach dem Lichtstoß des Stufenaufstiegs), dann nicht
     // mehr – das spart unter jedem Dialog die volle Bildarbeit, und der Wechsel zurück ins Spiel ruckelt nicht.
     // Erst unter dem stehenden Bild wird vorgebaut (nicht während des Lichtstoßes).
     if (this.dialogOpen()) {
+      if (!this.dlgOn) { this.dlgOn = true; this.dlgSince = this.time; }
       if (this.lvlFx && this.lvlFx.stop > 0) this.still = false;
       else if (this.still) { this.prebuildStep(); return; }
       else this.still = true;
-    } else { this.still = false; this.prebuildStep(); }
+    } else { this.still = false; this.dlgOn = false; this.prebuildStep(); }
     // Effekt-Zeit läuft nur im Spiel (und im kurzen Stopp beim Stufenaufstieg), nicht unter Dialogen
     const L = this.lvlFx;
     this.fxDt = Game.state === 'play' || (L && L.stop > 0) ? dt : 0;
     if (L) { if (L.stop > 0) L.stop -= dt; L.t += this.fxDt; if (L.t > 1.2) this.lvlFx = null; }
-    if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; }
+    if (inRun) { this.cam.x = r.p.x + this.camOffset.x; this.cam.y = r.p.y + this.camOffset.y; this.hudTop(); }
     else { const k = 1 - this.keyArtA * 0.85; this.cam.x += 18 * dt * k; this.cam.y += 7 * dt * k; } // vor dem Titelbild fast still
     let sx = 0, sy = 0;
     if (this.shake > 0) {
@@ -454,10 +490,11 @@ const Render = {
     }
     const z = this.zoom, d = this.dpr;
     const cx = this.cam.x + sx / z, cy = this.cam.y + sy / z;
-    // Weltursprung auf ganze Bildschirmpunkte: Der Boden liegt dann ohne Filtern (siehe groundFill), und alles in der
-    // Welt verschiebt sich gemeinsam mit ihm
+    // Weltursprung mit Bruchteilen: Held (Kamera) steht ruhig in der Mitte, die Welt gleitet gleichmäßig. Nur das
+    // Bodenmuster wird auf ganze Bildpunkte gelegt (groundFill, ohne Filtern); es weicht höchstens 0,5 Bildpunkte ab.
+    // (Ein gerundeter Ursprung ließ den Helden um ±0,5 Bildpunkte zittern und die Welt in Schritten 2,2,2,1 laufen.)
     const B = this.base;
-    B.x = Math.round(d * (this.W / 2 - cx * z)); B.y = Math.round(d * (this.H / 2 - cy * z));
+    B.x = d * (this.W / 2 - cx * z); B.y = d * (this.H / 2 - cy * z);
     ctx.setTransform(d * z, 0, 0, d * z, B.x, B.y);
     const hw = Game.view.hw + 40, hh = Game.view.hh + 40;
     const vx0 = cx - hw, vy0 = cy - hh, vx1 = cx + hw, vy1 = cy + hh;
@@ -481,7 +518,7 @@ const Render = {
   },
 
   // Boden: Die Kachel wird einmal auf Bildschirmmaßstab gebracht (hochwertig geglättet, deckend) und dann ohne
-  // Skalierung um ganze Bildpunkte verschoben als Muster gelegt. Ein skaliertes oder um Bruchteile verschobenes Muster
+  // Skalierung um ganze Bildpunkte verschoben (gerundeter Weltursprung) als Muster gelegt. Ein skaliertes oder um Bruchteile verschobenes Muster
   // müsste jedes Bild jeden Bildpunkt neu filtern – ohne Grafikkarte ein Viertel der ganzen Zeichenzeit (3,5 ms von
   // 13,5 bei 1280×720), ganzzahlig 0,3 ms. Die Kachel ist fest an die Welt gebunden (Weltgröße der
   // Kachel = gerundete Pixelgröße / Maßstab, also 512 ± 0,5).
@@ -495,7 +532,7 @@ const Render = {
       g.drawImage(this.groundSrc, 0, 0, Ts, Ts);
       this.gTile = ctx.createPattern(c, 'repeat'); this.gTs = Ts; this.gK = k;
     }
-    const Ts = this.gTs, ox = ((this.base.x % Ts) + Ts) % Ts, oy = ((this.base.y % Ts) + Ts) % Ts;
+    const Ts = this.gTs, ox = ((Math.round(this.base.x) % Ts) + Ts) % Ts, oy = ((Math.round(this.base.y) % Ts) + Ts) % Ts;
     ctx.setTransform(1, 0, 0, 1, ox, oy);
     ctx.fillStyle = this.gTile;
     ctx.fillRect(-ox, -oy, this.cv.width, this.cv.height);
@@ -915,9 +952,10 @@ const Render = {
       if (te.kind !== 'aim' || te.t >= te.lockAt) continue;
       if (!dashed) { ctx.setLineDash([14, 10]); dashed = true; }
       const ca = Math.cos(te.a), sa = Math.sin(te.a), L = te.len;
-      ctx.globalAlpha = 0.5; ctx.strokeStyle = H.ink; ctx.lineWidth = 4;
+      // (kräftiger als zuvor: auf hellem Aschen- und Eisboden war die Linie vor dem Sperren zu blass)
+      ctx.globalAlpha = 0.7; ctx.strokeStyle = H.ink; ctx.lineWidth = 5;
       ctx.beginPath(); ctx.moveTo(te.x, te.y); ctx.lineTo(te.x + ca * L, te.y + sa * L); ctx.stroke();
-      ctx.globalAlpha = 0.35 + 0.3 * te.t / te.lockAt; ctx.strokeStyle = H.glow; ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5 + 0.35 * te.t / te.lockAt; ctx.strokeStyle = H.glow; ctx.lineWidth = 2.6;
       ctx.stroke();
     }
     if (dashed) ctx.setLineDash([]);
@@ -998,19 +1036,20 @@ const Render = {
             ctx.fillStyle = H.ink; ctx.beginPath(); ctx.arc(dx, dy, dr + 1.6, 0, TAU); ctx.fill();
             ctx.fillStyle = later ? H.rim : H.core; ctx.beginPath(); ctx.arc(dx, dy, dr, 0, TAU); ctx.fill();
           }
-          if (te.arms) { // Spirale: kurze Pfeile in Drehrichtung (je Arm ein eigener Bogen mit Spitze)
-            const RA = R + 16;
+          if (te.arms) { // Spirale: Pfeile in Drehrichtung (je Arm ein eigener Bogen mit Spitze); auf Handys (kleiner
+            // Maßstab) entsprechend dicker, damit sie dort nicht zu feinen Strichen werden
+            const ks = Math.max(1, 1 / this.zoom), RA = R + 18 * ks, hd = 10 * ks;
             ctx.beginPath();
             for (const q of te.shots) {
-              const a1 = q.a + 0.55, ex = x + Math.cos(a1) * RA, ey = y + Math.sin(a1) * RA, tx = -Math.sin(a1), ty = Math.cos(a1), nx = Math.cos(a1), ny = Math.sin(a1);
+              const a1 = q.a + 0.6, ex = x + Math.cos(a1) * RA, ey = y + Math.sin(a1) * RA, tx = -Math.sin(a1), ty = Math.cos(a1), nx = Math.cos(a1), ny = Math.sin(a1);
               ctx.moveTo(x + Math.cos(q.a) * RA, y + Math.sin(q.a) * RA);
               ctx.arc(x, y, RA, q.a, a1);
-              ctx.moveTo(ex + tx * 7, ey + ty * 7); ctx.lineTo(ex + nx * 6, ey + ny * 6);
-              ctx.moveTo(ex + tx * 7, ey + ty * 7); ctx.lineTo(ex - nx * 6, ey - ny * 6);
+              ctx.moveTo(ex + tx * hd, ey + ty * hd); ctx.lineTo(ex + nx * hd * 0.85, ey + ny * hd * 0.85);
+              ctx.moveTo(ex + tx * hd, ey + ty * hd); ctx.lineTo(ex - nx * hd * 0.85, ey - ny * hd * 0.85);
             }
             ctx.lineCap = 'round';
-            ctx.strokeStyle = H.ink; ctx.lineWidth = 6; ctx.stroke();
-            ctx.strokeStyle = H.core; ctx.lineWidth = 2.5; ctx.stroke();
+            ctx.strokeStyle = H.ink; ctx.lineWidth = 8.5 * ks; ctx.stroke();
+            ctx.strokeStyle = H.core; ctx.lineWidth = 3.8 * ks; ctx.stroke();
             ctx.lineCap = 'butt';
           }
         }
@@ -1019,7 +1058,7 @@ const Render = {
     ctx.globalAlpha = 1;
   },
 
-  // Warnung am Bildrand: Gegnergeschosse außerhalb des Bildes, die in 1,2 s auf 60 px an den Helden kommen,
+  // Warnung am Bildrand: Gegnergeschosse außerhalb des Bildes, die in 2 s auf 60 px an den Helden kommen,
   // und Schützen, die außerhalb des Bildes ausholen (höchstens 6)
   drawEdgeWarnings(r) {
     const p = r.p, hw = Game.view.hw, hh = Game.view.hh, out = this.edgeList || (this.edgeList = []);
@@ -1029,7 +1068,7 @@ const Render = {
       const rx = s.x - p.x, ry = s.y - p.y;
       if (Math.abs(rx) < hw && Math.abs(ry) < hh) continue;
       const vx = s.vx - p.vx, vy = s.vy - p.vy, v2 = vx * vx + vy * vy || 1;
-      const tc = clamp(-(rx * vx + ry * vy) / v2, 0, 1.2);
+      const tc = clamp(-(rx * vx + ry * vy) / v2, 0, 2);
       if (Math.hypot(rx + vx * tc, ry + vy * tc) < 60) out.push(rx, ry);
     }
     for (const e of r.enemies) {
@@ -1103,7 +1142,12 @@ const Render = {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'multiply';
     ctx.globalAlpha = 1;
-    ctx.imageSmoothingEnabled = false;
+    // Stufe 0: geglättet (sonst zeigen helle Lichthöfe bei f = 4 auf hochauflösenden Anzeigen Treppen, die bei
+    // bewegten Lichtern kriechen); ab Stufe 1 – das Gerät ist dann ohnehin knapp – ohne Glätten (spart ohne
+    // Grafikkarte etwa 3 ms je Bild)
+    const sm = this.quality === 0;
+    ctx.imageSmoothingEnabled = sm;
+    if (sm) ctx.imageSmoothingQuality = 'low';
     ctx.drawImage(this.lm, 0, 0, w * this.lmF, h * this.lmF);
     ctx.imageSmoothingEnabled = true;
     ctx.globalCompositeOperation = 'source-over';

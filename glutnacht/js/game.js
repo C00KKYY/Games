@@ -294,10 +294,12 @@ const Game = {
     const c = Math.abs(Math.cos(a)), s = Math.abs(Math.sin(a));
     return Math.min(c > 1e-6 ? this.view.hw / c : 1e9, s > 1e-6 ? this.view.hh / s : 1e9);
   },
-  // im Bild (um inset Weltpixel eingerückt)?
-  inViewRect(x, y, inset) {
-    const p = this.run.p;
-    return Math.abs(x - p.x) < this.view.hw - inset && Math.abs(y - p.y) < this.view.hh - inset;
+  // im Bild (um inset Weltpixel eingerückt)? Oben zusätzlich unter der Anzeige (view.top: Weltpixel, die Zeit,
+  // Bossleiste und -name am oberen Rand verdecken; setzt render.js auf Handys, sonst 0) plus pad
+  inViewRect(x, y, inset, pad) {
+    const p = this.run.p, dy = y - p.y, hh = this.view.hh;
+    if (Math.abs(x - p.x) >= this.view.hw - inset || Math.abs(dy) >= hh - inset) return false;
+    return !this.view.top || -dy < hh - this.view.top - (pad || 0);
   },
   clampView(x, y, inset) {
     const p = this.run.p, hw = this.view.hw - inset, hh = this.view.hh - inset;
@@ -565,7 +567,7 @@ const Game = {
     if (e.freezeT > 0) return out;
     e.shootT -= dt * e.slowF;
     if (e.shootT <= 0) {
-      if (d < def.band[1] + 120 && this.inViewRect(e.x, e.y, 24) && this.canWind(e) && this.capOK(e)) this.startWind(e);
+      if (d < def.band[1] + 120 && this.inViewRect(e.x, e.y, 24, 12) && this.canWind(e) && this.capOK(e)) this.startWind(e);
       else e.shootT = 0.3;
     }
     return out;
@@ -735,7 +737,7 @@ const Game = {
   },
   canCast(e, d, cp) {
     const r = this.run;
-    if (!this.inViewRect(e.x, e.y, 30) || d <= 140) return false;
+    if (!this.inViewRect(e.x, e.y, 30, e.r * 0.6) || d <= 140) return false;
     const nt = cp.prim === 'rain' ? (cp.k || 1) : cp.prim === 'lanes' ? 3 : cp.prim === 'lances' ? 3 : 1;
     return r.eshots.length + this.castShots(e, cp) <= ESHOT_CAP_BOSS && r.tele.length + nt <= TELE_CAP;
   },

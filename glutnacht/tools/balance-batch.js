@@ -2,6 +2,9 @@
 // Führt den Balance-Bot parallel für mehrere Konfigurationen aus und fasst zusammen.
 //   node tools/balance-batch.js <läufe> <land:preset:nachtstufe> [weitere …]
 //   z. B. node tools/balance-batch.js 12 ashwood:none:0 ashwood:light:0
+// Läufe enden nach TMAX Sekunden Spielzeit (Umgebungsvariable, Standard 1500 = 25 min): Im echten Spiel kämpft man
+// gegen den Endboss weiter, ein früheres Abbrechen (balancebot.js: 1080) zählte laufende Endboss-Kämpfe als Niederlage.
+// Läufe, die TMAX lebend erreichen, werden als „offen“ getrennt gezählt (weder Sieg noch Tod).
 const { execFile } = require('child_process');
 const path = require('path');
 const HEROES = ['aron', 'mira', 'kael', 'sela', 'brom', 'nyx', 'eira', 'lio', 'ignis'];
@@ -10,11 +13,12 @@ const specs = process.argv.slice(3).map(s => { const [stage, preset, heat] = s.s
 const jobs = [];
 for (const sp of specs) for (let i = 0; i < n; i++) jobs.push({ sp, hero: HEROES[i % HEROES.length] });
 const PAR = +(process.env.PAR || require('os').cpus().length);
+const TMAX = +(process.env.TMAX || 1500);
 let next = 0, running = 0, shown = 0;
 function run() {
   while (running < PAR && next < jobs.length) {
     const j = jobs[next++]; running++;
-    execFile('node', [path.join(__dirname, 'balancebot.js'), j.hero, j.sp.heat, 1, j.sp.preset, j.sp.stage], { maxBuffer: 1 << 26 }, (err, out) => {
+    execFile('node', [path.join(__dirname, 'balancebot.js'), j.hero, j.sp.heat, 1, j.sp.preset, j.sp.stage, TMAX], { maxBuffer: 1 << 26 }, (err, out) => {
       running--;
       try { j.sp.res.push(JSON.parse(out.trim().split('\n').pop())); } catch (e) { console.error('Fehler', j.hero, err && err.message); }
       j.sp.done = (j.sp.done || 0) + 1;
@@ -26,11 +30,12 @@ function run() {
 }
 function report(sp) {
   {
-    const R = sp.res, wins = R.filter(r => r.won), deaths = R.filter(r => !r.won).map(r => r.t / 60).sort((a, b) => a - b);
+    const R = sp.res, wins = R.filter(r => r.won), open = R.filter(r => !r.won && r.t >= TMAX - 1);
+    const deaths = R.filter(r => !r.won && r.t < TMAX - 1).map(r => r.t / 60).sort((a, b) => a - b);
     const med = deaths.length ? deaths[Math.floor(deaths.length / 2)].toFixed(1) : '-';
     const lv = m => { const v = R.map(r => r.mins.find(x => x.m === m)).filter(Boolean); return v.length ? Math.round(v.reduce((a, x) => a + x.lvl, 0) / v.length) : '-'; };
     const tk = m => { const v = R.map(r => r.mins.find(x => x.m === m)).filter(Boolean); return v.length ? Math.round(v.reduce((a, x) => a + x.taken, 0) / v.length) : '-'; };
-    console.log(`${sp.stage} ${sp.preset} N${sp.heat}: Siege ${wins.length}/${R.length} (${Math.round(wins.length / R.length * 100)} %), Tod Median ${med} min [${deaths.map(d => d.toFixed(1)).join(' ')}]` +
+    console.log(`${sp.stage} ${sp.preset} N${sp.heat}: Siege ${wins.length}/${R.length} (${Math.round(wins.length / R.length * 100)} %)${open.length ? ', offen ' + open.length + ' (' + open.map(r => r.bossAlive).join(' ') + ')' : ''}, Tod Median ${med} min [${deaths.map(d => d.toFixed(1)).join(' ')}]` +
       `  Stufe m3/m6/m9/m12: ${lv(3)}/${lv(6)}/${lv(9)}/${lv(12)}  Schaden/min m3/m6/m9/m12: ${tk(3)}/${tk(6)}/${tk(9)}/${tk(12)}` +
       `  Siege: ${wins.map(r => r.char).join(',')}`);
     const av = f => { const v = R.map(f).filter(x => x !== null && x !== undefined); return v.length ? (v.reduce((a, x) => a + x, 0) / v.length).toFixed(1) : '-'; };

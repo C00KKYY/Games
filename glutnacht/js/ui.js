@@ -48,6 +48,7 @@ const UI = {
     this.releaseBoot();
     this.cur = name;
     Render.keyArtOn = name === 'menu';
+    Render.dlgSince = Render.time; // neue Karten fahren herein: Boss-Bilder erst danach vorbauen (Render.prebuildStep)
     this.el.screen.className = 'show s-' + name;
     this.el.screen.innerHTML = this['tpl_' + name](data);
     this.el.screen.scrollTop = 0;
