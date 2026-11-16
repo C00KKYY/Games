@@ -4,13 +4,14 @@ Roblox-Fassung von **Ember Night** („Glutnacht“, Web-Spiel in `../glutnacht`
 **Koop für 1–4 Spieler** pro Server, fünf Länder, neun Helden, Schmiede, Nachtstufen, Erfolge, Endlosmodus.
 Käufe mit Robux: Wiederbelebung, Helden, Goldpakete, doppeltes Gold, Kosmetik. Deutsch und Englisch.
 
-**Stand: R2 – Kampfinhalte vollständig und gegen das Web-Spiel geprüft** (auf R1: Simulationskern, Server, einfacher
-Client). Das ganze Spiel läuft als reine Luau-Simulation (auch headless unter Lune, mit Balance-Bot für 1–4 Spieler);
-Bosse, Fernkämpfer, Waffen, Spawner, Countdown und Ansturm und ganze Solo-Läufe werden Schritt für Schritt mit dem Code
-des Web-Spiels verglichen (`tools/ref-sim.js`, `tests/parity.spec.luau`). Der Server rechnet im festen 1/30-s-Takt und schickt
-Momentaufnahmen und Ereignisse an die Clients, die mit Platzhalter-Grafik (Kugeln, Klötze) darstellen. Noch nicht
-enthalten: Speichern im DataStore (Profile gelten bis zum Verlassen), endgültige Modelle, Oberfläche und Klang (R3),
-Robux-Käufe (R4). In Roblox Studio ist noch nichts ausprobiert. Der verbindliche Entwurf mit Meilensteinen R1–R4 und dem
+**Stand: R3 – Fortschritt und Robux-Käufe** (auf R2: Kampfinhalte vollständig und gegen das Web-Spiel geprüft; R1:
+Simulationskern, Server, einfacher Client). Das ganze Spiel läuft als reine Luau-Simulation (auch headless unter Lune,
+mit Balance-Bot für 1–4 Spieler) und wird Schritt für Schritt mit dem Code des Web-Spiels verglichen. Neu in R3: Profile
+im DataStore (Sitzungssperre, automatisches Speichern, Quittungsbuch), Hub mit Helden, Weltkarte, Schmiede, Aussehen,
+Erfolgen, Statistik, Shop und Einstellungen, Robux-Käufe aller Arten (Wiederbelebung, Goldpakete, Helden, doppeltes
+Gold, Kosmetik) mit Live-Preisen. Server-Dienste und Hub-Oberfläche werden unter Lune auf einer nachgebauten
+Roblox-Laufzeit getestet. Noch nicht enthalten: endgültige Modelle, Effekte, Klang und Lauf-Oberfläche (nächster
+Meilenstein). In Roblox Studio ist noch nichts ausprobiert. Der verbindliche Entwurf mit Meilensteinen und dem
 Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`docs/BALANCE.md`](docs/BALANCE.md).
 
 ## Aufbau
@@ -20,7 +21,7 @@ Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`
 | `src/shared` | `ReplicatedStorage.Shared` | reine Luau-Module: Simulation (`Sim/`), Daten, Sprache, Netzformat, Konfiguration |
 | `src/server` | `ServerScriptService.Server` | Server: Spielschleife, Lobby, Speichern (DataStore), Käufe |
 | `src/client` | `StarterPlayer.StarterPlayerScripts.Client` | Client: Darstellung, Oberfläche, Eingabe, Kamera, Klang |
-| `tests` | – | Lune-Tests (`*.spec.luau`), Balance-Bot `bot.luau`, Leistungsmessung `bench.luau` |
+| `tests` | – | Lune-Tests (`*.spec.luau`), Balance-Bot `bot.luau`, Leistungsmessung `bench.luau`, nachgebaute Roblox-Laufzeit `lib/Roblox.luau` für Server- und Oberflächentests |
 | `tools` | – | `port-data.js` (Daten und Texte aus dem Web-Spiel übernehmen), `ref-sim.js` (Vergleichsläufe mit dem Web-Code), `balance.sh` (Bot-Tabelle aller Länder), `build.sh`, `test.sh` |
 | `assets/audio` | – | Klänge und Musik zum Hochladen (ab R3) |
 | `build` | – | gebaute Spielwelt `EmberNight.rbxlx` (zum Öffnen in Roblox Studio) |
@@ -43,14 +44,30 @@ Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`
 
 ## In Roblox Studio
 
-Ausführliche Prüfliste folgt mit R4 in `docs/STUDIO-CHECKLIST.md` (Kurzfassung: Anhang D in `docs/DESIGN.md`).
-Kurz: Spielwelt öffnen, unter Game Settings → Security „Studio Access to API Services“ einschalten (sonst wird nicht
-gespeichert), Places → Max Players = 4, Produkte und Game Passes anlegen und ihre IDs in
-`src/shared/Config/Products.luau` eintragen, Klänge hochladen und in `src/shared/Config/AudioIds.luau` eintragen.
+Ausführliche Prüfliste folgt in `docs/STUDIO-CHECKLIST.md` (Kurzfassung: Anhang D in `docs/DESIGN.md`).
+Kurz: Spielwelt öffnen, veröffentlichen (File → Publish to Roblox), unter Game Settings → Security „Enable Studio
+Access to API Services“ einschalten (sonst wird nur im Arbeitsspeicher gespeichert; oben rechts steht dann gelb
+„Nicht gespeichert“), Places → Max Players = 4, Klänge hochladen und in `src/shared/Config/AudioIds.luau` eintragen.
 
-## Spielen in Studio (Stand R1)
+## Robux-Käufe einrichten
 
-Spielwelt öffnen, F5: Man steht im Hub (Lagerfeuer). Links das Gruppenfenster: Held wählen, als Anführer Land und
-Nachtstufe wählen, „Starten“. Laufen mit WASD/Pfeiltasten, Stick oder Daumen-Stick; Karten mit Klick/Tippen oder 1–4,
-Neu würfeln R, Überspringen K, Verbannen B, Pause P (allein). Mit „Test → Clients and Servers“ (2–4 Spieler) läuft die
+1. Im Creator Hub (Creations → das Spiel → Monetization) anlegen:
+   - **Developer Products:** `revive` (Zweite Glut), `gold_s`, `gold_m`, `gold_l` (Goldpakete) und die Kosmetik
+     `skin_ashen`, `skin_frost`, `skin_nightbloom`, `fx_emerald`, `fx_azure`, `fx_solar`, `fx_prism`, `trail_frost`,
+     `trail_star`, `trail_shadow`.
+   - **Game Passes:** `pass_gold2x` (doppeltes Gold), `pass_hero_kael` … `pass_hero_ignis` (7 Helden), `pass_heroes_all`,
+     `pass_cosmetics` (alle käuflichen Kosmetika).
+   Namen, Beschreibungen und Preisvorschläge stehen in `src/shared/Config/Products.luau` und `docs/DESIGN.md` §7.1.
+2. Die IDs dort beim jeweiligen Schlüssel unter `id` eintragen, `tools/build.sh` ausführen, Spielwelt neu öffnen.
+3. Was die ID 0 behält, ist überall unsichtbar und kann weder angeboten noch gutgeschrieben werden. Der Shop zeigt
+   immer den echten Preis aus Roblox; Artikel ohne abrufbaren Preis werden ausgeblendet.
+4. Testkäufe in Studio sind kostenlos. Gutschriften werden erst gespeichert und dann bestätigt; doppelt zugestellte
+   Quittungen werden über das Quittungsbuch im Profil erkannt.
+
+## Spielen in Studio (Stand R3)
+
+Spielwelt öffnen, F5: Man steht im Hub (Lagerfeuer). Links das Gruppenfenster (Held ändern, Land wählen, Bereit,
+Starten), unten die Leiste mit Helden, Weltkarte, Schmiede, Aussehen, Erfolgen, Statistik, Shop und Einstellungen.
+Laufen mit WASD/Pfeiltasten, Stick oder Daumen-Stick; Karten mit Klick/Tippen oder 1–4, Neu würfeln R, Überspringen K,
+Verbannen B, Pause P (allein). Am Boden erscheint „Zweite Glut“ (Kauf oder vorhandene Marke, einmal pro Lauf). Mit „Test → Clients and Servers“ (2–4 Spieler) läuft die
 Gruppe gemeinsam; Karten erscheinen dann unten als Leiste, ohne dass die Welt anhält.

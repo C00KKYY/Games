@@ -80,6 +80,50 @@ attack primitive and the countdown/surge is checked against the web code itself,
 - **Co-op:** a boss's summon turns into a dash only when the enemies exceed the *scaled* wave cap (`Coop.spawnCap`);
   before, nearly every co-op summon became a dash.
 
+**R3 (meta progression and monetization, done; the orchestrator moved this ahead of the presentation work, see §11).**
+Persistence, the hub screens and every kind of Robux purchase exist; nothing has been tried in Roblox Studio yet.
+
+- **Pure core, thin services.** All decisions live in Lune-tested modules under `src/shared`:
+  `Server/ProfileStore.luau` (session lock, saves, retries, the ProcessReceipt core), `Server/LockLogic.luau`,
+  `Server/ReceiptLogic.luau` (decision table, grant, ledger pruning), `Server/Entitlements.luau` (heroes, cosmetics,
+  double gold from passes), `Server/ReviveFlow.luau` (revive tokens and limits), `Config/Products.luau`,
+  `Config/Cosmetics.luau` (with `validate()`), `Sim/Profile.luau` (version 2, migrations). The Roblox services in
+  `src/server/Services` (`DataStoreAdapter`, `Profiles`, `Passes`, `ProductInfo`, `Purchases`, `Policy`, `Meta`, wired
+  by `Boot.luau`) only call them.
+- **Every write is stamped.** Each UpdateAsync write carries `_w = "<JobId>#<n>"`. A retry of a call that failed
+  *after* it wrote recognises its own stamp, so a "save failed" after a successful write never turns into a false
+  "session lost", and a receipt grant is never applied twice.
+- **One write per receipt.** `ProfileStore:grant` copies the in-memory profile, applies the grant and the ledger
+  entry to the copy, writes it, and only after that write succeeded applies the same grant to the live table (not by
+  replacing it: run gold booked while the write was waiting is kept). Failure before or after the write → nothing in
+  memory changes and `NotProcessedYet` is returned; Roblox delivers again and the ledger decides. If the player leaves
+  in between, the release save writes the memory state (without grant *and* without receipt), so the next delivery
+  grants exactly once. All operations on one profile are serialised by a per-user mutex (an autosave cannot overwrite
+  a grant that finished while it waited).
+- **Newer data is never loaded.** A profile with `v` above `Profile.VERSION` (written by a newer server during a
+  rolling update) is not loaded and not touched; the player is asked to rejoin.
+- **Revive.** A purchase adds a token (`reviveTokens`, persistent); a token is consumed only when it actually revives
+  (downed or fallen, `REVIVE_MAX_PER_RUN = 1` per player and run, enforced by the sim). Spare tokens are offered as
+  "Use Second Ember (n)" in later runs. The sim's own offer flag is per player (`Run.setReviveOffer`): the product is
+  configured or the player holds a token; without either, nobody waits in a last chance for nothing.
+- **Game passes** are checked with `UserOwnsGamePassAsync` on join (3 tries per pass, `passCache` as first guess). A
+  purchase on this server (`PromptGamePassPurchaseFinished` with `wasPurchased`) counts at once and is not re-checked:
+  ownership results are cached per server and can say "not owned" right after a purchase.
+- **Prices** come from `GetProductInfoAsync` (falling back to `GetProductInfo` on older engines), cached 10 min and
+  refreshed in the background; an item without a fetched price is not listed. The client never calls
+  MarketplaceService itself except through server-opened prompts.
+- **Cosmetic change:** the planned weapon colour "Crimson" is now "Sunshine" (`fx_solar`): `Cosmetics.validate`
+  forbids effect and trail colours within 25° of the enemy-shot hue (#ff3d5a, §7.4). Profile v1 → v2 renames it.
+- **Hub UI** (`client/UI/Router.luau` + one module per screen): Heroes, World map, Forge, Cosmetics ("Aussehen"),
+  Achievements, Statistics, Shop (tabs Gold, Heroes, Cosmetics, Passes), Settings; party panel with Ready/Start.
+  Cosmetics are visible to everybody in a run (hero palette, `Trail`, weapon effect colours via `ShotView`).
+- **Tested without Studio:** `tests/lib/Roblox.luau` is a small fake Roblox runtime (Players, DataStore,
+  MarketplaceService, RunService, a virtual clock for `task`/`os.clock`) that loads the real server services;
+  `tests/server.spec.luau` plays join → lobby → co-op run → downed → revive purchase through `ProcessReceipt` →
+  results with double gold → leave. `tests/client.spec.luau` builds the hub UI with Lune's Roblox Instances (property
+  names checked against the API), feeds it lobby messages from those services, opens every screen in German and
+  English and clicks every button; each command goes through `Validate` to the server.
+
 ---------------------------------------------------------------------------------------------------------------------------
 
 ## 0. Ground rules
@@ -600,15 +644,20 @@ One DataStore `EmberNight_Profiles_v1`, key `p_<userId>`, value = profile table 
 - **Saves** always use `UpdateAsync` and verify `_lock.job == game.JobId` in the transform (otherwise abort, mark the
   session as lost and stop saving). Save triggers: autosave every 60 s if dirty, after each run result, after each
   purchase (before granting, §7.3), on leave (`PlayerRemoving`, releases the lock: `_lock = nil`), on shutdown.
-- **Retries with budget:** every DataStore call goes through `withRetry(fn, kind)`: up to 4 attempts with backoff 1, 2,
-  4 s; before each attempt it checks `DataStoreService:GetRequestBudgetForRequestType(kind)` and waits (max 10 s) while
-  it is 0.
+- **Retries with budget:** every DataStore call goes through `ProfileStore:retry`: up to 4 attempts with backoff 1, 2,
+  4 s; before each UpdateAsync, `DataStoreAdapter` checks `DataStoreService:GetRequestBudgetForRequestType(kind)` and
+  waits (max 10 s) while it is 0. Writes carry the stamp `_w` (see "Implementation status", R3).
+- **Newer version:** a stored `v` above `Profile.VERSION` is neither loaded nor written; the player is kicked with
+  "This server is out of date. Please rejoin." (R3).
+- **Autosave** saves every loaded profile every 60 s (no dirty tracking: simpler and well inside the UpdateAsync budget
+  of 60 + 10 × players per minute).
 - **BindToClose:** saves all dirty profiles in parallel (`task.spawn` each, wait until done or 25 s passed).
-- **Studio fallback:** if `RunService:IsStudio()` and the first `GetAsync` fails with an API-access error (or
+- **Studio fallback:** if `RunService:IsStudio()` and the first `UpdateAsync` fails with an API-access error (or
   `game.GameId == 0`), `DataStoreAdapter` switches to an in-memory store and the client shows a small yellow
   "Not saved (Studio without API access)" label. `Tuning.FORCE_MEMORY_STORE` forces it for tests.
 - **Size and safety:** the receipts list is bounded (200 entries, oldest dropped, never dropping ids younger than 30
-  days – the realistic re-delivery window), the profile stays far below the 4 MB limit (expected < 10 KB).
+  days – the realistic re-delivery window – with a hard cap of 1000), the profile stays far below the 4 MB limit
+  (expected < 10 KB; 1000 receipts ≈ 50 KB).
 
 ### 6.3 What is stored
 
@@ -639,7 +688,7 @@ items whose info cannot be fetched are hidden).
 | `pass_hero_kael` … `pass_hero_ignis` (7) | Held freischalten: <Name> | Game Pass | 99 R$ each | Unlocks that hero (Kael, Sela, Brom, Nyx, Eira, Lio, Ignis). The hero can still be earned for free by its achievement |
 | `pass_heroes_all` | Alle Helden / All Heroes | Game Pass | 399 R$ | Unlocks all 7 |
 | `skin_ashen`, `skin_frost`, `skin_nightbloom` | Hero skins (palettes for every hero) | Developer Product (non-consumable, stored) | 79 R$ each | Cosmetic hero palette |
-| `fx_emerald`, `fx_crimson`, `fx_azure` | Weapon colours | Developer Product (stored) | 59 R$ each | Recolours own weapon effects |
+| `fx_emerald`, `fx_azure`, `fx_solar` | Weapon colours | Developer Product (stored) | 59 R$ each | Recolours own weapon effects (`fx_solar` replaced the planned `fx_crimson` in R3: too close to the enemy-shot red) |
 | `fx_prism` | Prisma / Prism weapon colours | Developer Product (stored) | 99 R$ | Cycling colours for own effects |
 | `trail_frost`, `trail_star`, `trail_shadow` | Trails | Developer Product (stored) | 49 R$ each | Particle trail behind the hero |
 | `pass_cosmetics` | Sammlung / Collection | Game Pass | 349 R$ | All cosmetics listed above (current and future paid ones) |
@@ -658,13 +707,15 @@ gold. The biggest pack (10,000) is ~15 % of the forge, so buying cannot "finish"
 - Purchase: client calls `PromptGamePassPurchase` only after the server confirmed the item is configured (`Cmd` →
   server validates → server calls `MarketplaceService:PromptGamePassPurchase(player, id)`; prompting from the server
   avoids clients prompting arbitrary IDs).
-- `MarketplaceService.PromptGamePassPurchaseFinished` on the server: if `wasPurchased`, set the cache to true, re-check
-  with `UserOwnsGamePassAsync` in the background, update `passCache`, notify the client (UI refresh, hero unlocked
-  banner).
+- `MarketplaceService.PromptGamePassPurchaseFinished` on the server: if `wasPurchased`, set ownership and `passCache` to
+  true and notify the client (UI refresh, toast). No background re-check (R3): `UserOwnsGamePassAsync` results are
+  cached per server and may still report "not owned" right after the purchase.
 
 ### 7.3 Developer products and `ProcessReceipt` (idempotent)
 
-`MarketplaceService.ProcessReceipt` is set **once** in `Server/Services/Purchases.luau`:
+`MarketplaceService.ProcessReceipt` is set **once** in `Server/Services/Purchases.luau`; the steps below are
+implemented in the pure `Shared/Server/ProfileStore.luau` (`grant`) and `ReceiptLogic.luau` and tested in
+`tests/receipt.spec.luau` and `tests/server.spec.luau`:
 
 1. Find the player by `receiptInfo.PlayerId`. Not on this server or profile not loaded → return
    `Enum.ProductPurchaseDecision.NotProcessedYet` (Roblox retries later, also on other servers / next join).
@@ -773,7 +824,12 @@ the same before prompting.
 | `coop.spec` | team XP and gold shares, chests per player, ward rules, auto-pick, downed → revive → fallen, last chance, leash, target choice, scaling tables, leave mid-run |
 | `results.spec` | endRun gold (time/boss bonus, heat multiplier, gift, 2× pass), achievements, recordClear, stars/unlocks per player |
 | `profile.spec` | default/migrate/sanitize, forge price/refund equal web values |
-| `receipt.spec` | receipt decision table (already processed, unknown product, profile missing, save failed), revive token rules |
+| `receipt.spec` | receipt decision table, gold/revive/cosmetic grants, duplicate receipts (also after a rejoin on another server), unknown and unconfigured products, failures before and after the write, a player leaving between a write and its retry, changes made while the write waits, lost session, ledger pruning, product list checks |
+| `store.spec` | session lock (live lock: 5 × 6 s then take-over, stale lock, released lock), retries with backoff, writes recognised by their stamp, newer-version data untouched, migration v1 → v2, JSON round trip, transform called twice |
+| `revive.spec` | Robux revive limits: offer only while downed/fallen, token use vs purchase, max 1 per player and run, spare tokens kept, no last chance without product or token, prompt holds the last chance |
+| `cosmetics.spec` | `Cosmetics.validate` (enemy-shot hue, near-black skins, sources), paid cosmetic ↔ product, hero passes ↔ earnable heroes, entitlements from passes (only when configured) and achievements |
+| `server.spec` | real server services on a fake Roblox runtime (`tests/lib/Roblox.luau`): join, lobby, forge, cosmetics, gold pack, revive purchase in a co-op run via `ProcessReceipt`, double gold, last chance held by an open prompt, unconfigured products, lost session kick, load failure kick |
+| `client.spec` | hub UI with Lune's Roblox Instances against the real server services: every screen in DE and EN, every button, no Robux button without product ids, revive offer, results |
 | `codec.spec` / `net_budget.spec` | snapshot/event encode-decode round trip, packets ≤ 900 bytes, worst-case bandwidth from a recorded bot run ≤ budget |
 | `lang.spec` | every `tr("…")` key used in `src/` has an English entry; placeholders match |
 | `determinism.spec` | same seed + inputs → identical event stream hash after 3 simulated minutes |
@@ -898,7 +954,16 @@ tools/build.sh                           rojo build to build/EmberNight.rbxlx (c
 docs/BALANCE.md                          co-op results
 ```
 
-### R3 – Presentation: full UI, effects, audio, language, devices
+Order changed in R3: the orchestrator scheduled **meta progression and monetization first** (lobby/party flow, hero
+select with pass unlocks, forge, achievements, stats, DataStore profiles with session lock and receipt ledger,
+MarketplaceService for every product kind, shop and revive prompts, Lune tests). That work is done and described under
+"Implementation status" (R3); its files are the ones listed under "R4" below plus `src/server/Services/{Boot,Meta,
+ProductInfo,DataStoreAdapter}.luau`, `src/shared/Server/{ProfileStore,Entitlements,ReviveFlow}.luau` and the hub screens
+`src/client/UI/{Router,Names,Heroes,WorldMap,Forge,Wardrobe,Achievements,Stats,Shop,Settings,ReviveOffer}.luau`. The
+remaining presentation work below (final models, effects, audio, in-run screens, devices) and the release checklist
+form the next milestone.
+
+### R3 (now next) – Presentation: full UI, effects, audio, language, devices
 
 Goal: every screen of §5.2, all effects and telegraph polish of §4, audio, DE/EN complete, mobile and gamepad.
 
@@ -921,7 +986,7 @@ src/shared/Lang/En.luau                  + all Roblox-only strings
 tests/lang.spec.luau (extended to scan src/client)
 ```
 
-### R4 – Monetization, persistence hardening, polish, release checklist
+### R4 – Monetization, persistence hardening, polish, release checklist (monetization and persistence done in R3)
 
 Goal: Robux purchases of every kind work in Studio test mode; cosmetics visible; performance pass; documentation for
 the user.
@@ -1043,11 +1108,15 @@ xpNext, level, weapons, passives, stats }`, `{ t = "boss", nameKey, frac }`, `{ 
 `{ t = "achievement", id }`, `{ t = "results", summary }`, `{ t = "lobby", ... }`, `{ t = "profile", view }`,
 `{ t = "correct", x, y }`, `{ t = "vote", endless, finish, left }`.
 
-## Appendix C – Profile schema (version 1)
+## Appendix C – Profile schema (version 2)
+
+Version 2 (R3) differs from version 1 only in the cosmetic ids (`fx_crimson` → `fx_solar`) and in stricter
+sanitizing (owned and equipped cosmetics must exist and fit their slot; `passCache` keys must be pass keys). The stored
+value also carries `_w` (write stamp, §6.2). Migrations are steps `Profile.MIGRATIONS[v]` (v → v + 1).
 
 ```lua
 {
-  v = 1,
+  v = 2,
   gold = 0, shop = {}, shopSpent = 0, giftGiven = false,
   chars = { "aron", "mira" },            -- earned heroes (passes are checked live)
   achievements = {}, evolved = {}, bosses = {},
@@ -1062,6 +1131,7 @@ xpNext, level, weapons, passives, stats }`, `{ t = "boss", nameKey, frac }`, `{ 
   passCache = {},                         -- [passKey] = true (display hint only)
   created = 0, lastSave = 0,
   _lock = nil,                            -- { job = JobId, t = os.time() } while a server owns the session
+  _w = nil,                               -- write stamp "<JobId>#<n>" of the last write
 }
 ```
 
