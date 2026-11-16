@@ -6,7 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tuning = require(Shared.Config.Tuning)
 local Profile = require(Shared.Sim.Profile)
 local Stages = require(Shared.Sim.Data.Stages)
-local Entitlements = require(Shared.Server.Entitlements)
+local Entitlements = require(script.Parent.Parent.Logic.Entitlements)
 
 local Lobby = {}
 

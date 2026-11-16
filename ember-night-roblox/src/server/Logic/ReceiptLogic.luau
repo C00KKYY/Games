@@ -1,6 +1,8 @@
 -- Developer product receipts (docs/DESIGN.md §7.3). Pure: the decision table for ProcessReceipt and the grant that
 -- is applied to the profile together with the ledger entry (one DataStore write, see ProfileStore.grant).
-local Products = if script then require(script.Parent.Parent.Config.Products) else require("../Config/Products")
+-- server-only (ServerScriptService): shared modules come from ReplicatedStorage.Shared
+local Shared = if script then game:GetService("ReplicatedStorage"):WaitForChild("Shared") else nil
+local Products = if script then require(Shared.Config.Products) else require("../../shared/Config/Products")
 
 local ReceiptLogic = {}
 

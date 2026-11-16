@@ -1,7 +1,9 @@
 -- Robux revive ("Second Ember", docs/DESIGN.md §2.8 points 5-6, §7.3 point 5). Pure: works on the run and the
 -- player's profile. A purchase adds a token to the profile (persistent, idempotent); a token is consumed only when it
 -- actually revives the player, at most REVIVE_MAX_PER_RUN times per player and run (enforced by the sim).
-local Run = if script then require(script.Parent.Parent.Sim.Run) else require("../Sim/Run")
+-- server-only (ServerScriptService): shared modules come from ReplicatedStorage.Shared
+local Shared = if script then game:GetService("ReplicatedStorage"):WaitForChild("Shared") else nil
+local Run = if script then require(Shared.Sim.Run) else require("../../shared/Sim/Run")
 
 local ReviveFlow = {}
 

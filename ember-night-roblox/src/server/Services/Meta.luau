@@ -7,7 +7,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Products = require(Shared.Config.Products)
 local Cosmetics = require(Shared.Config.Cosmetics)
 local Profile = require(Shared.Sim.Profile)
-local Entitlements = require(Shared.Server.Entitlements)
+local Entitlements = require(script.Parent.Parent.Logic.Entitlements)
 
 local Meta = {}
 

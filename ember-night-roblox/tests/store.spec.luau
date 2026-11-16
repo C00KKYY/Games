@@ -1,8 +1,8 @@
--- Profile sessions (Shared/Server/ProfileStore.luau, docs/DESIGN.md §6.2): load with session lock, migration,
+-- Profile sessions (Server/Logic/ProfileStore.luau, docs/DESIGN.md §6.2): load with session lock, migration,
 -- saves that respect the lock, retries, failures before and after a write, two servers.
 local T = require("./lib/T")
 local FakeStore = require("./lib/FakeStore")
-local ProfileStore = require("../src/shared/Server/ProfileStore")
+local ProfileStore = require("../src/server/Logic/ProfileStore")
 local Profile = require("../src/shared/Sim/Profile")
 
 local suite = T.new("store")

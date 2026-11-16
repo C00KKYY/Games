@@ -13,8 +13,10 @@
 --
 -- All operations on one profile are serialised (a per-user mutex), so an autosave can never overwrite a receipt
 -- grant that finished while it was waiting.
-local Profile = if script then require(script.Parent.Parent.Sim.Profile) else require("../Sim/Profile")
-local Products = if script then require(script.Parent.Parent.Config.Products) else require("../Config/Products")
+-- server-only (ServerScriptService): shared modules come from ReplicatedStorage.Shared
+local Shared = if script then game:GetService("ReplicatedStorage"):WaitForChild("Shared") else nil
+local Profile = if script then require(Shared.Sim.Profile) else require("../../shared/Sim/Profile")
+local Products = if script then require(Shared.Config.Products) else require("../../shared/Config/Products")
 local LockLogic = if script then require(script.Parent.LockLogic) else require("./LockLogic")
 local ReceiptLogic = if script then require(script.Parent.ReceiptLogic) else require("./ReceiptLogic")
 

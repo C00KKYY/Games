@@ -9,8 +9,8 @@ local Run = require(Shared.Sim.Run)
 local Results = require(Shared.Sim.Results)
 local Codec = require(Shared.Net.Codec)
 local Products = require(Shared.Config.Products)
-local Entitlements = require(Shared.Server.Entitlements)
-local ReviveFlow = require(Shared.Server.ReviveFlow)
+local Entitlements = require(script.Parent.Parent.Logic.Entitlements)
+local ReviveFlow = require(script.Parent.Parent.Logic.ReviveFlow)
 
 local Replicator = require(script.Parent.Replicator)
 

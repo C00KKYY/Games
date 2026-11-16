@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Products = require(Shared.Config.Products)
-local Entitlements = require(Shared.Server.Entitlements)
+local Entitlements = require(script.Parent.Parent.Logic.Entitlements)
 local RateLimit = require(Shared.Server.RateLimit)
 
 local Purchases = {}

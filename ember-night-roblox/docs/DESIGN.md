@@ -762,7 +762,7 @@ gold. The biggest pack (10,000) is ~15 % of the forge, so buying cannot "finish"
 ### 7.3 Developer products and `ProcessReceipt` (idempotent)
 
 `MarketplaceService.ProcessReceipt` is set **once** in `Server/Services/Purchases.luau`; the steps below are
-implemented in the pure `Shared/Server/ProfileStore.luau` (`grant`) and `ReceiptLogic.luau` and tested in
+implemented in the pure `Server/Logic/ProfileStore.luau` (`grant`) and `ReceiptLogic.luau` and tested in
 `tests/receipt.spec.luau` and `tests/server.spec.luau`:
 
 1. Find the player by `receiptInfo.PlayerId`. Not on this server or profile not loaded → return
@@ -856,7 +856,9 @@ the same before prompting.
 - `lune run tools/snapshot.luau -- <scene> <out.png>` renders the client to a PNG (development aid, R4).
 - Roblox APIs are never called in Lune tests. Server modules that wrap Roblox services are kept small and reviewed by
   reading; their pure parts (receipt decision table, lock decision, retry policy, rate limiter) live in
-  `src/shared` modules (`Shared/Server/ReceiptLogic.luau`, `LockLogic.luau`, `RateLimit.luau`) and are unit-tested.
+  pure modules (`src/server/Logic/ReceiptLogic.luau`, `LockLogic.luau`, `src/shared/Server/RateLimit.luau`) and are
+  unit-tested. Server-only logic (`src/server/Logic`: ProfileStore, ReceiptLogic, LockLogic, Entitlements, ReviveFlow)
+  lives in ServerScriptService and is not replicated; only Validate and RateLimit stay in `src/shared/Server`.
 
 ### 10.2 Unit and scenario tests (Lune)
 
@@ -974,7 +976,7 @@ src/shared/Sim/Party.luau                players list, targets, anchors, leash, 
 src/shared/Config/Tuning.luau            all constants of Appendix A (exists from the skeleton, extended)
 src/shared/Net/Protocol.luau             remote names, op codes, event kinds
 src/shared/Net/Codec.luau                buffer encode/decode for Snap, Move, Ev (Appendix B)
-src/shared/Server/LockLogic.luau, RateLimit.luau   pure helpers (tested)
+src/server/Logic/LockLogic.luau, src/shared/Server/RateLimit.luau   pure helpers (tested)
 src/server/Main.server.luau              bootstrap: services start order
 src/server/Services/Net.luau             creates remotes, rate limits, argument validation
 src/server/Services/DataStoreAdapter.luau real DataStore vs memory store (Studio fallback)
@@ -1010,7 +1012,7 @@ Order changed in R3: the orchestrator scheduled **meta progression and monetizat
 select with pass unlocks, forge, achievements, stats, DataStore profiles with session lock and receipt ledger,
 MarketplaceService for every product kind, shop and revive prompts, Lune tests). That work is done and described under
 "Implementation status" (R3); its files are the ones listed under "R4" below plus `src/server/Services/{Boot,Meta,
-ProductInfo,DataStoreAdapter}.luau`, `src/shared/Server/{ProfileStore,Entitlements,ReviveFlow}.luau` and the hub screens
+ProductInfo,DataStoreAdapter}.luau`, `src/server/Logic/{ProfileStore,Entitlements,ReviveFlow}.luau` and the hub screens
 `src/client/UI/{Router,Names,Heroes,WorldMap,Forge,Wardrobe,Achievements,Stats,Shop,Settings,ReviveOffer}.luau`. The
 remaining presentation work below (final models, effects, audio, in-run screens, devices) and the release checklist
 form the next milestone.
@@ -1046,7 +1048,7 @@ the user.
 ```
 src/shared/Config/Products.luau          all product and pass keys with id 0, suggested prices, effects
 src/shared/Config/Cosmetics.luau         skins, weapon colours, trails (free and paid), validate()
-src/shared/Server/ReceiptLogic.luau      pure receipt decision + grant application (tested)
+src/server/Logic/ReceiptLogic.luau       pure receipt decision + grant application (tested)
 src/server/Services/Purchases.luau       ProcessReceipt, prompt requests, PromptProductPurchaseFinished, revive flow
 src/server/Services/Passes.luau          ownership checks, cache, PromptGamePassPurchaseFinished
 src/server/Services/Policy.luau          PolicyService lookup

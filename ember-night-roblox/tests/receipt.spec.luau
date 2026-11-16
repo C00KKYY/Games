@@ -4,8 +4,8 @@
 local T = require("./lib/T")
 local FakeStore = require("./lib/FakeStore")
 local Ids = require("./lib/Ids")
-local ProfileStore = require("../src/shared/Server/ProfileStore")
-local ReceiptLogic = require("../src/shared/Server/ReceiptLogic")
+local ProfileStore = require("../src/server/Logic/ProfileStore")
+local ReceiptLogic = require("../src/server/Logic/ReceiptLogic")
 local Products = require("../src/shared/Config/Products")
 
 local suite = T.new("receipt")

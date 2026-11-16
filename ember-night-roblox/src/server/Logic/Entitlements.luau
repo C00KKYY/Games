@@ -1,9 +1,11 @@
 -- What a player may use (docs/DESIGN.md §7.1, §7.2): heroes (earned or through a pass), cosmetics (bought, earned by
 -- achievement or through the collection pass), double gold. Pure: the server passes the profile and the set of
 -- game pass keys it confirmed with MarketplaceService ({ [passKey] = true }).
-local Products = if script then require(script.Parent.Parent.Config.Products) else require("../Config/Products")
-local Cosmetics = if script then require(script.Parent.Parent.Config.Cosmetics) else require("../Config/Cosmetics")
-local Profile = if script then require(script.Parent.Parent.Sim.Profile) else require("../Sim/Profile")
+-- server-only (ServerScriptService): shared modules come from ReplicatedStorage.Shared
+local Shared = if script then game:GetService("ReplicatedStorage"):WaitForChild("Shared") else nil
+local Products = if script then require(Shared.Config.Products) else require("../../shared/Config/Products")
+local Cosmetics = if script then require(Shared.Config.Cosmetics) else require("../../shared/Config/Cosmetics")
+local Profile = if script then require(Shared.Sim.Profile) else require("../../shared/Sim/Profile")
 
 local Entitlements = {}
 

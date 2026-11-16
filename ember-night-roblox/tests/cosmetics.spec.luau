@@ -1,9 +1,9 @@
--- Cosmetics and entitlements (Config/Cosmetics.luau, Shared/Server/Entitlements.luau, docs/DESIGN.md §7.1-§7.4).
+-- Cosmetics and entitlements (Config/Cosmetics.luau, Server/Logic/Entitlements.luau, docs/DESIGN.md §7.1-§7.4).
 local T = require("./lib/T")
 local Ids = require("./lib/Ids")
 local Cosmetics = require("../src/shared/Config/Cosmetics")
 local Products = require("../src/shared/Config/Products")
-local Entitlements = require("../src/shared/Server/Entitlements")
+local Entitlements = require("../src/server/Logic/Entitlements")
 local Profile = require("../src/shared/Sim/Profile")
 local Achievements = require("../src/shared/Sim/Data/Achievements")
 local Heroes = require("../src/shared/Sim/Data/Heroes")

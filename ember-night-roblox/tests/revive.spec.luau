@@ -1,10 +1,10 @@
--- Robux revive limits (Shared/Server/ReviveFlow.luau + sim, docs/DESIGN.md §2.8, §7.3): tokens, max one per player
+-- Robux revive limits (Server/Logic/ReviveFlow.luau + sim, docs/DESIGN.md §2.8, §7.3): tokens, max one per player
 -- and run, offers only while downed/fallen, last chance, unconfigured product.
 local T = require("./lib/T")
 local Sim = require("./lib/Sim")
 local Run = require("../src/shared/Sim/Run")
 local Profile = require("../src/shared/Sim/Profile")
-local ReviveFlow = require("../src/shared/Server/ReviveFlow")
+local ReviveFlow = require("../src/server/Logic/ReviveFlow")
 local Tuning = require("../src/shared/Config/Tuning")
 local K = Run.K
 

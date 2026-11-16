@@ -1,6 +1,6 @@
 -- Player profiles in the DataStore (docs/DESIGN.md §6.2): load with session lock on join (kick when it cannot be
 -- loaded), autosave every Tuning.AUTOSAVE seconds, save after runs and purchases, release on leave, save all on
--- shutdown. The logic lives in Shared/Server/ProfileStore.luau (Lune-tested); this module adds Roblox services.
+-- shutdown. The logic lives in Server/Logic/ProfileStore.luau (Lune-tested); this module adds Roblox services.
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
@@ -10,7 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tuning = require(Shared.Config.Tuning)
 local Profile = require(Shared.Sim.Profile)
 local Lang = require(Shared.Lang.Lang)
-local ProfileStore = require(Shared.Server.ProfileStore)
+local ProfileStore = require(script.Parent.Parent.Logic.ProfileStore)
 local DataStoreAdapter = require(script.Parent.DataStoreAdapter)
 
 local Profiles = {}
