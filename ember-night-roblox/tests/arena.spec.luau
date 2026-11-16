@@ -247,4 +247,38 @@ for _, lang in { "de", "en" } do
 	end)
 end
 
+suite:test("new enemies rise out of the ground instead of popping in", function()
+	local a = Arena.new(1)
+	start(a, "graveyard")
+	local run = a.rb.deps.RunHost.current()
+	local hero = run.players[1]
+	local ex, ey = hero.x + 200, hero.y - 150
+	local e = K.spawnEnemy(run, "skel", ex, ey)
+	local function topY(): number?
+		ex, ey = e.x, e.y
+		local best = nil
+		for _, d in a.rb.workspace:GetDescendants() do
+			if d:IsA("BasePart") and d.Transparency < 1 then
+				local pp = d.CFrame.Position
+				if math.abs(pp.X - ex * 0.1) < 3 and math.abs(pp.Z - ey * 0.1) < 3 and pp.Y < 20 then
+					best = math.max(best or -math.huge, pp.Y)
+				end
+			end
+		end
+		return best
+	end
+	local first = nil
+	for _ = 1, 30 do
+		a:frames(1 / 30, true)
+		first = topY()
+		if first then
+			break
+		end
+	end
+	a:frames(1, true)
+	local later = topY()
+	T.ok(first and later and later - first > 1, "rises: " .. tostring(first) .. " -> " .. tostring(later))
+	noErrors(a)
+end)
+
 return suite

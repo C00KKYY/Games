@@ -532,9 +532,15 @@ a server-side hero would add a full round trip (100–250 ms) of input lag.
 
 - `Camera.CameraType = Scriptable` during a run. `CameraRig` places the camera behind and above the followed hero:
   pitch `CAM_PITCH = 58°` (looking down), vertical `FieldOfView = 40`, distance `CAM_DIST ≈ 100 studs` so that the
-  128 × 72 stud sim view around the hero is visible on a 16:9 screen (the far edge shows more because of perspective;
-  that is fine, spawns are outside the sim view anyway). On narrower aspect ratios (4:3 tablets, phones in portrait,
-  which Roblox discourages) `CAM_DIST` grows until 128 studs fit horizontally.
+  128 stud width of the sim view fits at the aim point on a 16:9 screen. The camera aims `CAM_AIM_SOUTH = 3` studs
+  south of the hero. Because of perspective the visible ground is a trapezoid: about 519 px north and 376 px south of
+  the hero, ±828 px wide at the top edge and ±521 px at the bottom edge (the sim view is ±640 × ±360). So the strip
+  between the spawn line (VIEW_HH + 50 = 410 px) and the top edge is visible: new enemies therefore **rise out of the
+  ground** within 0.4 s (`EnemyView`) instead of popping in, and the bottom corners of the sim view (about 4 % of its
+  area) are off-screen. A fully covering view would need a nearly top-down camera (FOV 20, pitch 78), which loses the
+  angled 3D look. On narrower aspect ratios (4:3 tablets, phones in portrait, which Roblox discourages) `CAM_DIST`
+  grows until 128 studs fit horizontally. The zoom setting (0.7–1.3) is the player's choice; zoomed in, less than the
+  sim view is visible.
 - The camera follows the hero with critical damping (half-life 0.08 s) and never rotates. Screen shake: small random
   offset decaying over 0.25 s, amount from the `shake` event, disabled by the setting.
 - Up on the screen = −y in the sim = −Z in the world (world `X = x × 0.1`, `Z = y × 0.1`, ground at `Y = 0`).
@@ -1116,9 +1122,9 @@ u8  enemyCount (≤ 110)
                    Enemies.ORDER + 'night'; bit4 elite; bit5 boss; bit6 swarm), u8 state (bit0 hit flash, bit1 slowed,
                    bit2 frozen, bit3 winding, bit4 facing left, bits5-7 hp bucket 0..7 for elites)
 ```
-Worst case: 13 + 1 + 4 × 12 + 1 + 110 × 8 = 943 > 900, so part 0 carries at most 95 enemies (13 + 49 + 1 + 760 = 823)
-and the others 105 (13 + 1 + 840 = 854), leaving room for the remote's own serialization overhead below the 900-byte
-limit of `UnreliableRemoteEvent`; three packets hold 305 records (260 nearest enemies + bosses).
+Worst case: 13 + 1 + 4 × 12 + 1 + 110 × 8 = 943 > 900, so part 0 carries at most 90 enemies (13 + 49 + 1 + 720 = 783)
+and the others 98 (13 + 1 + 784 = 798), leaving about 100 bytes for the remote's own serialization overhead below the
+900-byte limit of `UnreliableRemoteEvent`; three packets hold 286 records (260 nearest enemies + bosses).
 
 ### B.2 Move packet (`Move`, client → server, unreliable, 14 B)
 

@@ -49,6 +49,7 @@ local Tuning = {
 	CAM_PITCH = 58,
 	CAM_FOV = 40,
 	CAM_DIST = 100,
+	CAM_AIM_SOUTH = 3, -- studs the camera aims south of the hero (perspective: 519 px visible north, 376 south)
 	HUB_ORIGIN = { 0, 2000, 0 }, -- studs (x, y, z); plain numbers so the module stays Instance-free
 
 	LOCK_STALE = 1800,

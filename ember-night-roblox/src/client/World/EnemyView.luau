@@ -2,13 +2,14 @@
 -- Enemies from interpolated snapshots (docs/DESIGN.md §3.5, §4.3): one primitive model per enemy (ModelKit), all
 -- parts moved once per frame with workspace:BulkMoveTo. Enemies face their movement (or, standing or winding up,
 -- the nearest hero); hit flash, frozen and slowed tint the body; elites and bosses stand on a gold ring, bosses wear
--- a crown and carry an aura light. Kills hide an enemy at once; ids not seen for 0.5 s are released.
+-- a crown and carry an aura light. Kills hide an enemy at once; ids not seen for 0.5 s are released. New
+-- enemies rise out of the ground within 0.4 s.
 local ModelKit = require(script.Parent.ModelKit)
 local Coords = require(script.Parent.Coords)
 
 local EnemyView = {}
 
-type Slot = { rig: ModelKit.Rig, sig: string, seen: number, x: number, y: number, yaw: number }
+type Slot = { rig: ModelKit.Rig, sig: string, seen: number, born: number, x: number, y: number, yaw: number }
 
 local live: { [number]: Slot } = {}
 local killed: { [number]: number } = {}
@@ -21,6 +22,8 @@ local S = Coords.S
 local st = { moving = true, winding = false }
 local heroes: { { x: number, y: number } } = {}
 local atan2 = math.atan2
+local RISE_TIME = 0.4 -- s
+local RISE_DEPTH = 4 -- studs below the ground at spawn
 
 function EnemyView.setStage(stage)
 	tints = stage and stage.tints or {}
@@ -127,6 +130,7 @@ function EnemyView.update(interp, now: number, heroList: { { x: number, y: numbe
 				rig = ModelKit.enemy(e.type, e.elite, bossName, tints),
 				sig = sig,
 				seen = now,
+				born = if e.boss then -math.huge else now,
 				x = x,
 				y = y,
 				yaw = nearestHeroAngle(x, y) or 0,
@@ -157,7 +161,11 @@ function EnemyView.update(interp, now: number, heroList: { { x: number, y: numbe
 		end
 		st.winding = e.winding
 		st.moving = true
-		local base = CFrame.new(x * S, 0, y * S) * CFrame.Angles(0, -s.yaw, 0)
+		-- new enemies rise out of the ground (the perspective camera shows a strip beyond the sim's spawn line at the
+		-- top of the screen; this way they never pop into view)
+		local age = now - s.born
+		local lift = if age < RISE_TIME then -RISE_DEPTH * (1 - age / RISE_TIME) ^ 2 else 0
+		local base = CFrame.new(x * S, lift, y * S) * CFrame.Angles(0, -s.yaw, 0)
 		n = ModelKit.pose(rig, base, now, st, parts, cframes, n)
 	end)
 	if n > 0 then

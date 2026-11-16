@@ -36,7 +36,7 @@ function CameraRig.setZoom(z: number)
 end
 
 function CameraRig.snap(x: number, y: number)
-	pos = Coords.v3(x, y)
+	pos = Coords.v3(x, y) + Vector3.new(0, 0, Tuning.CAM_AIM_SOUTH)
 	vel = Vector3.zero
 end
 
@@ -71,7 +71,9 @@ function CameraRig.update(dt: number, x: number, y: number)
 		return
 	end
 	local cam = workspace.CurrentCamera
-	local target = Coords.v3(x, y)
+	-- aim a little south of the hero: the angled view shows more ground to the north than to the south; this way the
+	-- south edge of the sim view (VIEW_HH) stays on screen
+	local target = Coords.v3(x, y) + Vector3.new(0, 0, Tuning.CAM_AIM_SOUTH)
 	-- critically damped spring, half-life 0.08 s
 	local omega = math.log(2) / 0.08 * 1.5
 	local diff = pos - target

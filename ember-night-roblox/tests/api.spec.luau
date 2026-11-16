@@ -64,7 +64,12 @@ suite:test("enums, classes, services and Instance.new properties exist; every fi
 				end
 			end
 			for _, pat in
-				{ 'Instance%.new%("(%w+)"', 'GetService%("(%w+)"%)', ':IsA%("(%w+)"', ':FindFirstChildOfClass%("(%w+)"' }
+				{
+					'Instance%.new%("(%w+)"',
+					'GetService%("(%w+)"%)',
+					':IsA%("(%w+)"',
+					':FindFirstChildOfClass%("(%w+)"',
+				}
 			do
 				for cls in string.gmatch(c, pat) do
 					counts.class += 1
