@@ -99,6 +99,11 @@ local function endRun()
 			setAnchored(player, false)
 		end
 	end
+	for player in spectators do
+		if player.Parent then
+			deps.Net.ui(player, { t = "runEnded" })
+		end
+	end
 	Replicator.finish()
 	run = nil
 	table.clear(slots)

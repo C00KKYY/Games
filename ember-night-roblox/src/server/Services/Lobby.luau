@@ -119,6 +119,12 @@ local function startNow()
 		m.ready = false
 	end
 	deps.RunHost.start(parts, stageId, heat)
+	-- more members than seats (MaxPlayers should prevent it): they watch
+	for i, m in members do
+		if i > Tuning.MAX_PLAYERS then
+			deps.RunHost.addSpectator(m.player)
+		end
+	end
 	Lobby.broadcast()
 end
 

@@ -2,7 +2,7 @@
 -- non-colliding, non-queryable, without shadows; unused parts wait far below the arena.
 local Pool = {}
 
-local FAR = CFrame.new(0, -5000, 0)
+local FAR = CFrame.new(0, -300, 0) -- under the ground plates, above FallenPartsDestroyHeight (-500)
 local folder: Folder? = nil
 local free: { [string]: { BasePart } } = { Ball = {}, Block = {}, Cylinder = {}, Wedge = {} }
 

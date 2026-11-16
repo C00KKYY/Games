@@ -31,6 +31,7 @@ local player = Players.LocalPlayer
 Lang.setLang(Lang.fromLocale(player.LocaleId))
 
 local inRun = false
+local resultsOpen = false
 local solo = true
 local heroBySlot: { [number]: string } = {}
 local langChosen = false
@@ -70,6 +71,7 @@ LobbyUI.init(command)
 Hud.init(command)
 LevelUpUI.init(command, Hud.time)
 ResultsUI.init(function()
+	resultsOpen = false
 	LobbyUI.setVisible(true)
 end)
 
@@ -142,7 +144,7 @@ ClientNet.onUi("lobby", function(m)
 		Lang.setLang(m.profile.lang)
 	end
 	LobbyUI.render(m)
-	if not inRun then
+	if not inRun and not resultsOpen then
 		LobbyUI.setVisible(true)
 	end
 end)
@@ -212,7 +214,13 @@ ClientNet.onUi("achievement", function(m)
 end)
 ClientNet.onUi("results", function(m)
 	leaveArena()
+	resultsOpen = true
+	LobbyUI.setVisible(false)
 	ResultsUI.show(m.summary)
+end)
+ClientNet.onUi("runEnded", function()
+	leaveArena()
+	LobbyUI.setVisible(true)
 end)
 
 -- ---------- world events ----------
