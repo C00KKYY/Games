@@ -162,4 +162,89 @@ suite:test("co-op: downed, revived by a teammate, results for both", function()
 	T.eq(a:visibleParts(), 0)
 end)
 
+local function gui(a, name)
+	for _, g in a.rb.playerGui:GetChildren() do
+		if g.Name == name then
+			return g
+		end
+	end
+	return nil
+end
+
+for _, lang in { "de", "en" } do
+	suite:test("in-run screens on a phone (" .. lang .. "): cards by touch, pause toggles, give up, results", function()
+		local Lang = require("../src/shared/Lang/Lang")
+		local roblox = require("@lune/roblox")
+		Arena.Roblox.viewport = roblox.Vector2.new(844, 390)
+		Arena.Roblox.touch = true
+		local ok, err = pcall(function()
+			local a = Arena.new(1)
+			-- the language comes from the profile (as when the player picks it in the settings)
+			a.cnet.command({ op = "lang", lang = lang })
+			a:frames(0.5)
+			T.eq(Lang.get(), lang)
+			start(a, "frostlake")
+			local run = a:run()
+			local picks = 0
+			-- level up a few times and pick by tapping the first card
+			for _ = 1, 4 do
+				K.gainXp(run, run.players[1], 200)
+				for _ = 1, 10 do
+					a:frame(true)
+				end
+				local cards = gui(a, "EN_Cards")
+				local bs = Arena.Roblox.buttons(cards)
+				if #bs > 0 and run.players[1].offer then
+					a.rb:click(bs[1])
+					picks += 1
+				end
+				a:frames(1, true)
+			end
+			T.ok(picks >= 2, "cards picked by tapping: " .. picks)
+			T.ok(#run.players[1].weapons + #run.players[1].passives > 1, "the picks arrived")
+			-- pause: every toggle, then give up with confirmation
+			a.cnet.command({ op = "pause" })
+			a:frames(0.3)
+			local pause = assert(gui(a, "EN_Pause"))
+			T.ok(pause.Enabled, "pause screen open")
+			local texts = {}
+			for _, b in Arena.Roblox.buttons(pause) do
+				table.insert(texts, b.Text)
+			end
+			T.ok(#texts >= 7, "pause buttons: " .. table.concat(texts, " | "))
+			local function clickText(want)
+				for _, b in Arena.Roblox.buttons(assert(gui(a, "EN_Pause"))) do
+					if b.Text == want then
+						a.rb:click(b)
+						a:frames(0.2)
+						return true
+					end
+				end
+				return false
+			end
+			T.ok(clickText(Lang.tr("Aufgeben")), "give up button")
+			T.eq(run.state, "paused", "first press only asks")
+			T.ok(clickText(Lang.tr("Wirklich aufgeben?")), "confirm button")
+			a:frames(1)
+			a.rb:advance(1)
+			local res = assert(gui(a, "EN_Results"))
+			local back = nil
+			for _, b in Arena.Roblox.buttons(res) do
+				if b.Text == Lang.tr("Zurück") then
+					back = b
+				end
+			end
+			T.ok(back, "results back button")
+			a.rb:click(back)
+			a:frames(0.2)
+			T.eq(#a:errors(), 0, table.concat(a:errors(), "\n"))
+			T.eq(#a.bad, 0, "invalid commands: " .. table.concat(a.bad, ", "))
+		end)
+		Arena.Roblox.viewport = nil
+		Arena.Roblox.touch = false
+		Lang.setLang("en")
+		assert(ok, err)
+	end)
+end
+
 return suite

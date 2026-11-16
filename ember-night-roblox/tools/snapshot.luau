@@ -3,7 +3,7 @@
 -- client camera plus the ScreenGuis as rectangles (tests/lib/Snap.luau) into PNG files.
 -- Usage: lune run tools/snapshot.luau -- <scene> <out.png> [width height [zoom]]
 -- Scenes: hub, run (graveyard 60 s), land:<stageId>, enemies[:<stageId>], boss:<bossId>, levelup, chest, downed,
--- results, phone (run on a 844 x 390 screen)
+-- results, pause, phone, phonepause, phonelevelup (844 x 390 touch screen)
 local process = require("@lune/process")
 local roblox = require("@lune/roblox")
 local Arena = require("../tests/lib/Arena")
@@ -21,8 +21,17 @@ local scene = args[1] or "run"
 local out = args[2] or "snapshot.png"
 local W, H = tonumber(args[3]) or 1280, tonumber(args[4]) or 720
 local ZOOM = tonumber(args[5]) or 1 -- render-only zoom (narrower field of view) to look at models closely
-if scene == "phone" then
+if string.find(scene, "^phonescreen:") then
 	W, H = 844, 390
+	Arena.Roblox.touch = true
+	scene = "screen:" .. string.sub(scene, 13)
+end
+if scene == "phone" or scene == "phonepause" or scene == "phonelevelup" then
+	W, H = 844, 390
+	Arena.Roblox.touch = true
+end
+if scene == "phonelevelup" then
+	scene = "levelup"
 end
 Arena.Roblox.viewport = roblox.Vector2.new(W, H)
 
@@ -58,6 +67,12 @@ end
 
 if scene == "hub" then
 	a:frames(1)
+elseif string.find(scene, "^screen:") then
+	local prof = a.rb.deps.Profiles.get(a.me)
+	prof.gold = 12345
+	a:frames(1)
+	a:client("UI/Router").open(string.sub(scene, 8))
+	a:frames(0.5)
 elseif scene == "run" or scene == "phone" then
 	start("graveyard")
 	a:frames(60, true)
@@ -113,6 +128,11 @@ elseif scene == "downed" then
 	me.iframe, me.wardT, me.revivals = 0, 0, 0
 	K.hurtPlayer(run, me, 1e6, "test")
 	a:frames(1.5)
+elseif scene == "pause" or scene == "phonepause" then
+	start("graveyard")
+	a:frames(30, true)
+	a.cnet.command({ op = "pause" })
+	a:frames(0.5)
 elseif scene == "results" then
 	start("ruins")
 	a:frames(20, true)

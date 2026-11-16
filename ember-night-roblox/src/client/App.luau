@@ -33,6 +33,9 @@ local ResultsUI = require(script.Parent.UI.Results)
 local Router = require(script.Parent.UI.Router)
 local ReviveOffer = require(script.Parent.UI.ReviveOffer)
 local Names = require(script.Parent.UI.Names)
+local Arrows = require(script.Parent.UI.Arrows)
+local Downed = require(script.Parent.UI.Downed)
+local Pause = require(script.Parent.UI.Pause)
 local Kit = require(script.Parent.UI.Kit)
 local Sfx = require(script.Parent.Audio.Sfx)
 local Music = require(script.Parent.Audio.Music)
@@ -119,8 +122,12 @@ local function bindRunActions()
 	Controls.bind("skip", LevelUpUI.action, Enum.KeyCode.K, Enum.KeyCode.ButtonY)
 	Controls.bind("banish", LevelUpUI.action, Enum.KeyCode.B)
 	Controls.bind("pause", function()
-		if solo then
+		if Pause.isOpen() then
+			Pause.close(true)
+		elseif solo then
 			command({ op = "pause" })
+		else
+			Pause.open(false)
 		end
 	end, Enum.KeyCode.P, Enum.KeyCode.ButtonStart)
 end
@@ -161,6 +168,9 @@ local function leaveArena()
 	Land.leave()
 	CameraRig.setActive(false)
 	Hud.setVisible(false)
+	Arrows.setVisible(false)
+	Downed.hide()
+	Pause.close(false)
 	LevelUpUI.close()
 	LevelUpUI.closeChest()
 	LevelUpUI.victory(false)
@@ -189,10 +199,18 @@ function App.start(net)
 		return ModelKit.heroColor(heroBySlot[slot])
 	end)
 	Router.init(command)
+	Router.onChange = function(open)
+		LobbyUI.setVisible(not open and not inRun and not resultsOpen)
+	end
 	LobbyUI.init(command, Router.open)
-	Hud.init(command)
+	Hud.init(command, function()
+		Pause.open(false)
+	end)
 	LevelUpUI.init(command, Hud.time)
+	Downed.init()
 	ReviveOffer.init(command)
+	Pause.init(command)
+	Arrows.init()
 	ResultsUI.init(function()
 		resultsOpen = false
 		Music.release()
@@ -230,12 +248,15 @@ function App.listen()
 		end
 		LobbyUI.render(m)
 		Router.update(m)
-		if not inRun and not resultsOpen then
+		if not inRun and not resultsOpen and not Router.isOpen() then
 			LobbyUI.setVisible(true)
 		end
 	end)
 	ClientNet.onUi("purchased", function(m)
 		Router.toast(tr("Gekauft: {0}", Names.product(m.key)))
+		if inRun then
+			Hud.toast(tr("Gekauft: {0}", Names.product(m.key)))
+		end
 		Sfx.play("buy")
 	end)
 	ClientNet.onUi("reviveOffer", function(m)
@@ -250,25 +271,38 @@ function App.listen()
 		applyTeam(m.team)
 		HeroView.start(m.slot, m.x, m.y, m.hero)
 		CameraRig.snap(m.x, m.y)
+		Hud.setTeam(m.team, m.slot)
 		Hud.setVisible(true, m.solo)
+		Downed.setSolo(m.solo)
+		Arrows.setVisible(true)
 	end)
 	ClientNet.onUi("spectate", function(m)
 		solo = false
 		enterArena(m.stage)
 		applyTeam(m.team)
+		Hud.setTeam(m.team, 0)
 		Hud.setVisible(true, false)
+		Downed.setSolo(false)
+		Arrows.setVisible(true)
 	end)
 	ClientNet.onUi("hero", function(m)
 		if lastHp and m.hp < lastHp and m.state == "active" then
 			Sfx.play("hurt")
+			Hud.hurt()
 		end
 		lastHp = m.hp
 		Hud.hero(m)
+		Downed.hero(m)
+		Pause.setHero(m)
 		HeroView.setSpeed(m.speed)
 		HeroView.setState(m.slot, m.state)
 	end)
 	ClientNet.onUi("run", function(m)
 		Hud.run(m)
+		Downed.run(m)
+		if m.state == "victory" then
+			LevelUpUI.victory(true, m.vote)
+		end
 		for _, p in m.team do
 			heroBySlot[p.slot] = p.hero
 			HeroView.setHero(p.slot, p.hero)
@@ -295,6 +329,11 @@ function App.listen()
 	ClientNet.onUi("state", function(m)
 		Hud.state(m.state)
 		LevelUpUI.victory(m.state == "victory")
+		if m.state == "paused" then
+			Pause.open(true)
+		elseif solo and Pause.isOpen() then
+			Pause.close(false)
+		end
 		if solo and m.state == "play" then
 			LevelUpUI.close()
 			LevelUpUI.closeChest()
@@ -313,6 +352,7 @@ function App.listen()
 		HeroView.setState(m.slot, "active")
 		if m.slot == HeroView.own().slot then
 			ReviveOffer.hide()
+			Downed.hide()
 		end
 	end)
 	ClientNet.onUi("achievement", function(m)
@@ -418,6 +458,14 @@ function App.listen()
 end
 
 -- ---------- frame loop ----------
+local arrowHx, arrowHy = 0, 0
+local function shotArrow(x: number, y: number, vx: number, vy: number)
+	Arrows.shot(x, y, vx, vy, arrowHx, arrowHy)
+end
+local function chestArrow(x: number, y: number)
+	Arrows.add("chest", x, y, 20)
+end
+
 function App.frame(dt: number)
 	if not inRun then
 		return
@@ -456,6 +504,26 @@ function App.frame(dt: number)
 	CameraRig.update(dt, cx, cy)
 	Hud.update(dt)
 	LevelUpUI.update()
+	Downed.update()
+	-- off-screen arrows: incoming shots, downed teammates, the boss, own chests
+	Arrows.begin()
+	if own.slot > 0 and own.state == "active" then
+		arrowHx, arrowHy = own.x, own.y
+		ShotView.eachEnemyShot(shotArrow)
+	end
+	for slot, h in interp:latestHeroes() do
+		if slot ~= own.slot and h.downed then
+			Arrows.add("downed", h.x, h.y, 80)
+		end
+	end
+	local bx, by = EnemyView.bossPosition()
+	if bx then
+		Arrows.add("boss", bx, by :: number, 50)
+	end
+	if own.slot > 0 then
+		PickupView.eachChest(own.slot, chestArrow)
+	end
+	Arrows.render(now)
 	Music.setIntensity(Mix.intensity(true, Hud.bossActive(), Hud.time(), Hud.surgeOn()))
 end
 

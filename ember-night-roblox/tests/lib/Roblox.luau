@@ -393,8 +393,8 @@ function Roblox:clientServices()
 	self.boundActions = {}
 	local rb = self
 	local uis = {
-		TouchEnabled = false,
-		KeyboardEnabled = true,
+		TouchEnabled = Roblox.touch == true,
+		KeyboardEnabled = Roblox.touch ~= true,
 		GamepadEnabled = false,
 		MouseEnabled = true,
 		InputBegan = newSignal(S),

@@ -9,7 +9,7 @@ local Coords = require(script.Parent.Coords)
 local PickupView = {}
 
 local S = Coords.S
-type Item = { rig: ModelKit.Rig, x: number, y: number, slot: number, sp: number }
+type Item = { rig: ModelKit.Rig, x: number, y: number, slot: number, sp: number, owner: number? }
 local items: { [number]: Item } = {}
 local bulkP: { BasePart } = {}
 local bulkC: { CFrame } = {}
@@ -38,7 +38,7 @@ function PickupView.pickup(e)
 	else
 		rig = ModelKit.pickup(e.kind)
 	end
-	items[e.id] = { rig = rig, x = e.x, y = e.y, slot = 0, sp = 0 }
+	items[e.id] = { rig = rig, x = e.x, y = e.y, slot = 0, sp = 0, owner = e.owner }
 end
 
 function PickupView.pull(id: number, slot: number)
@@ -57,12 +57,11 @@ function PickupView.remove(id: number)
 	end
 end
 
--- chests in view (for the off-screen arrows): list of { x, y }
-function PickupView.chests(out: { { x: number, y: number } })
-	table.clear(out)
+-- chests the given slot may open (for the off-screen arrows): calls fn(x, y)
+function PickupView.eachChest(slot: number, fn: (number, number) -> ())
 	for _, it in items do
-		if it.rig.kind == "chest" then
-			table.insert(out, { x = it.x, y = it.y })
+		if it.rig.kind == "chest" and (not it.owner or it.owner == 0 or it.owner == slot) then
+			fn(it.x, it.y)
 		end
 	end
 end

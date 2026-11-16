@@ -108,4 +108,11 @@ return {
 	["Schatten"] = "Shadow",
 	["Glutspur"] = "Ember Trail",
 	["Zweite Glut"] = "Second Ember",
+	-- R4: HUD, cards, pause, downed, results
+	["Neue Stufe!"] = "Level up!",
+	["St. {0}"] = "Lv {0}",
+	["Am Boden!"] = "Down!",
+	["Ein Mitspieler kann dich wiederbeleben."] = "A teammate can revive you.",
+	["Die Glut erlischt …"] = "The ember is fading …",
+	["Weiter im Endlosmodus oder beenden?"] = "Continue in endless mode or finish?",
 }

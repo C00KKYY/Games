@@ -2,6 +2,7 @@
 -- screen height (base 720 px), minimum touch target 44 px.
 local Players = game:GetService("Players")
 local Theme = require(script.Parent.Theme)
+local Device = require(script.Parent.Parent.Device)
 
 local Kit = {}
 -- called on every button press (the client plays the click sound here)
@@ -18,9 +19,9 @@ function Kit.screen(name: string, order: number?): ScreenGui
 	local scale = Instance.new("UIScale")
 	scale.Parent = g
 	local function fit()
-		local cam = workspace.CurrentCamera
-		local h = if cam then cam.ViewportSize.Y else 720
-		scale.Scale = math.clamp(h / 720, 0.6, 1.6)
+		local h = Device.viewport().Y
+		-- touch screens never go below 0.72 so buttons stay finger-sized
+		scale.Scale = math.clamp(h / 720, if Device.touch() then 0.72 else 0.6, 1.6)
 	end
 	fit()
 	if workspace.CurrentCamera then
@@ -28,6 +29,14 @@ function Kit.screen(name: string, order: number?): ScreenGui
 	end
 	g.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 	return g
+end
+
+-- the usable size of a ScreenGui in its own (scaled) units
+function Kit.uiSize(g: ScreenGui): Vector2
+	local vp = Device.viewport()
+	local sc = g:FindFirstChildOfClass("UIScale")
+	local s = if sc then sc.Scale else 1
+	return Vector2.new(vp.X / s, (vp.Y - 36) / s)
 end
 
 function Kit.frame(parent: Instance, props: { [string]: any }?): Frame
@@ -151,12 +160,16 @@ end
 
 -- a centred window with a title and a close button; returns the window and its body (scrolling list)
 function Kit.window(parent: Instance, title: string, onClose: () -> ()): (Frame, ScrollingFrame)
+	-- 780 x 520 where it fits, otherwise the screen minus a margin (phones)
 	local w = Kit.panel(parent, {
-		Size = UDim2.fromOffset(780, 520),
-		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(1, -24, 1, -90),
+		Position = UDim2.new(0.5, 0, 0.5, -20),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 0.04,
 	})
+	local sc = Instance.new("UISizeConstraint")
+	sc.MaxSize = Vector2.new(780, 520)
+	sc.Parent = w
 	local head = Kit.frame(w, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 52) })
 	Kit.label(head, title, {
 		Font = Theme.title,

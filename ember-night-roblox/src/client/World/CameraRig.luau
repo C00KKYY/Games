@@ -13,6 +13,7 @@ local vel = Vector3.zero
 local shakeAmt, shakeT = 0, 0
 local zoom = 1
 local rng = Random.new()
+local lastCF = CFrame.new(0, 100, 60)
 
 function CameraRig.setActive(on: boolean)
 	local cam = workspace.CurrentCamera
@@ -95,6 +96,24 @@ function CameraRig.update(dt: number, x: number, y: number)
 		end
 	end
 	cam.CFrame = cf
+	lastCF = cf
+end
+
+-- screen position (viewport px) of a world point seen by the arena camera, and whether it is inside the screen;
+-- pure math on the last camera pose (the off-screen arrows need it for points far outside the view as well)
+function CameraRig.project(p: Vector3): (number, number, boolean, boolean)
+	local cam = workspace.CurrentCamera
+	local vp = cam.ViewportSize
+	local rel = lastCF:PointToObjectSpace(p)
+	local z = -rel.Z
+	local th = math.tan(math.rad(Tuning.CAM_FOV) / 2)
+	local aspect = if vp.Y > 0 then vp.X / vp.Y else 16 / 9
+	local behind = z <= 0.1
+	z = math.max(z, 0.1)
+	local nx = rel.X / (z * th * aspect)
+	local ny = rel.Y / (z * th)
+	local sx, sy = (nx * 0.5 + 0.5) * vp.X, (0.5 - ny * 0.5) * vp.Y
+	return sx, sy, not behind and math.abs(nx) <= 1 and math.abs(ny) <= 1, behind
 end
 
 return CameraRig

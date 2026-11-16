@@ -522,8 +522,7 @@ function ModelKit.enemy(etype: string, elite: boolean, bossName: string?, tints:
 	return rig
 end
 
--- a hero model (r = hero radius in studs); pal.body = hero or skin colour, pal.accent = skin accent
-function ModelKit.hero(heroId: string?, r: number, pal: Palette): Rig
+local function heroSpecs(heroId: string?, pal: Palette): { PartSpec }
 	local h = heroId and Heroes.byId[heroId]
 	local weapon = if h then h.weapon else "whip"
 	local specs = table.clone(SPECS.hero.parts)
@@ -531,7 +530,45 @@ function ModelKit.hero(heroId: string?, r: number, pal: Palette): Rig
 		table.insert(specs, p)
 	end
 	pal.weapon = pal.weapon or Coords.color(WEAPON_COLOR[weapon])
-	return buildFrom("hero", specs, r, pal)
+	return specs
+end
+
+-- a hero model (r = hero radius in studs); pal.body = hero or skin colour, pal.accent = skin accent
+function ModelKit.hero(heroId: string?, r: number, pal: Palette): Rig
+	return buildFrom("hero", heroSpecs(heroId, pal), r, pal)
+end
+
+-- a standalone (not pooled) copy of a hero model under `parent`, standing at the origin facing +X; for
+-- ViewportFrame previews in the hub
+function ModelKit.heroPreview(heroId: string?, r: number, pal: Palette, parent: Instance)
+	for _, sp in heroSpecs(heroId, pal) do
+		local part: BasePart
+		local uniform = sp.size.X == sp.size.Y and sp.size.Y == sp.size.Z
+		if sp.shape == "Wedge" then
+			part = Instance.new("WedgePart")
+		else
+			local q = Instance.new("Part")
+			q.Shape = if sp.shape == "Ball" and uniform
+				then Enum.PartType.Ball
+				elseif sp.shape == "Cylinder" then Enum.PartType.Cylinder
+				else Enum.PartType.Block
+			if sp.shape == "Ball" and not uniform then
+				local m = Instance.new("SpecialMesh")
+				m.MeshType = Enum.MeshType.Sphere
+				m.Parent = q
+			end
+			part = q
+		end
+		part.Anchored = true
+		part.CanCollide = false
+		part.CastShadow = false
+		part.Size = sp.size * r
+		part.Color = roleColor(sp.role, pal)
+		part.Material = sp.mat or Enum.Material.SmoothPlastic
+		part.Transparency = sp.tr or 0
+		part.CFrame = CFrame.new(sp.pos * r) * rotCF(sp.rot)
+		part.Parent = parent
+	end
 end
 
 function ModelKit.pickup(kind: string, pal: Palette?): Rig

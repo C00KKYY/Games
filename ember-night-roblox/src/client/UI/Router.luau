@@ -114,6 +114,9 @@ function Router.init(cmd: (any) -> ())
 	renderBar()
 end
 
+-- called with true/false when a window opens or closes (the client hides the party panel meanwhile)
+Router.onChange = nil :: ((boolean) -> ())?
+
 function Router.open(name: string)
 	if SCREENS[name] then
 		if current ~= name then
@@ -121,12 +124,18 @@ function Router.open(name: string)
 		end
 		current = name
 		render()
+		if Router.onChange then
+			Router.onChange(true)
+		end
 	end
 end
 
 function Router.close()
 	current = nil
 	render()
+	if Router.onChange then
+		Router.onChange(false)
+	end
 end
 
 function Router.isOpen(): boolean

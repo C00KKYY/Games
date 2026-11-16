@@ -9,6 +9,7 @@ local Weapons = require(Shared.Sim.Data.Weapons)
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 local Names = require(script.Parent.Names)
+local Preview = require(script.Parent.Preview)
 
 local Screen = { TITLE = Lang.key("Helden") }
 local tr = Lang.tr
@@ -21,7 +22,7 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 			mine = m.hero
 		end
 	end
-	local grid = Kit.grid(body, 180, 214, { LayoutOrder = 1 })
+	local grid = Kit.grid(body, 180, 296, { LayoutOrder = 1 })
 	for i, id in Heroes.ORDER do
 		local h = Heroes.byId[id]
 		local unlocked = table.find(msg.heroes, id) ~= nil
@@ -29,6 +30,13 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 			Kit.panel(grid, { LayoutOrder = i, BackgroundColor3 = if mine == id then Theme.panel2 else Theme.panel })
 		Kit.padding(card, 8)
 		Kit.list(card, false, 2)
+		local skin = view.equipped and view.equipped.skin
+		local pv =
+			Preview.hero(card, id, if unlocked then skin else nil, { Size = UDim2.new(1, 0, 0, 78), LayoutOrder = 0 })
+		if not unlocked then
+			pv.ImageTransparency = 0.55
+			pv.ImageColor3 = Color3.fromRGB(90, 80, 110)
+		end
 		Kit.label(
 			card,
 			tr(h.name),
