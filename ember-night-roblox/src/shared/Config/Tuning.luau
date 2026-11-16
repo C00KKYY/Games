@@ -6,6 +6,7 @@ local Tuning = {
 
 	SIM_HZ = 30,
 	SIM_DT = 1 / 30,
+	SIM_SUBSTEPS = 2, -- the sim advances in 2 half steps per 1/30 s tick (the web game runs at ~1/60 s)
 	MAX_STEPS_PER_FRAME = 3,
 	SNAP_HZ = 15,
 	MOVE_HZ = 20,
