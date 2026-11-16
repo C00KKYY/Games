@@ -158,8 +158,8 @@ end
 local HEADER = 13
 local HERO_B = 12
 local ENEMY_B = 8
-local PART0_MAX = 100
-local PART_MAX = 110
+local PART0_MAX = 95 -- packet 0: 13 + 1 + 4 x 12 + 1 + 95 x 8 = 823 bytes
+local PART_MAX = 105 -- other packets: 13 + 1 + 105 x 8 = 854 bytes (margin for the remote's own overhead under 900)
 
 local function enemyTypeFlags(e): number
 	local t = TYPE_INDEX[e.type] or 0

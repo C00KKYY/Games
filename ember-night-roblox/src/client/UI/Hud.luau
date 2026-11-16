@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
 local Heroes = require(Shared.Sim.Data.Heroes)
-local Enemies = require(Shared.Sim.Data.Enemies)
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 
@@ -187,8 +186,6 @@ function Hud.countdown(m)
 	end
 	countdown = m
 	ui.cdBg.Visible = true
-	local label = if m.kind == "boss" then tr(m.label) else tr(Enemies.byId[m.icon] and Enemies.byId[m.icon].name or "")
-	ui.cdText.Text = if m.phase == "on" then tr("Ansturm! Noch {0}", "") .. " " .. label else label
 end
 
 function Hud.achievement(name: string)
@@ -226,6 +223,14 @@ function Hud.update(dt: number)
 		local left = if on then c["end"] - t else c.at - t
 		local total = if on then c["end"] - c.at else c.at - c.start
 		ui.setCd(math.clamp(left / math.max(total, 0.1), 0, 1))
+		local lt = Lang.fmtTime(math.max(0, math.ceil(left)))
+		if c.kind == "boss" then
+			ui.cdText.Text = tr("{0} in {1}", tr(c.label), lt)
+		elseif on then
+			ui.cdText.Text = tr("Ansturm! Noch {0}", lt)
+		else
+			ui.cdText.Text = tr("Ansturm in {0}", lt)
+		end
 	end
 end
 

@@ -968,8 +968,9 @@ u8  enemyCount (≤ 110)
                    Enemies.ORDER + 'night'; bit4 elite; bit5 boss; bit6 swarm), u8 state (bit0 hit flash, bit1 slowed,
                    bit2 frozen, bit3 winding, bit4 facing left, bits5-7 hp bucket 0..7 for elites)
 ```
-Worst case: 13 + 1 + 4 × 12 + 1 + 110 × 8 = 943 > 900, so part 0 carries at most 100 enemies (13 + 49 + 1 + 800 = 863)
-and the others 110 (13 + 1 + 880 = 894).
+Worst case: 13 + 1 + 4 × 12 + 1 + 110 × 8 = 943 > 900, so part 0 carries at most 95 enemies (13 + 49 + 1 + 760 = 823)
+and the others 105 (13 + 1 + 840 = 854), leaving room for the remote's own serialization overhead below the 900-byte
+limit of `UnreliableRemoteEvent`; three packets hold 305 records (260 nearest enemies + bosses).
 
 ### B.2 Move packet (`Move`, client → server, unreliable, 14 B)
 

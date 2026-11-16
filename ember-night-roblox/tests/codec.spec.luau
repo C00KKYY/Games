@@ -39,7 +39,7 @@ suite:test("snapshot round trip, packet sizes and interest", function()
 	T.ok(#pk >= 2 and #pk <= 3)
 	local got, ids = 0, {}
 	for _, b in pk do
-		T.ok(buffer.len(b) <= 900, "packet " .. buffer.len(b))
+		T.ok(buffer.len(b) <= 860, "packet " .. buffer.len(b))
 		local s = Codec.decodeSnapshot(b)
 		T.eq(s.tick, 1234)
 		if s.part == 0 then
