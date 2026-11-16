@@ -83,6 +83,15 @@ intervals with n = 24 are ±18 points).
 **+16 points, inside**; no player levels more than 1.3× faster than solo: **≈ 1.03×**. Team revives work in these
 runs (bots walk to downed teammates). The co-op factors (`Sim/Coop.luau`) stay as tuned in R1.
 
+## R5 – co-op check on a 15-minute land: Eissee / light / heat 0, 4 bots
+
+18 runs (seeds 5001–5018) plus the 9 runs of the gameplay review (seed 3001): **63 %** wins (17/27, 95 %: 44–78 %).
+Solo on the same land: 29 % (13/45: seeds 1001–1018 and 5001–5027). Median enemies alive at 5:00: 85 (solo 48, 1.8×),
+level at 8:00 33 (solo 29–32). The point estimate is +34 points, a little above the graveyard gate of solo + 30, but
+the interval's lower bound (44 %) lies inside it, and Aschenwald (+16) and Alter Friedhof (+18) sit well inside.
+The co-op factors are global and tuned on Alter Friedhof, so they stay as they are; worth re-checking with real
+players (four identical bots kite in the same way and revive each other quickly).
+
 ## Performance (Lune on this machine, interpreted; Roblox servers run `--!native`)
 
 | Scenario | Median step | p99 | Notes |
@@ -100,4 +109,4 @@ Budget (DESIGN.md §3.4): median ≤ 6 ms, p99 ≤ 12 ms – met with a wide mar
 | 4 bots, Herz der Nacht heat 3, 0:00–5:00 | 978 B average (max 2.0 KB in 3 packets) | 16.0 KB/s average (snapshots 14.3), worst second 31 KB |
 | 4 players, 300 enemies around them | 1416 B median, 2171 B max (3 packets) | ≈ 21 KB/s for snapshots at 15 Hz |
 
-Packets stay ≤ 854 bytes (UnreliableRemoteEvent limit 900 incl. overhead). Budget: ≤ 30 KB/s typical, ≤ 45 KB/s worst.
+Packets stay ≤ 798 bytes since R5 (UnreliableRemoteEvent limit 900 incl. overhead; was 854). Budget: ≤ 30 KB/s typical, ≤ 45 KB/s worst.
