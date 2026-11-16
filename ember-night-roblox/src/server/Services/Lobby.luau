@@ -1,12 +1,12 @@
 -- The party on this server (docs/DESIGN.md §2.1, §2.3): members in join order, leader, hero/land/heat selection,
 -- ready state, start countdown, spectators while a run is in progress.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tuning = require(Shared.Config.Tuning)
 local Profile = require(Shared.Sim.Profile)
 local Stages = require(Shared.Sim.Data.Stages)
+local Entitlements = require(Shared.Server.Entitlements)
 
 local Lobby = {}
 
@@ -50,6 +50,9 @@ local function clampSelection()
 		return
 	end
 	local prof = deps.Profiles.get(leader)
+	if not prof then
+		return
+	end
 	if not Profile.stageUnlocked(prof, stageIndex(stageId)) then
 		stageId = "graveyard"
 	end
@@ -58,6 +61,7 @@ end
 
 function Lobby.broadcast()
 	clampSelection()
+	Lobby.revalidate()
 	local list = {}
 	local leader = Lobby.leader()
 	for _, m in members do
@@ -73,28 +77,32 @@ function Lobby.broadcast()
 	for _, m in members do
 		local prof = deps.Profiles.get(m.player)
 		local lprof = if leader then deps.Profiles.get(leader) else prof
-		local stages = {}
-		for i, s in Stages.list do
-			table.insert(stages, {
-				id = s.id,
-				unlocked = Profile.stageUnlocked(lprof, i),
-				maxHeat = Profile.stageMaxHeat(lprof, s.id),
-				stars = Profile.stageStars(prof, s.id),
+		lprof = lprof or prof
+		if prof then
+			local stages = {}
+			for i, s in Stages.list do
+				table.insert(stages, {
+					id = s.id,
+					unlocked = Profile.stageUnlocked(lprof, i),
+					maxHeat = Profile.stageMaxHeat(lprof, s.id),
+					stars = Profile.stageStars(prof, s.id),
+					best = Profile.stageBest(prof, s.id),
+				})
+			end
+			deps.Net.ui(m.player, {
+				t = "lobby",
+				members = list,
+				you = m.player.UserId,
+				isLeader = m.player == leader,
+				stage = stageId,
+				heat = heat,
+				stages = stages,
+				heroes = Entitlements.heroes(prof, deps.Passes.get(m.player)),
+				running = running,
+				countdown = if countdownEnd > 0 then math.max(0, countdownEnd - os.clock()) else nil,
+				profile = deps.Meta.view(m.player),
 			})
 		end
-		deps.Net.ui(m.player, {
-			t = "lobby",
-			members = list,
-			you = m.player.UserId,
-			isLeader = m.player == leader,
-			stage = stageId,
-			heat = heat,
-			stages = stages,
-			heroes = Profile.unlockedHeroes(prof, nil),
-			running = running,
-			countdown = if countdownEnd > 0 then math.max(0, countdownEnd - os.clock()) else nil,
-			profile = deps.Profiles.view(m.player),
-		})
 	end
 end
 
@@ -135,9 +143,12 @@ function Lobby.command(player: Player, c)
 	end
 	local isLeader = player == Lobby.leader()
 	local running = deps.RunHost.running()
+	local prof = deps.Profiles.get(player)
+	if not prof then
+		return
+	end
 	if c.op == "selectHero" then
-		local prof = deps.Profiles.get(player)
-		if table.find(Profile.unlockedHeroes(prof, nil), c.hero) then
+		if Entitlements.heroAllowed(prof, deps.Passes.get(player), c.hero) then
 			m.hero = c.hero
 			prof.lastChar = c.hero
 		end
@@ -145,7 +156,6 @@ function Lobby.command(player: Player, c)
 		if not isLeader or running then
 			return
 		end
-		local prof = deps.Profiles.get(player)
 		local idx = stageIndex(c.stage)
 		if Profile.stageUnlocked(prof, idx) and c.heat <= Profile.stageMaxHeat(prof, c.stage) then
 			stageId = c.stage
@@ -179,8 +189,6 @@ function Lobby.command(player: Player, c)
 				startNow()
 			end
 		end)
-	elseif c.op == "lang" then
-		deps.Profiles.get(player).settings.lang = c.lang
 	end
 	Lobby.broadcast()
 end
@@ -191,32 +199,44 @@ end
 
 function Lobby.init(d)
 	deps = d
-	local function add(player: Player)
-		if find(player) then
+	-- a player joins the party once his profile is loaded
+	deps.Profiles.onLoaded(function(player: Player)
+		if find(player) or not player.Parent then
 			return
 		end
 		joinCounter += 1
 		local prof = deps.Profiles.get(player)
-		table.insert(members, { player = player, hero = prof.lastChar, ready = false, joined = joinCounter })
+		local hero = prof.lastChar
+		if not Entitlements.heroAllowed(prof, deps.Passes.get(player), hero) then
+			hero = "aron"
+		end
+		table.insert(members, { player = player, hero = hero, ready = false, joined = joinCounter })
 		Lobby.broadcast()
 		if deps.RunHost.running() then
 			deps.RunHost.addSpectator(player)
 		end
-	end
-	Players.PlayerAdded:Connect(add)
-	for _, p in Players:GetPlayers() do
-		add(p)
-	end
-	Players.PlayerRemoving:Connect(function(player)
-		for i, m in members do
-			if m.player == player then
-				table.remove(members, i)
-				break
-			end
-		end
-		cancelCountdown()
-		Lobby.broadcast()
 	end)
+end
+
+-- the hero a member plays must still be allowed (a pass check can take a hero away after the cache guessed)
+function Lobby.revalidate()
+	for _, m in members do
+		local prof = deps.Profiles.get(m.player)
+		if prof and not Entitlements.heroAllowed(prof, deps.Passes.get(m.player), m.hero) then
+			m.hero = "aron"
+		end
+	end
+end
+
+function Lobby.onLeave(player: Player)
+	for i, m in members do
+		if m.player == player then
+			table.remove(members, i)
+			break
+		end
+	end
+	cancelCountdown()
+	Lobby.broadcast()
 end
 
 return Lobby

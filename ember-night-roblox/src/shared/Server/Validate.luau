@@ -3,6 +3,9 @@
 local Protocol = if script then require(script.Parent.Parent.Net.Protocol) else require("../Net/Protocol")
 local Heroes = if script then require(script.Parent.Parent.Sim.Data.Heroes) else require("../Sim/Data/Heroes")
 local Stages = if script then require(script.Parent.Parent.Sim.Data.Stages) else require("../Sim/Data/Stages")
+local Forge = if script then require(script.Parent.Parent.Sim.Data.Forge) else require("../Sim/Data/Forge")
+local Products = if script then require(script.Parent.Parent.Config.Products) else require("../Config/Products")
+local Cosmetics = if script then require(script.Parent.Parent.Config.Cosmetics) else require("../Config/Cosmetics")
 
 local Validate = {}
 
@@ -10,6 +13,11 @@ local stageIds = {}
 for _, s in Stages.list do
 	stageIds[s.id] = true
 end
+local forgeIds = {}
+for _, it in Forge.list do
+	forgeIds[it.id] = true
+end
+local SETTING_KEYS = { sfx = true, music = true, dmgNums = true, shake = true, lowFx = true, camZoom = true }
 
 local CHECK = {
 	int1_4 = function(v)
@@ -29,6 +37,24 @@ local CHECK = {
 	end,
 	lang = function(v)
 		return v == "de" or v == "en"
+	end,
+	forgeId = function(v)
+		return type(v) == "string" and forgeIds[v] == true
+	end,
+	cosSlot = function(v)
+		return type(v) == "string" and table.find(Cosmetics.SLOTS, v) ~= nil
+	end,
+	cosIdOrEmpty = function(v)
+		return v == "" or (type(v) == "string" and Cosmetics.byId[v] ~= nil)
+	end,
+	settingKey = function(v)
+		return type(v) == "string" and SETTING_KEYS[v] == true
+	end,
+	settingValue = function(v)
+		return type(v) == "boolean" or (type(v) == "number" and v == v and math.abs(v) < 100)
+	end,
+	productKey = function(v)
+		return type(v) == "string" and #v <= 40 and Products.byKey[v] ~= nil
 	end,
 }
 

@@ -168,6 +168,15 @@ Protocol.COMMANDS = {
 	ready = { on = "bool" },
 	start = {},
 	lang = { lang = "lang" },
+	-- hub / meta (Server/Services/Meta.luau)
+	forgeBuy = { id = "forgeId" },
+	forgeRefund = {},
+	equip = { slot = "cosSlot", id = "cosIdOrEmpty" },
+	setting = { key = "settingKey", value = "settingValue" },
+	storySeen = { stage = "stageId" },
+	-- purchases (Server/Services/Purchases.luau)
+	buy = { key = "productKey" },
+	useRevive = {},
 }
 
 return Protocol
