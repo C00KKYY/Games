@@ -9,6 +9,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
 local Stages = require(Shared.Sim.Data.Stages)
 local Achievements = require(Shared.Sim.Data.Achievements)
+local Cosmetics = require(Shared.Config.Cosmetics)
 
 local ClientNet = require(script.Parent.Net.ClientNet)
 local Controls = require(script.Parent.Input.Controls)
@@ -26,8 +27,12 @@ local LobbyUI = require(script.Parent.UI.Lobby)
 local Hud = require(script.Parent.UI.Hud)
 local LevelUpUI = require(script.Parent.UI.LevelUp)
 local ResultsUI = require(script.Parent.UI.Results)
+local Router = require(script.Parent.UI.Router)
+local ReviveOffer = require(script.Parent.UI.ReviveOffer)
+local Names = require(script.Parent.UI.Names)
 
 local player = Players.LocalPlayer
+local tr = Lang.tr
 Lang.setLang(Lang.fromLocale(player.LocaleId))
 
 local inRun = false
@@ -67,13 +72,38 @@ ShotView.setHeroPosition(heroPos)
 PickupView.setHeroPosition(heroPos, function(slot)
 	return ModelKit.heroColor(heroBySlot[slot])
 end)
-LobbyUI.init(command)
+Router.init(command)
+LobbyUI.init(command, Router.open)
 Hud.init(command)
 LevelUpUI.init(command, Hud.time)
+ReviveOffer.init(command)
 ResultsUI.init(function()
 	resultsOpen = false
 	LobbyUI.setVisible(true)
+	Router.setEnabled(true)
 end)
+
+-- cosmetics of everybody in the run (team = slot -> { hero, cos })
+local function applyTeam(team)
+	if type(team) ~= "table" then
+		return
+	end
+	for slot, info in team do
+		if type(info) == "table" then
+			local cos = info.cos or {}
+			HeroView.setCosmetics(slot, cos)
+			local c = cos.fx and Cosmetics.byId[cos.fx]
+			local colors = nil
+			if c and c.colors then
+				colors = {}
+				for _, hex in c.colors do
+					table.insert(colors, Color3.fromHex(hex))
+				end
+			end
+			ShotView.setFxColors(slot, colors)
+		end
+	end
+end
 
 local function clearArena()
 	EnemyView.clear()
@@ -121,6 +151,7 @@ local function enterArena(stageId: string)
 	inRun = true
 	CameraRig.setActive(true)
 	LobbyUI.setVisible(false)
+	Router.setEnabled(false)
 	ResultsUI.hide()
 	setReset(false)
 	bindRunActions()
@@ -134,6 +165,7 @@ local function leaveArena()
 	LevelUpUI.close()
 	LevelUpUI.closeChest()
 	LevelUpUI.victory(false)
+	ReviveOffer.hide()
 	setReset(true)
 	unbindRunActions()
 end
@@ -143,15 +175,28 @@ ClientNet.onUi("lobby", function(m)
 	if not langChosen and m.profile and m.profile.lang then
 		Lang.setLang(m.profile.lang)
 	end
+	if m.profile and m.profile.settings then
+		CameraRig.setZoom(m.profile.settings.camZoom or 1)
+	end
 	LobbyUI.render(m)
+	Router.update(m)
 	if not inRun and not resultsOpen then
 		LobbyUI.setVisible(true)
+	end
+end)
+ClientNet.onUi("purchased", function(m)
+	Router.toast(tr("Gekauft: {0}", Names.product(m.key)))
+end)
+ClientNet.onUi("reviveOffer", function(m)
+	if inRun then
+		ReviveOffer.show(m)
 	end
 end)
 ClientNet.onUi("runStart", function(m)
 	solo = m.solo
 	heroBySlot[m.slot] = m.hero
 	enterArena(m.stage)
+	applyTeam(m.team)
 	HeroView.start(m.slot, m.x, m.y, m.hero)
 	CameraRig.snap(m.x, m.y)
 	Hud.setVisible(true, m.solo)
@@ -159,6 +204,7 @@ end)
 ClientNet.onUi("spectate", function(m)
 	solo = false
 	enterArena(m.stage)
+	applyTeam(m.team)
 	Hud.setVisible(true, false)
 end)
 ClientNet.onUi("hero", function(m)
@@ -204,6 +250,9 @@ ClientNet.onUi("down", function(m)
 end)
 ClientNet.onUi("revived", function(m)
 	HeroView.setState(m.slot, "active")
+	if m.slot == HeroView.own().slot then
+		ReviveOffer.hide()
+	end
 end)
 ClientNet.onUi("achievement", function(m)
 	for _, a in Achievements.list do
@@ -221,6 +270,7 @@ end)
 ClientNet.onUi("runEnded", function()
 	leaveArena()
 	LobbyUI.setVisible(true)
+	Router.setEnabled(true)
 end)
 
 -- ---------- world events ----------
@@ -335,5 +385,6 @@ task.defer(function()
 	if view and view.lang then
 		Lang.setLang(view.lang)
 		LobbyUI.rerender()
+		Router.rerender()
 	end
 end)

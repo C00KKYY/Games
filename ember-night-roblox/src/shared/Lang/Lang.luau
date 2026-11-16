@@ -29,6 +29,11 @@ function Lang.fromLocale(locale: string?): string
 	return "en"
 end
 
+-- marks a German text key that is stored in a table and translated later (lang.spec scans for Lang.key("..."))
+function Lang.key(key: string): string
+	return key
+end
+
 function Lang.tr(key: string, ...: any): string
 	local s = key
 	if current == "en" then

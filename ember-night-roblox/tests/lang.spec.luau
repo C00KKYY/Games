@@ -26,6 +26,9 @@ local function scan(dir, out)
 			for key in string.gmatch(src, 'tr%(%s*"([^"]+)"') do
 				out[key] = p
 			end
+			for key in string.gmatch(src, 'Lang%.key%(%s*"([^"]+)"') do
+				out[key] = p
+			end
 			-- banner/text keys emitted by the sim: K.banner(run, "...") and K.text(run, x, y, "...")
 			for key in string.gmatch(src, 'K%.banner%(run,%s*"([^"]+)"') do
 				out[key] = p
@@ -73,6 +76,18 @@ suite:test("content names translated", function()
 		for _, e in s.events do
 			T.ok(En[e.text], e.text)
 		end
+	end
+end)
+
+suite:test("product, cosmetic and hub texts translated", function()
+	local Products = require("../src/shared/Config/Products")
+	local Cosmetics = require("../src/shared/Config/Cosmetics")
+	for _, it in Products.list do
+		T.ok(En[it.name], "product name " .. it.name)
+		T.ok(En[it.desc], "product desc " .. it.desc)
+	end
+	for _, c in Cosmetics.list do
+		T.ok(En[c.name], "cosmetic " .. c.name)
 	end
 end)
 

@@ -115,6 +115,73 @@ function Kit.bar(parent: Instance, color: Color3, props: { [string]: any }?): (F
 	end
 end
 
+function Kit.padding(parent: Instance, px: number)
+	local pad = Instance.new("UIPadding")
+	pad.PaddingTop = UDim.new(0, px)
+	pad.PaddingBottom = UDim.new(0, px)
+	pad.PaddingLeft = UDim.new(0, px)
+	pad.PaddingRight = UDim.new(0, px)
+	pad.Parent = parent
+	return pad
+end
+
+-- a vertical scrolling list that grows with its content
+function Kit.scroll(parent: Instance, props: { [string]: any }?): ScrollingFrame
+	local sf = Instance.new("ScrollingFrame")
+	sf.BackgroundTransparency = 1
+	sf.BorderSizePixel = 0
+	sf.ScrollBarThickness = 8
+	sf.ScrollingDirection = Enum.ScrollingDirection.Y
+	sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	sf.CanvasSize = UDim2.new()
+	sf.Size = UDim2.fromScale(1, 1)
+	for k, v in props or {} do
+		(sf :: any)[k] = v
+	end
+	sf.Parent = parent
+	return sf
+end
+
+-- a centred window with a title and a close button; returns the window and its body (scrolling list)
+function Kit.window(parent: Instance, title: string, onClose: () -> ()): (Frame, ScrollingFrame)
+	local w = Kit.panel(parent, {
+		Size = UDim2.fromOffset(780, 520),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 0.04,
+	})
+	local head = Kit.frame(w, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 52) })
+	Kit.label(head, title, {
+		Font = Theme.title,
+		TextSize = 28,
+		TextColor3 = Theme.primary,
+		Size = UDim2.new(1, -140, 1, 0),
+		Position = UDim2.fromOffset(18, 0),
+		TextXAlignment = Enum.TextXAlignment.Left,
+	})
+	Kit.button(head, "✕", onClose, {
+		Size = UDim2.fromOffset(48, 44),
+		Position = UDim2.new(1, -56, 0, 4),
+		BackgroundColor3 = Theme.panel2,
+	})
+	local body = Kit.scroll(w, { Size = UDim2.new(1, -24, 1, -64), Position = UDim2.fromOffset(12, 56) })
+	return w, body
+end
+
+-- a row of cards in a grid (cell size in px)
+function Kit.grid(parent: Instance, cellW: number, cellH: number, props: { [string]: any }?): Frame
+	local f = Kit.frame(parent, { BackgroundTransparency = 1, Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	for k, v in props or {} do
+		(f :: any)[k] = v
+	end
+	local g = Instance.new("UIGridLayout")
+	g.CellSize = UDim2.fromOffset(cellW, cellH)
+	g.CellPadding = UDim2.fromOffset(8, 8)
+	g.SortOrder = Enum.SortOrder.LayoutOrder
+	g.Parent = f
+	return f
+end
+
 function Kit.clear(f: Instance)
 	for _, c in f:GetChildren() do
 		if not c:IsA("UIListLayout") and not c:IsA("UICorner") and not c:IsA("UIStroke") and not c:IsA("UIPadding") and not c:IsA("UIGridLayout") then

@@ -203,7 +203,7 @@ function Profiles.baseView(player: Player)
 		lang = Profiles.lang(player),
 		lastChar = p.lastChar,
 		stats = p.stats,
-		shop = p.shop,
+		forge = p.shop, -- forge levels (`shop` in the profile, web name)
 		shopSpent = p.shopSpent,
 		achievements = p.achievements,
 		evolved = p.evolved,

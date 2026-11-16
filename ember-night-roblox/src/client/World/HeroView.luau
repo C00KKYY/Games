@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Tuning = require(Shared.Config.Tuning)
+local Cosmetics = require(Shared.Config.Cosmetics)
 local ModelKit = require(script.Parent.ModelKit)
 local Pool = require(script.Parent.Pool)
 local Coords = require(script.Parent.Coords)
@@ -12,7 +13,18 @@ local Coords = require(script.Parent.Coords)
 local HeroView = {}
 
 local S = Coords.S
-type Hero = { body: BasePart, head: BasePart, hero: string?, light: PointLight?, dome: BasePart? }
+type Hero = {
+	body: BasePart,
+	head: BasePart,
+	hero: string?,
+	skin: string?,
+	light: PointLight?,
+	dome: BasePart?,
+	trail: Trail?,
+	trailId: string?,
+	att: { Attachment }?,
+}
+local HEAD = Color3.fromRGB(255, 224, 196)
 local DOME = Color3.fromRGB(255, 150, 70)
 
 local heroes: { [number]: Hero } = {}
@@ -20,6 +32,62 @@ local own = { slot = 0, x = 0, y = 0, speed = 150, state = "active", dirX = 1, d
 local correction: { x: number, y: number, t: number }? = nil
 local heroIds: { [number]: string } = {}
 local states: { [number]: string } = {}
+local cosBySlot: { [number]: { skin: string?, fx: string?, trail: string? } } = {}
+
+-- equipped cosmetics of a hero (validated by the server): skin palette and trail; weapon colours are in ShotView
+function HeroView.setCosmetics(slot: number, cos: { skin: string?, fx: string?, trail: string? }?)
+	cosBySlot[slot] = cos or {}
+end
+
+local function color(hex: string?): Color3?
+	local r, g, b = Cosmetics.parseHex(hex)
+	return if r then Color3.new(r, g :: number, b :: number) else nil
+end
+
+local function removeTrail(h)
+	if h.trail then
+		h.trail:Destroy()
+		h.trail = nil
+	end
+	if h.att then
+		for _, a in h.att do
+			a:Destroy()
+		end
+		h.att = nil
+	end
+	h.trailId = nil
+end
+
+local function applyTrail(h, id: string?)
+	if h.trailId == id then
+		return
+	end
+	removeTrail(h)
+	local c = id and Cosmetics.byId[id]
+	local col = c and color(c.color)
+	if not col then
+		return
+	end
+	local a0 = Instance.new("Attachment")
+	a0.Position = Vector3.new(0, -0.9, 0.5)
+	local a1 = Instance.new("Attachment")
+	a1.Position = Vector3.new(0, -0.9, -0.5)
+	local tr = Instance.new("Trail")
+	tr.Attachment0 = a0
+	tr.Attachment1 = a1
+	tr.Color = ColorSequence.new(col)
+	tr.LightEmission = 0.8
+	tr.Lifetime = 0.45
+	tr.FaceCamera = true
+	tr.Transparency = NumberSequence.new(0.2, 1)
+	tr.WidthScale = NumberSequence.new(1, 0.2)
+	a0.Parent = h.body
+	a1.Parent = h.body
+	tr.Parent = h.body
+	h.trail = tr
+	h.att = { a0, a1 }
+	h.trailId = id
+end
 
 function HeroView.own()
 	return own
@@ -58,16 +126,21 @@ local function get(slot: number): Hero
 	if not h then
 		h = {
 			body = Pool.get("Block", Vector3.new(1.8, 2.2, 1.4), nil, Enum.Material.SmoothPlastic, 0),
-			head = Pool.get("Ball", Vector3.new(1.3, 1.3, 1.3), Color3.fromRGB(255, 224, 196), Enum.Material.SmoothPlastic, 0),
+			head = Pool.get("Ball", Vector3.new(1.3, 1.3, 1.3), HEAD, Enum.Material.SmoothPlastic, 0),
 			hero = nil,
 		}
 		heroes[slot] = h
 	end
 	local id = heroIds[slot]
-	if h.hero ~= id then
+	local cos = cosBySlot[slot] or {}
+	if h.hero ~= id or h.skin ~= cos.skin then
 		h.hero = id
-		h.body.Color = ModelKit.heroColor(id)
+		h.skin = cos.skin
+		local skin = cos.skin and Cosmetics.byId[cos.skin]
+		h.body.Color = (skin and color(skin.body)) or ModelKit.heroColor(id)
+		h.head.Color = (skin and color(skin.accent)) or HEAD
 	end
+	applyTrail(h, cos.trail)
 	if slot == own.slot and not h.light then
 		local l = Instance.new("PointLight")
 		l.Range = 22
@@ -77,6 +150,14 @@ local function get(slot: number): Hero
 		h.light = l
 	end
 	return h
+end
+
+local function showTrail(h, on: boolean)
+	local tr = h.trail
+	if tr and tr.Enabled ~= on then
+		tr:Clear()
+		tr.Enabled = on
+	end
 end
 
 -- ember ward (co-op level-up, docs/DESIGN.md §2.5): translucent dome of WARD_RADIUS
@@ -170,6 +251,7 @@ function HeroView.render(interp, t: number)
 		place(h, own.x, own.y, own.state == "downed", own.face < 0, if own.moving then t else 0)
 		local me = latest[own.slot]
 		ward(h, own.x, own.y, me ~= nil and me.ward)
+		showTrail(h, own.state ~= "downed")
 		seen[own.slot] = true
 	end
 	for slot = 1, Tuning.MAX_PLAYERS do
@@ -179,6 +261,7 @@ function HeroView.render(interp, t: number)
 				local h = get(slot)
 				place(h, x, y, data.downed, data.faceLeft, if data.moving then t else 0)
 				ward(h, x, y, data.ward)
+				showTrail(h, not data.downed)
 				seen[slot] = true
 			end
 		end
@@ -188,6 +271,7 @@ function HeroView.render(interp, t: number)
 			h.body.CFrame = Pool.FAR
 			h.head.CFrame = Pool.FAR
 			ward(h, 0, 0, false)
+			showTrail(h, false)
 		end
 	end
 end
@@ -207,6 +291,7 @@ function HeroView.clear()
 			h.light:Destroy()
 		end
 		ward(h, 0, 0, false)
+		removeTrail(h)
 		Pool.put(h.body)
 		Pool.put(h.head)
 		heroes[slot] = nil

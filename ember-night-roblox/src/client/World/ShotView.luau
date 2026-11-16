@@ -43,6 +43,19 @@ function ShotView.setHeroPosition(fn)
 	heroPos = fn
 end
 
+-- weapon colour cosmetics (docs/DESIGN.md §7.1): slot -> list of Color3 (several = cycled, "prism")
+local fxColors: { [number]: { Color3 } } = {}
+function ShotView.setFxColors(slot: number, colors: { Color3 }?)
+	fxColors[slot] = colors
+end
+local function tint(slot: number?, default: Color3): Color3
+	local list = slot and fxColors[slot]
+	if not list or #list == 0 then
+		return default
+	end
+	return list[1 + math.floor(os.clock() * 3) % #list]
+end
+
 function ShotView.eshot(e)
 	local d = math.max(0.9, e.r * 2 * S)
 	local p = Pool.get("Ball", Vector3.one * d, ESHOT, Enum.Material.Neon, 0)
@@ -67,7 +80,7 @@ function ShotView.fire(e)
 	local w = e.weapon
 	if w == "wand" or w == "knives" or w == "sickle" then
 		local size = if w == "sickle" then 3.4 * e.area elseif w == "wand" then 1.4 * e.area else 1.2 * e.area
-		local col = if w == "wand" then (if e.evo then COL.wandEvo else COL.wand) else COL[w]
+		local col = tint(e.slot, if w == "wand" then (if e.evo then COL.wandEvo else COL.wand) else COL[w])
 		local shape = if w == "knives" then "Block" else "Ball"
 		local sz = if w == "knives" then Vector3.new(1.6, 0.3, 0.4) else Vector3.one * size
 		local p = Pool.get(shape, sz, col, Enum.Material.Neon, 0)
@@ -91,7 +104,7 @@ function ShotView.fire(e)
 	elseif w == "fire" then
 		local tx, ty = e.x + math.cos(e.a) * e.speed * 0.45, e.y + math.sin(e.a) * e.speed * 0.45
 		local sx, sy = e.x, e.y
-		transient("Ball", Vector3.one * 1.2, COL.fire, 0.45, function(p, k)
+		transient("Ball", Vector3.one * 1.2, tint(e.slot, COL.fire), 0.45, function(p, k)
 			local x, y = sx + (tx - sx) * k, sy + (ty - sy) * k
 			p.CFrame = Coords.cf(x, y, 1 + math.sin(k * math.pi) * 7)
 		end)
@@ -101,7 +114,7 @@ function ShotView.fire(e)
 		transient(
 			"Block",
 			Vector3.new(R, 0.2, R * 0.9),
-			if e.evo then COL.whipEvo else COL.whip,
+			tint(e.slot, if e.evo then COL.whipEvo else COL.whip),
 			0.22,
 			function(p, k)
 				local x, y = heroPos(e.slot)
@@ -114,18 +127,19 @@ function ShotView.fire(e)
 	elseif w == "lightning" then
 		local R = 36 * e.area * S * 2
 		local x, y = e.x, e.y
-		transient("Cylinder", Vector3.new(0.2, R, R), COL.lightning, 0.25, function(p, k)
+		local lc = tint(e.slot, COL.lightning)
+		transient("Cylinder", Vector3.new(0.2, R, R), lc, 0.25, function(p, k)
 			p.CFrame = Coords.cf(x, y, 0.3) * CFrame.Angles(0, 0, math.rad(90))
 			p.Transparency = 0.2 + 0.8 * k
 		end)
-		transient("Block", Vector3.new(0.4, 14, 0.4), COL.lightning, 0.12, function(p, k)
+		transient("Block", Vector3.new(0.4, 14, 0.4), lc, 0.12, function(p, k)
 			p.CFrame = Coords.cf(x, y, 7)
 			p.Transparency = k
 		end)
 	elseif w == "nova" then
 		local maxD = 150 * e.area * S * 2
 		local sx, sy = e.x, e.y
-		transient("Cylinder", Vector3.new(0.3, 1, 1), COL.nova, 0.55, function(p, k)
+		transient("Cylinder", Vector3.new(0.3, 1, 1), tint(e.slot, COL.nova), 0.55, function(p, k)
 			local x, y = heroPos(e.slot)
 			local kk = math.min(1, k / 0.9)
 			local d = maxD * (1 - (1 - kk) * (1 - kk))
@@ -147,7 +161,7 @@ end
 function ShotView.pool(e)
 	local d = e.rad * 2 * S
 	local x, y = e.x, e.y
-	transient("Cylinder", Vector3.new(0.15, d, d), COL.fire, e.life, function(p, k)
+	transient("Cylinder", Vector3.new(0.15, d, d), tint(e.slot, COL.fire), e.life, function(p, k)
 		p.CFrame = Coords.cf(x, y, 0.15) * CFrame.Angles(0, 0, math.rad(90))
 		p.Transparency = 0.35 + 0.5 * k
 	end, 0.35)
@@ -156,7 +170,7 @@ end
 function ShotView.arc(e)
 	local x1, y1, x2, y2 = e.x, e.y, e.x2, e.y2
 	local len = math.sqrt((x2 - x1) ^ 2 + (y2 - y1) ^ 2) * S
-	transient("Block", Vector3.new(len, 0.25, 0.25), COL.lightning, 0.22, function(p, k)
+	transient("Block", Vector3.new(len, 0.25, 0.25), tint(e.slot, COL.lightning), 0.22, function(p, k)
 		local mid = Coords.v3((x1 + x2) / 2, (y1 + y2) / 2, 1.5)
 		p.CFrame = CFrame.lookAt(mid, Coords.v3(x2, y2, 1.5)) * CFrame.Angles(0, math.rad(90), 0)
 		p.Transparency = k
@@ -179,7 +193,7 @@ function ShotView.orbit(e)
 	o.ang = e.ang
 	if e.active then
 		for _ = 1, e.amount do
-			table.insert(o.parts, Pool.get("Ball", Vector3.one * e.orb * 2 * S, COL.orbit, Enum.Material.Neon, 0))
+			table.insert(o.parts, Pool.get("Ball", Vector3.one * e.orb * 2 * S, tint(e.slot, COL.orbit), Enum.Material.Neon, 0))
 		end
 	end
 end
@@ -187,7 +201,7 @@ end
 function ShotView.aura(e)
 	local a = auras[e.slot]
 	if not a then
-		a = { part = Pool.get("Cylinder", Vector3.one, COL.aura, Enum.Material.Neon, 0.8) }
+		a = { part = Pool.get("Cylinder", Vector3.one, tint(e.slot, COL.aura), Enum.Material.Neon, 0.8) }
 		auras[e.slot] = a
 	end
 	local d = e.rad * 2 * S

@@ -28,7 +28,7 @@ end
 
 function Results.show(s)
 	Results.hide()
-	local f = Kit.panel(gui, { Size = UDim2.fromOffset(420, 420), Position = UDim2.new(0.5, -210, 0.5, -210) })
+	local f = Kit.panel(gui, { Size = UDim2.fromOffset(420, 460), Position = UDim2.new(0.5, -210, 0.5, -230) })
 	panel = f
 	local pad = Instance.new("UIPadding")
 	pad.PaddingTop = UDim.new(0, 10)
@@ -49,6 +49,9 @@ function Results.show(s)
 	row("Gesammelt", s.collected)
 	row("Zeitbonus", s.timeBonus)
 	row("Bossbonus", s.bossBonus)
+	if s.pass2x and s.pass2x > 0 then
+		row("Doppeltes Gold", "+" .. s.pass2x)
+	end
 	if s.gift > 0 then
 		row("Startgeschenk", s.gift)
 	end
