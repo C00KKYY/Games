@@ -21,7 +21,8 @@ const WEB = [
 ];
 
 if (process.argv[2] === '--rows') {
-  for (const r of WEB) console.log(r[0], r[1], r[2]);
+  // longest runs first (web median death as the cost estimate), so 4 parallel jobs finish together
+  for (const r of WEB.slice().sort((a, b) => b[7] - a[7])) console.log(r[0], r[1], r[2]);
   process.exit(0);
 }
 const dir = process.argv[2] || 'build/balance';

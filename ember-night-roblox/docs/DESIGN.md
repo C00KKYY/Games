@@ -55,6 +55,31 @@ persistence (profiles live in memory for the session, `Server/Services/Profiles.
 - **Bot measurement** runs to 25 min (`--tmax 1500`, like the web `balance-batch.js`); runs still alive then count as
   open. Results: `docs/BALANCE.md`.
 
+**R2 (combat content completeness, done).** Every weapon, evolution, passive, enemy behaviour, event kind, boss, boss
+attack primitive and the countdown/surge is checked against the web code itself, not only read side by side:
+
+- **Parity harness:** `tools/ref-sim.js` loads `glutnacht/js` in node, replaces `Math.random` with a scripted sequence
+  (`u(n) = frac(0.137 + n · 0.618…)`), strips purely cosmetic random calls (particles, damage-number jitter, dash sparks,
+  gem bob) and records per-step digests of 115 scenarios into `tests/ref/parity.json`. `tests/lib/Parity.luau` replays
+  them with the Luau sim and the same sequence; `tests/parity.spec.luau` compares. Scenarios: 16 bosses × heat 0/3 for
+  32 s (every skill: dash, summon, slam, nova, fan, lances, rain scatter/flank/walk/stars/track, spiral, lanes x/fan3),
+  4 ranged types × plain/elite × before/after 4:00, 9 weapons × level 1/4/8/evolved against dummies, the director for
+  every land at heat 0/3/5 over the whole land (+ endless mode for 300 s: waves, ranged gate/cap, elites, bosses,
+  events incl. mix/arc, countdown, surge), and 11 whole solo runs (`Game.update` vs `Run.step`: level-ups, chests, gems,
+  coins, braziers, the 0.45-s ramp). All agree to 1e-6; the only accepted difference is last-bit floating-point drift
+  (V8 and Luau `sin`/`cos`/`atan2` differ in the last bit for a few arguments, crowds amplify it) after ≥ 10 s, never in
+  a count, HP, XP, gold or level. Diagnostics: `lune run tests/parity.luau [-- filter]`, `DUMP=<scenario>:<from>:<to>
+  node tools/ref-sim.js` next to `lune run tests/pdump.luau <scenario>:<from>:<to>` (`FULL=1` for every enemy).
+- **Fixed by the harness:** enemies summoned during the enemy loop now move in the same step (web `for…of` sees pushed
+  elements); coins are reach-tested at their position before the magnet step; collisions use the end point of each
+  half step (the swept test made grazing shots hit that miss in the web game).
+- **Telegraphs** (`tests/telegraph.spec.luau`, all 16 bosses and 4 ranged types, elite or not, 1 and 4 players, heat 0
+  and 5, measured from the client's creation to removal event): shortest wind-up 0.47 s (spitter wedge; boss charge
+  rings 0.60, aim lines 0.83), shortest area marker 0.73–0.75 s (walking icicles and dash line, 0.75 s in data;
+  mortar 1.1 s, lanes 1.0 s, eclipse 1.6 s).
+- **Co-op:** a boss's summon turns into a dash only when the enemies exceed the *scaled* wave cap (`Coop.spawnCap`);
+  before, nearly every co-op summon became a dash.
+
 ---------------------------------------------------------------------------------------------------------------------------
 
 ## 0. Ground rules
