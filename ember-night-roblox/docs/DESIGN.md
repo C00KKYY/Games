@@ -884,6 +884,7 @@ the same before prompting.
 | `arena.spec` | the whole client (`App`) against the real server services over the real Codec: solo run with level-ups, chest, give up, results; every land at heat 5 with every enemy type and boss (co-op); co-op downed → revived → results; phone screens in DE/EN (cards by tapping, pause toggles, give up with confirm, results); budgets: lights ≤ 12, emitters ≤ 26, damage numbers ≤ 40, every pooled part returned after the run |
 | `audio.spec` | Mix rules (gates, composites, copy/voice limits, distance, gem combo, music intensity), id table ↔ files in `assets/audio`, a whole run with ids 0 (no Sound, nothing played, no error) and with ids set (≤ 6 Sounds per recording) |
 | `hygiene.spec` | no `wait/spawn/delay` without `task.`, no `Instance.new(…, parent)`, no `:connect`, no Instance creation in arena render/update functions, no MarketplaceService on the client, remotes rate-limited and validated |
+| `api.spec` | offline Roblox API check against Lune's reflection database: every `Enum.X.Y`, `Instance.new`/`GetService`/`IsA` class, the properties set on `Instance.new` variables; every source file compiles (O2) |
 | `codec.spec` / `net_budget.spec` | snapshot/event encode-decode round trip, packets ≤ 900 bytes, worst-case bandwidth from a recorded bot run ≤ budget |
 | `lang.spec` | every `tr("…")` key used in `src/` has an English entry; placeholders match |
 | `determinism.spec` | same seed + inputs → identical event stream hash after 3 simulated minutes |
