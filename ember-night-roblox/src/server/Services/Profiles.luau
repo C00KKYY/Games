@@ -13,7 +13,10 @@ local data: { [Player]: any } = {}
 
 function Profiles.init()
 	Players.PlayerRemoving:Connect(function(player)
-		data[player] = nil
+		-- deferred: other PlayerRemoving handlers (RunHost books the results) still need the profile
+		task.defer(function()
+			data[player] = nil
+		end)
 	end)
 end
 

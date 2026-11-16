@@ -26,12 +26,12 @@ end
 
 function FxView.boom(e)
 	local d = e.rad * 2 * S
-	local p = Pool.get("Ball", Vector3.one, Coords.color(e.color), Enum.Material.Neon, 0.4)
+	local p = Pool.get("Cylinder", Vector3.one, Coords.color(e.color), Enum.Material.Neon, 0.4)
 	local x, y = e.x, e.y
 	add(p, 0.4, function(part, k)
 		local s = math.max(0.2, d * (0.4 + 0.6 * k))
-		part.Size = Vector3.new(s, s * 0.3, s)
-		part.CFrame = Coords.cf(x, y, 0.3)
+		part.Size = Vector3.new(0.6, s, s)
+		part.CFrame = Coords.cf(x, y, 0.3) * CFrame.Angles(0, 0, math.rad(90))
 		part.Transparency = 0.4 + 0.6 * k
 	end)
 end

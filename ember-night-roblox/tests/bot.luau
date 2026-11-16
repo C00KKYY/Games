@@ -1,4 +1,4 @@
--- Headless balance runs (docs/DESIGN.md §10.3).
+-- Headless balance runs (docs/DESIGN.md §10.3). Runs end at --tmax (default 1500 s = 25 min, like the web batch).
 --   lune run tests/bot.luau -- --land graveyard --forge none --heat 0 --players 1 --runs 24 --seed 1 [--tmax 1080] [--json]
 -- Heroes rotate through all 9 per run (like the web balance batch). Output: win rate with Wilson 95 % interval,
 -- median death time, first-hit median, level at 1/4/8 minutes, kills/min, enemies alive at 5:00, ms per sim step.
@@ -36,7 +36,7 @@ local heat = tonumber(args.heat) or 0
 local nPlayers = tonumber(args.players) or 1
 local runs = tonumber(args.runs) or 12
 local seed0 = tonumber(args.seed) or 1
-local tmax = tonumber(args.tmax) or 1080
+local tmax = tonumber(args.tmax) or 1500 -- 25 min like the web balance batch (TMAX); alive then = "open"
 local DT = 1 / 30
 
 local PRESETS = {
@@ -75,6 +75,7 @@ local function wilson(k, n)
 	return math.max(0, c - h), math.min(1, c + h)
 end
 
+local opens = 0
 local wins, deaths, firstHits, lv1, lv4, lv8, kpm, alive5 = 0, {}, {}, {}, {}, {}, {}, {}
 local stepMs = {}
 local results = {}
@@ -153,6 +154,8 @@ for ri = 1, runs do
 	rec.firstHit = if fh < math.huge then fh else nil
 	if run.won then
 		wins += 1
+	elseif run.t >= tmax - 1 then
+		opens += 1
 	else
 		table.insert(deaths, run.t / 60)
 	end
@@ -198,6 +201,7 @@ local summary = {
 	players = nPlayers,
 	runs = runs,
 	wins = wins,
+	open = opens,
 	winRate = wins / runs,
 	ci95 = { lo, hi },
 	medianDeathMin = median(deaths),
@@ -212,7 +216,7 @@ local summary = {
 }
 print(
 	string.format(
-		"== %s/%s/heat %d, %d player(s): %d/%d wins = %.0f %% (95 %%: %.0f-%.0f %%), median death %.1f min, first hit %.0f s, level @1/4/8 min %s/%s/%s, kills/min %.0f, alive@5:00 %s, %.2f ms/step, %.0f s wall",
+		"== %s/%s/heat %d, %d player(s): %d/%d wins = %.0f %% (95 %%: %.0f-%.0f %%), open %d, median death %.1f min, first hit %.0f s, level @1/4/8 min %s/%s/%s, kills/min %.0f, alive@5:00 %s, %.2f ms/step, %.0f s wall",
 		land,
 		forgeName,
 		heat,
@@ -222,6 +226,7 @@ print(
 		100 * wins / runs,
 		100 * lo,
 		100 * hi,
+		opens,
 		summary.medianDeathMin,
 		summary.medianFirstHit,
 		tostring(summary.level1),

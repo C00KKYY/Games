@@ -292,7 +292,8 @@ RunService:BindToRenderStep("EmberNight", Enum.RenderPriority.Camera.Value + 1, 
 	local own = HeroView.own()
 	if own.slot > 0 then
 		local mx, my = Controls.move()
-		if LevelUpUI.isOpen() and solo then
+		-- the world is paused (solo dialogs, last chance, victory): the hero stands still
+		if Hud.runState() ~= "play" or (LevelUpUI.isOpen() and solo) then
 			mx, my = 0, 0
 		end
 		HeroView.updateOwn(dt, mx, my, FxView.inSlow(own.x, own.y, 12), interp:latestHeroes(), ClientNet.sendMove)

@@ -197,6 +197,10 @@ function Hud.achievement(name: string)
 	bannerT = math.max(bannerT, 2.5)
 end
 
+function Hud.runState(): string
+	return runState
+end
+
 -- estimated sim time (run clock from the last "run" message, advancing while playing)
 function Hud.time(): number
 	return timeBase + (if runState == "play" then os.clock() - timeAt else 0)
