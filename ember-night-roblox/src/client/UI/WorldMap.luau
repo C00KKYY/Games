@@ -6,6 +6,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
 local Stages = require(Shared.Sim.Data.Stages)
 local Heat = require(Shared.Sim.Data.Heat)
+local Story = require(Shared.Sim.Data.Story)
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 
@@ -13,6 +14,16 @@ local Screen = { TITLE = Lang.key("Weltkarte") }
 local tr = Lang.tr
 
 function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
+	-- the story's premise until the first star (web: map premise); each land's intro is in its row
+	if (msg.profile and msg.profile.stars or 0) == 0 then
+		Kit.label(body, tr(Story.premise), {
+			TextSize = 14,
+			TextColor3 = Theme.dim,
+			TextWrapped = true,
+			Size = UDim2.new(1, -10, 0, 40),
+			LayoutOrder = -1,
+		})
+	end
 	if not msg.isLeader then
 		Kit.label(body, tr("Nur der Anführer wählt das Land."), { TextColor3 = Theme.dim, LayoutOrder = 0 })
 	end

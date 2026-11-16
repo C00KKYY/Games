@@ -94,9 +94,18 @@ function RunHost.start(parts: { { player: Player, hero: string } }, stageId: str
 	for player, slot in slots do
 		setAnchored(player, true)
 		local pl = run.players[slot]
+		-- first time in this land: the client shows the land's story panel (premise on the very first run)
+		local story = nil
+		local prof = deps.Profiles.get(player)
+		if prof and prof.storySeen and not prof.storySeen[stageId] then
+			story = { premise = not prof.storySeen.premise }
+			prof.storySeen[stageId] = true
+			prof.storySeen.premise = true
+		end
 		deps.Net.ui(player, {
 			team = team,
 			t = "runStart",
+			story = story,
 			slot = slot,
 			x = pl.x,
 			y = pl.y,

@@ -9,6 +9,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
 local Weapons = require(Shared.Sim.Data.Weapons)
 local Passives = require(Shared.Sim.Data.Passives)
+local Stages = require(Shared.Sim.Data.Stages)
+local Story = require(Shared.Sim.Data.Story)
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 local Icons = require(script.Parent.Icons)
@@ -22,6 +24,7 @@ local dim: Frame = nil :: any
 local tray: Frame? = nil
 local chestPanel: Frame? = nil
 local victoryPanel: Frame? = nil
+local stage: any = nil -- the run's land (victory text: outro, ending after the last land)
 local command: (any) -> () = function(_) end
 local offer: any = nil
 local banishMode = false
@@ -331,7 +334,12 @@ function LevelUp.closeChest()
 	updateDim()
 end
 
--- victory: continue endless or finish (co-op: a vote with its timer)
+function LevelUp.setStage(st)
+	stage = st
+end
+
+-- victory: continue endless or finish (co-op: a vote with its timer); like the web game it tells the land's outro,
+-- and after the last land the ending of the story
 function LevelUp.victory(on: boolean, voteSeconds: number?)
 	if not on then
 		if victoryPanel then
@@ -348,29 +356,52 @@ function LevelUp.victory(on: boolean, voteSeconds: number?)
 	if victoryPanel then
 		return
 	end
+	local last = stage ~= nil and stage == Stages.list[#Stages.list]
+	local story = ""
+	if stage and stage.outro then
+		story = tr(stage.outro)
+	end
+	if last then
+		story ..= "\n" .. tr(Story.ending)
+	end
+	local storyH = if story == "" then 0 elseif last then 92 else 40
 	local f = Kit.panel(gui, {
-		Size = UDim2.fromOffset(440, 196),
+		Size = UDim2.fromOffset(460, 196 + storyH),
 		Position = UDim2.fromScale(0.5, 0.45),
 		AnchorPoint = Vector2.new(0.5, 0.5),
 	})
 	victoryPanel = f
 	Kit.padding(f, 10)
 	Kit.list(f, false, 8)
-	Kit.label(f, "★ " .. tr("Sieg!") .. " ★", {
-		Font = Theme.title,
-		TextSize = 38,
-		TextColor3 = Theme.gold,
-		Size = UDim2.new(1, 0, 0, 46),
-		LayoutOrder = 1,
-		TextStrokeTransparency = 0.4,
-	})
+	Kit.label(
+		f,
+		"★ " .. tr(if last then "Die Nacht ist besiegt!" elseif stage then "Land befreit!" else "Sieg!") .. " ★",
+		{
+			Font = Theme.title,
+			TextSize = 34,
+			TextColor3 = Theme.gold,
+			Size = UDim2.new(1, 0, 0, 46),
+			LayoutOrder = 1,
+			TextStrokeTransparency = 0.4,
+			TextScaled = true,
+		}
+	)
+	if story ~= "" then
+		Kit.label(f, story, {
+			TextSize = 14,
+			TextWrapped = true,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Size = UDim2.new(1, 0, 0, storyH - 8),
+			LayoutOrder = 2,
+		})
+	end
 	voteLabel = Kit.label(f, tr("Weiter im Endlosmodus oder beenden?"), {
 		TextSize = 15,
 		TextColor3 = Theme.dim,
 		Size = UDim2.new(1, 0, 0, 20),
-		LayoutOrder = 2,
+		LayoutOrder = 3,
 	})
-	local row = Kit.frame(f, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = 3 })
+	local row = Kit.frame(f, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = 4 })
 	Kit.list(row, true, 12)
 	local b = Kit.button(row, tr("Endlos weiter"), function()
 		command({ op = "vote", endless = true })

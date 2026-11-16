@@ -279,8 +279,11 @@ Trading, PvP, leaderboards (could come later via OrderedDataStore), voice, custo
 - At start the server creates the sim (`Run.new{ seed, stageId, heat, players = { {slot, userId, heroId, profileView} } }`),
   anchors every character in the hub (they stay alive so that Roblox's control module keeps producing input; see §5.4),
   and switches the clients to the arena camera.
-- The first time a player enters a land, his client shows the land's intro text panel for 4 s (non-blocking in co-op,
-  blocking with a "Go" button in solo, like the web `story` screen). `storySeen` is stored per player.
+- The first time a player enters a land, his client shows the land's story panel (`UI/StoryPanel`: "Land N", name,
+  the premise on the very first run, the intro) for 9 s or until "Let's go!" is pressed; it never blocks the run. The
+  server sets the flag in the `runStart` message and marks `storySeen` in the profile. The world map shows the premise
+  until the first star and every land's intro; the victory panel shows the land's outro, after the last land also the
+  story's ending. The achievements screen ends with the grid of discovered evolutions (recipe, name or ???).
 
 ### 2.4 Shared world, personal build
 

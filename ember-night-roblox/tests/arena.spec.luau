@@ -7,6 +7,8 @@ local Arena = require("./lib/Arena")
 local Run = require("../src/shared/Sim/Run")
 local Stages = require("../src/shared/Sim/Data/Stages")
 local Enemies = require("../src/shared/Sim/Data/Enemies")
+local Story = require("../src/shared/Sim/Data/Story")
+local En = require("../src/shared/Lang/En")
 local K = Run.K
 
 local suite = T.new("arena")
@@ -118,6 +120,22 @@ suite:test("every land, every enemy type and every boss with its attacks (co-op,
 		a:frames(1, true)
 		-- killing a land's final boss wins the run: vote to finish; otherwise give up
 		if run.state == "victory" then
+			-- the victory panel tells the land's outro (and the story's ending after the last land)
+			local want = { stage.outro, En[stage.outro] }
+			if si == #Stages.list then
+				want = { Story.ending, En[Story.ending] }
+			end
+			local found = false
+			for _, d in a.rb.playerGui:GetDescendants() do
+				if d:IsA("TextLabel") then
+					for _, w in want do
+						if w and string.find(d.Text, w, 1, true) then
+							found = true
+						end
+					end
+				end
+			end
+			T.ok(found, stage.id .. ": victory text shown")
 			a.cnet.command({ op = "vote", endless = false })
 		else
 			a.cnet.command({ op = "giveup" })
@@ -278,6 +296,37 @@ suite:test("new enemies rise out of the ground instead of popping in", function(
 	a:frames(1, true)
 	local later = topY()
 	T.ok(first and later and later - first > 1, "rises: " .. tostring(first) .. " -> " .. tostring(later))
+	noErrors(a)
+end)
+
+suite:test("victory after the last land tells the ending of the story", function()
+	local a = Arena.new(1)
+	start(a, "nightheart")
+	-- first run of this profile: the story panel with the premise and the land's intro
+	local premise = false
+	for _, d in a.rb.playerGui:GetDescendants() do
+		if
+			d:IsA("TextLabel")
+			and (string.find(d.Text, Story.premise, 1, true) or string.find(d.Text, En[Story.premise], 1, true))
+		then
+			premise = true
+		end
+	end
+	T.ok(premise, "story panel with the premise")
+	local LevelUp = a:client("UI/LevelUp")
+	LevelUp.victory(false)
+	LevelUp.victory(true)
+	local found = false
+	for _, d in a.rb.playerGui:GetDescendants() do
+		if
+			d:IsA("TextLabel")
+			and (string.find(d.Text, Story.ending, 1, true) or string.find(d.Text, En[Story.ending], 1, true))
+		then
+			found = true
+		end
+	end
+	T.ok(found, "ending shown")
+	LevelUp.victory(false)
 	noErrors(a)
 end)
 

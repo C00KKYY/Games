@@ -1,10 +1,13 @@
--- Achievements (docs/DESIGN.md §5.2, web tpl_ach): all 31 with their gold reward and hero unlocks.
+-- Achievements (docs/DESIGN.md §5.2, web tpl_ach): all 31 with their gold reward and hero unlocks, then the grid of
+-- discovered evolutions (weapon + passive recipe; the evolution's name once it was discovered, else ???).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
 local Achievements = require(Shared.Sim.Data.Achievements)
 local Cosmetics = require(Shared.Config.Cosmetics)
+local Weapons = require(Shared.Sim.Data.Weapons)
+local Passives = require(Shared.Sim.Data.Passives)
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
 
@@ -64,6 +67,36 @@ function Screen.render(body: ScrollingFrame, msg, _command, _open)
 			Size = UDim2.fromOffset(160, 40),
 			Position = UDim2.new(1, -160, 0, 2),
 			TextXAlignment = Enum.TextXAlignment.Right,
+		})
+	end
+	-- discovered evolutions
+	local evolved = msg.profile.evolved or {}
+	local base = #Achievements.list + 1
+	Kit.label(body, tr("Entdeckte Entwicklungen"), {
+		Font = Theme.title,
+		TextColor3 = Theme.gold,
+		LayoutOrder = base,
+		Size = UDim2.new(1, -10, 0, 30),
+	})
+	for i, wid in Weapons.ORDER do
+		local w = Weapons.byId[wid]
+		local p = Passives.byId[w.evo.with]
+		local known = evolved[wid] == true
+		local row = Kit.panel(body, { Size = UDim2.new(1, -10, 0, 34), LayoutOrder = base + i })
+		Kit.padding(row, 6)
+		Kit.label(row, tr(w.name) .. " + " .. (if p then tr(p.name) else "?"), {
+			TextSize = 15,
+			TextColor3 = Theme.dim,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = UDim2.new(0.55, 0, 1, 0),
+		})
+		Kit.label(row, "→ " .. (if known then tr(w.evo.name) else "???"), {
+			Font = Theme.title,
+			TextSize = 15,
+			TextColor3 = if known then Theme.good else Theme.dim,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Size = UDim2.new(0.45, 0, 1, 0),
+			Position = UDim2.fromScale(0.55, 0),
 		})
 	end
 end
