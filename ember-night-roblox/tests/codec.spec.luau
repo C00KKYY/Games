@@ -3,6 +3,7 @@ local Sim = require("./lib/Sim")
 local Codec = require("../src/shared/Net/Codec")
 local Run = require("../src/shared/Sim/Run")
 local K = Run.K
+local Views = require("../src/shared/Net/Views")
 
 local suite = T.new("codec")
 
@@ -78,6 +79,37 @@ suite:test("event round trip from a real run", function()
 	for _, k in { "kill", "dmg", "fire", "gem+", "gemGot", "sfx", "tele+", "tele-", "eshot+" } do
 		T.ok(kinds[k] and kinds[k] > 0, "kind " .. k)
 	end
+end)
+
+suite:test("ui views are plain data", function()
+	local run = Sim.new({ n = 2 })
+	local log = {}
+	Sim.advance(run, 40, { god = true, log = log, autopick = false })
+	local h = Views.hero(run, run.players[1])
+	T.eq(h.t, "hero")
+	T.eq(h.weapons[1].id, "whip")
+	local info = Views.runInfo(run)
+	T.eq(#info.team, 2)
+	local function plain(v, depth)
+		T.ok(depth < 6, "too deep")
+		if type(v) == "table" then
+			T.ok(getmetatable(v) == nil, "no metatables")
+			for _, x in v do
+				plain(x, depth + 1)
+			end
+		end
+	end
+	local n = 0
+	for _, e in log do
+		local m = Views.uiFromEvent(e, 1)
+		if m then
+			n += 1
+			plain(m, 0)
+		end
+	end
+	T.ok(n > 0)
+	plain(h, 0)
+	plain(info, 0)
 end)
 
 return suite

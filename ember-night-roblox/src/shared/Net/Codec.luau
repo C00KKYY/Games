@@ -89,11 +89,6 @@ local function ru8(r)
 	r.n += 1
 	return v
 end
-local function ri8(r)
-	local v = buffer.readi8(r.b, r.n)
-	r.n += 1
-	return v
-end
 local function ru16(r)
 	local v = buffer.readu16(r.b, r.n)
 	r.n += 2

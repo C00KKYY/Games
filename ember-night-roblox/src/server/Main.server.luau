@@ -1,8 +1,19 @@
---!strict
--- Ember Night server bootstrap. Services (Net, Profiles, Lobby, RunHost, Replicator, Purchases, Passes, Policy)
--- are added in milestones R2 and R4 (docs/DESIGN.md §11).
+-- Server bootstrap: hub, remotes, profiles, run host, lobby (docs/DESIGN.md §3.1).
+local Services = script.Parent.Services
+local Net = require(Services.Net)
+local Profiles = require(Services.Profiles)
+local RunHost = require(Services.RunHost)
+local Lobby = require(Services.Lobby)
+local HubBuilder = require(script.Parent.World.HubBuilder)
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Version = require(ReplicatedStorage:WaitForChild("Shared").Version)
 
-local Version = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Version"))
+HubBuilder.build()
+Net.init()
+Profiles.init()
+local deps = { Net = Net, Profiles = Profiles, RunHost = RunHost, Lobby = Lobby }
+RunHost.init(deps)
+Lobby.init(deps)
 
-print(string.format("[EmberNight] server %s starting", Version.version))
+print(string.format("[%s %s] server ready", Version.name, Version.version))
