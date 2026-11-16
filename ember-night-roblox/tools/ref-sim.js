@@ -216,14 +216,16 @@ function directorDigest(r) {
     .map(v => Math.round(v * 1e6) / 1e6);
 }
 for (const st of W.STAGES) {
-  for (const heat of [0, 3, 5]) {
+  // endless: like continueEndless at the end of the land (boss every 120 s, scaling extra), 300 s more
+  for (const [heat, endless] of [[0, false], [3, false], [5, false], [0, true]]) {
     const r = newRun(st.id, heat);
     const born = new Map();
     const rec = [];
-    const n = Math.round((st.minutes * 60 + 30) / DT);
+    const n = Math.round((st.minutes * 60 + (endless ? 300 : 30)) / DT);
     for (let i = 0; i < n; i++) {
       const dt = DT, p = r.p, s = r.stats;
       r.t += dt;
+      if (endless && !r.endless && r.t >= r.length) { r.endless = true; r.endlessBossT = 120; }
       const [ix, iy] = input(i);
       const il = Math.hypot(ix, iy);
       p.moving = il > 0.05;
@@ -244,7 +246,7 @@ for (const st of W.STAGES) {
       }
       if ((i + 1) % (REC * 10) === 0) rec.push(directorDigest(r));
     }
-    out.scenarios.push({ kind: 'director', name: `director:${st.id}:h${heat}`, stage: st.id, heat, rec, every: REC * 10 });
+    out.scenarios.push({ kind: 'director', name: `director:${st.id}:h${heat}${endless ? ':endless' : ''}`, stage: st.id, heat, endless, rec, every: REC * 10 });
   }
 }
 

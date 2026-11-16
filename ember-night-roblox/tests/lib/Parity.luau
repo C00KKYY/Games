@@ -350,6 +350,10 @@ function Parity.checkDirector(sc, dt: number, tol: number?): string?
 	for i = 0, n - 1 do
 		run.t += dt
 		run.tick += 1
+		if sc.endless and not run.endless and run.t >= run.length then
+			run.endless = true
+			run.endlessBossT = 120
+		end
 		local ix, iy = input(i, dt)
 		Run.setMove(run, pl.slot, ix, iy)
 		K.movePlayers(run, dt)

@@ -4,6 +4,7 @@
 local K = if script then require(script.Parent.K) else require("./K")
 local Enemies = if script then require(script.Parent.Data.Enemies) else require("./Data/Enemies")
 local Util = if script then require(script.Parent.Util) else require("./Util")
+local Coop = if script then require(script.Parent.Coop) else require("./Coop")
 
 local Bosses = {}
 
@@ -374,7 +375,8 @@ function K.bossAI(run, e, p, dx, dy, d, dt): (number, number)
 		e.skillT -= dt
 		if e.skillT <= 0 then
 			local sk = e.boss.skills[e.skillIdx % #e.boss.skills + 1]
-			if sk == "summon" and #run.enemies > K.wave(run).cap then
+			-- co-op: compared with the scaled cap (the plain wave cap would turn nearly every summon into a dash)
+			if sk == "summon" and #run.enemies > K.wave(run).cap * Coop.f(Coop.spawnCap, run.nPlayers) then
 				sk = "dash"
 			end
 			e.skillIdx += 1

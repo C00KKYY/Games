@@ -48,7 +48,7 @@ suite:test("director: waves, elites, bosses, events, countdown and surge match f
 			T.ok(msg == nil, msg)
 		end
 	end
-	T.eq(n, 15)
+	T.eq(n, 20)
 end)
 
 suite:test("whole solo runs match until death / 400 s or until float drift (>= 10 s)", function()
