@@ -75,6 +75,14 @@ measured with the tuned values. Co-op is clearly easier than solo at the same la
 share the pressure); the next tuning step, if wanted, is `enemyHp` / `spawnRate` for N = 2–4 (more samples needed: the
 intervals with n = 24 are ±18 points).
 
+## R2 – co-op check on a second land: Aschenwald / light / heat 0, 4 bots
+
+24 runs (seeds 301–324, heroes rotating), after the co-op summon fix: **33 %** wins (8/24, 95 %: 18–53 %) against
+17 % solo (6/36); median death 10.0 min (solo 7.5), enemies alive at 5:00 ≈ 97 (four seed blocks: 96 / 94.5 / 100 /
+97.5; solo 45, i.e. 2.1×), highest level at 8:00 ≈ 34 (solo 33). Gate (DESIGN.md §10.3): win rate between solo and solo + 30 points:
+**+16 points, inside**; no player levels more than 1.3× faster than solo: **≈ 1.03×**. Team revives work in these
+runs (bots walk to downed teammates). The co-op factors (`Sim/Coop.luau`) stay as tuned in R1.
+
 ## Performance (Lune on this machine, interpreted; Roblox servers run `--!native`)
 
 | Scenario | Median step | p99 | Notes |
