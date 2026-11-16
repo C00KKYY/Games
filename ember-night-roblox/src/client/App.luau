@@ -113,10 +113,13 @@ local function clearArena()
 end
 
 local function bindRunActions()
+	-- cards: number keys; on a gamepad the D-pad (in co-op the cards are not GUI-selected, so the thumbstick keeps
+	-- moving the hero while choosing)
+	local pads = { Enum.KeyCode.DPadLeft, Enum.KeyCode.DPadUp, Enum.KeyCode.DPadRight, Enum.KeyCode.DPadDown }
 	for i, key in { Enum.KeyCode.One, Enum.KeyCode.Two, Enum.KeyCode.Three, Enum.KeyCode.Four } do
 		Controls.bind("card" .. i, function()
 			LevelUpUI.choose(i)
-		end, key)
+		end, key, pads[i])
 	end
 	Controls.bind("reroll", LevelUpUI.action, Enum.KeyCode.R, Enum.KeyCode.ButtonX)
 	Controls.bind("skip", LevelUpUI.action, Enum.KeyCode.K, Enum.KeyCode.ButtonY)
@@ -129,7 +132,7 @@ local function bindRunActions()
 		else
 			Pause.open(false)
 		end
-	end, Enum.KeyCode.P, Enum.KeyCode.ButtonStart)
+	end, Enum.KeyCode.P, Enum.KeyCode.ButtonL1, Enum.KeyCode.ButtonStart) -- Start may be taken by the Roblox menu
 end
 
 local function unbindRunActions()

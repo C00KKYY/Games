@@ -142,8 +142,8 @@ function Codec.decodeMove(b: any)
 		seq = buffer.readu16(b, 1),
 		x = x,
 		y = y,
-		dirX = buffer.readi8(b, 11) / 127,
-		dirY = buffer.readi8(b, 12) / 127,
+		dirX = math.max(-1, buffer.readi8(b, 11) / 127), -- -128 would be -1.008
+		dirY = math.max(-1, buffer.readi8(b, 12) / 127),
 		moving = bit32.band(buffer.readu8(b, 13), 1) == 1,
 	}
 end

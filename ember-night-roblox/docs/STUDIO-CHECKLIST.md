@@ -12,6 +12,8 @@ this order and note anything that differs (Output window: copy red lines).
       / Output without errors; at most the notes about audio ids and "not saved".
 - [ ] Game Settings → Security → „Enable Studio Access to API Services“ an; Places → Max Players = 4.
       / Turn on API access; max players 4.
+- [ ] Workspace → StreamingEnabled = aus (kommt aus `default.project.json`; die Arena wird nur auf den Clients gebaut,
+      Streaming wird nicht gebraucht). / Workspace.StreamingEnabled is off (set by the project file).
 
 ## 2. Hub
 
@@ -55,6 +57,7 @@ this order and note anything that differs (Output window: copy red lines).
 - [ ] Telefon quer (z. B. iPhone 14): HUD in der sicheren Fläche, Knöpfe groß genug, Karten passen in eine Reihe,
       Fenster schrumpfen und scrollen. / Phone landscape: safe area, button sizes, cards fit, windows scroll.
 - [ ] Tablet, Gamepad (Auswahl springt auf die erste Karte/den ersten Knopf). / Tablet, gamepad selection.
+- [ ] Gamepad im Lauf: LB öffnet die Pause (Start gehört evtl. dem Roblox-Menü), Steuerkreuz wählt Karte 1–4 im Koop, ohne dass der Held stehen bleibt. / Gamepad in a run: LB pauses, D-pad picks cards 1–4 in co-op while the hero keeps moving.
 - [ ] Gegnerschüsse auf dem Telefon gut sichtbar. / Enemy shots readable on a phone.
 
 ## 6. Leistung / Performance

@@ -309,7 +309,8 @@ run-scope achievements use the team's run kills (§1.2).
 
 - **Card tray.** When a player has pending level-ups, his client shows the level-up cards as a **non-modal tray** at the
   bottom of the screen (3 or 4 compact cards, reroll/skip/banish buttons). The hero can keep moving. Selection: tap/click,
-  keys `1`–`4`, gamepad D-pad left/right + A (ButtonA), or ButtonX/Y/B for reroll/skip/banish. The tray shows the
+  keys `1`–`4`, gamepad D-pad left/up/right/down (cards 1–4; the thumbstick keeps moving the hero), or ButtonX/Y for
+  reroll/skip. The tray shows the
   remaining auto-pick time.
 - **Ember Ward.** When a tray opens (the first pending level after none), the sim grants that player a ward:
   `WARD_TIME = 1.5 s`: invulnerable, enemies within `WARD_RADIUS = 120 px` are pushed outward (300 px/s), enemies within
@@ -662,7 +663,8 @@ Rendering rules:
   `y = mv.Z`. Fallback when the control module is unavailable: own thumbstick (`Client/Input/TouchStick.luau`) and
   `UserInputService` keys.
 - **Actions** via `ContextActionService` (bound only while relevant, with touch buttons where needed):
-  pause (`Escape`/`P`, ButtonStart, on-screen button), cards 1–4 (`One`…`Four`, gamepad D-pad + ButtonA), reroll `R`
+  pause (`Escape`/`P`, ButtonL1, ButtonStart when the Roblox menu leaves it to the game, on-screen button), cards 1–4
+  (`One`…`Four`; gamepad D-pad left/up/right/down picks card 1–4 directly, in solo also GUI selection + ButtonA), reroll `R`
   (ButtonX), skip `K` (ButtonY), banish mode `B` (ButtonB while the tray/modal is open; `S` is taken by movement),
   confirm `Return`/`Space` (ButtonA), back (`Escape`, ButtonB in menus).
 - **Gamepad UI navigation:** `GuiService.SelectedObject` set to the first button of each screen; `NextSelection*`
