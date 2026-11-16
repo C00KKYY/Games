@@ -4,8 +4,10 @@ Roblox-Fassung von **Ember Night** („Glutnacht“, Web-Spiel in `../glutnacht`
 **Koop für 1–4 Spieler** pro Server, fünf Länder, neun Helden, Schmiede, Nachtstufen, Erfolge, Endlosmodus.
 Käufe mit Robux: Wiederbelebung, Helden, Goldpakete, doppeltes Gold, Kosmetik. Deutsch und Englisch.
 
-**Stand: R1 – Simulationskern, Server und einfacher Client.** Das ganze Spiel läuft als reine Luau-Simulation (auch
-headless unter Lune, mit Balance-Bot für 1 und 4 Spieler); der Server rechnet im festen 1/30-s-Takt und schickt
+**Stand: R2 – Kampfinhalte vollständig und gegen das Web-Spiel geprüft** (auf R1: Simulationskern, Server, einfacher
+Client). Das ganze Spiel läuft als reine Luau-Simulation (auch headless unter Lune, mit Balance-Bot für 1–4 Spieler);
+Bosse, Fernkämpfer, Waffen, Spawner, Countdown und Ansturm und ganze Solo-Läufe werden Schritt für Schritt mit dem Code
+des Web-Spiels verglichen (`tools/ref-sim.js`, `tests/parity.spec.luau`). Der Server rechnet im festen 1/30-s-Takt und schickt
 Momentaufnahmen und Ereignisse an die Clients, die mit Platzhalter-Grafik (Kugeln, Klötze) darstellen. Noch nicht
 enthalten: Speichern im DataStore (Profile gelten bis zum Verlassen), endgültige Modelle, Oberfläche und Klang (R3),
 Robux-Käufe (R4). In Roblox Studio ist noch nichts ausprobiert. Der verbindliche Entwurf mit Meilensteinen R1–R4 und dem
@@ -19,7 +21,7 @@ Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`
 | `src/server` | `ServerScriptService.Server` | Server: Spielschleife, Lobby, Speichern (DataStore), Käufe |
 | `src/client` | `StarterPlayer.StarterPlayerScripts.Client` | Client: Darstellung, Oberfläche, Eingabe, Kamera, Klang |
 | `tests` | – | Lune-Tests (`*.spec.luau`), Balance-Bot `bot.luau`, Leistungsmessung `bench.luau` |
-| `tools` | – | `port-data.js` (Daten und Texte aus dem Web-Spiel übernehmen), `build.sh`, `test.sh` |
+| `tools` | – | `port-data.js` (Daten und Texte aus dem Web-Spiel übernehmen), `ref-sim.js` (Vergleichsläufe mit dem Web-Code), `balance.sh` (Bot-Tabelle aller Länder), `build.sh`, `test.sh` |
 | `assets/audio` | – | Klänge und Musik zum Hochladen (ab R3) |
 | `build` | – | gebaute Spielwelt `EmberNight.rbxlx` (zum Öffnen in Roblox Studio) |
 
@@ -31,6 +33,9 @@ Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`
 - Testen: `tools/test.sh` (alle Specs) oder `tools/test.sh coop` (Filter).
 - Bot: `lune run tests/bot.luau -- --land graveyard --forge none --heat 0 --players 1 --runs 24 --seed 1`
   (Siegquote mit 95-%-Intervall, Tod im Median, erster Treffer, Stufe nach 1/4/8 min).
+- Alle Zeilen der Siegquoten-Tabelle des Web-Spiels: `tools/balance.sh 36` (4 Läufe parallel, Ergebnis als Tabelle).
+- Vergleich mit dem Web-Code: `node tools/ref-sim.js` (schreibt `tests/ref/parity.json`), dann `tools/test.sh parity`;
+  Unterschiede einzeln: `lune run tests/parity.luau`.
 - Leistung: `lune run tests/bench.luau` (4 Spieler, 300 Gegner: Zeit je Schritt, Größe der Momentaufnahmen).
 - Daten neu übernehmen, wenn sich das Web-Spiel ändert: `node tools/port-data.js` (schreibt `src/shared/Sim/Data/*`,
   `src/shared/Lang/En.luau` und die Vergleichswerte `tests/ref/*.json`).
