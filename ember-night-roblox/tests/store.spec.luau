@@ -217,4 +217,37 @@ suite:test("saves of different players do not block each other; users() lists lo
 	T.eq(st:users()[1], 2)
 end)
 
+suite:test("rejoin on the same server while the leave-save runs: fresh session, later saves are stored", function()
+	local task = require("@lune/task")
+	local fs = FakeStore.new()
+	local st = ProfileStore.new(fs:opts("jobA", {
+		sleep = function(sec)
+			fs.clock += sec
+			task.wait()
+		end,
+	}))
+	local p = assert(st:load(UID))
+	p.gold = 500
+	local yielding = true
+	fs.during = function()
+		if yielding then
+			task.wait(0.05)
+		end
+	end
+	local released
+	task.spawn(function()
+		released = st:save(UID, true)
+	end)
+	local q = st:load(UID) -- the player is back before the release finished
+	yielding = false
+	T.ok(released, "leave-save finished first")
+	T.ok(q ~= nil and q ~= p, "fresh session data")
+	T.eq(q.gold, 500)
+	T.eq(st:get(UID), q, "session present after the rejoin")
+	T.eq(fs.data[KEY]._lock.job, "jobA", "locked again")
+	q.gold = 900
+	T.ok(st:save(UID))
+	T.eq(fs.data[KEY].gold, 900)
+end)
+
 return suite

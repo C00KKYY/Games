@@ -23,7 +23,7 @@ ProfileStore.__index = ProfileStore
 
 local deepCopy = Profile.deepCopy
 
-export type Session = { data: any, lost: boolean, busy: boolean, loaded: boolean }
+export type Session = { data: any, lost: boolean, busy: boolean, loaded: boolean, releasing: boolean? }
 
 function ProfileStore.new(o)
 	local self = setmetatable({}, ProfileStore)
@@ -76,6 +76,13 @@ end
 -- ---------- load ----------
 function ProfileStore:load(userId: number): (any, string?)
 	local existing = self.sessions[userId]
+	-- a rejoin while the leave-save of the old session still runs: wait until that release is done (it removes
+	-- the session and drops the DataStore lock), then load afresh. Reusing the releasing session would hand out
+	-- data whose session vanishes a moment later (nothing would be saved any more).
+	while existing and existing.releasing do
+		self.sleep(0.05)
+		existing = self.sessions[userId]
+	end
 	if existing then
 		lock(existing, self.sleep)
 		existing.busy = false
@@ -191,6 +198,9 @@ function ProfileStore:save(userId: number, release: boolean?): (boolean, string?
 			self.sessions[userId] = nil
 		end
 		return false, "lost"
+	end
+	if release then
+		s.releasing = true
 	end
 	lock(s, self.sleep)
 	local res = self:write(userId, s.data, release == true)
