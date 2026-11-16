@@ -89,7 +89,6 @@ local function P(shape, size, pos, role, extra): PartSpec
 	return p
 end
 
-
 local SPECS: { [string]: Spec } = {
 	bat = {
 		parts = {
@@ -384,6 +383,7 @@ local EYES = Color3.fromHex("#ffe066")
 
 export type Palette = {
 	body: Color3,
+	glow: Color3?,
 	eye: Color3?,
 	accent: Color3?,
 	skin: Color3?,
@@ -393,8 +393,10 @@ export type Palette = {
 
 local function roleColor(role: string, pal: Palette): Color3
 	local b = pal.body
-	if role == "body" or role == "glow" then
+	if role == "body" then
 		return b
+	elseif role == "glow" then
+		return pal.glow or b
 	elseif role == "dark" then
 		return b:Lerp(BLACK, 0.45)
 	elseif role == "light" then
@@ -555,6 +557,11 @@ function ModelKit.decor(kind: string, scale: number, tint: string?): Rig
 end
 
 ModelKit.DECOR_KINDS = DECOR
+
+-- a model from a caller's spec (braziers, effects)
+function ModelKit.build(spec: Spec, r: number, pal: Palette): Rig
+	return buildFrom("custom", spec.parts, r, pal)
+end
 
 function ModelKit.release(rig: Rig)
 	if rig.light then

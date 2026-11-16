@@ -382,6 +382,13 @@ function Roblox:clientServices()
 	-- part.Position, for the same reason)
 	self.workspace.CurrentCamera.ViewportSize = Roblox.viewport or roblox.Vector2.new(1280, 720)
 	self.Lighting = roblox.Instance.new("Lighting")
+	-- the place's Lighting (default.project.json) – Lune has no defaults for these
+	self.Lighting.ClockTime = 0
+	self.Lighting.Brightness = 1
+	self.Lighting.Ambient = roblox.Color3.new(0.35, 0.3, 0.45)
+	self.Lighting.OutdoorAmbient = roblox.Color3.new(0.3, 0.28, 0.4)
+	self.Lighting.EnvironmentDiffuseScale = 1
+	self.Lighting.EnvironmentSpecularScale = 1
 	self.SoundService = roblox.Instance.new("SoundService")
 	self.boundActions = {}
 	local rb = self

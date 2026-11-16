@@ -40,12 +40,24 @@ suite:test("solo run on the graveyard: move, level up, chest, give up, results",
 	local a = Arena.new(1)
 	circle(a)
 	start(a, "graveyard")
-	local peak = 0
+	local peak, lights, emitters, numbers = 0, 0, 0, 0
 	a:frames(90, true, function(i)
 		if i % 30 == 0 then
 			peak = math.max(peak, a:visibleParts())
+			lights = math.max(lights, a:count("PointLight"))
+			emitters = math.max(emitters, a:count("ParticleEmitter"))
+			local n = 0
+			for _, d in a.rb.workspace:GetDescendants() do
+				if d:IsA("BillboardGui") and d.Enabled and d.Parent.Name == "EN_Num" then
+					n += 1
+				end
+			end
+			numbers = math.max(numbers, n)
 		end
 	end)
+	T.ok(lights <= 12, "dynamic lights within budget: " .. lights)
+	T.ok(emitters <= 26, "particle emitters within budget: " .. emitters)
+	T.ok(numbers <= 40, "damage numbers within budget: " .. numbers)
 	noErrors(a, "after 90 s")
 	T.ok(a.cnet.sentMoves > 100, "moves sent")
 	local run = a:run()

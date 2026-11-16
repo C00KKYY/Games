@@ -1,18 +1,23 @@
 --!native
 -- Projectiles and weapon visuals (docs/DESIGN.md §3.5, §4.4). Enemy shots are spawned once and moved here
 -- (straight lines); player weapons come from `fire` events and are simulated visually (bolts, knives, sickles,
--- flasks, slashes, zaps, novas), orbit balls and auras follow their hero. Placeholder looks for R1.
+-- flasks, slashes, zaps, novas), orbit balls and auras follow their hero. Enemy shots have their own look that no
+-- player effect uses (red neon with a light core inside a dark ring, §7.4); on phones they are drawn at least
+-- 1.4 studs wide (about 14 px on a 720 px tall screen).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Weapons = require(Shared.Sim.Data.Weapons)
 local Pool = require(script.Parent.Pool)
 local Coords = require(script.Parent.Coords)
+local Device = require(script.Parent.Parent.Device)
 
 local ShotView = {}
 
 local S = Coords.S
 local ESHOT = Color3.fromHex("#ff3d5a")
+local ECORE = Color3.fromHex("#ffd6dc")
+local ERING = Color3.fromRGB(20, 6, 12)
 local COL = {
 	wand = Color3.fromHex("#b48cff"),
 	wandEvo = Color3.fromHex("#ff7cf5"),
@@ -27,7 +32,18 @@ local COL = {
 	aura = Color3.fromHex("#ff9a3c"),
 }
 
-type Shot = { part: BasePart, x: number, y: number, vx: number, vy: number, t: number, life: number }
+type Shot = {
+	part: BasePart,
+	ring: BasePart,
+	core: BasePart,
+	x: number,
+	y: number,
+	vx: number,
+	vy: number,
+	t: number,
+	life: number,
+	round: boolean,
+}
 local eshots: { [number]: Shot } = {}
 local pshots: { [number]: any } = {}
 local fx: { any } = {}
@@ -57,16 +73,58 @@ local function tint(slot: number?, default: Color3): Color3
 end
 
 function ShotView.eshot(e)
-	local d = math.max(0.9, e.r * 2 * S)
-	local p = Pool.get("Ball", Vector3.one * d, ESHOT, Enum.Material.Neon, 0)
-	eshots[e.id] = { part = p, x = e.x, y = e.y, vx = e.vx, vy = e.vy, t = 0, life = e.life }
+	local d = math.max(if Device.touch() then 1.4 else 1.0, e.r * 2 * S)
+	local shot: Shot
+	if e.kind == "needle" or e.kind == "lance" then
+		local len = d * (if e.kind == "lance" then 4 else 2.4)
+		local w = d * 0.55
+		shot = {
+			ring = Pool.get("Block", Vector3.new(len + 0.5, w * 0.9, w + 0.5), ERING, Enum.Material.SmoothPlastic, 0.3),
+			part = Pool.get("Block", Vector3.new(len, w, w), ESHOT, Enum.Material.Neon, 0),
+			core = Pool.get("Block", Vector3.new(len * 0.7, w * 1.05, w * 0.35), ECORE, Enum.Material.Neon, 0),
+			x = e.x,
+			y = e.y,
+			vx = e.vx,
+			vy = e.vy,
+			t = 0,
+			life = e.life,
+			round = false,
+		}
+	else
+		shot = {
+			ring = Pool.get("Ball", Vector3.one * (d * 1.35), ERING, Enum.Material.SmoothPlastic, 0.3),
+			part = Pool.get("Ball", Vector3.one * d, ESHOT, Enum.Material.Neon, 0),
+			core = Pool.get("Ball", Vector3.one * (d * 0.45), ECORE, Enum.Material.Neon, 0),
+			x = e.x,
+			y = e.y,
+			vx = e.vx,
+			vy = e.vy,
+			t = 0,
+			life = e.life,
+			round = true,
+		}
+	end
+	eshots[e.id] = shot
+end
+
+local function freeShot(s: Shot)
+	Pool.put(s.part)
+	Pool.put(s.ring)
+	Pool.put(s.core)
 end
 
 function ShotView.eshotGone(id: number)
 	local s = eshots[id]
 	if s then
-		Pool.put(s.part)
+		freeShot(s)
 		eshots[id] = nil
+	end
+end
+
+-- enemy shots in flight (for the off-screen warning arrows): calls fn(x, y, vx, vy)
+function ShotView.eachEnemyShot(fn: (number, number, number, number) -> ())
+	for _, s in eshots do
+		fn(s.x, s.y, s.vx, s.vy)
 	end
 end
 
@@ -218,14 +276,22 @@ function ShotView.render(dt: number, now: number)
 	for id, s in eshots do
 		s.t += dt
 		if s.t >= s.life then
-			Pool.put(s.part)
+			freeShot(s)
 			eshots[id] = nil
 		else
 			s.x += s.vx * dt
 			s.y += s.vy * dt
-			n += 1
-			bulkP[n] = s.part
-			bulkC[n] = CFrame.new(s.x * S, 1.2, s.y * S)
+			local cf = CFrame.new(s.x * S, 1.2, s.y * S)
+			if not s.round then
+				cf *= Coords.yaw(math.atan2(s.vy, s.vx))
+			end
+			bulkP[n + 1] = s.ring
+			bulkC[n + 1] = cf
+			bulkP[n + 2] = s.part
+			bulkC[n + 2] = cf
+			bulkP[n + 3] = s.core
+			bulkC[n + 3] = if s.round then cf * CFrame.new(0, 0.15, 0) else cf
+			n += 3
 		end
 	end
 	for id, s in pshots do
@@ -303,7 +369,7 @@ end
 
 function ShotView.clear()
 	for id, s in eshots do
-		Pool.put(s.part)
+		freeShot(s)
 		eshots[id] = nil
 	end
 	for id, s in pshots do

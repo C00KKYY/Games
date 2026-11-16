@@ -2,7 +2,7 @@
 -- Gems and pickups (docs/DESIGN.md §3.5, §4.3): spawned once, attracted toward a hero when the sim says so, removed
 -- when collected. Models from ModelKit: gems are neon diamonds (blue 1, green 5+, pink 20+), coins spin, bags,
 -- hearts, magnets, bombs with a sparking fuse; chests carry a band in their owner's hero colour (only the owner can
--- open them) and a light so they are found in the dark.
+-- open them) in neon so they are found in the dark.
 local ModelKit = require(script.Parent.ModelKit)
 local Coords = require(script.Parent.Coords)
 
@@ -35,12 +35,6 @@ function PickupView.pickup(e)
 	if e.kind == "chest" then
 		local owner = if e.owner and e.owner > 0 then ownerColor(e.owner) else Color3.fromHex("#ffcf3f")
 		rig = ModelKit.pickup("chest", { body = Color3.fromHex("#8a5a2a"), owner = owner })
-		local l = Instance.new("PointLight")
-		l.Range = 10
-		l.Brightness = 1.2
-		l.Color = owner
-		l.Shadows = false
-		l.Parent = rig.parts[1]
 	else
 		rig = ModelKit.pickup(e.kind)
 	end

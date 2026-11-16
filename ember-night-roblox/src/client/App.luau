@@ -18,10 +18,13 @@ local Pool = require(script.Parent.World.Pool)
 local EnemyView = require(script.Parent.World.EnemyView)
 local HeroView = require(script.Parent.World.HeroView)
 local Ground = require(script.Parent.World.Ground)
+local Land = require(script.Parent.World.Land)
 local TeleView = require(script.Parent.World.TeleView)
 local ShotView = require(script.Parent.World.ShotView)
 local PickupView = require(script.Parent.World.PickupView)
 local FxView = require(script.Parent.World.FxView)
+local Particles = require(script.Parent.World.Particles)
+local DamageNumbers = require(script.Parent.World.DamageNumbers)
 local ModelKit = require(script.Parent.World.ModelKit)
 local LobbyUI = require(script.Parent.UI.Lobby)
 local Hud = require(script.Parent.UI.Hud)
@@ -137,7 +140,9 @@ local function enterArena(stageId: string)
 		end
 	end
 	Ground.setStage(stage)
+	Land.enter(stage)
 	EnemyView.setStage(stage)
+	FxView.setStage(stage)
 	inRun = true
 	lastHp = nil
 	Music.release()
@@ -153,6 +158,7 @@ end
 local function leaveArena()
 	inRun = false
 	clearArena()
+	Land.leave()
 	CameraRig.setActive(false)
 	Hud.setVisible(false)
 	LevelUpUI.close()
@@ -217,6 +223,10 @@ function App.listen()
 			CameraRig.setZoom(st.camZoom or 1)
 			Sfx.setEnabled(st.sfx ~= false)
 			Music.setEnabled(st.music ~= false)
+			DamageNumbers.setEnabled(st.dmgNums ~= false)
+			CameraRig.setShakeEnabled(st.shake ~= false)
+			Particles.setLowFx(st.lowFx == true)
+			Land.setLowFx(st.lowFx == true)
 		end
 		LobbyUI.render(m)
 		Router.update(m)
@@ -390,6 +400,8 @@ function App.listen()
 			FxView.burst(e)
 		elseif k == "text" then
 			FxView.text(e)
+		elseif k == "flash" then
+			FxView.flash(e)
 		elseif k == "sfx" then
 			if e.name == "victory" then
 				Music.sting("victory")
@@ -440,6 +452,7 @@ function App.frame(dt: number)
 		end
 	end
 	Ground.update(cx, cy)
+	Land.update(cx, cy)
 	CameraRig.update(dt, cx, cy)
 	Hud.update(dt)
 	LevelUpUI.update()

@@ -1,70 +1,93 @@
--- Short effects (R1 placeholders): explosions, impact rings, hazards (ember / slime puddles), screen flash and pooled
--- damage numbers (BillboardGui; own hits and boss hits only, docs/DESIGN.md §4.4).
+-- Short effects (docs/DESIGN.md §4.4): death bursts (particles in the enemy colour, bosses with a shock ring),
+-- explosions (expanding ring + sparks), coloured bursts, ember and slime puddles (hazards), the bomb flash. Pooled
+-- parts and shared particle emitters only. Damage numbers and texts are in DamageNumbers.luau.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Lang = require(ReplicatedStorage:WaitForChild("Shared").Lang.Lang)
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Enemies = require(Shared.Sim.Data.Enemies)
 local Pool = require(script.Parent.Pool)
 local Coords = require(script.Parent.Coords)
+local Particles = require(script.Parent.Particles)
+local DamageNumbers = require(script.Parent.DamageNumbers)
 
 local FxView = {}
 
 local S = Coords.S
+local FLAT = CFrame.Angles(0, 0, math.rad(90))
 local list: { any } = {}
 local hazards: { [number]: any } = {}
-local numbers: { BillboardGui } = {}
-local activeNumbers: { any } = {}
-local MAX_NUMBERS = 30
-local enabled = { dmgNums = true }
+local EMBER = Color3.fromRGB(255, 110, 40)
+local EMBER_HOT = Color3.fromRGB(255, 200, 90)
+local SLIME = Color3.fromRGB(110, 210, 90)
+local SLIME_DARK = Color3.fromRGB(40, 90, 40)
+local WHITE = Color3.new(1, 1, 1)
+local tints: { [string]: string } = {}
 
-function FxView.setOption(k: string, v: any)
-	enabled[k] = v
+function FxView.setStage(stage)
+	tints = stage and stage.tints or {}
 end
 
 local function add(part: BasePart, life: number, update)
 	table.insert(list, { part = part, t = 0, life = life, update = update })
 end
 
-function FxView.boom(e)
-	local d = e.rad * 2 * S
-	local p = Pool.get("Cylinder", Vector3.one, Coords.color(e.color), Enum.Material.Neon, 0.4)
-	local x, y = e.x, e.y
-	add(p, 0.4, function(part, k)
-		local s = math.max(0.2, d * (0.4 + 0.6 * k))
-		part.Size = Vector3.new(0.6, s, s)
-		part.CFrame = Coords.cf(x, y, 0.3) * CFrame.Angles(0, 0, math.rad(90))
-		part.Transparency = 0.4 + 0.6 * k
+-- an expanding flat ring on the ground
+local function ring(x: number, y: number, d: number, col: Color3, life: number, h: number?, tr0: number?)
+	local p = Pool.get("Cylinder", Vector3.new(0.12, 0.2, 0.2), col, Enum.Material.Neon, tr0 or 0.3)
+	local base = Coords.cf(x, y, h or 0.25) * FLAT
+	add(p, life, function(part, k)
+		local s = math.max(0.2, d * (0.25 + 0.75 * (1 - (1 - k) * (1 - k))))
+		part.Size = Vector3.new(0.12, s, s)
+		part.CFrame = base
+		part.Transparency = (tr0 or 0.3) + (1 - (tr0 or 0.3)) * k
 	end)
+end
+
+function FxView.boom(e)
+	local col = Coords.color(e.color)
+	ring(e.x, e.y, e.rad * 2 * S, col, 0.4)
+	Particles.burst("spark", e.x, e.y, 0.8, col, 14)
 end
 
 function FxView.burst(e)
-	local p = Pool.get("Ball", Vector3.one * 1.2, Coords.color(e.color), Enum.Material.Neon, 0.3)
-	local x, y = e.x, e.y
-	add(p, 0.3, function(part, k)
-		local s = 1 + 3 * k
-		part.Size = Vector3.one * s
-		part.CFrame = Coords.cf(x, y, 1)
-		part.Transparency = 0.3 + 0.7 * k
-	end)
+	local col = Coords.color(e.color)
+	Particles.burst(if (e.n or 0) >= 40 then "big" else "spark", e.x, e.y, 1.2, col, math.min(40, e.n or 10))
 end
 
+-- e = kill event { x, y, type, elite, boss }
 function FxView.kill(e)
-	local col = if e.boss then Color3.fromRGB(255, 220, 140) else Color3.fromRGB(255, 240, 230)
-	local p = Pool.get("Ball", Vector3.one, col, Enum.Material.Neon, 0.3)
-	local x, y = e.x, e.y
-	add(p, 0.25, function(part, k)
-		local s = (if e.boss then 8 else 2) * (0.5 + k)
-		part.Size = Vector3.one * s
-		part.CFrame = Coords.cf(x, y, 1)
-		part.Transparency = 0.3 + 0.7 * k
-	end)
+	local hex = tints[e.type] or Enemies.COLORS[e.type] or "#ffffff"
+	local col = Coords.color(hex)
+	if e.boss then
+		ring(e.x, e.y, 22, Color3.fromRGB(255, 220, 140), 0.7, 0.3, 0.1)
+		Particles.burst("big", e.x, e.y, 2, col, 40)
+		Particles.burst("big", e.x, e.y, 2, Color3.fromRGB(255, 220, 140), 30)
+	else
+		Particles.burst("puff", e.x, e.y, 1, col:Lerp(WHITE, 0.3), if e.elite then 10 else 4)
+		Particles.burst("spark", e.x, e.y, 1, col, if e.elite then 12 else 5)
+	end
+end
+
+-- bomb pickup: white shock ring around the collector
+function FxView.flash(e)
+	ring(e.x, e.y, 80, WHITE, 0.5, 0.4, 0.1)
 end
 
 function FxView.hazard(e)
 	local d = e.rad * 2 * S
-	local col = if e.kind == "ember" then Color3.fromRGB(255, 90, 40) else Color3.fromRGB(120, 200, 90)
-	local p = Pool.get("Cylinder", Vector3.new(0.12, d, d), col, Enum.Material.Neon, 0.45)
-	p.CFrame = Coords.cf(e.x, e.y, 0.12) * CFrame.Angles(0, 0, math.rad(90))
-	hazards[e.id] = { part = p, kind = e.kind, x = e.x, y = e.y, rad = e.rad, t = 0, life = e.life }
+	local ember = e.kind == "ember"
+	local col = if ember then EMBER else SLIME
+	local p = Pool.get("Cylinder", Vector3.new(0.1, d, d), col, Enum.Material.Neon, if ember then 0.35 else 0.4)
+	p.CFrame = Coords.cf(e.x, e.y, 0.1) * FLAT
+	local rim = Pool.get(
+		"Cylinder",
+		Vector3.new(0.08, d * 1.08, d * 1.08),
+		if ember then EMBER_HOT else SLIME_DARK,
+		if ember then Enum.Material.Neon else Enum.Material.SmoothPlastic,
+		if ember then 0.6 else 0.35
+	)
+	rim.CFrame = Coords.cf(e.x, e.y, 0.07) * FLAT
+	hazards[e.id] = { part = p, rim = rim, kind = e.kind, x = e.x, y = e.y, rad = e.rad, t = 0, life = e.life, d = d }
 end
 
 function FxView.hazardLife(id: number, life: number)
@@ -78,6 +101,7 @@ function FxView.hazardGone(id: number)
 	local h = hazards[id]
 	if h then
 		Pool.put(h.part)
+		Pool.put(h.rim)
 		hazards[id] = nil
 	end
 end
@@ -95,57 +119,9 @@ function FxView.inSlow(x: number, y: number, r: number): boolean
 	return false
 end
 
-local function numberGui(): BillboardGui
-	local g = table.remove(numbers)
-	if g then
-		return g
-	end
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromOffset(80, 30)
-	bb.AlwaysOnTop = true
-	bb.LightInfluence = 0
-	local t = Instance.new("TextLabel")
-	t.Name = "T"
-	t.BackgroundTransparency = 1
-	t.Size = UDim2.fromScale(1, 1)
-	t.Font = Enum.Font.GothamBold
-	t.TextScaled = true
-	t.TextStrokeTransparency = 0.3
-	t.Parent = bb
-	return bb
-end
-
-function FxView.number(e)
-	if not enabled.dmgNums or #activeNumbers >= MAX_NUMBERS then
-		return
-	end
-	local bb = numberGui()
-	local t = bb:FindFirstChild("T") :: TextLabel
-	t.Text = tostring(math.floor(e.amount + 0.5))
-	t.TextColor3 = if e.crit then Color3.fromHex("#ffd23f") else Color3.new(1, 1, 1)
-	bb.Size = if e.crit then UDim2.fromOffset(100, 36) else UDim2.fromOffset(80, 28)
-	local anchor = Pool.get("Block", Vector3.one * 0.1, nil, Enum.Material.SmoothPlastic, 1)
-	anchor.CFrame = Coords.cf(e.x, e.y, 3)
-	bb.Adornee = anchor
-	bb.Parent = anchor
-	table.insert(activeNumbers, { gui = bb, anchor = anchor, t = 0, y0 = 3 })
-end
-
-function FxView.text(e)
-	if #activeNumbers >= MAX_NUMBERS then
-		return
-	end
-	local bb = numberGui()
-	local t = bb:FindFirstChild("T") :: TextLabel
-	t.Text = if e.arg then Lang.tr(e.text, e.arg) else Lang.tr(e.text)
-	t.TextColor3 = Coords.color(e.color)
-	bb.Size = UDim2.fromOffset(140, 30)
-	local anchor = Pool.get("Block", Vector3.one * 0.1, nil, Enum.Material.SmoothPlastic, 1)
-	anchor.CFrame = Coords.cf(e.x, e.y, 4)
-	bb.Adornee = anchor
-	bb.Parent = anchor
-	table.insert(activeNumbers, { gui = bb, anchor = anchor, t = 0, y0 = 4 })
-end
+-- kept for App: numbers and texts live in DamageNumbers
+FxView.number = DamageNumbers.number
+FxView.text = DamageNumbers.text
 
 function FxView.render(dt: number)
 	for i = #list, 1, -1 do
@@ -162,21 +138,19 @@ function FxView.render(dt: number)
 		h.t += dt
 		if h.t >= h.life + 0.5 then
 			FxView.hazardGone(id)
+		elseif h.kind == "ember" then
+			-- flicker and the odd rising spark
+			local fl = 0.3 + 0.12 * math.sin(h.t * 13 + id) + 0.05 * math.sin(h.t * 7.3)
+			h.part.Transparency = if h.t > h.life then 0.3 + 0.7 * (h.t - h.life) / 0.5 else fl
+			if math.random() < dt * 3 then
+				local a, r = math.random() * 6.28, math.random() * h.rad
+				Particles.burst("rise", h.x + math.cos(a) * r, h.y + math.sin(a) * r, 0.3, EMBER_HOT, 1)
+			end
+		elseif h.t > h.life then
+			h.part.Transparency = 0.4 + 0.6 * (h.t - h.life) / 0.5
 		end
 	end
-	for i = #activeNumbers, 1, -1 do
-		local n = activeNumbers[i]
-		n.t += dt
-		if n.t >= 0.7 then
-			n.gui.Parent = nil
-			table.insert(numbers, n.gui)
-			Pool.put(n.anchor)
-			table.remove(activeNumbers, i)
-		else
-			local p = n.anchor.CFrame.Position
-			n.anchor.CFrame = CFrame.new(p.X, n.y0 + n.t / 0.7 * 3, p.Z)
-		end
-	end
+	DamageNumbers.render(dt)
 end
 
 function FxView.clear()
@@ -187,12 +161,8 @@ function FxView.clear()
 	for id in hazards do
 		FxView.hazardGone(id)
 	end
-	for _, n in activeNumbers do
-		n.gui.Parent = nil
-		table.insert(numbers, n.gui)
-		Pool.put(n.anchor)
-	end
-	table.clear(activeNumbers)
+	DamageNumbers.clear()
+	Particles.clear()
 end
 
 return FxView

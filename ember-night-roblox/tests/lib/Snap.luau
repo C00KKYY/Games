@@ -196,16 +196,33 @@ function Snap.world(ws, w: number, h: number, sky, zoom: number?)
 					nrm = -nrm
 				end
 				local shade = 0.45 + 0.6 * math.max(0, nrm:Dot(L))
-				local pts = {}
-				local ok = true
+				-- clip against the near plane in view space, then project
+				local vs = {}
 				for _, p in f do
-					local q = project(p)
-					if not q then
-						ok = false
-						break
-					end
-					table.insert(pts, q)
+					local rel = camCF:PointToObjectSpace(p)
+					table.insert(vs, { rel.X, rel.Y, -rel.Z })
 				end
+				local clipped = {}
+				local NEAR = 0.5
+				for i = 1, #vs do
+					local a, b = vs[i], vs[i % #vs + 1]
+					local ain, bin = a[3] >= NEAR, b[3] >= NEAR
+					if ain then
+						table.insert(clipped, a)
+					end
+					if ain ~= bin then
+						local t = (NEAR - a[3]) / (b[3] - a[3])
+						table.insert(clipped, { a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t, NEAR })
+					end
+				end
+				local pts = {}
+				for _, v in clipped do
+					table.insert(
+						pts,
+						{ (v[1] / (v[3] * th * aspect) * 0.5 + 0.5) * w, (0.5 - v[2] / (v[3] * th) * 0.5) * h, v[3] }
+					)
+				end
+				local ok = #pts >= 3
 				if ok then
 					local cz = project(c)
 					add(pts, if ground then 1e9 else (cz and cz[3] or 0), col, alpha, shade, neon)

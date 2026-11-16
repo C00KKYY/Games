@@ -39,7 +39,15 @@ function CameraRig.snap(x: number, y: number)
 	vel = Vector3.zero
 end
 
+local shakeOn = true
+function CameraRig.setShakeEnabled(on: boolean)
+	shakeOn = on
+end
+
 function CameraRig.shake(amount: number)
+	if not shakeOn then
+		return
+	end
 	shakeAmt = math.max(shakeAmt, amount)
 	shakeT = 0.25
 end
