@@ -12,7 +12,8 @@ local Coords = require(script.Parent.Coords)
 local HeroView = {}
 
 local S = Coords.S
-type Hero = { body: BasePart, head: BasePart, hero: string?, light: PointLight? }
+type Hero = { body: BasePart, head: BasePart, hero: string?, light: PointLight?, dome: BasePart? }
+local DOME = Color3.fromRGB(255, 150, 70)
 
 local heroes: { [number]: Hero } = {}
 local own = { slot = 0, x = 0, y = 0, speed = 150, state = "active", dirX = 1, dirY = 0, moving = false, face = 1 }
@@ -76,6 +77,20 @@ local function get(slot: number): Hero
 		h.light = l
 	end
 	return h
+end
+
+-- ember ward (co-op level-up, docs/DESIGN.md §2.5): translucent dome of WARD_RADIUS
+local function ward(h: Hero, x: number, y: number, on: boolean)
+	if on then
+		if not h.dome then
+			local d = Tuning.WARD_RADIUS * 2 * S
+			h.dome = Pool.get("Ball", Vector3.one * d, DOME, Enum.Material.Neon, 0.82)
+		end
+		(h.dome :: BasePart).CFrame = CFrame.new(x * S, 0, y * S)
+	elseif h.dome then
+		Pool.put(h.dome)
+		h.dome = nil
+	end
 end
 
 local function place(h: Hero, x: number, y: number, downed: boolean, faceLeft: boolean, t: number)
@@ -149,9 +164,12 @@ end
 -- render all heroes; interp gives teammates
 function HeroView.render(interp, t: number)
 	local seen = {}
+	local latest = interp:latestHeroes()
 	if own.slot > 0 then
 		local h = get(own.slot)
 		place(h, own.x, own.y, own.state == "downed", own.face < 0, if own.moving then t else 0)
+		local me = latest[own.slot]
+		ward(h, own.x, own.y, me ~= nil and me.ward)
 		seen[own.slot] = true
 	end
 	for slot = 1, Tuning.MAX_PLAYERS do
@@ -160,6 +178,7 @@ function HeroView.render(interp, t: number)
 			if x and data and not data.fallen then
 				local h = get(slot)
 				place(h, x, y, data.downed, data.faceLeft, if data.moving then t else 0)
+				ward(h, x, y, data.ward)
 				seen[slot] = true
 			end
 		end
@@ -168,6 +187,7 @@ function HeroView.render(interp, t: number)
 		if not seen[slot] then
 			h.body.CFrame = Pool.FAR
 			h.head.CFrame = Pool.FAR
+			ward(h, 0, 0, false)
 		end
 	end
 end
@@ -186,6 +206,7 @@ function HeroView.clear()
 		if h.light then
 			h.light:Destroy()
 		end
+		ward(h, 0, 0, false)
 		Pool.put(h.body)
 		Pool.put(h.head)
 		heroes[slot] = nil
