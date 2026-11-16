@@ -50,6 +50,19 @@ local function setup()
 	return rb, me, Router, Lobby, ReviveOffer, Results, sync, sent, bad
 end
 
+local function sig(b, root): string
+	local parts = { b.Text, tostring(b.Position) }
+	local p = b.Parent
+	while p and p ~= root do
+		local ok, lo = pcall(function()
+			return p.LayoutOrder
+		end)
+		table.insert(parts, if ok then tostring(lo) else "-")
+		p = p.Parent
+	end
+	return table.concat(parts, "/")
+end
+
 local function guiNamed(rb, name)
 	for _, g in rb.playerGui:GetChildren() do
 		if g.Name == name then
@@ -72,13 +85,22 @@ for _, lang in { "de", "en" } do
 				local hub = assert(guiNamed(rb, "EN_Hub"))
 				local buttons = Roblox.buttons(hub)
 				T.ok(#buttons > 0, name .. ": no buttons")
-				-- click each button of a fresh render (a click re-renders the window)
-				for i = 1, #buttons do
+				-- click each button of a fresh render (a click re-renders the window); buttons are found again by a
+				-- signature (layout orders of the ancestors + text), Instance child order is not stable in Lune
+				local sigs = {}
+				for _, b in buttons do
+					table.insert(sigs, sig(b, hub))
+				end
+				table.sort(sigs)
+				for _, want in sigs do
 					Router.open(name)
-					local now = Roblox.buttons(assert(guiNamed(rb, "EN_Hub")))
-					if now[i] then
-						rb:click(now[i])
-						sync()
+					local h2 = assert(guiNamed(rb, "EN_Hub"))
+					for _, b in Roblox.buttons(h2) do
+						if sig(b, h2) == want then
+							rb:click(b)
+							sync()
+							break
+						end
 					end
 				end
 				T.eq(#rb:errors(), 0, name .. ": " .. table.concat(rb:errors(), "\n"))

@@ -67,14 +67,18 @@ function Meta.equipped(player: Player)
 	return Entitlements.equipped(prof, deps.Passes.get(player))
 end
 
--- profile changed: refresh the hub of everybody (coalesced per frame)
+-- profile changed: refresh the hub of everybody (coalesced, at most every PUSH_GAP seconds: a client spamming
+-- commands cannot turn into a stream of lobby messages to all players)
+local PUSH_GAP = 0.2
+local lastPush = -math.huge
 function Meta.push(_player: Player?)
 	if pushQueued then
 		return
 	end
 	pushQueued = true
-	task.defer(function()
+	task.delay(math.max(0, lastPush + PUSH_GAP - os.clock()), function()
 		pushQueued = false
+		lastPush = os.clock()
 		deps.Lobby.broadcast()
 	end)
 end
