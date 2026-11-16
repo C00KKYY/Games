@@ -9,7 +9,14 @@ local ref = Parity.load()
 local bad = 0
 for _, sc in ref.scenarios do
 	if not filter or string.find(sc.name, filter, 1, true) then
-		local ok, err = pcall(Parity.check, sc, ref.dt, ref.rec)
+		local ok, err
+		if sc.kind == "director" then
+			ok, err = pcall(Parity.checkDirector, sc, ref.dt)
+		elseif sc.kind == "run" then
+			ok, err = pcall(Parity.checkRun, sc, ref.dt, ref.rec)
+		else
+			ok, err = pcall(Parity.check, sc, ref.dt, ref.rec)
+		end
 		if not ok then
 			print("ERROR " .. sc.name .. ": " .. tostring(err))
 			bad += 1

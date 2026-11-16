@@ -4,6 +4,7 @@ local Run = require("../../src/shared/Sim/Run")
 local K = require("../../src/shared/Sim/K")
 local Stats = require("../../src/shared/Sim/Stats")
 local Ref = require("./Ref")
+local Tuning = require("../../src/shared/Config/Tuning")
 
 local Parity = {}
 
@@ -266,6 +267,277 @@ function Parity.check(sc, dt: number, recEvery: number, tol: number?): (string?,
 				end
 			end
 		end
+	end
+	return nil
+end
+
+local function directorDigest(run): { number }
+	local x, y, hp, sp, xp, dmg, rr, el, bo, sw, ra, ph = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	for _, e in run.enemies do
+		x += e.x
+		y += e.y
+		hp += e.maxHp
+		sp += e.speed
+		xp += e.xp
+		dmg += e.dmg
+		rr += e.r
+		if e.elite then
+			el += 1
+		end
+		if e.boss then
+			bo += 1
+		end
+		if e.swarm then
+			sw += 1
+		end
+		if e.ranged and not e.boss then
+			ra += 1
+		end
+	end
+	for _, c in run.cdList do
+		ph += c.ph
+	end
+	return {
+		#run.enemies,
+		x,
+		y,
+		hp,
+		sp,
+		xp,
+		dmg,
+		rr,
+		el,
+		bo,
+		sw,
+		ra,
+		run.cdIdx - 1,
+		ph,
+		run.eventIdx - 1,
+		run.bossIdx - 1,
+		run.spawnAcc,
+		run.eliteN,
+	}
+end
+
+Parity.DIRECTOR_FIELDS = {
+	"enemies",
+	"Σ x",
+	"Σ y",
+	"Σ max hp",
+	"Σ speed",
+	"Σ xp",
+	"Σ dmg",
+	"Σ radius",
+	"elites",
+	"bosses",
+	"swarm",
+	"ranged",
+	"countdown index",
+	"Σ countdown phase",
+	"event index",
+	"boss index",
+	"spawn accumulator",
+	"elite count",
+}
+
+-- director scenario (see tools/ref-sim.js): returns nil or the first difference
+function Parity.checkDirector(sc, dt: number, tol: number?): string?
+	local eps = tol or 1e-5
+	local run, pl = newRun(sc.stage, sc.heat)
+	local born = {}
+	local r = 0
+	local n = #sc.rec * sc.every
+	for i = 0, n - 1 do
+		run.t += dt
+		run.tick += 1
+		local ix, iy = input(i, dt)
+		Run.setMove(run, pl.slot, ix, iy)
+		K.movePlayers(run, dt)
+		local ra, nb = 0, 0
+		for _, e in run.enemies do
+			if e.ranged and not e.boss then
+				ra += 1
+			end
+			if not e.boss then
+				nb += 1
+			end
+		end
+		run.rangedAlive = ra
+		run.nonBoss = nb
+		K.director(run, dt)
+		local en = run.enemies
+		for _, e in en do
+			if born[e] == nil then
+				born[e] = run.t
+			end
+		end
+		for k = #en, 1, -1 do
+			local e = en[k]
+			if run.t - born[e] >= 6 then
+				e.dead = true
+				born[e] = nil
+				en[k] = en[#en]
+				en[#en] = nil
+			end
+		end
+		table.clear(run.events)
+		if (i + 1) % sc.every == 0 then
+			r += 1
+			local got, want = directorDigest(run), sc.rec[r]
+			for f = 1, #want do
+				local a, b = got[f], want[f]
+				if math.abs(a - b) > eps * math.max(1, math.abs(b) * 1e-6) then
+					return string.format(
+						"%s: t=%.2f s: %s = %.6f, web %.6f",
+						sc.name,
+						run.t,
+						Parity.DIRECTOR_FIELDS[f],
+						a,
+						b
+					)
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function runDigest(run, pl): { number }
+	local ex, ey, eh, wl, pa = 0, 0, 0, 0, 0
+	for _, e in run.enemies do
+		ex += e.x
+		ey += e.y
+		eh += math.max(0, e.hp)
+	end
+	for _, w in pl.weapons do
+		wl += w.level + (if w.evo then 10 else 0)
+	end
+	for _, p in pl.passives do
+		pa += p.level
+	end
+	return {
+		pl.x,
+		pl.y,
+		pl.hp,
+		pl.level,
+		pl.xp,
+		pl.gold,
+		run.kills,
+		#run.enemies,
+		ex,
+		ey,
+		eh,
+		#run.gems,
+		#run.pickups,
+		wl,
+		pa,
+		#run.shots,
+		#run.eshots,
+		#run.tele,
+		#pl.weapons,
+	}
+end
+
+Parity.RUN_FIELDS = {
+	"hero x",
+	"hero y",
+	"hero hp",
+	"level",
+	"xp",
+	"gold",
+	"kills",
+	"enemies",
+	"Σ enemy x",
+	"Σ enemy y",
+	"Σ enemy hp",
+	"gems",
+	"pickups",
+	"Σ weapon levels",
+	"Σ passive levels",
+	"hero shots",
+	"enemy shots",
+	"telegraphs",
+	"weapons",
+}
+
+-- whole solo run (Run.step at 1/60 s without half steps, dialogs answered with the first card); returns nil, or the
+-- first difference with field index, absolute difference and time
+function Parity.checkRun(sc, dt: number, _rec: number, tol: number?): (string?, number?, number?, number?)
+	local eps = tol or 1e-5
+	local sub = Tuning.SIM_SUBSTEPS
+	Tuning.SIM_SUBSTEPS = 1
+	local run = Run.new({ seed = 1, stageId = sc.stage, heat = sc.heat, players = { { slot = 1, userId = 1, heroId = sc.hero } } })
+	local pl = run.plist[1]
+	-- the web run draws its opening group from the scripted sequence too: rebuild it
+	table.clear(run.enemies)
+	run.nonBoss = 0
+	run.nextId = 1
+	run.rng = Scripted.new()
+	K.openingGroup(run)
+	local r = 0
+	local result = nil
+	for i = 0, #sc.rec * sc.every - 1 do
+		if run.state == "over" then
+			break
+		end
+		local ix, iy = input(i, dt)
+		Run.setMove(run, 1, ix, iy)
+		if sc.god then
+			pl.iframe = 1e9
+		end
+		if run.state == "levelup" then
+			Run.command(run, 1, { op = "pick", i = 1 })
+		elseif run.state == "chest" then
+			Run.command(run, 1, { op = "chestClose" })
+		else
+			Run.step(run, dt)
+		end
+		table.clear(run.events)
+		if Parity.dump and Parity.dump[1] == sc.name and i + 1 >= Parity.dump[2] and i + 1 <= Parity.dump[3] then
+			local f3 = function(v)
+				return string.format("%.3f", math.round(v * 1000) / 1000)
+			end
+			local d = {}
+			for _, v in runDigest(run, pl) do
+				table.insert(d, f3(v))
+			end
+			print(string.format("step %d st=%s rn=%d t=%s ", i + 1, run.state, run.rng.n, f3(run.t)) .. table.concat(d, " "))
+			d = {}
+			for _, e in run.pickups do
+				table.insert(d, e.kind .. f3(e.x) .. "," .. f3(e.y))
+			end
+			print("  P " .. table.concat(d, " "))
+			if Parity.full then
+				d = {}
+				for _, e in run.enemies do
+					table.insert(d, string.format("%d:%.17g,%.17g", e.id, e.x, e.y))
+				end
+				print("  E " .. table.concat(d, " "))
+			end
+		end
+		if (i + 1) % sc.every == 0 then
+			r += 1
+			local got, want = runDigest(run, pl), sc.rec[r]
+			for f = 1, #want do
+				local a, b = got[f], want[f]
+				if math.abs(a - b) > eps * math.max(1, math.abs(b) * 1e-6) then
+					result = {
+						string.format("%s: t=%.2f s: %s = %.6f, web %.6f", sc.name, (i + 1) * dt, Parity.RUN_FIELDS[f], a, b),
+						f,
+						math.abs(a - b),
+						(i + 1) * dt,
+					}
+					break
+				end
+			end
+			if result then
+				break
+			end
+		end
+	end
+	Tuning.SIM_SUBSTEPS = sub
+	if result then
+		return result[1], result[2], result[3], result[4]
 	end
 	return nil
 end

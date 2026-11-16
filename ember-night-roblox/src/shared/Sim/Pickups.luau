@@ -200,6 +200,7 @@ function K.updatePickups(run, dt: number)
 			end
 		end
 		local reached = nil
+		local ix0, iy0 = it.x, it.y -- the reach test uses the position before the magnet step (web game)
 		if p then
 			local dx, dy = p.x - it.x, p.y - it.y
 			local d = sqrt(dx * dx + dy * dy)
@@ -220,7 +221,7 @@ function K.updatePickups(run, dt: number)
 			for _, q in act do
 				if it.kind ~= "chest" or it.owner == q.slot then
 					local reach = q.r + (if it.kind == "chest" then 22 else 14)
-					local dx, dy = q.x - it.x, q.y - it.y
+					local dx, dy = q.x - ix0, q.y - iy0
 					if dx * dx + dy * dy < reach * reach then
 						reached = q
 						break
