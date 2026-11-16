@@ -29,6 +29,17 @@ export type Item = {
 local HERO_PASSES = { "kael", "sela", "brom", "nyx", "eira", "lio", "ignis" }
 Products.HERO_PASSES = HERO_PASSES
 
+-- Game pass ids of the seven single-hero passes (pass_hero_<hero>); paste each id here (0 = not on sale)
+local HERO_PASS_IDS: { [string]: number } = {
+	kael = 0,
+	sela = 0,
+	brom = 0,
+	nyx = 0,
+	eira = 0,
+	lio = 0,
+	ignis = 0,
+}
+
 -- stylua: ignore
 local list: { Item } = {
 	{ key = "revive", kind = "product", id = 0, price = 25, tab = "none", name = "Zweite Glut",
@@ -75,7 +86,7 @@ for i, hid in HERO_PASSES do
 		{
 			key = "pass_hero_" .. hid,
 			kind = "pass",
-			id = 0,
+			id = HERO_PASS_IDS[hid] or 0,
 			price = 99,
 			tab = "heroes",
 			name = "Held freischalten",

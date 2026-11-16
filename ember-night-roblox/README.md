@@ -18,6 +18,9 @@ Roblox-Laufzeit getestet. In Roblox Studio ist noch nichts ausprobiert – die P
 [`docs/STUDIO-CHECKLIST.md`](docs/STUDIO-CHECKLIST.md). Der verbindliche Entwurf mit Meilensteinen und dem
 Umsetzungsstand steht in [`docs/DESIGN.md`](docs/DESIGN.md), Bot-Messungen in [`docs/BALANCE.md`](docs/BALANCE.md).
 
+**Anleitung zum Hochladen auf Roblox (ohne Programmierkenntnisse): [`ANLEITUNG.md`](ANLEITUNG.md).** Die fertige
+Spielwelt zum Öffnen in Roblox Studio liegt in `dist/EmberNight.rbxlx`.
+
 ## Aufbau
 
 | Pfad | Roblox | Inhalt |
@@ -76,7 +79,7 @@ Access to API Services“ einschalten (sonst wird nur im Arbeitsspeicher gespeic
    - **Game Passes:** `pass_gold2x` (doppeltes Gold), `pass_hero_kael` … `pass_hero_ignis` (7 Helden), `pass_heroes_all`,
      `pass_cosmetics` (alle käuflichen Kosmetika).
    Namen, Beschreibungen und Preisvorschläge stehen in `src/shared/Config/Products.luau` und `docs/DESIGN.md` §7.1.
-2. Die IDs dort beim jeweiligen Schlüssel unter `id` eintragen, `tools/build.sh` ausführen, Spielwelt neu öffnen.
+2. Die IDs dort beim jeweiligen Schlüssel unter `id` eintragen (die sieben Heldenpässe oben in `HERO_PASS_IDS`), `tools/build.sh` ausführen, Spielwelt neu öffnen.
 3. Was die ID 0 behält, ist überall unsichtbar und kann weder angeboten noch gutgeschrieben werden. Der Shop zeigt
    immer den echten Preis aus Roblox; Artikel ohne abrufbaren Preis werden ausgeblendet.
 4. Testkäufe in Studio sind kostenlos. Gutschriften werden erst gespeichert und dann bestätigt; doppelt zugestellte
