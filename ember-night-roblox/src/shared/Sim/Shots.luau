@@ -10,6 +10,9 @@ local Shots = {}
 local sqrt, sin, pi = math.sqrt, math.sin, math.pi
 local lerp = Util.lerp
 local WARD_R2 = Tuning.WARD_RADIUS * Tuning.WARD_RADIUS
+-- swept (segment) collision only when a step is longer than the web game's ~1/60 s; with SIM_SUBSTEPS = 2 the sim
+-- tests the end point of every half step exactly like the web game (verified by tests/parity.spec.luau)
+local SWEPT = (Tuning.SIM_DT / (Tuning.SIM_SUBSTEPS or 1)) > 1 / 59
 
 function K.updateShots(run, dt: number)
 	local shots = run.shots
@@ -72,7 +75,9 @@ function K.updateShots(run, dt: number)
 				alive = false
 			end
 			if alive then
-				local list = table.clone(K.sweep(run, x0, y0, s.x, s.y, s.r))
+				local list = table.clone(
+					if SWEPT then K.sweep(run, x0, y0, s.x, s.y, s.r) else K.circle(run, s.x, s.y, s.r)
+				)
 				for _, e in list do
 					if not alive then
 						break
@@ -131,8 +136,8 @@ function K.updateEnemyShots(run, dt: number)
 			local sx, sy = s.x - x0, s.y - y0
 			local len2 = sx * sx + sy * sy
 			for _, p in act do
-				local t = 0
-				if len2 > 1e-9 then
+				local t = 1 -- end point (web game)
+				if SWEPT and len2 > 1e-9 then
 					t = math.clamp(((p.x - x0) * sx + (p.y - y0) * sy) / len2, 0, 1)
 				end
 				local px, py = x0 + sx * t - p.x, y0 + sy * t - p.y

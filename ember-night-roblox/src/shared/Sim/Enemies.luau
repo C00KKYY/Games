@@ -423,7 +423,10 @@ function K.updateEnemies(run, dt: number)
 	run.nonBoss = nonBoss
 	local wards = run.wardList
 	local enemies = run.enemies
-	for ei = 1, #enemies do
+	-- like the web game's for-of loop, enemies spawned during the loop (boss summons) are updated in this step too
+	local ei = 0
+	while ei < #enemies do
+		ei += 1
 		local e = enemies[ei]
 		if #act == 0 then
 			break -- the last active player went down during this loop
