@@ -66,9 +66,10 @@ if forgeName == "max" then
 end
 assert(forge, "unknown forge preset " .. forgeName)
 
+-- nil for an empty list (e.g. no run died): printed as "-" instead of nan
 local function median(t)
 	if #t == 0 then
-		return 0 / 0
+		return nil
 	end
 	local s = table.clone(t)
 	table.sort(s)
@@ -227,9 +228,12 @@ local summary = {
 	msPerStep = median(stepMs),
 	wallSec = clock() - tAll,
 }
+local function num(x: number?, f: string): string
+	return if x == nil then "-" else string.format(f, x)
+end
 print(
 	string.format(
-		"== %s/%s/heat %d, %d player(s): %d/%d wins = %.0f %% (95 %%: %.0f-%.0f %%), open %d, median death %.1f min, first hit %.0f s, level @1/4/8 min %s/%s/%s, kills/min %.0f, alive@5:00 %s, %.2f ms/step, %.0f s wall",
+		"== %s/%s/heat %d, %d player(s): %d/%d wins = %.0f %% (95 %%: %.0f-%.0f %%), open %d, median death %s min, first hit %s s, level @1/4/8 min %s/%s/%s, kills/min %s, alive@5:00 %s, %s ms/step, %.0f s wall",
 		land,
 		forgeName,
 		heat,
@@ -240,14 +244,14 @@ print(
 		100 * lo,
 		100 * hi,
 		opens,
-		summary.medianDeathMin,
-		summary.medianFirstHit,
-		tostring(summary.level1),
-		tostring(summary.level4),
-		tostring(summary.level8),
-		summary.killsPerMin,
-		tostring(summary.alive5),
-		summary.msPerStep,
+		num(summary.medianDeathMin, "%.1f"),
+		num(summary.medianFirstHit, "%.0f"),
+		tostring(summary.level1 or "-"),
+		tostring(summary.level4 or "-"),
+		tostring(summary.level8 or "-"),
+		num(summary.killsPerMin, "%.0f"),
+		tostring(summary.alive5 or "-"),
+		num(summary.msPerStep, "%.2f"),
 		summary.wallSec
 	)
 )
