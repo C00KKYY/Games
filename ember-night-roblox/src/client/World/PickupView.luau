@@ -34,7 +34,10 @@ function PickupView.setHeroPosition(fn, colorFn)
 end
 
 function PickupView.gem(e)
-	local col = if e.v >= 20 then Color3.fromHex("#ff5a6e") elseif e.v >= 5 then Color3.fromHex("#5dff8f") else Color3.fromHex("#5ab8ff")
+	local col = if e.v >= 20
+		then Color3.fromHex("#ff5a6e")
+		elseif e.v >= 5 then Color3.fromHex("#5dff8f")
+		else Color3.fromHex("#5ab8ff")
 	local size = if e.v >= 20 then 1.2 elseif e.v >= 5 then 1.0 else 0.8
 	local p = Pool.get("Block", Vector3.one * size, col, Enum.Material.Neon, 0)
 	items[e.id] = { part = p, x = e.x, y = e.y, slot = 0, sp = 0, h = 0.7 }
@@ -89,7 +92,8 @@ function PickupView.render(dt: number, now: number)
 		end
 		n += 1
 		bulkP[n] = it.part
-		bulkC[n] = CFrame.new(it.x * S, it.h + math.sin(now * 3 + id) * 0.15, it.y * S) * CFrame.Angles(0, now * 2 + id, 0)
+		bulkC[n] = CFrame.new(it.x * S, it.h + math.sin(now * 3 + id) * 0.15, it.y * S)
+			* CFrame.Angles(0, now * 2 + id, 0)
 	end
 	if n > 0 then
 		workspace:BulkMoveTo(bulkP, bulkC, Enum.BulkMoveMode.FireCFrameChanged)

@@ -41,7 +41,14 @@ local function processReceipt(info): Enum.ProductPurchaseDecision
 	local store = deps.Profiles.store()
 	local decision, item, reason = store:grant(player.UserId, tostring(info.PurchaseId), info.ProductId)
 	if decision ~= "granted" then
-		warn(string.format("[EmberNight] receipt %s (product %s) not processed: %s", tostring(info.PurchaseId), tostring(info.ProductId), reason))
+		warn(
+			string.format(
+				"[EmberNight] receipt %s (product %s) not processed: %s",
+				tostring(info.PurchaseId),
+				tostring(info.ProductId),
+				reason
+			)
+		)
 		if reason == "save lost" then
 			deps.Profiles.save(player) -- reports the lost session (kick)
 		end
@@ -97,17 +104,19 @@ end
 function Purchases.init(d)
 	deps = d
 	MarketplaceService.ProcessReceipt = processReceipt
-	MarketplaceService.PromptProductPurchaseFinished:Connect(function(userId: number, productId: number, isPurchased: boolean)
-		local player = Players:GetPlayerByUserId(userId)
-		if not player then
-			return
+	MarketplaceService.PromptProductPurchaseFinished:Connect(
+		function(userId: number, productId: number, isPurchased: boolean)
+			local player = Players:GetPlayerByUserId(userId)
+			if not player then
+				return
+			end
+			local it = Products.byProductId(productId)
+			if it and it.grant and it.grant.revive and not isPurchased then
+				revivePrompts[player] = nil
+				updateHold()
+			end
 		end
-		local it = Products.byProductId(productId)
-		if it and it.grant and it.grant.revive and not isPurchased then
-			revivePrompts[player] = nil
-			updateHold()
-		end
-	end)
+	)
 	-- safety: a prompt that never reports back does not hold the last chance forever
 	task.spawn(function()
 		while true do

@@ -112,7 +112,15 @@ function Views.uiFromEvent(e, slot: number?)
 	if not Protocol.UI_EVENTS[e.k] then
 		return nil
 	end
-	if e.slot and slot and e.slot ~= slot and e.k ~= "down" and e.k ~= "revived" and e.k ~= "left" and e.k ~= "vote" then
+	if
+		e.slot
+		and slot
+		and e.slot ~= slot
+		and e.k ~= "down"
+		and e.k ~= "revived"
+		and e.k ~= "left"
+		and e.k ~= "vote"
+	then
 		return nil
 	end
 	local msg = { t = e.k }

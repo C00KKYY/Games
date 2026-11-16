@@ -160,10 +160,15 @@ function Bot:threats(p)
 					w = if tl.onImpact == "slow" and not (tl.dmg and tl.dmg > 0) then 0.4 else 1,
 				})
 			elseif tl.kind == "line" then
-				table.insert(
-					areas,
-					{ k = "line", x = cx, y = cy, a = tl.a + q.la, rem = rem, wd = (if f then f.r else 40) + p.r + 22, dmg = 20 }
-				)
+				table.insert(areas, {
+					k = "line",
+					x = cx,
+					y = cy,
+					a = tl.a + q.la,
+					rem = rem,
+					wd = (if f then f.r else 40) + p.r + 22,
+					dmg = 20,
+				})
 			elseif tl.kind == "lane" then
 				table.insert(areas, {
 					k = "lane",

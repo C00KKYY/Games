@@ -61,7 +61,13 @@ function Lobby.render(msg)
 	root = r
 	Kit.padding(r, 10)
 	Kit.list(r, false, 6)
-	Kit.label(r, "Ember Night", { Font = Theme.title, TextSize = 30, Size = UDim2.new(1, 0, 0, 34), TextColor3 = Theme.primary, LayoutOrder = 1 })
+	Kit.label(r, "Ember Night", {
+		Font = Theme.title,
+		TextSize = 30,
+		Size = UDim2.new(1, 0, 0, 34),
+		TextColor3 = Theme.primary,
+		LayoutOrder = 1,
+	})
 	local view = msg.profile or {}
 	Kit.label(r, "● " .. Lang.fmtNum(view.gold or 0) .. "   ★ " .. tostring(view.stars or 0), {
 		TextColor3 = Theme.gold,
@@ -96,15 +102,29 @@ function Lobby.render(msg)
 	})
 	Kit.button(hrow, tr("Ändern"), function()
 		open("heroes")
-	end, { Size = UDim2.fromOffset(110, 40), Position = UDim2.new(1, -110, 0, 2), BackgroundColor3 = Theme.panel2, TextSize = 16 })
-	local srow = Kit.frame(r, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), LayoutOrder = 5 })
-	Kit.label(srow, stageName(msg.stage) .. " · " .. (if msg.heat > 0 then tr("Nachtstufe {0}", msg.heat) else tr("Normal")), {
-		Size = UDim2.new(1, -120, 1, 0),
-		TextXAlignment = Enum.TextXAlignment.Left,
+	end, {
+		Size = UDim2.fromOffset(110, 40),
+		Position = UDim2.new(1, -110, 0, 2),
+		BackgroundColor3 = Theme.panel2,
+		TextSize = 16,
 	})
+	local srow = Kit.frame(r, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), LayoutOrder = 5 })
+	Kit.label(
+		srow,
+		stageName(msg.stage) .. " · " .. (if msg.heat > 0 then tr("Nachtstufe {0}", msg.heat) else tr("Normal")),
+		{
+			Size = UDim2.new(1, -120, 1, 0),
+			TextXAlignment = Enum.TextXAlignment.Left,
+		}
+	)
 	Kit.button(srow, if msg.isLeader then tr("Wählen") else tr("Ansehen"), function()
 		open("map")
-	end, { Size = UDim2.fromOffset(110, 40), Position = UDim2.new(1, -110, 0, 2), BackgroundColor3 = Theme.panel2, TextSize = 16 })
+	end, {
+		Size = UDim2.fromOffset(110, 40),
+		Position = UDim2.new(1, -110, 0, 2),
+		BackgroundColor3 = Theme.panel2,
+		TextSize = 16,
+	})
 	local brow = Kit.frame(r, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = 6 })
 	Kit.list(brow, true, 10)
 	if msg.running then
@@ -124,7 +144,11 @@ function Lobby.render(msg)
 		end
 	end
 	if msg.countdown then
-		Kit.label(r, tr("Lauf beginnt in {0} …", math.ceil(msg.countdown)), { TextColor3 = Theme.primary, LayoutOrder = 7 })
+		Kit.label(
+			r,
+			tr("Lauf beginnt in {0} …", math.ceil(msg.countdown)),
+			{ TextColor3 = Theme.primary, LayoutOrder = 7 }
+		)
 	end
 end
 

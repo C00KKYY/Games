@@ -10,7 +10,11 @@ local suite = T.new("net_budget")
 local function measure(stage, heat, seconds, startAt)
 	local players = {}
 	for s = 1, 4 do
-		players[s] = { slot = s, heroId = ({ "nyx", "aron", "ignis", "kael" })[s], forge = { might = 5, armor = 3, maxhp = 3, regen = 5, amount = 1 } }
+		players[s] = {
+			slot = s,
+			heroId = ({ "nyx", "aron", "ignis", "kael" })[s],
+			forge = { might = 5, armor = 3, maxhp = 3, regen = 5, amount = 1 },
+		}
 	end
 	local run = Run.new({ seed = 3, stageId = stage, heat = heat, players = players })
 	local bots = {}

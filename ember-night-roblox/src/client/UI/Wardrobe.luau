@@ -21,7 +21,10 @@ local function swatch(parent: Instance, c)
 	for _, hex in hexes do
 		local r, g, b = Cosmetics.parseHex(hex)
 		if r then
-			local sw = Kit.frame(row, { Size = UDim2.fromOffset(22, 22), BackgroundColor3 = Color3.new(r, g :: number, b :: number) })
+			local sw = Kit.frame(
+				row,
+				{ Size = UDim2.fromOffset(22, 22), BackgroundColor3 = Color3.new(r, g :: number, b :: number) }
+			)
 			local corner = Instance.new("UICorner")
 			corner.CornerRadius = UDim.new(1, 0)
 			corner.Parent = sw
@@ -37,7 +40,11 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 	local order = 0
 	for _, slot in Cosmetics.SLOTS do
 		order += 1
-		Kit.label(body, tr(SLOT_NAME[slot]), { Font = Theme.title, TextSize = 20, LayoutOrder = order, TextXAlignment = Enum.TextXAlignment.Left })
+		Kit.label(
+			body,
+			tr(SLOT_NAME[slot]),
+			{ Font = Theme.title, TextSize = 20, LayoutOrder = order, TextXAlignment = Enum.TextXAlignment.Left }
+		)
 		order += 1
 		local grid = Kit.grid(body, 180, 128, { LayoutOrder = order })
 		-- "none" card

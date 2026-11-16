@@ -8,10 +8,17 @@ local Countdown = {}
 function K.buildCountdowns(run)
 	local list = {}
 	for _, s in run.stage.surges or {} do
-		table.insert(
-			list,
-			{ kind = "surge", s = s, b = nil, start = s.t - s.lead, at = s.t, ["end"] = s.t + s.dur, ph = 0, last = 0, t10 = false }
-		)
+		table.insert(list, {
+			kind = "surge",
+			s = s,
+			b = nil,
+			start = s.t - s.lead,
+			at = s.t,
+			["end"] = s.t + s.dur,
+			ph = 0,
+			last = 0,
+			t10 = false,
+		})
 	end
 	local fb = nil
 	for _, b in run.bossList do
@@ -21,10 +28,17 @@ function K.buildCountdowns(run)
 		end
 	end
 	if fb then
-		table.insert(
-			list,
-			{ kind = "boss", s = nil, b = fb, start = fb.t - 20, at = fb.t, ["end"] = fb.t, ph = 0, last = 0, t10 = false }
-		)
+		table.insert(list, {
+			kind = "boss",
+			s = nil,
+			b = fb,
+			start = fb.t - 20,
+			at = fb.t,
+			["end"] = fb.t,
+			ph = 0,
+			last = 0,
+			t10 = false,
+		})
 	end
 	local out = {}
 	for _, c in list do

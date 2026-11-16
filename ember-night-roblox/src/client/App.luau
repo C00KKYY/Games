@@ -185,174 +185,174 @@ function App.start(net)
 end
 
 function App.listen()
--- ---------- Ui messages ----------
-ClientNet.onUi("lobby", function(m)
-	if not langChosen and m.profile and m.profile.lang then
-		Lang.setLang(m.profile.lang)
-	end
-	if m.profile and m.profile.settings then
-		CameraRig.setZoom(m.profile.settings.camZoom or 1)
-	end
-	LobbyUI.render(m)
-	Router.update(m)
-	if not inRun and not resultsOpen then
-		LobbyUI.setVisible(true)
-	end
-end)
-ClientNet.onUi("purchased", function(m)
-	Router.toast(tr("Gekauft: {0}", Names.product(m.key)))
-end)
-ClientNet.onUi("reviveOffer", function(m)
-	if inRun then
-		ReviveOffer.show(m)
-	end
-end)
-ClientNet.onUi("runStart", function(m)
-	solo = m.solo
-	heroBySlot[m.slot] = m.hero
-	enterArena(m.stage)
-	applyTeam(m.team)
-	HeroView.start(m.slot, m.x, m.y, m.hero)
-	CameraRig.snap(m.x, m.y)
-	Hud.setVisible(true, m.solo)
-end)
-ClientNet.onUi("spectate", function(m)
-	solo = false
-	enterArena(m.stage)
-	applyTeam(m.team)
-	Hud.setVisible(true, false)
-end)
-ClientNet.onUi("hero", function(m)
-	Hud.hero(m)
-	HeroView.setSpeed(m.speed)
-	HeroView.setState(m.slot, m.state)
-end)
-ClientNet.onUi("run", function(m)
-	Hud.run(m)
-	for _, p in m.team do
-		heroBySlot[p.slot] = p.hero
-		HeroView.setHero(p.slot, p.hero)
-		HeroView.setState(p.slot, p.state)
-	end
-end)
-ClientNet.onUi("levelup", function(m)
-	LevelUpUI.show(m, solo)
-end)
-ClientNet.onUi("levelupDone", function()
-	LevelUpUI.close()
-end)
-ClientNet.onUi("chest", function(m)
-	LevelUpUI.chest(m.res, solo)
-end)
-ClientNet.onUi("banner", Hud.banner)
-ClientNet.onUi("countdown", Hud.countdown)
-ClientNet.onUi("state", function(m)
-	Hud.state(m.state)
-	LevelUpUI.victory(m.state == "victory")
-	if solo and m.state == "play" then
+	-- ---------- Ui messages ----------
+	ClientNet.onUi("lobby", function(m)
+		if not langChosen and m.profile and m.profile.lang then
+			Lang.setLang(m.profile.lang)
+		end
+		if m.profile and m.profile.settings then
+			CameraRig.setZoom(m.profile.settings.camZoom or 1)
+		end
+		LobbyUI.render(m)
+		Router.update(m)
+		if not inRun and not resultsOpen then
+			LobbyUI.setVisible(true)
+		end
+	end)
+	ClientNet.onUi("purchased", function(m)
+		Router.toast(tr("Gekauft: {0}", Names.product(m.key)))
+	end)
+	ClientNet.onUi("reviveOffer", function(m)
+		if inRun then
+			ReviveOffer.show(m)
+		end
+	end)
+	ClientNet.onUi("runStart", function(m)
+		solo = m.solo
+		heroBySlot[m.slot] = m.hero
+		enterArena(m.stage)
+		applyTeam(m.team)
+		HeroView.start(m.slot, m.x, m.y, m.hero)
+		CameraRig.snap(m.x, m.y)
+		Hud.setVisible(true, m.solo)
+	end)
+	ClientNet.onUi("spectate", function(m)
+		solo = false
+		enterArena(m.stage)
+		applyTeam(m.team)
+		Hud.setVisible(true, false)
+	end)
+	ClientNet.onUi("hero", function(m)
+		Hud.hero(m)
+		HeroView.setSpeed(m.speed)
+		HeroView.setState(m.slot, m.state)
+	end)
+	ClientNet.onUi("run", function(m)
+		Hud.run(m)
+		for _, p in m.team do
+			heroBySlot[p.slot] = p.hero
+			HeroView.setHero(p.slot, p.hero)
+			HeroView.setState(p.slot, p.state)
+		end
+	end)
+	ClientNet.onUi("levelup", function(m)
+		LevelUpUI.show(m, solo)
+	end)
+	ClientNet.onUi("levelupDone", function()
 		LevelUpUI.close()
-		LevelUpUI.closeChest()
-	end
-end)
-ClientNet.onUi("boss", function(m)
-	EnemyView.bossSpawned(m.id, m.name)
-end)
-ClientNet.onUi("correct", function(m)
-	HeroView.correct(m.x, m.y)
-end)
-ClientNet.onUi("down", function(m)
-	HeroView.setState(m.slot, m.state)
-end)
-ClientNet.onUi("revived", function(m)
-	HeroView.setState(m.slot, "active")
-	if m.slot == HeroView.own().slot then
-		ReviveOffer.hide()
-	end
-end)
-ClientNet.onUi("achievement", function(m)
-	for _, a in Achievements.list do
-		if a.id == m.id then
-			Hud.achievement(a.name)
+	end)
+	ClientNet.onUi("chest", function(m)
+		LevelUpUI.chest(m.res, solo)
+	end)
+	ClientNet.onUi("banner", Hud.banner)
+	ClientNet.onUi("countdown", Hud.countdown)
+	ClientNet.onUi("state", function(m)
+		Hud.state(m.state)
+		LevelUpUI.victory(m.state == "victory")
+		if solo and m.state == "play" then
+			LevelUpUI.close()
+			LevelUpUI.closeChest()
 		end
-	end
-end)
-ClientNet.onUi("results", function(m)
-	leaveArena()
-	resultsOpen = true
-	LobbyUI.setVisible(false)
-	ResultsUI.show(m.summary)
-end)
-ClientNet.onUi("runEnded", function()
-	leaveArena()
-	LobbyUI.setVisible(true)
-	Router.setEnabled(true)
-end)
+	end)
+	ClientNet.onUi("boss", function(m)
+		EnemyView.bossSpawned(m.id, m.name)
+	end)
+	ClientNet.onUi("correct", function(m)
+		HeroView.correct(m.x, m.y)
+	end)
+	ClientNet.onUi("down", function(m)
+		HeroView.setState(m.slot, m.state)
+	end)
+	ClientNet.onUi("revived", function(m)
+		HeroView.setState(m.slot, "active")
+		if m.slot == HeroView.own().slot then
+			ReviveOffer.hide()
+		end
+	end)
+	ClientNet.onUi("achievement", function(m)
+		for _, a in Achievements.list do
+			if a.id == m.id then
+				Hud.achievement(a.name)
+			end
+		end
+	end)
+	ClientNet.onUi("results", function(m)
+		leaveArena()
+		resultsOpen = true
+		LobbyUI.setVisible(false)
+		ResultsUI.show(m.summary)
+	end)
+	ClientNet.onUi("runEnded", function()
+		leaveArena()
+		LobbyUI.setVisible(true)
+		Router.setEnabled(true)
+	end)
 
--- ---------- world events ----------
-ClientNet.onEvent(function(e)
-	if not inRun then
-		return
-	end
-	local k = e.k
-	local now = os.clock()
-	if k == "kill" then
-		EnemyView.kill(e.id)
-		FxView.kill(e)
-	elseif k == "despawn" then
-		EnemyView.kill(e.id)
-	elseif k == "dmg" then
-		FxView.number(e)
-	elseif k == "eshot+" then
-		ShotView.eshot(e)
-	elseif k == "eshot-" then
-		ShotView.eshotGone(e.id)
-	elseif k == "tele+" then
-		TeleView.add(e, now)
-	elseif k == "tele~" then
-		TeleView.update(e.id, e.a, e.x, e.y)
-	elseif k == "tele-" then
-		TeleView.remove(e.id)
-	elseif k == "haz+" then
-		FxView.hazard(e)
-	elseif k == "haz~" then
-		FxView.hazardLife(e.id, e.life)
-	elseif k == "haz-" then
-		FxView.hazardGone(e.id)
-	elseif k == "gem+" then
-		PickupView.gem(e)
-	elseif k == "pick+" then
-		PickupView.pickup(e)
-	elseif k == "gemPull" or k == "pick~" then
-		PickupView.pull(e.id, e.slot)
-	elseif k == "gemGot" or k == "pick-" then
-		PickupView.remove(e.id)
-	elseif k == "fire" then
-		ShotView.fire(e)
-	elseif k == "shot-" then
-		ShotView.shotGone(e.id)
-	elseif k == "orbit" then
-		ShotView.orbit(e)
-	elseif k == "aura" then
-		ShotView.aura(e)
-	elseif k == "arc" then
-		ShotView.arc(e)
-	elseif k == "pool" then
-		ShotView.pool(e)
-	elseif k == "shake" then
-		local own = HeroView.own()
-		if not e.x or ((e.x - own.x) ^ 2 + (e.y - own.y) ^ 2) < 700 * 700 then
-			CameraRig.shake(e.amount)
+	-- ---------- world events ----------
+	ClientNet.onEvent(function(e)
+		if not inRun then
+			return
 		end
-	elseif k == "prop-" then
-		Ground.breakProp(e.cx, e.cy)
-	elseif k == "boom" then
-		FxView.boom(e)
-	elseif k == "burst" then
-		FxView.burst(e)
-	elseif k == "text" then
-		FxView.text(e)
-	end
-end)
+		local k = e.k
+		local now = os.clock()
+		if k == "kill" then
+			EnemyView.kill(e.id)
+			FxView.kill(e)
+		elseif k == "despawn" then
+			EnemyView.kill(e.id)
+		elseif k == "dmg" then
+			FxView.number(e)
+		elseif k == "eshot+" then
+			ShotView.eshot(e)
+		elseif k == "eshot-" then
+			ShotView.eshotGone(e.id)
+		elseif k == "tele+" then
+			TeleView.add(e, now)
+		elseif k == "tele~" then
+			TeleView.update(e.id, e.a, e.x, e.y)
+		elseif k == "tele-" then
+			TeleView.remove(e.id)
+		elseif k == "haz+" then
+			FxView.hazard(e)
+		elseif k == "haz~" then
+			FxView.hazardLife(e.id, e.life)
+		elseif k == "haz-" then
+			FxView.hazardGone(e.id)
+		elseif k == "gem+" then
+			PickupView.gem(e)
+		elseif k == "pick+" then
+			PickupView.pickup(e)
+		elseif k == "gemPull" or k == "pick~" then
+			PickupView.pull(e.id, e.slot)
+		elseif k == "gemGot" or k == "pick-" then
+			PickupView.remove(e.id)
+		elseif k == "fire" then
+			ShotView.fire(e)
+		elseif k == "shot-" then
+			ShotView.shotGone(e.id)
+		elseif k == "orbit" then
+			ShotView.orbit(e)
+		elseif k == "aura" then
+			ShotView.aura(e)
+		elseif k == "arc" then
+			ShotView.arc(e)
+		elseif k == "pool" then
+			ShotView.pool(e)
+		elseif k == "shake" then
+			local own = HeroView.own()
+			if not e.x or ((e.x - own.x) ^ 2 + (e.y - own.y) ^ 2) < 700 * 700 then
+				CameraRig.shake(e.amount)
+			end
+		elseif k == "prop-" then
+			Ground.breakProp(e.cx, e.cy)
+		elseif k == "boom" then
+			FxView.boom(e)
+		elseif k == "burst" then
+			FxView.burst(e)
+		elseif k == "text" then
+			FxView.text(e)
+		end
+	end)
 end
 
 -- ---------- frame loop ----------

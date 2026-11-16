@@ -157,9 +157,7 @@ end
 -- (offer: the player's own flag set by the server via Run.setReviveOffer, else the run-wide default)
 function K.canRobuxRevive(run, p): boolean
 	local offer = if p.reviveOffer ~= nil then p.reviveOffer else run.reviveOffer
-	return offer == true
-		and (p.state == "downed" or p.state == "fallen")
-		and p.robuxRevives < Tuning.REVIVE_MAX_PER_RUN
+	return offer == true and (p.state == "downed" or p.state == "fallen") and p.robuxRevives < Tuning.REVIVE_MAX_PER_RUN
 end
 
 -- after somebody went down: last chance or end of the run when nobody is active
@@ -329,7 +327,11 @@ end
 function K.resumePlay(run)
 	local prev = run.state
 	run.state = "play"
-	if run.solo and (prev == "levelup" or prev == "chest" or prev == "paused") and (#run.eshots > 0 or #run.tele > 0) then
+	if
+		run.solo
+		and (prev == "levelup" or prev == "chest" or prev == "paused")
+		and (#run.eshots > 0 or #run.tele > 0)
+	then
 		run.resume = 0.45
 	end
 	if prev ~= "play" then

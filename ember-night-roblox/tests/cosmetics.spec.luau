@@ -32,7 +32,14 @@ suite:test("validate catches enemy-shot colours, near-black skins and bad source
 	local bad = {
 		{ id = "fx_bad", slot = "fx", name = "x", source = "product:fx_bad", colors = { "#ff3d5a" } },
 		{ id = "trail_bad", slot = "trail", name = "x", source = "achievement:nope", color = "#ff2040" },
-		{ id = "skin_bad", slot = "skin", name = "x", source = "product:skin_ashen", body = "#101010", accent = "#ffffff" },
+		{
+			id = "skin_bad",
+			slot = "skin",
+			name = "x",
+			source = "product:skin_ashen",
+			body = "#101010",
+			accent = "#ffffff",
+		},
 	}
 	for _, c in bad do
 		table.insert(Cosmetics.list, c)

@@ -193,7 +193,10 @@ function ShotView.orbit(e)
 	o.ang = e.ang
 	if e.active then
 		for _ = 1, e.amount do
-			table.insert(o.parts, Pool.get("Ball", Vector3.one * e.orb * 2 * S, tint(e.slot, COL.orbit), Enum.Material.Neon, 0))
+			table.insert(
+				o.parts,
+				Pool.get("Ball", Vector3.one * e.orb * 2 * S, tint(e.slot, COL.orbit), Enum.Material.Neon, 0)
+			)
 		end
 	end
 end
@@ -255,7 +258,9 @@ function ShotView.render(dt: number, now: number)
 		else
 			n += 1
 			bulkP[n] = s.part
-			local spin = if s.kind == "sickle" then CFrame.Angles(0, now * 14, 0) else Coords.yaw(math.atan2(s.vy, s.vx))
+			local spin = if s.kind == "sickle"
+				then CFrame.Angles(0, now * 14, 0)
+				else Coords.yaw(math.atan2(s.vy, s.vx))
 			bulkC[n] = CFrame.new(s.x * S, 1.4, s.y * S) * spin
 		end
 	end

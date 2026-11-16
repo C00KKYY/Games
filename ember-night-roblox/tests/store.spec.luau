@@ -148,7 +148,10 @@ suite:test("migration: v1 crimson weapon colour becomes solar, missing version =
 	fs.data[KEY] = {
 		v = 1,
 		gold = 50,
-		cosmetics = { owned = { fx_crimson = true, trail_star = true, nope = true }, equipped = { fx = "fx_crimson", trail = "skin_frost" } },
+		cosmetics = {
+			owned = { fx_crimson = true, trail_star = true, nope = true },
+			equipped = { fx = "fx_crimson", trail = "skin_frost" },
+		},
 	}
 	local st = ProfileStore.new(fs:opts("jobA"))
 	local p = assert(st:load(UID))

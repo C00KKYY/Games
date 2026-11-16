@@ -295,7 +295,16 @@ function Run.step(run, dt: number)
 end
 
 -- client move packet (pos mode); the newest seq wins
-function Run.setInput(run, slot: number, x: number, y: number, seq: number, dirX: number?, dirY: number?, moving: boolean?)
+function Run.setInput(
+	run,
+	slot: number,
+	x: number,
+	y: number,
+	seq: number,
+	dirX: number?,
+	dirY: number?,
+	moving: boolean?
+)
 	local pl = run.players[slot]
 	if not pl then
 		return
@@ -409,7 +418,9 @@ end
 -- can this player use a Robux revive right now (downed or fallen, not used up this run, offered)?
 function Run.canRobuxRevive(run, slot: number): boolean
 	local pl = run.players[slot]
-	return pl ~= nil and pl.state ~= "left" and K.canRobuxRevive(run, pl)
+	return pl ~= nil
+		and pl.state ~= "left"
+		and K.canRobuxRevive(run, pl)
 		and (run.state == "play" or run.state == "lastchance")
 end
 

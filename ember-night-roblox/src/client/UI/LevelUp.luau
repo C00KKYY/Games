@@ -113,7 +113,10 @@ function LevelUp.show(m, solo: boolean)
 		LayoutOrder = 1,
 		TextColor3 = if banishMode then Theme.bad else Theme.primary,
 	})
-	local row = Kit.frame(f, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, if solo then 190 else 110), LayoutOrder = 2 })
+	local row = Kit.frame(
+		f,
+		{ BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, if solo then 190 else 110), LayoutOrder = 2 }
+	)
 	Kit.list(row, true, 8)
 	local first: GuiObject? = nil
 	for i, o in m.options do
@@ -173,7 +176,11 @@ function LevelUp.chest(res, solo: boolean)
 	})
 	chestPanel = f
 	Kit.list(f, false, 4)
-	Kit.label(f, if res.evolved then tr("ENTWICKLUNG!") else tr("Truhe!"), { Font = Theme.title, TextSize = 26, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 34) })
+	Kit.label(
+		f,
+		if res.evolved then tr("ENTWICKLUNG!") else tr("Truhe!"),
+		{ Font = Theme.title, TextSize = 26, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 34) }
+	)
 	if res.evolved then
 		Kit.label(f, tr(Weapons.byId[res.evolved].evo.name), { Font = Theme.title, TextSize = 20 })
 	end
@@ -216,7 +223,11 @@ function LevelUp.victory(on: boolean)
 	local f = Kit.panel(gui, { Size = UDim2.fromOffset(420, 170), Position = UDim2.new(0.5, -210, 0.5, -85) })
 	victoryPanel = f
 	Kit.list(f, false, 8)
-	Kit.label(f, tr("Sieg!"), { Font = Theme.title, TextSize = 34, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 44) })
+	Kit.label(
+		f,
+		tr("Sieg!"),
+		{ Font = Theme.title, TextSize = 34, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 44) }
+	)
 	local row = Kit.frame(f, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 48) })
 	Kit.list(row, true, 12)
 	Kit.button(row, tr("Endlos weiter"), function()

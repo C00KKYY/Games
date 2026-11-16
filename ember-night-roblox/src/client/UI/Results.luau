@@ -55,7 +55,11 @@ function Results.show(s)
 	if s.gift > 0 then
 		row("Startgeschenk", s.gift)
 	end
-	Kit.label(f, tr("+{0} Gold", s.total), { Font = Theme.title, TextSize = 24, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 30) })
+	Kit.label(
+		f,
+		tr("+{0} Gold", s.total),
+		{ Font = Theme.title, TextSize = 24, TextColor3 = Theme.gold, Size = UDim2.new(1, 0, 0, 30) }
+	)
 	if #s.achievements > 0 then
 		local names = {}
 		for _, id in s.achievements do
@@ -65,7 +69,11 @@ function Results.show(s)
 				end
 			end
 		end
-		Kit.label(f, tr("Neue Erfolge") .. ": " .. table.concat(names, ", "), { TextSize = 15, Size = UDim2.new(1, -20, 0, 40) })
+		Kit.label(
+			f,
+			tr("Neue Erfolge") .. ": " .. table.concat(names, ", "),
+			{ TextSize = 15, Size = UDim2.new(1, -20, 0, 40) }
+		)
 	end
 	Kit.button(f, tr("Zurück"), function()
 		Results.hide()

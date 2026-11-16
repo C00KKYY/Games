@@ -64,7 +64,17 @@ function K.sweep(run, x0: number, y0: number, x1: number, y1: number, rad: numbe
 	return buf
 end
 
-function K.damage(run, e, amount: number, wid: string, kbForce: number, crit: number?, fromX: number?, fromY: number?, slot: number)
+function K.damage(
+	run,
+	e,
+	amount: number,
+	wid: string,
+	kbForce: number,
+	crit: number?,
+	fromX: number?,
+	fromY: number?,
+	slot: number
+)
 	if e.dead then
 		return 0
 	end
@@ -94,7 +104,10 @@ function K.damage(run, e, amount: number, wid: string, kbForce: number, crit: nu
 	end
 	if run.dmgEvN < DMG_EVENTS_PER_STEP or e.boss then
 		run.dmgEvN += 1
-		K.ev(run, { k = "dmg", x = e.x, y = e.y - e.r - 4, amount = dmg, crit = isCrit, boss = e.boss ~= nil, slot = slot })
+		K.ev(
+			run,
+			{ k = "dmg", x = e.x, y = e.y - e.r - 4, amount = dmg, crit = isCrit, boss = e.boss ~= nil, slot = slot }
+		)
 	end
 	K.sfx(run, "hit", e.x, e.y)
 	e.lastHit = slot

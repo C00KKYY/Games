@@ -49,10 +49,17 @@ function Screen.render(body: ScrollingFrame, msg, _command, _open)
 			Position = UDim2.fromScale(0.65, 0),
 		})
 	end
-	Kit.label(body, "★ " .. tostring(msg.profile.stars or 0) .. "   " .. tr("Wiederbelebungen übrig: {0}", msg.profile.reviveTokens or 0), {
-		TextColor3 = Theme.dim,
-		LayoutOrder = 2,
-	})
+	Kit.label(
+		body,
+		"★ "
+			.. tostring(msg.profile.stars or 0)
+			.. "   "
+			.. tr("Wiederbelebungen übrig: {0}", msg.profile.reviveTokens or 0),
+		{
+			TextColor3 = Theme.dim,
+			LayoutOrder = 2,
+		}
+	)
 end
 
 return Screen

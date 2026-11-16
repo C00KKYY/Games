@@ -45,7 +45,13 @@ function Pool.prewarm(shape: string, n: number)
 	end
 end
 
-function Pool.get(shape: string, size: Vector3?, color: Color3?, material: Enum.Material?, transparency: number?): BasePart
+function Pool.get(
+	shape: string,
+	size: Vector3?,
+	color: Color3?,
+	material: Enum.Material?,
+	transparency: number?
+): BasePart
 	local list = free[shape]
 	local p = table.remove(list) or make(shape)
 	if size then

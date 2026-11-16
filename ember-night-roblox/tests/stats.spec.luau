@@ -15,7 +15,12 @@ suite:test("computeStats and refreshWeapon equal web", function()
 			local ww = { id = w.id, level = w.level, evo = w.evo }
 			Stats.weapon(ww, s)
 			for k, v in w.st do
-				T.near(ww.st[k], v, 1e-9, string.format("%s %s L%d evo=%s %s", b.build.char, w.id, w.level, tostring(w.evo), k))
+				T.near(
+					ww.st[k],
+					v,
+					1e-9,
+					string.format("%s %s L%d evo=%s %s", b.build.char, w.id, w.level, tostring(w.evo), k)
+				)
 			end
 		end
 	end

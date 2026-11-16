@@ -25,14 +25,27 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 	for i, id in Heroes.ORDER do
 		local h = Heroes.byId[id]
 		local unlocked = table.find(msg.heroes, id) ~= nil
-		local card = Kit.panel(grid, { LayoutOrder = i, BackgroundColor3 = if mine == id then Theme.panel2 else Theme.panel })
+		local card =
+			Kit.panel(grid, { LayoutOrder = i, BackgroundColor3 = if mine == id then Theme.panel2 else Theme.panel })
 		Kit.padding(card, 8)
 		Kit.list(card, false, 2)
-		Kit.label(card, tr(h.name), { Font = Theme.title, TextSize = 22, TextColor3 = Names.heroColor(id), LayoutOrder = 1 })
-		Kit.label(card, tr(h.title), { TextSize = 14, TextColor3 = Theme.dim, LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 18) })
+		Kit.label(
+			card,
+			tr(h.name),
+			{ Font = Theme.title, TextSize = 22, TextColor3 = Names.heroColor(id), LayoutOrder = 1 }
+		)
+		Kit.label(
+			card,
+			tr(h.title),
+			{ TextSize = 14, TextColor3 = Theme.dim, LayoutOrder = 2, Size = UDim2.new(1, 0, 0, 18) }
+		)
 		Kit.label(card, tr(h.text), { TextSize = 14, LayoutOrder = 3, Size = UDim2.new(1, 0, 0, 36) })
 		local w = Weapons.byId[h.weapon]
-		Kit.label(card, "⚔ " .. (if w then tr(w.name) else h.weapon), { TextSize = 14, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 18) })
+		Kit.label(
+			card,
+			"⚔ " .. (if w then tr(w.name) else h.weapon),
+			{ TextSize = 14, LayoutOrder = 4, Size = UDim2.new(1, 0, 0, 18) }
+		)
 		if mine == id then
 			Kit.label(card, "✔ " .. tr("Gewählt"), { TextColor3 = Theme.good, Font = Theme.title, LayoutOrder = 5 })
 		elseif unlocked then

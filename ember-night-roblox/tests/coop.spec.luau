@@ -8,7 +8,9 @@ local K = Run.K
 local suite = T.new("coop")
 
 suite:test("scaling tables have 4 entries and grow with N", function()
-	for _, name in { "spawnRate", "spawnCap", "enemyHp", "eliteHp", "bossHp", "eventCount", "rangedCap", "eshotCap", "teleCap" } do
+	for _, name in
+		{ "spawnRate", "spawnCap", "enemyHp", "eliteHp", "bossHp", "eventCount", "rangedCap", "eshotCap", "teleCap" }
+	do
 		local t = Coop[name]
 		T.eq(#t, 4, name)
 		for i = 2, 4 do
@@ -19,10 +21,13 @@ suite:test("scaling tables have 4 entries and grow with N", function()
 end)
 
 suite:test("team XP and team gold", function()
-	local run = Sim.new({ n = 2, players = {
-		{ slot = 1, heroId = "aron" },
-		{ slot = 2, heroId = "lio", forge = { growth = 5 } },
-	} })
+	local run = Sim.new({
+		n = 2,
+		players = {
+			{ slot = 1, heroId = "aron" },
+			{ slot = 2, heroId = "lio", forge = { growth = 5 } },
+		},
+	})
 	local a, b = run.players[1], run.players[2]
 	K.teamXp(run, 4)
 	T.near(a.xp, 4 * Coop.xpShare[2] * a.stats.growth, 1e-9)

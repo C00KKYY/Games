@@ -56,7 +56,20 @@ function K.startCast(run, e, p, sk: string, cp)
 	local rng = run.rng
 	local prim = cp.prim
 	local wind = WIND[prim]
-	local c = { k = sk, prim = prim, p = cp, t = 0, wind = wind, dur = 0, q = nil, fired = 0, tgt = p, off = 0, spd = 0, next = 0 }
+	local c = {
+		k = sk,
+		prim = prim,
+		p = cp,
+		t = 0,
+		wind = wind,
+		dur = 0,
+		q = nil,
+		fired = 0,
+		tgt = p,
+		off = 0,
+		spd = 0,
+		next = 0,
+	}
 	e.cast = c
 	e.mode = "cast"
 	e.windT = wind
@@ -164,7 +177,10 @@ function K.startCast(run, e, p, sk: string, cp)
 		else
 			local a0 = atan2(p.y - e.y, p.x - e.x)
 			for _, o in { -30, 0, 30 } do
-				table.insert(L, { x = e.x, y = e.y, a = a0 + o * DEG, len = 800, w = 50, life = 1.0, dmg = e.dmg * 1.1 })
+				table.insert(
+					L,
+					{ x = e.x, y = e.y, a = a0 + o * DEG, len = 800, w = 50, life = 1.0, dmg = e.dmg * 1.1 }
+				)
 			end
 		end
 		for _, l in L do
@@ -398,10 +414,17 @@ function K.bossAI(run, e, p, dx, dy, d, dt): (number, number)
 				e.mode = "windup"
 				e.modeT = 0.75
 				e.dashA = atan2(tdy, tdx)
-				K.addTele(
-					run,
-					{ kind = "line", x = e.x, y = e.y, a = e.dashA, len = 520, w = e.r * 1.6, t = 0, life = 0.75, follow = e }
-				)
+				K.addTele(run, {
+					kind = "line",
+					x = e.x,
+					y = e.y,
+					a = e.dashA,
+					len = 520,
+					w = e.r * 1.6,
+					t = 0,
+					life = 0.75,
+					follow = e,
+				})
 			elseif sk == "summon" then
 				local etype = e.boss.summon
 				if not etype then
@@ -422,10 +445,16 @@ function K.bossAI(run, e, p, dx, dy, d, dt): (number, number)
 				K.ev(run, { k = "burst", x = e.x, y = e.y, color = "#c9b8ff", n = 26 })
 				K.sfx(run, "summon", e.x, e.y)
 			elseif sk == "slam" then
-				K.addTele(
-					run,
-					{ kind = "circle", x = tp.x, y = tp.y, rad = 100, t = 0, life = 1.05, dmg = e.dmg * 1.2, src = "area" }
-				)
+				K.addTele(run, {
+					kind = "circle",
+					x = tp.x,
+					y = tp.y,
+					rad = 100,
+					t = 0,
+					life = 1.05,
+					dmg = e.dmg * 1.2,
+					src = "area",
+				})
 			end
 		end
 	elseif e.mode == "cast" then

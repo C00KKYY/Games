@@ -258,9 +258,11 @@ function Roblox.new()
 				return { ArePaidRandomItemsRestricted = false }
 			end,
 		},
-		ReplicatedStorage = { WaitForChild = function(_, name)
-			return pathObj(ROOT .. "src/shared", nil)
-		end },
+		ReplicatedStorage = {
+			WaitForChild = function(_, name)
+				return pathObj(ROOT .. "src/shared", nil)
+			end,
+		},
 	}
 	self.RunService = runService
 	self.services = services
@@ -291,7 +293,7 @@ function Roblox:require(obj)
 	local path = obj.path
 	if string.find(path, "src/shared", 1, true) then
 		-- relative to this file (tests/lib)
-		local rel = "../../" .. string.sub(path, (string.find(path, "src/shared", 1, true) :: number))
+		local rel = "../../" .. string.sub(path, string.find(path, "src/shared", 1, true) :: number)
 		return require(rel)
 	end
 	if self.modules[path] == nil then
@@ -347,9 +349,11 @@ local function implementClient()
 	roblox.implementMethod("Sound", "Resume", function() end)
 	roblox.implementMethod("Sound", "Pause", function() end)
 	local function noSignal()
-		return { Connect = function()
-			return { Disconnect = function() end }
-		end }
+		return {
+			Connect = function()
+				return { Disconnect = function() end }
+			end,
+		}
 	end
 	for _, cls in { "Camera", "Frame", "TextLabel", "TextButton", "ScrollingFrame", "ScreenGui" } do
 		roblox.implementMethod(cls, "GetPropertyChangedSignal", function()

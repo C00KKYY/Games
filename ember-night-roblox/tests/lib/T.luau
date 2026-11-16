@@ -26,7 +26,16 @@ end
 function T.near(actual: number, expected: number, eps: number?, msg: string?)
 	local e = eps or 1e-9
 	if math.abs(actual - expected) > e then
-		error(string.format("%sexpected %s ± %s, got %s", msg and (msg .. ": ") or "", fmt(expected), fmt(e), fmt(actual)), 2)
+		error(
+			string.format(
+				"%sexpected %s ± %s, got %s",
+				msg and (msg .. ": ") or "",
+				fmt(expected),
+				fmt(e),
+				fmt(actual)
+			),
+			2
+		)
 	end
 end
 

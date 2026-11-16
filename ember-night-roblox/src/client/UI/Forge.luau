@@ -16,12 +16,16 @@ local confirmRefund = false
 function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), open: (string) -> ())
 	local view = msg.profile
 	local p = { shop = view.forge or {} }
-	Kit.label(body, tr("Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht alle weiteren Käufe etwas teurer."), {
-		TextSize = 14,
-		TextColor3 = Theme.dim,
-		Size = UDim2.new(1, -10, 0, 36),
-		LayoutOrder = 0,
-	})
+	Kit.label(
+		body,
+		tr("Dauerhafte Verbesserungen für alle Helden. Jeder Kauf macht alle weiteren Käufe etwas teurer."),
+		{
+			TextSize = 14,
+			TextColor3 = Theme.dim,
+			Size = UDim2.new(1, -10, 0, 36),
+			LayoutOrder = 0,
+		}
+	)
 	Kit.label(body, "● " .. Lang.fmtNum(view.gold) .. " " .. tr("Gold"), {
 		Font = Theme.title,
 		TextSize = 22,

@@ -170,7 +170,10 @@ end
 
 -- a row of cards in a grid (cell size in px)
 function Kit.grid(parent: Instance, cellW: number, cellH: number, props: { [string]: any }?): Frame
-	local f = Kit.frame(parent, { BackgroundTransparency = 1, Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y })
+	local f = Kit.frame(
+		parent,
+		{ BackgroundTransparency = 1, Size = UDim2.new(1, -10, 0, 0), AutomaticSize = Enum.AutomaticSize.Y }
+	)
 	for k, v in props or {} do
 		(f :: any)[k] = v
 	end
@@ -184,7 +187,13 @@ end
 
 function Kit.clear(f: Instance)
 	for _, c in f:GetChildren() do
-		if not c:IsA("UIListLayout") and not c:IsA("UICorner") and not c:IsA("UIStroke") and not c:IsA("UIPadding") and not c:IsA("UIGridLayout") then
+		if
+			not c:IsA("UIListLayout")
+			and not c:IsA("UICorner")
+			and not c:IsA("UIStroke")
+			and not c:IsA("UIPadding")
+			and not c:IsA("UIGridLayout")
+		then
 			c:Destroy()
 		end
 	end

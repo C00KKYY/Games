@@ -33,7 +33,8 @@ local function teamInfo()
 	local team = {}
 	if run then
 		for player, slot in slots do
-			team[slot] = { hero = run.players[slot].heroId, cos = deps.Meta.equipped(player), name = player.DisplayName }
+			team[slot] =
+				{ hero = run.players[slot].heroId, cos = deps.Meta.equipped(player), name = player.DisplayName }
 		end
 		for i = 1, #run.players do
 			if not team[i] then

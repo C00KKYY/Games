@@ -58,9 +58,7 @@ function K.pickType(run, wv): string
 end
 
 function K.rangedCap(run): number
-	return round(
-		math.min(3 + math.floor(run.t / 60), 14) * run.heatDef.rate * Coop.f(Coop.rangedCap, run.nPlayers)
-	)
+	return round(math.min(3 + math.floor(run.t / 60), 14) * run.heatDef.rate * Coop.f(Coop.rangedCap, run.nPlayers))
 end
 
 function K.cdMul(run): number

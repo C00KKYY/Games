@@ -249,7 +249,8 @@ function K.releaseWind(run, e)
 		if p then
 			local fl = 1.1
 			local sa, sc = rng:range(0, TAU), rng:range(0, 30)
-			local tx, ty = K.clampView(p, p.x + p.vx * 0.6 * fl + cos(sa) * sc, p.y + p.vy * 0.6 * fl + sin(sa) * sc, 20)
+			local tx, ty =
+				K.clampView(p, p.x + p.vx * 0.6 * fl + cos(sa) * sc, p.y + p.vy * 0.6 * fl + sin(sa) * sc, 20)
 			local pts = { { tx, ty } }
 			if e.elite then
 				pts = {}

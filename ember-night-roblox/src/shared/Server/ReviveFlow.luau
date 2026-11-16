@@ -6,7 +6,12 @@ local Run = if script then require(script.Parent.Parent.Sim.Run) else require(".
 local ReviveFlow = {}
 
 -- what the downed screen offers: use = a stored token can revive now, buy = the product may be prompted
-function ReviveFlow.offer(run, slot: number, profile, productConfigured: boolean): { use: boolean, buy: boolean, tokens: number }
+function ReviveFlow.offer(
+	run,
+	slot: number,
+	profile,
+	productConfigured: boolean
+): { use: boolean, buy: boolean, tokens: number }
 	local can = run ~= nil and Run.canRobuxRevive(run, slot)
 	local tokens = if profile then profile.reviveTokens else 0
 	return {

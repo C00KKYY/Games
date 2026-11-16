@@ -69,16 +69,20 @@ local list: { Item } = {
 
 -- one pass per hero that is normally earned by an achievement
 for i, hid in HERO_PASSES do
-	table.insert(list, 6 + i, {
-		key = "pass_hero_" .. hid,
-		kind = "pass",
-		id = 0,
-		price = 99,
-		tab = "heroes",
-		name = "Held freischalten",
-		desc = "Schaltet den Helden sofort frei (auch durch seinen Erfolg erreichbar)",
-		heroes = { hid },
-	} :: any)
+	table.insert(
+		list,
+		6 + i,
+		{
+			key = "pass_hero_" .. hid,
+			kind = "pass",
+			id = 0,
+			price = 99,
+			tab = "heroes",
+			name = "Held freischalten",
+			desc = "Schaltet den Helden sofort frei (auch durch seinen Erfolg erreichbar)",
+			heroes = { hid },
+		} :: any
+	)
 end
 
 for i, it in list do

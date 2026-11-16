@@ -11,7 +11,12 @@ local Names = require(script.Parent.Names)
 local Screen = { TITLE = Lang.key("Shop") }
 local tr = Lang.tr
 
-local TABS = { { "gold", Lang.key("Gold") }, { "heroes", Lang.key("Helden") }, { "cosmetics", Lang.key("Aussehen") }, { "passes", Lang.key("Pässe") } }
+local TABS = {
+	{ "gold", Lang.key("Gold") },
+	{ "heroes", Lang.key("Helden") },
+	{ "cosmetics", Lang.key("Aussehen") },
+	{ "passes", Lang.key("Pässe") },
+}
 local tab = "gold"
 
 function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), open: (string) -> ())
@@ -61,7 +66,13 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), open: (s
 				Position = UDim2.new(1, -130, 0, 0),
 			})
 		else
-			Names.buyButton(row, view, it.key, command, { Size = UDim2.fromOffset(130, 44), Position = UDim2.new(1, -130, 0, 0) })
+			Names.buyButton(
+				row,
+				view,
+				it.key,
+				command,
+				{ Size = UDim2.fromOffset(130, 44), Position = UDim2.new(1, -130, 0, 0) }
+			)
 		end
 	end
 	if tab == "gold" then

@@ -50,13 +50,22 @@ function Hud.init(cmd)
 		Position = UDim2.new(1, -310, 0, 24),
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
-	local hpBg, setHp = Kit.bar(gui, Theme.hp, { Size = UDim2.fromOffset(260, 16), Position = UDim2.new(0.5, -130, 1, -40) })
+	local hpBg, setHp =
+		Kit.bar(gui, Theme.hp, { Size = UDim2.fromOffset(260, 16), Position = UDim2.new(0.5, -130, 1, -40) })
 	ui.setHp = setHp
 	ui.hpText = Kit.label(hpBg, "", { Size = UDim2.fromScale(1, 1), TextSize = 12, Font = Theme.number })
-	local bossBg, setBoss = Kit.bar(gui, Theme.boss, { Size = UDim2.new(0.5, 0, 0, 14), Position = UDim2.new(0.25, 0, 0, 88), Visible = false })
+	local bossBg, setBoss = Kit.bar(
+		gui,
+		Theme.boss,
+		{ Size = UDim2.new(0.5, 0, 0, 14), Position = UDim2.new(0.25, 0, 0, 88), Visible = false }
+	)
 	ui.bossBg = bossBg
 	ui.setBoss = setBoss
-	ui.bossName = Kit.label(bossBg, "", { Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, -22), Font = Theme.title, TextSize = 18 })
+	ui.bossName = Kit.label(
+		bossBg,
+		"",
+		{ Size = UDim2.new(1, 0, 0, 20), Position = UDim2.fromOffset(0, -22), Font = Theme.title, TextSize = 18 }
+	)
 	ui.banner = Kit.label(gui, "", {
 		Font = Theme.title,
 		TextSize = 32,
@@ -66,11 +75,22 @@ function Hud.init(cmd)
 		TextStrokeTransparency = 0.4,
 		Visible = false,
 	})
-	ui.bannerSub = Kit.label(gui, "", { TextSize = 18, Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 162), Visible = false, TextStrokeTransparency = 0.5 })
-	local cdBg, setCd = Kit.bar(gui, Theme.primary, { Size = UDim2.fromOffset(320, 12), Position = UDim2.new(0.5, -160, 0, 66), Visible = false })
+	ui.bannerSub = Kit.label(gui, "", {
+		TextSize = 18,
+		Size = UDim2.new(1, 0, 0, 24),
+		Position = UDim2.fromOffset(0, 162),
+		Visible = false,
+		TextStrokeTransparency = 0.5,
+	})
+	local cdBg, setCd = Kit.bar(
+		gui,
+		Theme.primary,
+		{ Size = UDim2.fromOffset(320, 12), Position = UDim2.new(0.5, -160, 0, 66), Visible = false }
+	)
 	ui.cdBg = cdBg
 	ui.setCd = setCd
-	ui.cdText = Kit.label(cdBg, "", { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 12), TextSize = 14 })
+	ui.cdText =
+		Kit.label(cdBg, "", { Size = UDim2.new(1, 0, 0, 18), Position = UDim2.fromOffset(0, 12), TextSize = 14 })
 	ui.team = Kit.label(gui, "", {
 		TextSize = 14,
 		Size = UDim2.fromOffset(220, 100),
@@ -92,7 +112,12 @@ function Hud.init(cmd)
 	end, { Size = UDim2.fromOffset(48, 44), Position = UDim2.fromOffset(10, 26), BackgroundColor3 = Theme.panel2 })
 	ui.giveup = Kit.button(gui, tr("Aufgeben"), function()
 		command({ op = "giveup" })
-	end, { Size = UDim2.fromOffset(150, 44), Position = UDim2.new(0.5, -75, 0.5, 90), Visible = false, BackgroundColor3 = Theme.bad })
+	end, {
+		Size = UDim2.fromOffset(150, 44),
+		Position = UDim2.new(0.5, -75, 0.5, 90),
+		Visible = false,
+		BackgroundColor3 = Theme.bad,
+	})
 end
 
 function Hud.setVisible(on: boolean, solo: boolean?)
@@ -117,7 +142,8 @@ function Hud.hero(m)
 	ui.level.Text = tr("Stufe {0}", m.level)
 	ui.stats.Text = string.format("☠ %s   ● %s", Lang.fmtNum(m.kills), Lang.fmtNum(m.gold))
 	if m.state == "downed" then
-		ui.center.Text = tr("Am Boden – {0} s", math.ceil(m.bleed)) .. (if m.revive > 0 then "  ♥ " .. math.floor(m.revive * 100) .. " %" else "")
+		ui.center.Text = tr("Am Boden – {0} s", math.ceil(m.bleed))
+			.. (if m.revive > 0 then "  ♥ " .. math.floor(m.revive * 100) .. " %" else "")
 		ui.center.Visible = true
 	elseif m.state == "fallen" then
 		ui.center.Text = tr("Gefallen – du schaust zu")
@@ -140,7 +166,10 @@ function Hud.run(m)
 	local lines = {}
 	for _, p in m.team do
 		local h = Heroes.byId[p.hero]
-		local st = if p.state == "downed" then "  ✚ " .. math.ceil(p.bleed) .. " s" elseif p.state == "fallen" then "  ✖" else ""
+		local st = if p.state == "downed"
+			then "  ✚ " .. math.ceil(p.bleed) .. " s"
+			elseif p.state == "fallen" then "  ✖"
+			else ""
 		table.insert(lines, string.format("%s  %d%%%s", if h then h.name else "?", math.floor(p.hp * 100), st))
 	end
 	ui.team.Text = if #m.team > 1 then table.concat(lines, "\n") else ""

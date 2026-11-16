@@ -25,13 +25,17 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 			BackgroundColor3 = if sel then Theme.panel2 else Theme.panel,
 		})
 		Kit.padding(row, 8)
-		Kit.label(row, tr("Land {0}: {1}", i, tr(st.name)) .. "   " .. string.rep("★", s.stars) .. string.rep("☆", 3 - s.stars), {
-			Font = Theme.title,
-			TextSize = 20,
-			TextColor3 = if s.unlocked then Theme.text else Theme.dim,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Size = UDim2.new(1, -150, 0, 26),
-		})
+		Kit.label(
+			row,
+			tr("Land {0}: {1}", i, tr(st.name)) .. "   " .. string.rep("★", s.stars) .. string.rep("☆", 3 - s.stars),
+			{
+				Font = Theme.title,
+				TextSize = 20,
+				TextColor3 = if s.unlocked then Theme.text else Theme.dim,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Size = UDim2.new(1, -150, 0, 26),
+			}
+		)
 		local info = if s.unlocked
 			then tr(st.intro)
 			else tr("Befreie „{0}“, um „{1}“ freizuschalten.", tr(Stages.list[i - 1].name), tr(st.name))
@@ -73,7 +77,10 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 				command({ op = "selectStage", stage = msg.stage, heat = h })
 			end
 		end, { Size = UDim2.fromOffset(if h == 0 then 90 else 52, 44), TextSize = 16 })
-		b.BackgroundColor3 = if h == msg.heat then Theme.primary elseif allowed then Theme.panel2 else Color3.fromRGB(30, 26, 36)
+		b.BackgroundColor3 = if h == msg.heat
+			then Theme.primary
+			elseif allowed then Theme.panel2
+			else Color3.fromRGB(30, 26, 36)
 		b.TextColor3 = if allowed then Theme.text else Theme.dim
 	end
 	local hd = Heat.list[msg.heat + 1]

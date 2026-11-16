@@ -52,7 +52,9 @@ local function measure(stageId: string, n: number, heat: number, spawn: (run: an
 					if tl.own then
 						label = "wind " .. tl.kind .. (if tl.ring then "-ring" elseif tl.wedge then "-wedge" else "")
 					else
-						label = "area " .. tl.kind .. (if tl.src == "mortar" then "-mortar" elseif tl.track then "-track" else "")
+						label = "area "
+							.. tl.kind
+							.. (if tl.src == "mortar" then "-mortar" elseif tl.track then "-track" else "")
 					end
 					-- a wind-up ends early only when its owner dies or is frozen (not in this test)
 					local d = run.t - b.t

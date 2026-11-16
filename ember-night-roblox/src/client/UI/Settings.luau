@@ -45,7 +45,11 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), open: (s
 	local zrow = Kit.frame(body, { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 48), LayoutOrder = 20 })
 	Kit.list(zrow, true, 8)
 	local z = s.camZoom or 1
-	Kit.label(zrow, tr("Kameraabstand"), { Size = UDim2.fromOffset(220, 44), TextXAlignment = Enum.TextXAlignment.Left })
+	Kit.label(
+		zrow,
+		tr("Kameraabstand"),
+		{ Size = UDim2.fromOffset(220, 44), TextXAlignment = Enum.TextXAlignment.Left }
+	)
 	Kit.button(zrow, "−", function()
 		command({ op = "setting", key = "camZoom", value = z - 0.15 })
 	end, { Size = UDim2.fromOffset(60, 44) })

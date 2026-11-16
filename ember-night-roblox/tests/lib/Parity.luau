@@ -54,7 +54,8 @@ local function input(i: number, dt: number): (number, number)
 end
 
 local function newRun(stageId: string, heat: number)
-	local run = Run.new({ seed = 1, stageId = stageId, heat = heat, players = { { slot = 1, userId = 1, heroId = "aron" } } })
+	local run =
+		Run.new({ seed = 1, stageId = stageId, heat = heat, players = { { slot = 1, userId = 1, heroId = "aron" } } })
 	table.clear(run.enemies)
 	run.nonBoss = 0
 	local pl = run.plist[1]
@@ -470,7 +471,12 @@ function Parity.checkRun(sc, dt: number, _rec: number, tol: number?): (string?, 
 	local eps = tol or 1e-5
 	local sub = Tuning.SIM_SUBSTEPS
 	Tuning.SIM_SUBSTEPS = 1
-	local run = Run.new({ seed = 1, stageId = sc.stage, heat = sc.heat, players = { { slot = 1, userId = 1, heroId = sc.hero } } })
+	local run = Run.new({
+		seed = 1,
+		stageId = sc.stage,
+		heat = sc.heat,
+		players = { { slot = 1, userId = 1, heroId = sc.hero } },
+	})
 	local pl = run.plist[1]
 	-- the web run draws its opening group from the scripted sequence too: rebuild it
 	table.clear(run.enemies)
@@ -505,7 +511,10 @@ function Parity.checkRun(sc, dt: number, _rec: number, tol: number?): (string?, 
 			for _, v in runDigest(run, pl) do
 				table.insert(d, f3(v))
 			end
-			print(string.format("step %d st=%s rn=%d t=%s ", i + 1, run.state, run.rng.n, f3(run.t)) .. table.concat(d, " "))
+			print(
+				string.format("step %d st=%s rn=%d t=%s ", i + 1, run.state, run.rng.n, f3(run.t))
+					.. table.concat(d, " ")
+			)
 			d = {}
 			for _, e in run.pickups do
 				table.insert(d, e.kind .. f3(e.x) .. "," .. f3(e.y))
@@ -526,7 +535,14 @@ function Parity.checkRun(sc, dt: number, _rec: number, tol: number?): (string?, 
 				local a, b = got[f], want[f]
 				if math.abs(a - b) > eps * math.max(1, math.abs(b) * 1e-6) then
 					result = {
-						string.format("%s: t=%.2f s: %s = %.6f, web %.6f", sc.name, (i + 1) * dt, Parity.RUN_FIELDS[f], a, b),
+						string.format(
+							"%s: t=%.2f s: %s = %.6f, web %.6f",
+							sc.name,
+							(i + 1) * dt,
+							Parity.RUN_FIELDS[f],
+							a,
+							b
+						),
 						f,
 						math.abs(a - b),
 						(i + 1) * dt,

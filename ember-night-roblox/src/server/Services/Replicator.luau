@@ -58,7 +58,17 @@ local function send(run, player: Player, slot: number?, step: number)
 	local heroNow = false
 	for _, e in run.events do
 		local msg = Views.uiFromEvent(e, slot)
-		if msg and (msg.slot == nil or msg.slot == slot or msg.t == "down" or msg.t == "revived" or msg.t == "left" or msg.t == "vote") then
+		if
+			msg
+			and (
+				msg.slot == nil
+				or msg.slot == slot
+				or msg.t == "down"
+				or msg.t == "revived"
+				or msg.t == "left"
+				or msg.t == "vote"
+			)
+		then
 			net.ui(player, msg)
 		end
 		if slot and e.slot == slot and (e.k == "build" or e.k == "levelup" or e.k == "down" or e.k == "revived") then

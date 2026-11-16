@@ -68,7 +68,13 @@ function Names.shopItem(view, key: string)
 end
 
 -- a Robux price button (nothing when the item is not for sale or already owned)
-function Names.buyButton(parent: Instance, view, key: string, command: (any) -> (), props: { [string]: any }?): TextButton?
+function Names.buyButton(
+	parent: Instance,
+	view,
+	key: string,
+	command: (any) -> (),
+	props: { [string]: any }?
+): TextButton?
 	local it = Names.shopItem(view, key)
 	if not it or it.owned then
 		return nil

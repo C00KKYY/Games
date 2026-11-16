@@ -85,26 +85,28 @@ function Passes.init(d)
 	for _, p in Players:GetPlayers() do
 		task.spawn(check, p)
 	end
-	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player: Player, passId: number, wasPurchased: boolean)
-		if not wasPurchased then
-			return
+	MarketplaceService.PromptGamePassPurchaseFinished:Connect(
+		function(player: Player, passId: number, wasPurchased: boolean)
+			if not wasPurchased then
+				return
+			end
+			local it = Products.byPassId(passId)
+			if not it then
+				return
+			end
+			local t = owned[player] or {}
+			owned[player] = t
+			t[it.key] = true
+			bought[player] = bought[player] or {}
+			bought[player][it.key] = true
+			local prof = deps.Profiles.get(player)
+			if prof then
+				prof.passCache[it.key] = true
+			end
+			deps.Net.ui(player, { t = "purchased", key = it.key })
+			deps.Profiles.changed(player)
 		end
-		local it = Products.byPassId(passId)
-		if not it then
-			return
-		end
-		local t = owned[player] or {}
-		owned[player] = t
-		t[it.key] = true
-		bought[player] = bought[player] or {}
-		bought[player][it.key] = true
-		local prof = deps.Profiles.get(player)
-		if prof then
-			prof.passCache[it.key] = true
-		end
-		deps.Net.ui(player, { t = "purchased", key = it.key })
-		deps.Profiles.changed(player)
-	end)
+	)
 end
 
 function Passes.onLeave(player: Player)

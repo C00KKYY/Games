@@ -42,7 +42,20 @@ local DT = 1 / 30
 local PRESETS = {
 	none = {},
 	light = { might = 2, maxhp = 1, armor = 1, regen = 2, greed = 2 },
-	mid = { might = 4, armor = 2, maxhp = 2, regen = 3, greed = 3, growth = 2, magnet = 1, speed = 1, reroll = 2, cd = 1, area = 1, skip = 1 },
+	mid = {
+		might = 4,
+		armor = 2,
+		maxhp = 2,
+		regen = 3,
+		greed = 3,
+		growth = 2,
+		magnet = 1,
+		speed = 1,
+		reroll = 2,
+		cd = 1,
+		area = 1,
+		skip = 1,
+	},
 }
 local forge = PRESETS[forgeName]
 if forgeName == "max" then

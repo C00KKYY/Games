@@ -75,9 +75,8 @@ function K.updateShots(run, dt: number)
 				alive = false
 			end
 			if alive then
-				local list = table.clone(
-					if SWEPT then K.sweep(run, x0, y0, s.x, s.y, s.r) else K.circle(run, s.x, s.y, s.r)
-				)
+				local list =
+					table.clone(if SWEPT then K.sweep(run, x0, y0, s.x, s.y, s.r) else K.circle(run, s.x, s.y, s.r))
 				for _, e in list do
 					if not alive then
 						break
