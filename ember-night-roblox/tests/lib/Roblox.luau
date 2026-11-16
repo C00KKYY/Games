@@ -6,6 +6,27 @@
 local luau = require("@lune/luau")
 local fs = require("@lune/fs")
 local serde = require("@lune/serde")
+local roblox = require("@lune/roblox")
+
+-- GUI buttons: Lune's Instance has no events; Activated becomes a recorded handler that tests can "click"
+local clickHandlers = setmetatable({}, { __mode = "k" })
+local implemented = false
+local function implementEvents()
+	if implemented then
+		return
+	end
+	implemented = true
+	for _, cls in { "TextButton", "ImageButton" } do
+		roblox.implementProperty(cls, "Activated", function(inst)
+			return {
+				Connect = function(_, f)
+					clickHandlers[inst] = f
+					return { Disconnect = function() end }
+				end,
+			}
+		end)
+	end
+end
 
 local Roblox = {}
 Roblox.__index = Roblox
@@ -291,6 +312,82 @@ function Roblox:require(obj)
 		self.modules[path] = luau.load(src, { debugName = file, environment = env })()
 	end
 	return self.modules[path]
+end
+
+-- ---------- client UI ----------
+-- a client module by name (e.g. "UI/Router"), loaded with Lune's Roblox datatypes and Instances
+function Roblox:client(name: string)
+	implementEvents()
+	if not self.playerGui then
+		self.playerGui = roblox.Instance.new("Folder")
+		self.playerGui.Name = "PlayerGui"
+		local pg = self.playerGui
+		self.Players.LocalPlayer = {
+			UserId = 1,
+			LocaleId = "en-us",
+			WaitForChild = function()
+				return pg
+			end,
+		}
+	end
+	local parts = string.split(name, "/")
+	local obj = pathObj(ROOT .. "src/client", nil)
+	for _, p in parts do
+		obj = obj.child(p)
+	end
+	return self:requireClient(obj)
+end
+
+function Roblox:requireClient(obj)
+	local path = obj.path
+	if string.find(path, "src/shared", 1, true) then
+		return self:require(obj)
+	end
+	self.clientModules = self.clientModules or {}
+	if self.clientModules[path] == nil then
+		local file = path .. ".luau"
+		local env = {
+			game = self.game,
+			script = obj,
+			require = function(o)
+				return self:requireClient(o)
+			end,
+			task = self.S.task,
+			os = self.os,
+			warn = function() end,
+			print = function() end,
+			workspace = { CurrentCamera = nil },
+			Instance = roblox.Instance,
+			UDim = roblox.UDim,
+			UDim2 = roblox.UDim2,
+			Vector2 = roblox.Vector2,
+			Vector3 = roblox.Vector3,
+			CFrame = roblox.CFrame,
+			Color3 = roblox.Color3,
+			ColorSequence = roblox.ColorSequence,
+			NumberSequence = roblox.NumberSequence,
+			Enum = roblox.Enum,
+		}
+		self.clientModules[path] = luau.load(fs.readFile(file), { debugName = file, environment = env })()
+	end
+	return self.clientModules[path]
+end
+
+-- every visible button under `root` (instances with a recorded Activated handler), in tree order
+function Roblox.buttons(root): { any }
+	local out = {}
+	for _, d in root:GetDescendants() do
+		if clickHandlers[d] then
+			table.insert(out, d)
+		end
+	end
+	return out
+end
+
+function Roblox:click(button)
+	local f = clickHandlers[button]
+	assert(f, "not a button")
+	self.S.task.spawn(f)
 end
 
 -- a server module by name, e.g. rb:server("Services/Profiles")
