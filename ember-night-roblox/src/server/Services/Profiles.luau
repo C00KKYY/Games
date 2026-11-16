@@ -18,6 +18,7 @@ local Profiles = {}
 local store: any = nil
 local loaded: { [Player]: boolean } = {}
 local loadedCallbacks: { (Player) -> () } = {}
+local closeCallbacks: { () -> () } = {}
 local SHUTDOWN_WAIT = 25
 
 local function kickText(player: Player, de: string, en: string): string
@@ -103,6 +104,13 @@ function Profiles.init()
 		end
 	end)
 	game:BindToClose(function()
+		-- first book what is still open (the run in progress), then save and release every session
+		for _, f in closeCallbacks do
+			local ok, err = pcall(f)
+			if not ok then
+				warn("[EmberNight] shutdown: " .. tostring(err))
+			end
+		end
 		local pending = 0
 		for _, uid in store:users() do
 			pending += 1
@@ -121,6 +129,11 @@ function Profiles.init()
 			Profiles.changed(player)
 		end
 	end)
+end
+
+-- run f() at shutdown before the sessions are saved and released
+function Profiles.beforeClose(f: () -> ())
+	table.insert(closeCallbacks, f)
 end
 
 -- run f(player) for every player whose profile is loaded (now and later)

@@ -41,10 +41,14 @@ local function refresh(it: Products.Item)
 	end
 	local old = cache[it.key]
 	-- a failed refresh keeps the last known price (Roblox web hiccups should not empty the shop)
-	if price or not old then
+	if price or (type(info) == "table" and old ~= nil) then
+		-- fetched: a price, or an item that is no longer for sale (hidden until the next refresh)
 		cache[it.key] = { price = price, t = os.clock() }
-	else
+	elseif old then
 		old.t = os.clock() - ProductInfo.CACHE_TIME + 60 -- retry in a minute
+	else
+		-- no price yet (fetch failed / not for sale): ask again in a minute, not only after CACHE_TIME
+		cache[it.key] = { price = nil, t = os.clock() - ProductInfo.CACHE_TIME + 60 }
 	end
 	fetching[it.key] = nil
 end

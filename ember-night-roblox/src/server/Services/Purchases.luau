@@ -14,15 +14,35 @@ local Purchases = {}
 
 local deps: any = nil
 local promptLimit = RateLimit.new(0.5, 2) -- purchase prompts: 2 at once, then one every 2 s
-local PROMPT_HOLD_MAX = 45 -- seconds a revive prompt may hold the last chance open
-local revivePrompts: { [Player]: number } = {} -- open revive prompts (os.clock when opened)
+local PROMPT_HOLD_MAX = 45 -- seconds of the last chance a player's revive prompts may hold, in total per run
+local revivePrompts: { [Player]: number } = {} -- open revive prompts (os.clock when first opened)
+local holdSpent: { [Player]: number } = {} -- hold seconds already used by closed prompts in this run
+local holdRun: any = nil -- the run these tables belong to
+local PROMPT_OPEN_MAX = 60 -- a product prompt that never reports back stops blocking a second one after this
+local openPrompts: { [Player]: { [string]: number } } = {} -- open prompts of non-consumables (cosmetics)
+
+-- a prompt closed (bought, cancelled, player gone): its time counts against the player's hold budget
+local function closeRevivePrompt(player: Player)
+	local t = revivePrompts[player]
+	if t then
+		holdSpent[player] = (holdSpent[player] or 0) + (os.clock() - t)
+		revivePrompts[player] = nil
+	end
+end
 
 local function updateHold()
+	-- a new run (or none): prompts of the last run hold nothing, the budget starts again
+	local cur = deps.RunHost.current()
+	if cur ~= holdRun then
+		holdRun = cur
+		table.clear(revivePrompts)
+		table.clear(holdSpent)
+	end
 	local now = os.clock()
 	local any = false
 	for player, t in revivePrompts do
-		if now - t > PROMPT_HOLD_MAX or not player.Parent then
-			revivePrompts[player] = nil
+		if now - t + (holdSpent[player] or 0) > PROMPT_HOLD_MAX or not player.Parent then
+			closeRevivePrompt(player)
 		else
 			any = true
 		end
@@ -62,8 +82,10 @@ local function processReceipt(info): Enum.ProductPurchaseDecision
 		deps.Net.ui(player, { t = "purchased", key = item.key })
 		deps.Profiles.changed(player)
 	end
-	revivePrompts[player] = nil
-	updateHold()
+	if item and item.grant and item.grant.revive then
+		closeRevivePrompt(player)
+		updateHold()
+	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
@@ -90,8 +112,22 @@ function Purchases.buy(player: Player, key: string)
 		if not (offer and offer.buy) then
 			return
 		end
-		revivePrompts[player] = os.clock()
 		updateHold()
+		-- re-asking does not restart the hold: the first opening counts, and the run's budget is shared
+		if not revivePrompts[player] then
+			revivePrompts[player] = os.clock()
+		end
+		updateHold()
+	end
+	if it.grant and it.grant.cosmetic then
+		-- a non-consumable: no second prompt while one is open (two quick clicks would sell it twice)
+		local open = openPrompts[player] or {}
+		openPrompts[player] = open
+		local t = open[key]
+		if t and os.clock() - t < PROMPT_OPEN_MAX then
+			return
+		end
+		open[key] = os.clock()
 	end
 	MarketplaceService:PromptProductPurchase(player, it.id)
 end
@@ -111,8 +147,11 @@ function Purchases.init(d)
 				return
 			end
 			local it = Products.byProductId(productId)
+			if it and openPrompts[player] then
+				openPrompts[player][it.key] = nil
+			end
 			if it and it.grant and it.grant.revive and not isPurchased then
-				revivePrompts[player] = nil
+				closeRevivePrompt(player)
 				updateHold()
 			end
 		end
@@ -130,6 +169,8 @@ end
 
 function Purchases.onLeave(player: Player)
 	promptLimit:forget(player)
+	openPrompts[player] = nil
+	holdSpent[player] = nil
 	if revivePrompts[player] then
 		revivePrompts[player] = nil
 		updateHold()

@@ -136,6 +136,13 @@ local function startNow()
 	Lobby.broadcast()
 end
 
+-- a member may stop the leader's start countdown (un-ready) at most once per CANCEL_GAP seconds; spammed
+-- un-ready toggles cannot keep the party from starting
+local CANCEL_GAP = 20
+local lastCancel: { [Player]: number } = {}
+
+-- lobby commands only refresh the hub when something changed, and through Meta.push (coalesced, at most every
+-- 0.2 s): a client spamming commands cannot turn into a stream of full lobby messages to every member
 function Lobby.command(player: Player, c)
 	local m = find(player)
 	if not m then
@@ -147,28 +154,45 @@ function Lobby.command(player: Player, c)
 	if not prof then
 		return
 	end
+	local changed = false
 	if c.op == "selectHero" then
-		if Entitlements.heroAllowed(prof, deps.Passes.get(player), c.hero) then
+		-- allowed during a run (spectators / members pick for the next run)
+		if m.hero ~= c.hero and Entitlements.heroAllowed(prof, deps.Passes.get(player), c.hero) then
 			m.hero = c.hero
 			prof.lastChar = c.hero
+			changed = true
 		end
 	elseif c.op == "selectStage" then
 		if not isLeader or running then
 			return
 		end
 		local idx = stageIndex(c.stage)
-		if Profile.stageUnlocked(prof, idx) and c.heat <= Profile.stageMaxHeat(prof, c.stage) then
+		if
+			(stageId ~= c.stage or heat ~= c.heat)
+			and Profile.stageUnlocked(prof, idx)
+			and c.heat <= Profile.stageMaxHeat(prof, c.stage)
+		then
 			stageId = c.stage
 			heat = c.heat
 			prof.stageSel = c.stage
 			prof.stageHeat[c.stage] = c.heat
 			cancelCountdown()
+			changed = true
 		end
 	elseif c.op == "ready" then
-		m.ready = c.on
-		if not c.on then
+		if running or m.ready == c.on then
+			return
+		end
+		if not c.on and countdownEnd > 0 then
+			local now = os.clock()
+			if now - (lastCancel[player] or -math.huge) < CANCEL_GAP then
+				return -- he already stopped a start a moment ago: the countdown runs on
+			end
+			lastCancel[player] = now
 			cancelCountdown()
 		end
+		m.ready = c.on
+		changed = true
 	elseif c.op == "start" then
 		if not isLeader or running or countdownEnd > 0 then
 			return
@@ -189,8 +213,11 @@ function Lobby.command(player: Player, c)
 				startNow()
 			end
 		end)
+		changed = true
 	end
-	Lobby.broadcast()
+	if changed then
+		deps.Meta.push(player)
+	end
 end
 
 function Lobby.onRunEnded()
@@ -229,6 +256,7 @@ function Lobby.revalidate()
 end
 
 function Lobby.onLeave(player: Player)
+	lastCancel[player] = nil
 	for i, m in members do
 		if m.player == player then
 			table.remove(members, i)

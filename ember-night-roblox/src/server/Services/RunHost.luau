@@ -182,7 +182,13 @@ local function sendOffers()
 	local configured = Products.configured("revive")
 	for player, slot in slots do
 		local o = ReviveFlow.offer(run, slot, deps.Profiles.get(player), configured)
-		local sig = (if o.use then "u" else "") .. (if o.buy then "b" else "") .. tostring(o.tokens)
+		local price = if o.buy then deps.ProductInfo.price("revive") else nil
+		-- the price is part of the signature: a price that arrives after the player went down still shows the button
+		local sig = (if o.use then "u" else "")
+			.. (if o.buy then "b" else "")
+			.. tostring(o.tokens)
+			.. "/"
+			.. tostring(price)
 		if offers[player] ~= sig then
 			offers[player] = sig
 			deps.Net.ui(player, {
@@ -190,7 +196,7 @@ local function sendOffers()
 				use = o.use,
 				buy = o.buy,
 				tokens = o.tokens,
-				price = if o.buy then deps.ProductInfo.price("revive") else nil,
+				price = price,
 			})
 		end
 	end

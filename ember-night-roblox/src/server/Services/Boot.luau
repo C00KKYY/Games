@@ -32,6 +32,12 @@ function Boot.start(Net)
 	Purchases.init(deps)
 	ProductInfo.init()
 	Policy.init()
+	-- shutdown: the run in progress books every player's results before the profiles are saved and released
+	Profiles.beforeClose(function()
+		for _, player in Players:GetPlayers() do
+			RunHost.onLeave(player)
+		end
+	end)
 	Profiles.init() -- last: loading profiles fires the callbacks registered above
 
 	-- leaving: the run books the player's results first, then the profile is saved and released

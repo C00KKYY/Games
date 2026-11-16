@@ -187,6 +187,68 @@ suite:test("co-op run: downed, revive purchase via ProcessReceipt, limit, result
 	end)
 end)
 
+suite:test(
+	"lobby command spam: coalesced hub refreshes, no-ops send nothing, one countdown cancel per member",
+	function()
+		Ids.with(IDS, function()
+			local rb = boot()
+			local ps = {}
+			for i = 1, 4 do
+				ps[i] = rb:join(300 + i)
+			end
+			rb:advance(1)
+			local a, d = ps[1], ps[4]
+			local heroes = rb:lastUi(d, "lobby").heroes
+			local function lobbyCount(p)
+				local n = 0
+				for _, m in rb.ui[p] or {} do
+					if m.t == "lobby" then
+						n += 1
+					end
+				end
+				return n
+			end
+			-- 20 ready toggles in one second
+			local n0 = lobbyCount(a)
+			for i = 1, 20 do
+				cmd(rb, d, { op = "ready", on = i % 2 == 1 })
+			end
+			rb:advance(0.5)
+			local n1 = lobbyCount(a)
+			T.ok(n1 - n0 <= 7, "lobby messages to a teammate in 1 s of spam: " .. (n1 - n0))
+			T.ok(n1 - n0 >= 1, "the change still arrives")
+			-- commands that change nothing send nothing
+			cmd(rb, d, { op = "selectHero", hero = rb:lastUi(d, "lobby").members[4].hero })
+			cmd(rb, d, { op = "ready", on = rb:lastUi(d, "lobby").members[4].ready })
+			rb:advance(0.5)
+			T.eq(lobbyCount(a), n1, "no-op commands")
+			-- un-ready stops the leader's start once; a second un-ready right after does not
+			cmd(rb, a, { op = "start" })
+			cmd(rb, d, { op = "ready", on = false })
+			rb:advance(5.5)
+			T.eq(rb.deps.RunHost.running(), false, "first un-ready cancels the start")
+			cmd(rb, a, { op = "start" })
+			cmd(rb, d, { op = "ready", on = false })
+			rb:advance(5.5)
+			T.ok(rb.deps.RunHost.running(), "spammed un-ready cannot block the start")
+			-- during the run: ready is ignored, hero changes are coalesced
+			local r0 = lobbyCount(a)
+			for i = 1, 20 do
+				cmd(rb, d, { op = "ready", on = i % 2 == 1 })
+				if #heroes > 1 then
+					cmd(rb, d, { op = "selectHero", hero = heroes[i % 2 + 1] })
+				end
+			end
+			rb:advance(0.5)
+			T.ok(
+				lobbyCount(a) - r0 <= 13,
+				"lobby messages during 2.5 s of a run (40 commands): " .. (lobbyCount(a) - r0)
+			)
+			noErrors(rb)
+		end)
+	end
+)
+
 suite:test("solo last chance waits while the revive prompt is open", function()
 	Ids.with(IDS, function()
 		local rb = boot()
@@ -210,6 +272,78 @@ suite:test("solo last chance waits while the revive prompt is open", function()
 		rb:advance(1)
 		noErrors(rb)
 		T.ok(not rb.deps.RunHost.running(), "closed prompt -> the last chance runs out")
+	end)
+end)
+
+suite:test("re-asking for the revive prompt cannot hold the last chance past the per-run budget", function()
+	Ids.with(IDS, function()
+		local rb = boot()
+		local a = rb:join(311)
+		rb:advance(1)
+		cmd(rb, a, { op = "start" })
+		rb:advance(0.1)
+		local run = rb.deps.RunHost.current()
+		rb:advance(2, true)
+		local p = run.players[1]
+		p.iframe, p.revivals = 0, 0
+		K.hurtPlayer(run, p, 1e6, "test")
+		T.eq(run.state, "lastchance")
+		local t = 0
+		while rb.deps.RunHost.running() and t < 120 do
+			-- ask again every ~2 s (the prompt never reports back)
+			cmd(rb, a, { op = "buy", key = "revive" })
+			rb:advance(2.1, true)
+			t += 2.15
+		end
+		noErrors(rb)
+		T.ok(not rb.deps.RunHost.running(), "the run ended")
+		T.ok(t < 45 + 10 + 8, "held for " .. t .. " s")
+	end)
+end)
+
+suite:test("a cosmetic cannot be prompted twice while its prompt is open", function()
+	Ids.with(IDS, function()
+		local rb = boot()
+		local a = rb:join(321)
+		rb:advance(1)
+		local n0 = #rb.prompts
+		cmd(rb, a, { op = "buy", key = "skin_frost" })
+		cmd(rb, a, { op = "buy", key = "skin_frost" })
+		T.eq(#rb.prompts - n0, 1, "one prompt")
+		rb.Market.PromptProductPurchaseFinished:Fire(a.UserId, IDS.skin_frost, false)
+		rb:advance(3)
+		cmd(rb, a, { op = "buy", key = "skin_frost" })
+		T.eq(#rb.prompts - n0, 2, "after the cancel it can be asked again")
+		noErrors(rb)
+	end)
+end)
+
+suite:test("shutdown books the run in progress before the profiles are released", function()
+	Ids.with(IDS, function()
+		local rb = boot()
+		local a = rb:join(331)
+		rb:advance(1)
+		cmd(rb, a, { op = "start" })
+		rb:advance(0.1)
+		local run = rb.deps.RunHost.current()
+		for _ = 1, 30 do
+			run.players[1].iframe = 1e9
+			rb:advance(1, true)
+		end
+		run.players[1].gold = 250
+		local before = rb.storeData.p_331.gold
+		for _, f in rb.closers do
+			rb.S.task.spawn(f)
+		end
+		rb:advance(3)
+		T.ok(rb.storeData.p_331.gold > before, "run gold stored: " .. before .. " -> " .. rb.storeData.p_331.gold)
+		T.eq(rb.storeData.p_331._lock, nil, "released")
+		-- the player leaves afterwards: nothing breaks, nothing is booked twice
+		local stored = rb.storeData.p_331.gold
+		rb:leave(a)
+		rb:advance(1)
+		T.eq(rb.storeData.p_331.gold, stored)
+		noErrors(rb)
 	end)
 end)
 
