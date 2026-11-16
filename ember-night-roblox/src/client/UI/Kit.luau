@@ -4,6 +4,8 @@ local Players = game:GetService("Players")
 local Theme = require(script.Parent.Theme)
 
 local Kit = {}
+-- called on every button press (the client plays the click sound here)
+Kit.onClick = nil :: (() -> ())?
 
 function Kit.screen(name: string, order: number?): ScreenGui
 	local g = Instance.new("ScreenGui")
@@ -84,7 +86,12 @@ function Kit.button(parent: Instance, text: string, onClick: () -> (), props: { 
 	for k, v in props or {} do
 		(b :: any)[k] = v
 	end
-	b.Activated:Connect(onClick)
+	b.Activated:Connect(function()
+		if Kit.onClick then
+			Kit.onClick()
+		end
+		onClick()
+	end)
 	b.Parent = parent
 	return b
 end

@@ -10,6 +10,7 @@ local Lang = require(Shared.Lang.Lang)
 local Stages = require(Shared.Sim.Data.Stages)
 local Achievements = require(Shared.Sim.Data.Achievements)
 local Cosmetics = require(Shared.Config.Cosmetics)
+local Mix = require(Shared.Audio.Mix)
 
 local Controls = require(script.Parent.Input.Controls)
 local CameraRig = require(script.Parent.World.CameraRig)
@@ -29,6 +30,9 @@ local ResultsUI = require(script.Parent.UI.Results)
 local Router = require(script.Parent.UI.Router)
 local ReviveOffer = require(script.Parent.UI.ReviveOffer)
 local Names = require(script.Parent.UI.Names)
+local Kit = require(script.Parent.UI.Kit)
+local Sfx = require(script.Parent.Audio.Sfx)
+local Music = require(script.Parent.Audio.Music)
 
 local App = {}
 local ClientNet: any = nil
@@ -41,8 +45,13 @@ local resultsOpen = false
 local solo = true
 local heroBySlot: { [number]: string } = {}
 local langChosen = false
+local lastHp: number? = nil
+local S = 0.1 -- studs per sim px (Coords.S)
 
 local function command(c)
+	if c.op == "pick" then
+		Sfx.play("item")
+	end
 	ClientNet.command(c)
 end
 
@@ -130,6 +139,9 @@ local function enterArena(stageId: string)
 	Ground.setStage(stage)
 	EnemyView.setStage(stage)
 	inRun = true
+	lastHp = nil
+	Music.release()
+	Music.setIntensity(1)
 	CameraRig.setActive(true)
 	LobbyUI.setVisible(false)
 	Router.setEnabled(false)
@@ -155,6 +167,12 @@ function App.start(net)
 	ClientNet = net
 	ClientNet.init()
 	Controls.init()
+	Sfx.init()
+	Music.init()
+	Music.setIntensity(0)
+	Kit.onClick = function()
+		Sfx.play("click")
+	end
 	Pool.prewarm("Ball", 320)
 	Pool.prewarm("Block", 220)
 	Pool.prewarm("Cylinder", 40)
@@ -169,6 +187,8 @@ function App.start(net)
 	ReviveOffer.init(command)
 	ResultsUI.init(function()
 		resultsOpen = false
+		Music.release()
+		Music.setIntensity(0)
 		LobbyUI.setVisible(true)
 		Router.setEnabled(true)
 	end)
@@ -191,7 +211,10 @@ function App.listen()
 			Lang.setLang(m.profile.lang)
 		end
 		if m.profile and m.profile.settings then
-			CameraRig.setZoom(m.profile.settings.camZoom or 1)
+			local st = m.profile.settings
+			CameraRig.setZoom(st.camZoom or 1)
+			Sfx.setEnabled(st.sfx ~= false)
+			Music.setEnabled(st.music ~= false)
 		end
 		LobbyUI.render(m)
 		Router.update(m)
@@ -201,6 +224,7 @@ function App.listen()
 	end)
 	ClientNet.onUi("purchased", function(m)
 		Router.toast(tr("Gekauft: {0}", Names.product(m.key)))
+		Sfx.play("buy")
 	end)
 	ClientNet.onUi("reviveOffer", function(m)
 		if inRun then
@@ -223,6 +247,10 @@ function App.listen()
 		Hud.setVisible(true, false)
 	end)
 	ClientNet.onUi("hero", function(m)
+		if lastHp and m.hp < lastHp and m.state == "active" then
+			Sfx.play("hurt")
+		end
+		lastHp = m.hp
 		Hud.hero(m)
 		HeroView.setSpeed(m.speed)
 		HeroView.setState(m.slot, m.state)
@@ -243,6 +271,12 @@ function App.listen()
 	end)
 	ClientNet.onUi("chest", function(m)
 		LevelUpUI.chest(m.res, solo)
+		if m.res.evolved then
+			task.delay(0.45, Sfx.play, "evolve")
+		end
+		for i in m.res.items or {} do
+			task.delay(0.5 + (i - 1) * 0.22, Sfx.play, "item")
+		end
 	end)
 	ClientNet.onUi("banner", Hud.banner)
 	ClientNet.onUi("countdown", Hud.countdown)
@@ -281,6 +315,9 @@ function App.listen()
 		resultsOpen = true
 		LobbyUI.setVisible(false)
 		ResultsUI.show(m.summary)
+		if not m.summary.won then
+			Music.sting("gameover")
+		end
 	end)
 	ClientNet.onUi("runEnded", function()
 		leaveArena()
@@ -351,6 +388,17 @@ function App.listen()
 			FxView.burst(e)
 		elseif k == "text" then
 			FxView.text(e)
+		elseif k == "sfx" then
+			if e.name == "victory" then
+				Music.sting("victory")
+			else
+				local own = HeroView.own()
+				local dist = nil
+				if e.x and own.slot > 0 then
+					dist = math.sqrt((e.x - own.x) ^ 2 + (e.y - own.y) ^ 2) * S
+				end
+				Sfx.play(e.name, dist)
+			end
 		end
 	end)
 end
@@ -393,6 +441,7 @@ function App.frame(dt: number)
 	CameraRig.update(dt, cx, cy)
 	Hud.update(dt)
 	LevelUpUI.update()
+	Music.setIntensity(Mix.intensity(true, Hud.bossActive(), Hud.time(), Hud.surgeOn()))
 end
 
 return App

@@ -223,6 +223,14 @@ function Hud.achievement(name: string)
 	bannerT = math.max(bannerT, 2.5)
 end
 
+function Hud.bossActive(): boolean
+	return ui.bossBg ~= nil and ui.bossBg.Visible
+end
+
+function Hud.surgeOn(): boolean
+	return countdown ~= nil and countdown.kind ~= "boss" and countdown.phase == "on"
+end
+
 function Hud.runState(): string
 	return runState
 end

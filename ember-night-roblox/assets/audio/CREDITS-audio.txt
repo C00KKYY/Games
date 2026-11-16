@@ -1,0 +1,15 @@
+Audio in Ember Night - all CC0 1.0 (public domain dedication), credit not required but given:
+SFX
+- Kenney (kenney.nl): Interface Sounds, RPG Audio, Digital Audio - https://opengameart.org/content/interface-sounds , /content/50-rpg-sound-effects , /content/63-digital-sound-effects-lasers-phasers-space-etc
+- rubberduck: 100 CC0 SFX, 80 CC0 RPG SFX, 75 CC0 breaking/falling/hit SFX, 25 CC0 bang/firework SFX - https://opengameart.org/content/100-cc0-sfx , /content/80-cc0-rpg-sfx , /content/75-cc0-breaking-falling-hit-sfx , /content/25-cc0-bang-firework-sfx
+- artisticdude: RPG Sound Pack, Swishes Sound Pack - https://opengameart.org/content/rpg-sound-pack , /content/swishes-sound-pack
+- starninjas: 12 Coin Sound Effects - https://opengameart.org/content/12-coin-sound-effects
+- jaggedstone: Magic Spell SFX - https://opengameart.org/content/magic-spell-sfx
+- bart: Ice spells - https://opengameart.org/content/ice-spells
+- Joth: Chunky Explosion - https://opengameart.org/content/chunky-explosion
+Music
+- yd / qubodup: Dark Shrine Loop - https://opengameart.org/content/dark-shrine-loop
+- mintodog: Heavy Dungeon - https://opengameart.org/content/heavy-dungeon
+- iamoneabe: Final Stand - https://opengameart.org/content/final-stand
+- cynicmusic: Victory Fanfare Short - https://opengameart.org/content/victory-fanfare-short
+- randommind: Medieval: Defeat Theme - https://opengameart.org/content/medieval-defeat-theme
