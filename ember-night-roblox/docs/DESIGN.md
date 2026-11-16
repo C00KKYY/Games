@@ -216,7 +216,7 @@ Starting values:
 | Factor | N=1 | N=2 | N=3 | N=4 | Applies to |
 |---|---|---|---|---|---|
 | `spawnRate` | 1 | 1.6 | 2.1 | 2.5 | director `rate` |
-| `spawnCap` | 1 | 1.5 | 1.9 | 2.2 | director `cap` (then global cap) |
+| `spawnCap` | 1 | 1.55 | 2.0 | 2.35 | director `cap` (then global cap); tuned in R1 (start values 1.5 / 1.9 / 2.2), see `docs/BALANCE.md` |
 | `enemyHp` | 1 | 1.2 | 1.35 | 1.5 | normal and event enemies |
 | `eliteHp` | 1 | 1.6 | 2.2 | 2.8 | elites |
 | `bossHp` | 1 | 1.8 | 2.5 | 3.2 | bosses |
