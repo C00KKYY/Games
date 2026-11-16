@@ -25,8 +25,40 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 			BackgroundColor3 = if sel then Theme.panel2 else Theme.panel,
 		})
 		Kit.padding(row, 8)
+		-- land badge: ground colour with a speckle, the number in the middle
+		local badge = Kit.frame(row, {
+			Size = UDim2.fromOffset(64, 64),
+			Position = UDim2.fromOffset(0, 8),
+			BackgroundColor3 = Color3.fromHex(st.ground.base),
+		})
+		local bc = Instance.new("UICorner")
+		bc.CornerRadius = UDim.new(0.5, 0)
+		bc.Parent = badge
+		local bs = Instance.new("UIStroke")
+		bs.Color = if sel then Theme.primary elseif s.unlocked then Color3.fromHex(st.ground.grass) else Theme.stroke
+		bs.Thickness = if sel then 3 else 2
+		bs.Parent = badge
+		local spk = Kit.frame(badge, {
+			Size = UDim2.fromScale(0.42, 0.3),
+			Position = UDim2.fromScale(0.16, 0.56),
+			BackgroundColor3 = Color3.fromHex(st.ground.speckle[1]),
+		})
+		local sc = Instance.new("UICorner")
+		sc.CornerRadius = UDim.new(0.5, 0)
+		sc.Parent = spk
+		Kit.label(badge, if s.unlocked then tostring(i) else "🔒", {
+			Size = UDim2.fromScale(1, 1),
+			Font = Theme.title,
+			TextSize = 26,
+			TextStrokeTransparency = 0.3,
+		})
+		local text = Kit.frame(row, {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -76, 1, 0),
+			Position = UDim2.fromOffset(76, 0),
+		})
 		Kit.label(
-			row,
+			text,
 			tr("Land {0}: {1}", i, tr(st.name)) .. "   " .. string.rep("★", s.stars) .. string.rep("☆", 3 - s.stars),
 			{
 				Font = Theme.title,
@@ -39,7 +71,7 @@ function Screen.render(body: ScrollingFrame, msg, command: (any) -> (), _open)
 		local info = if s.unlocked
 			then tr(st.intro)
 			else tr("Befreie „{0}“, um „{1}“ freizuschalten.", tr(Stages.list[i - 1].name), tr(st.name))
-		Kit.label(row, info, {
+		Kit.label(text, info, {
 			TextSize = 13,
 			TextColor3 = Theme.dim,
 			TextXAlignment = Enum.TextXAlignment.Left,

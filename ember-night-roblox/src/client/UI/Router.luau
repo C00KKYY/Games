@@ -62,8 +62,14 @@ local function renderBar()
 			else
 				Router.open(name)
 			end
-		end, { Size = UDim2.fromOffset(108, 44), TextSize = 16, LayoutOrder = i })
+		end, { Size = UDim2.fromOffset(108, 44), TextScaled = true, LayoutOrder = i })
 		btn.BackgroundColor3 = if current == name then Theme.primary else Theme.panel2
+		-- long labels ("Achievements", "Erfolge") shrink instead of overflowing
+		local tc = Instance.new("UITextSizeConstraint")
+		tc.MaxTextSize = 16
+		tc.MinTextSize = 10
+		tc.Parent = btn
+		Kit.padding(btn, 4)
 	end
 	Kit.label(barRoot, tr("Nicht gespeichert (Studio ohne API-Zugriff)"), {
 		TextColor3 = Color3.fromRGB(255, 225, 90),
