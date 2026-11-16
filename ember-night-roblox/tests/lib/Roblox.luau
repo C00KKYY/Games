@@ -9,7 +9,9 @@ local serde = require("@lune/serde")
 local roblox = require("@lune/roblox")
 
 -- GUI buttons: Lune's Instance has no events; Activated becomes a recorded handler that tests can "click"
-local clickHandlers = setmetatable({}, { __mode = "k" })
+-- (strong keys: Lune caches the userdata of an Instance only while it is referenced; a weak table let the wrapper be
+-- collected and a later GetDescendants returned a new one that was not found here)
+local clickHandlers = {}
 local implemented = false
 local function implementEvents()
 	if implemented then
