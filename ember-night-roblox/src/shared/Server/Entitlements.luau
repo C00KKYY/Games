@@ -94,7 +94,32 @@ function Entitlements.ownsItem(profile, passes: { [string]: boolean }?, key: str
 		return false
 	end
 	if it.kind == "pass" then
-		return passes ~= nil and passes[key] == true
+		if passes ~= nil and passes[key] == true then
+			return true
+		end
+		-- a pass that would add nothing counts as owned (never sell Robux for nothing): hero passes whose heroes
+		-- are all unlocked already (achievement or another pass), the collection pass when every cosmetic is owned
+		if it.heroes and #it.heroes > 0 then
+			local have = Entitlements.heroes(profile, passes)
+			for _, hid in it.heroes do
+				if not table.find(have, hid) then
+					return false
+				end
+			end
+			return true
+		end
+		if it.allCosmetics and not it.gold2x then
+			for _, c in Cosmetics.list do
+				if
+					string.match(c.source, "^achievement:") == nil
+					and not Entitlements.ownsCosmetic(profile, passes, c.id)
+				then
+					return false
+				end
+			end
+			return true
+		end
+		return false
 	end
 	if it.grant and it.grant.cosmetic then
 		return Entitlements.ownsCosmetic(profile, passes, it.grant.cosmetic)

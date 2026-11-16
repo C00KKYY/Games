@@ -127,4 +127,30 @@ suite:test("earned heroes and cosmetics, equipped items that are no longer owned
 	T.ok(all.skin_frost and all.trail_ember and not all.fx_prism)
 end)
 
+suite:test("passes that would add nothing count as owned (no Robux for nothing)", function()
+	Ids.with(Ids.all(), function()
+		local p = Profile.default()
+		T.ok(not Entitlements.ownsItem(p, {}, "pass_hero_kael"))
+		T.ok(Entitlements.ownsItem(p, { pass_heroes_all = true }, "pass_hero_kael"), "covered by all heroes")
+		table.insert(p.chars, "kael")
+		T.ok(Entitlements.ownsItem(p, {}, "pass_hero_kael"), "earned by achievement")
+		T.ok(not Entitlements.ownsItem(p, {}, "pass_heroes_all"))
+		for _, hid in Heroes.ORDER do
+			if not table.find(p.chars, hid) then
+				table.insert(p.chars, hid)
+			end
+		end
+		T.ok(Entitlements.ownsItem(p, {}, "pass_heroes_all"), "every hero earned")
+		-- collection pass: owned once every buyable cosmetic is owned (achievement ones are not part of it)
+		T.ok(not Entitlements.ownsItem(p, {}, "pass_cosmetics"))
+		for _, c in Cosmetics.list do
+			if string.match(c.source, "^product:") then
+				p.cosmetics.owned[c.id] = true
+			end
+		end
+		T.ok(Entitlements.ownsItem(p, {}, "pass_cosmetics"))
+		T.ok(not Entitlements.ownsItem(p, {}, "pass_gold2x"))
+	end)
+end)
+
 return suite
