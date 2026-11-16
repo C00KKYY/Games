@@ -40,7 +40,7 @@ function K.dropChests(run, x: number, y: number)
 	local n = 0
 	for _, pl in run.plist do
 		if pl.state ~= "left" then
-			local ox = if run.solo then 0 else (n - 1.5) * 26
+			local ox = if run.solo then 0 else (n - 1.5) * 44
 			K.drop(run, x + ox, y, "chest", 0, pl.slot)
 			n += 1
 		end

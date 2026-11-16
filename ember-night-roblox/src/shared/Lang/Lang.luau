@@ -1,8 +1,14 @@
 -- Translation and number formatting (web lang.js tr/setLang/fmtDec, util.js fmtNum/fmtTime). German is the source
 -- language: German strings are the keys, En.luau maps them to English.
 local En = if script then require(script.Parent.En) else require("./En")
+local EnRoblox = if script then require(script.Parent.EnRoblox) else require("./EnRoblox")
 
 local Lang = {}
+
+-- English text of a German key (nil when missing)
+function Lang.en(key: string): string?
+	return En[key] or EnRoblox[key]
+end
 
 local current = "en"
 Lang.misses = {} -- keys without English text (for tests)
@@ -26,7 +32,7 @@ end
 function Lang.tr(key: string, ...: any): string
 	local s = key
 	if current == "en" then
-		local v = En[key]
+		local v = En[key] or EnRoblox[key]
 		if v == nil then
 			Lang.misses[key] = true
 		else
