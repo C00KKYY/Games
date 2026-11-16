@@ -20,10 +20,42 @@ The sim is deterministic: the same command gives the same numbers (graveyard/non
 | Herz der Nacht | max | 48 (seeds 1–48) | **52 %** (25/48) | 38–66 % | 51 % (37/72), 40–63 % | 15.3 min (web 15.6) | 65 s (web 71 s) | 10 / 24 / 40 |
 
 Both lie inside the web game's interval: **gate passed**. The fixed 1/30-s server step runs as two 1/60-s half steps
-(`Tuning.SIM_SUBSTEPS = 2`), which is what the web game does at 60 fps; projectiles are swept, so nothing tunnels.
+(`Tuning.SIM_SUBSTEPS = 2`), which is what the web game does at 60 fps (R1 used swept collisions; R2 tests the end point of each half step like the web game).
 
 A first measurement with an 18-min limit (the old `balancebot.js` default) gave 6 % for Herz der Nacht/max: 23 of 48
 runs were still fighting the final boss (450 000 HP) at 18:00. The web numbers use 25 min, so the bot does too now.
+
+## R2 – every row of the web README table (solo, after the parity fixes)
+
+`tools/balance.sh 36` (36 runs per row, seeds 1–36, heroes rotating, 25-min limit; no run was still open). Web
+numbers: `glutnacht/README.md` (M10, pooled). z = two-proportion test against the web rate.
+
+| Land | Forge | Roblox sim: wins | 95 % | Web: wins | 95 % | z | Median death (sim / web) | First hit (sim / web) | Level @1/4/8 min |
+|---|---|---|---|---|---|---|---|---|---|
+| Alter Friedhof | none | **25 %** (9/36) | 14–41 % | 32 % (46/144) | 25–40 % | -0.8 | 8.2 / 7.9 min | 70 / 75 s | 6/17/24 |
+| Aschenwald | none | **6 %** (2/36) | 2–18 % | 13 % (9/72) | 7–22 % | -1.1 | 6.8 / 7.1 min | 81 / 80 s | 7/17/29 |
+| Aschenwald | light | **17 %** (6/36) | 8–32 % | 22 % (16/72) | 14–33 % | -0.7 | 7.5 / 8.2 min | 68 / 64 s | 7/18/33 |
+| Eissee | light | **17 %** (6/36) | 8–32 % | 19 % (7/36) | 10–35 % | -0.3 | 10.2 / 10.3 min | 80 / 85 s | 8/19/30 |
+| Eissee | mid | **47 %** (17/36) | 32–63 % | 43 % (31/72) | 32–55 % | 0.4 | 11.4 / 11.7 min | 75 / 85 s | 9/21/33 |
+| Burgruine | mid | **25 %** (9/36) | 14–41 % | 19 % (14/72) | 12–30 % | 0.7 | 10.2 / 10 min | 65 / 79 s | 7/19/29 |
+| Burgruine | light | **0 %** (0/36) | 0–10 % | 6 % (4/72) | 2–13 % | -1.4 | 8.3 / 8.2 min | 75 / 86 s | 5.5/16.5/25 |
+| Herz der Nacht | mid | **3 %** (1/36) | 0–14 % | 6 % (4/72) | 2–13 % | -0.6 | 8.7 / 8 min | 62 / 65 s | 8/20/30 |
+| Herz der Nacht | max | **39 %** (14/36) | 25–55 % | 51 % (37/72) | 40–63 % | -1.2 | 14.3 / 15.6 min | 67 / 71 s | 10/24/37.5 |
+| Alter Friedhof, Nachtstufe 5 | max | **44 %** (16/36) | 30–60 % | 36 % (52/144) | 29–44 % | 0.9 | 7.8 / 7.8 min | 55 / 59 s | 8/21.5/32 |
+
+**All ten rows lie within |z| ≤ 1.4 of the web game**, every web rate lies inside or at the edge of the sim's 95 %
+interval, median death times differ by at most 1.3 min (Herz der Nacht/max 14.3 vs 15.6) and first hits by at most
+14 s. Pooled over the ten rows the sim wins 80/360 (22 %) where the web rates predict 89: slightly harder, not
+significantly (z ≈ −1.1). Differences that remain and why:
+
+- The sim agrees bit for bit with the web code (tests/parity.spec.luau) until last-bit floating-point drift sets in,
+  so runs with the same seed are not the same run as in the web batch; the comparison is statistical only.
+- The Roblox sim has a fixed view of 1280 × 720 world px with a 70-px HUD band at the top (`VIEW_TOP`); the web
+  measurement used the desktop view without the band. Ranged enemies and bosses fire only when inside the view
+  rectangle, so the band can delay some attacks from the top edge (the parity harness uses the band on both sides; its effect on the win rates was not measured separately).
+- R1 measured Alter Friedhof/none 29 % (14/48) and Herz der Nacht/max 52 % (25/48) before the R2 fixes (summons
+  moved one step later, coins reached later, swept shot collisions); the new values (25 %, 39 %) are inside both the
+  old and the web intervals – no sign of a systematic shift beyond chance.
 
 ## R1 – co-op (4 bots, independent inputs), Alter Friedhof / none / heat 0
 
