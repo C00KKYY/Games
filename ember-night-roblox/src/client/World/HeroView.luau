@@ -1,6 +1,7 @@
 -- Heroes (docs/DESIGN.md §3.6, §4.3): the own hero is predicted locally every frame with the sim's movement rules
--- (speed, x0.55 in slime, leash) and sent at 20 Hz; teammates come from interpolated snapshots. Placeholder model:
--- block body + ball head in the hero colour, warm PointLight on the own hero.
+-- (speed, x0.55 in slime, leash) and sent at 20 Hz; teammates come from interpolated snapshots. Models from
+-- ModelKit (body, head, cape, hat, weapon prop) in the hero or skin colours; every hero carries a warm "ember"
+-- light, teammates show their name and HP above the head, downed heroes lie down inside a revive ring.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -13,30 +14,47 @@ local Coords = require(script.Parent.Coords)
 local HeroView = {}
 
 local S = Coords.S
+local R = 1.35 -- hero model radius in studs
 type Hero = {
-	body: BasePart,
-	head: BasePart,
+	rig: ModelKit.Rig?,
 	hero: string?,
 	skin: string?,
 	light: PointLight?,
 	dome: BasePart?,
+	ring: BasePart?,
+	ringFill: BasePart?,
 	trail: Trail?,
 	trailId: string?,
 	att: { Attachment }?,
+	tag: BillboardGui?,
+	tagFill: Frame?,
+	tagName: TextLabel?,
+	yaw: number,
+	px: number,
+	py: number,
 }
-local HEAD = Color3.fromRGB(255, 224, 196)
 local DOME = Color3.fromRGB(255, 150, 70)
+local REVIVE = Color3.fromRGB(93, 255, 143)
 
 local heroes: { [number]: Hero } = {}
 local own = { slot = 0, x = 0, y = 0, speed = 150, state = "active", dirX = 1, dirY = 0, moving = false, face = 1 }
 local correction: { x: number, y: number, t: number }? = nil
 local heroIds: { [number]: string } = {}
 local states: { [number]: string } = {}
+local names: { [number]: string } = {}
 local cosBySlot: { [number]: { skin: string?, fx: string?, trail: string? } } = {}
+local bulkP: { BasePart } = {}
+local bulkC: { CFrame } = {}
+local visible: { { x: number, y: number } } = {}
+local stIdle = { moving = false }
+local stMove = { moving = true }
 
 -- equipped cosmetics of a hero (validated by the server): skin palette and trail; weapon colours are in ShotView
-function HeroView.setCosmetics(slot: number, cos: { skin: string?, fx: string?, trail: string? }?)
+function HeroView.setCosmetics(slot: number, cos: { skin: string?, fx: string?, trail: string? }?, name: string?)
 	cosBySlot[slot] = cos or {}
+	if name then
+		names[slot] = name
+	end
 end
 
 local function color(hex: string?): Color3?
@@ -44,7 +62,7 @@ local function color(hex: string?): Color3?
 	return if r then Color3.new(r, g :: number, b :: number) else nil
 end
 
-local function removeTrail(h)
+local function removeTrail(h: Hero)
 	if h.trail then
 		h.trail:Destroy()
 		h.trail = nil
@@ -58,8 +76,8 @@ local function removeTrail(h)
 	h.trailId = nil
 end
 
-local function applyTrail(h, id: string?)
-	if h.trailId == id then
+local function applyTrail(h: Hero, id: string?)
+	if h.trailId == id or not h.rig then
 		return
 	end
 	removeTrail(h)
@@ -68,10 +86,11 @@ local function applyTrail(h, id: string?)
 	if not col then
 		return
 	end
+	local body = (h.rig :: ModelKit.Rig).parts[1]
 	local a0 = Instance.new("Attachment")
-	a0.Position = Vector3.new(0, -0.9, 0.5)
+	a0.Position = Vector3.new(0, 0, 0.6)
 	local a1 = Instance.new("Attachment")
-	a1.Position = Vector3.new(0, -0.9, -0.5)
+	a1.Position = Vector3.new(0, 0, -0.6)
 	local tr = Instance.new("Trail")
 	tr.Attachment0 = a0
 	tr.Attachment1 = a1
@@ -81,9 +100,9 @@ local function applyTrail(h, id: string?)
 	tr.FaceCamera = true
 	tr.Transparency = NumberSequence.new(0.2, 1)
 	tr.WidthScale = NumberSequence.new(1, 0.2)
-	a0.Parent = h.body
-	a1.Parent = h.body
-	tr.Parent = h.body
+	a0.Parent = body
+	a1.Parent = body
+	tr.Parent = body
 	h.trail = tr
 	h.att = { a0, a1 }
 	h.trailId = id
@@ -121,38 +140,80 @@ function HeroView.correct(x: number, y: number)
 	correction = { x = x, y = y, t = 0.1 }
 end
 
+local function makeTag(h: Hero, slot: number)
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "EN_Tag"
+	bb.Size = UDim2.fromOffset(110, 26)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 5.4, 0)
+	bb.AlwaysOnTop = true
+	bb.LightInfluence = 0
+	bb.MaxDistance = 400
+	local name = Instance.new("TextLabel")
+	name.BackgroundTransparency = 1
+	name.Size = UDim2.new(1, 0, 0, 14)
+	name.Font = Enum.Font.GothamBold
+	name.TextSize = 13
+	name.TextColor3 = Color3.new(1, 1, 1)
+	name.TextStrokeTransparency = 0.4
+	name.Text = names[slot] or ""
+	name.Parent = bb
+	local bg = Instance.new("Frame")
+	bg.BorderSizePixel = 0
+	bg.BackgroundColor3 = Color3.fromRGB(20, 14, 28)
+	bg.Size = UDim2.new(0.8, 0, 0, 6)
+	bg.Position = UDim2.new(0.1, 0, 0, 16)
+	bg.Parent = bb
+	local fill = Instance.new("Frame")
+	fill.BorderSizePixel = 0
+	fill.BackgroundColor3 = Color3.fromRGB(255, 80, 100)
+	fill.Size = UDim2.fromScale(1, 1)
+	fill.Parent = bg
+	h.tag = bb
+	h.tagFill = fill
+	h.tagName = name
+end
+
 local function get(slot: number): Hero
 	local h = heroes[slot]
 	if not h then
-		h = {
-			body = Pool.get("Block", Vector3.new(1.8, 2.2, 1.4), nil, Enum.Material.SmoothPlastic, 0),
-			head = Pool.get("Ball", Vector3.new(1.3, 1.3, 1.3), HEAD, Enum.Material.SmoothPlastic, 0),
-			hero = nil,
-		}
+		h = { rig = nil, hero = nil, yaw = 0, px = 0, py = 0 }
 		heroes[slot] = h
 	end
 	local id = heroIds[slot]
 	local cos = cosBySlot[slot] or {}
-	if h.hero ~= id or h.skin ~= cos.skin then
+	if not h.rig or h.hero ~= id or h.skin ~= cos.skin then
+		if h.rig then
+			removeTrail(h)
+			ModelKit.release(h.rig)
+			h.light = nil
+			h.tag = nil
+		end
 		h.hero = id
 		h.skin = cos.skin
 		local skin = cos.skin and Cosmetics.byId[cos.skin]
-		h.body.Color = (skin and color(skin.body)) or ModelKit.heroColor(id)
-		h.head.Color = (skin and color(skin.accent)) or HEAD
+		local pal: ModelKit.Palette = {
+			body = (skin and color(skin.body)) or ModelKit.heroColor(id),
+			accent = skin and color(skin.accent) or nil,
+		}
+		h.rig = ModelKit.hero(id, R, pal)
+		local rig = h.rig :: ModelKit.Rig
+		local l = Instance.new("PointLight")
+		l.Range = if slot == own.slot then 22 else 16
+		l.Brightness = if slot == own.slot then 1.4 else 1
+		l.Color = Color3.fromRGB(255, 170, 90)
+		l.Shadows = false
+		l.Parent = rig.parts[2]
+		h.light = l
+		if slot ~= own.slot then
+			makeTag(h, slot);
+			(h.tag :: BillboardGui).Parent = rig.parts[4]
+		end
 	end
 	applyTrail(h, cos.trail)
-	if slot == own.slot and not h.light then
-		local l = Instance.new("PointLight")
-		l.Range = 22
-		l.Brightness = 1.4
-		l.Color = Color3.fromRGB(255, 170, 90)
-		l.Parent = h.body
-		h.light = l
-	end
 	return h
 end
 
-local function showTrail(h, on: boolean)
+local function showTrail(h: Hero, on: boolean)
 	local tr = h.trail
 	if tr and tr.Enabled ~= on then
 		tr:Clear()
@@ -165,7 +226,7 @@ local function ward(h: Hero, x: number, y: number, on: boolean)
 	if on then
 		if not h.dome then
 			local d = Tuning.WARD_RADIUS * 2 * S
-			h.dome = Pool.get("Ball", Vector3.one * d, DOME, Enum.Material.Neon, 0.82)
+			h.dome = Pool.get("Ball", Vector3.one * d, DOME, Enum.Material.Neon, 0.85)
 		end
 		(h.dome :: BasePart).CFrame = CFrame.new(x * S, 0, y * S)
 	elseif h.dome then
@@ -174,17 +235,42 @@ local function ward(h: Hero, x: number, y: number, on: boolean)
 	end
 end
 
-local function place(h: Hero, x: number, y: number, downed: boolean, faceLeft: boolean, t: number)
-	local base = CFrame.new(x * S, 0, y * S)
+-- revive ring around a downed hero: outline + filling progress
+local function reviveRing(h: Hero, x: number, y: number, downed: boolean, frac: number)
 	if downed then
-		h.body.CFrame = base * CFrame.new(0, 0.6, 0) * CFrame.Angles(math.rad(80), 0, 0)
-		h.head.CFrame = base * CFrame.new(0, 0.7, -1.6)
-	else
-		local bob = math.abs(math.sin(t * 10)) * 0.15
-		local yaw = if faceLeft then math.pi else 0
-		h.body.CFrame = base * CFrame.new(0, 1.1 + bob, 0) * CFrame.Angles(0, yaw, 0)
-		h.head.CFrame = base * CFrame.new(0, 2.8 + bob, 0)
+		local d = Tuning.REVIVE_RADIUS * 2 * S
+		if not h.ring then
+			h.ring = Pool.get("Cylinder", Vector3.new(0.06, d, d), REVIVE, Enum.Material.Neon, 0.7)
+			h.ringFill = Pool.get("Cylinder", Vector3.new(0.08, 0.2, 0.2), REVIVE, Enum.Material.Neon, 0.35)
+		end
+		local base = CFrame.new(x * S, 0.08, y * S) * CFrame.Angles(0, 0, math.rad(90));
+		(h.ring :: BasePart).CFrame = base
+		local f = math.max(0.2, d * math.clamp(frac, 0, 1))
+		local fill = h.ringFill :: BasePart
+		if math.abs(fill.Size.Y - f) > 0.05 then
+			fill.Size = Vector3.new(0.08, f, f)
+		end
+		fill.CFrame = base * CFrame.new(0.02, 0, 0)
+	elseif h.ring then
+		Pool.put(h.ring)
+		Pool.put(h.ringFill :: BasePart)
+		h.ring = nil
+		h.ringFill = nil
 	end
+end
+
+local function turn(from: number, to: number, k: number): number
+	local d = (to - from + math.pi) % (2 * math.pi) - math.pi
+	return from + d * k
+end
+
+local function place(h: Hero, x: number, y: number, downed: boolean, moving: boolean, t: number, n: number): number
+	local rig = h.rig :: ModelKit.Rig
+	local base = CFrame.new(x * S, 0, y * S) * CFrame.Angles(0, -h.yaw, 0)
+	if downed then
+		base = base * CFrame.new(0, 0.6, 0) * CFrame.Angles(0, 0, math.rad(80))
+	end
+	return ModelKit.pose(rig, base, t, if moving and not downed then stMove else stIdle, bulkP, bulkC, n)
 end
 
 -- leash: stay within LEASH_RADIUS of the centroid of the active heroes (latest snapshot data)
@@ -242,38 +328,70 @@ function HeroView.updateOwn(dt: number, mx: number, my: number, slow: boolean, l
 	send(dt, own.x, own.y, own.dirX, own.dirY, own.moving)
 end
 
--- render all heroes; interp gives teammates
-function HeroView.render(interp, t: number)
+-- render all heroes; interp gives teammates. Returns the visible hero positions (enemies face them).
+function HeroView.render(interp, t: number, dt: number?): { { x: number, y: number } }
 	local seen = {}
 	local latest = interp:latestHeroes()
+	local n = 0
+	local k = math.min(1, (dt or 1 / 60) * 14)
+	table.clear(bulkP)
+	table.clear(bulkC)
+	table.clear(visible)
 	if own.slot > 0 then
 		local h = get(own.slot)
-		place(h, own.x, own.y, own.state == "downed", own.face < 0, if own.moving then t else 0)
+		if own.moving then
+			h.yaw = turn(h.yaw, math.atan2(own.dirY, own.dirX), k)
+		end
 		local me = latest[own.slot]
+		local downed = own.state == "downed"
+		n = place(h, own.x, own.y, downed, own.moving, t, n)
 		ward(h, own.x, own.y, me ~= nil and me.ward)
-		showTrail(h, own.state ~= "downed")
+		reviveRing(h, own.x, own.y, downed, if me then me.revive or 0 else 0)
+		showTrail(h, not downed)
 		seen[own.slot] = true
+		if own.state ~= "fallen" then
+			table.insert(visible, { x = own.x, y = own.y })
+		end
 	end
 	for slot = 1, Tuning.MAX_PLAYERS do
 		if slot ~= own.slot then
 			local x, y, data = interp:hero(slot)
 			if x and data and not data.fallen then
 				local h = get(slot)
-				place(h, x, y, data.downed, data.faceLeft, if data.moving then t else 0)
+				local dx, dy = x - h.px, y - h.py
+				if dx * dx + dy * dy > 0.25 then
+					h.yaw = turn(h.yaw, math.atan2(dy, dx), k)
+				end
+				h.px, h.py = x, y
+				n = place(h, x, y, data.downed, data.moving, t, n)
 				ward(h, x, y, data.ward)
+				reviveRing(h, x, y, data.downed, data.revive or 0)
 				showTrail(h, not data.downed)
+				if h.tagFill then
+					(h.tagFill :: Frame).Size = UDim2.fromScale(math.clamp(data.hp or 1, 0, 1), 1)
+				end
+				if h.tagName and names[slot] and (h.tagName :: TextLabel).Text ~= names[slot] then
+					(h.tagName :: TextLabel).Text = names[slot]
+				end
 				seen[slot] = true
+				table.insert(visible, { x = x, y = y })
 			end
 		end
 	end
+	if n > 0 then
+		workspace:BulkMoveTo(bulkP, bulkC, Enum.BulkMoveMode.FireCFrameChanged)
+	end
 	for slot, h in heroes do
-		if not seen[slot] then
-			h.body.CFrame = Pool.FAR
-			h.head.CFrame = Pool.FAR
+		if not seen[slot] and h.rig then
+			for _, p in (h.rig :: ModelKit.Rig).parts do
+				p.CFrame = Pool.FAR
+			end
 			ward(h, 0, 0, false)
+			reviveRing(h, 0, 0, false, 0)
 			showTrail(h, false)
 		end
 	end
+	return visible
 end
 
 -- world position of a hero (own: predicted; others: interpolated)
@@ -287,13 +405,12 @@ end
 
 function HeroView.clear()
 	for slot, h in heroes do
-		if h.light then
-			h.light:Destroy()
-		end
 		ward(h, 0, 0, false)
+		reviveRing(h, 0, 0, false, 0)
 		removeTrail(h)
-		Pool.put(h.body)
-		Pool.put(h.head)
+		if h.rig then
+			ModelKit.release(h.rig)
+		end
 		heroes[slot] = nil
 	end
 	own.slot = 0

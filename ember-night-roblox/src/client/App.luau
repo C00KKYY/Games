@@ -81,7 +81,7 @@ local function applyTeam(team)
 	for slot, info in team do
 		if type(info) == "table" then
 			local cos = info.cos or {}
-			HeroView.setCosmetics(slot, cos)
+			HeroView.setCosmetics(slot, cos, info.name)
 			local c = cos.fx and Cosmetics.byId[cos.fx]
 			local colors = nil
 			if c and c.colors then
@@ -173,9 +173,11 @@ function App.start(net)
 	Kit.onClick = function()
 		Sfx.play("click")
 	end
-	Pool.prewarm("Ball", 320)
-	Pool.prewarm("Block", 220)
-	Pool.prewarm("Cylinder", 40)
+	Pool.prewarm("Ball", 400)
+	Pool.prewarm("Block", 700)
+	Pool.prewarm("Cylinder", 120)
+	Pool.prewarm("Wedge", 8)
+	Pool.prewarm("Ellipsoid", 160)
 	ShotView.setHeroPosition(heroPos)
 	PickupView.setHeroPosition(heroPos, function(slot)
 		return ModelKit.heroColor(heroBySlot[slot])
@@ -420,8 +422,8 @@ function App.frame(dt: number)
 		end
 		HeroView.updateOwn(dt, mx, my, FxView.inSlow(own.x, own.y, 12), interp:latestHeroes(), ClientNet.sendMove)
 	end
-	EnemyView.update(interp, now)
-	HeroView.render(interp, now)
+	local visible = HeroView.render(interp, now, dt)
+	EnemyView.update(interp, now, visible, dt)
 	TeleView.render(now)
 	ShotView.render(dt, now)
 	PickupView.render(dt, now)

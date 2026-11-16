@@ -1,10 +1,13 @@
 -- Part pools for the arena (no Instance creation per frame in steady state, docs/DESIGN.md §3.4). Parts are anchored,
--- non-colliding, non-queryable, without shadows; unused parts wait far below the arena.
+-- non-colliding, non-queryable, without shadows; unused parts wait far below the arena. Roblox keeps Ball parts
+-- round (all axes equal), so stretched balls are "Ellipsoid": a Block with a SpecialMesh sphere that follows the size.
 local Pool = {}
 
 local FAR = CFrame.new(0, -300, 0) -- under the ground plates, above FallenPartsDestroyHeight (-500)
 local folder: Folder? = nil
-local free: { [string]: { BasePart } } = { Ball = {}, Block = {}, Cylinder = {}, Wedge = {} }
+local free: { [string]: { BasePart } } = { Ball = {}, Block = {}, Cylinder = {}, Wedge = {}, Ellipsoid = {} }
+local MESH = "EN_Mesh"
+local ellipsoids: { [BasePart]: boolean } = {}
 
 function Pool.folder(): Folder
 	if not folder then
@@ -20,6 +23,15 @@ local function make(shape: string): BasePart
 	local p: BasePart
 	if shape == "Wedge" then
 		p = Instance.new("WedgePart")
+	elseif shape == "Ellipsoid" then
+		local q = Instance.new("Part")
+		q.Shape = Enum.PartType.Block
+		local m = Instance.new("SpecialMesh")
+		m.Name = MESH
+		m.MeshType = Enum.MeshType.Sphere
+		m.Parent = q
+		ellipsoids[q] = true
+		p = q
 	else
 		local q = Instance.new("Part")
 		q.Shape = (Enum.PartType :: any)[shape]
@@ -68,9 +80,11 @@ end
 function Pool.put(p: BasePart)
 	p.CFrame = FAR
 	for _, c in p:GetChildren() do
-		c:Destroy()
+		if c.Name ~= MESH then
+			c:Destroy()
+		end
 	end
-	local shape = if p:IsA("WedgePart") then "Wedge" else (p :: Part).Shape.Name
+	local shape = if p:IsA("WedgePart") then "Wedge" elseif ellipsoids[p] then "Ellipsoid" else (p :: Part).Shape.Name
 	table.insert(free[shape], p)
 end
 
