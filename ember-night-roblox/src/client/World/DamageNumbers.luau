@@ -64,7 +64,16 @@ local function cap(): number
 	return if Device.phone() then 20 else 40
 end
 
-local function showNum(text: string, color: Color3, w: number, hgt: number, x: number, y: number, h: number, life: number)
+local function showNum(
+	text: string,
+	color: Color3,
+	w: number,
+	hgt: number,
+	x: number,
+	y: number,
+	h: number,
+	life: number
+)
 	if #active >= cap() then
 		-- replace the oldest
 		local old = table.remove(active, 1) :: Num

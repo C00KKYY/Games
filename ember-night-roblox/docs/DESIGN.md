@@ -124,6 +124,54 @@ Persistence, the hub screens and every kind of Robux purchase exist; nothing has
   names checked against the API), feeds it lobby messages from those services, opens every screen in German and
   English and clicks every button; each command goes through `Validate` to the server.
 
+**R4 (presentation: models, lands, effects, audio, in-run UI; done, nothing tried in Studio yet).** The order of §11 was
+swapped (meta and monetization came first as R3), so this milestone delivered what §11 lists under "R3 –
+Presentation". Decisions taken while implementing, binding from now on:
+
+- **The client is an app module.** `client/App.luau` holds all wiring (formerly `Main.client.luau`, which now only
+  starts it with the real `ClientNet` and binds `App.frame` to RenderStep). `tests/lib/Arena.luau` starts the same App
+  with a fake net that is fed by the real server services through the real `Codec` (snapshots, event buffers, Ui
+  messages; commands through `Validate`, moves through `Codec.encodeMove/decodeMove`), on Lune's Roblox Instances
+  (unknown properties error, so property names are checked against the API). `tests/arena.spec.luau` plays runs on
+  every land with every enemy type and boss, a co-op revive, solo give-up and results, and the phone screens in DE/EN.
+- **Models** (`World/ModelKit.luau`): part lists with sizes in units of the body radius, colour roles (body, dark,
+  light, eye, glow, gold, …) and named animations; `ModelKit.pose` appends world CFrames to the caller's BulkMoveTo
+  arrays. Roblox keeps Ball parts round, so stretched balls are pooled as **"Ellipsoid"** (a Block with a
+  SpecialMesh sphere). Enemies face their movement, or the nearest hero while standing or winding up. Elites and bosses
+  stand on a gold ring; bosses wear a crown and carry an aura light; "Die Nacht" is its own model with orbiting shards.
+  Heroes: legs, body, cape, head, eyes, hat in the skin accent, a weapon prop per start weapon; teammates carry a
+  name/HP BillboardGui; downed heroes lie inside a revive ring that fills.
+- **Lands** (`World/Ground.luau`, `World/Land.luau`): one ground plate re-centred every 256 studs; world-anchored
+  detail grids (8-stud cells: speckles and grass tufts; 32-stud cells: large soft patches) mapped onto a fixed ring of
+  pooled parts, so a camera move only re-places the cells that scrolled in; decor per 150 px chunk exactly like the web
+  `drawDecor` (20 % of the chunks, kind/position by `Util.hash2`, `decorTint`); braziers with a light on the nearest
+  four only. Per land a mood (ambient, Atmosphere, ColorCorrection, Bloom) and one area ParticleEmitter above the
+  camera target for the weather (mist, ash, snow, dust, star motes); the hub lighting is restored after the run.
+- **Light and particle budgets:** dynamic PointLights ≤ 12 (heroes, bosses, four braziers; chests have none, their
+  band is Neon), checked by `arena.spec`. `World/Particles.luau`: one shared emitter per style and colour (max 24),
+  bursts move the anchor and call `Emit(n)`; a leaky bucket caps particles per second (PC 600, phone 300, "fewer
+  effects" 120). `World/DamageNumbers.luau`: pooled BillboardGuis on their own anchor parts, max 40 (phone 20).
+- **Telegraphs:** dark base + red outline + red fill that grows with the wind-up (circles from the centre, lanes and
+  dash lines along their length) and flashes in the last fifth; stronger outlines on touch screens. **Enemy shots:**
+  red Neon with a light core inside a dark ring (needles and lances as oriented blocks); at least 1.4 studs wide on
+  touch screens (≈ 14 px on a 720 px tall screen).
+- **Audio** (§9): `Shared/Audio/Mix.luau` is the pure port of `audio.js` (VOL, GATE, DETUNE, composite names, copy and
+  voice limits, distance fade 40–120 studs, music intensity and muffle) and is unit-tested; `Client/Audio/Sfx.luau`
+  and `Music.luau` only execute its plans. An id of 0 creates no Sound at all; Studio prints one note with the number
+  of missing ids. `audio.spec` runs a whole run with all ids 0 (silent, no Sound, no error) and with all ids set.
+- **In-run UI:** `UI/Hud.luau` (XP/level, clock, kills/gold, build slots with level pips, boss bar, countdown/surge bar
+  with icon and warning pulse, teammate cards, toasts, hurt flash), `UI/LevelUp.luau` (cards sized to the screen width,
+  chest, victory vote), `UI/Pause.luau` (web `tpl_pause`: build, stats grid, quick settings, give up with confirm; in
+  co-op a menu that does not pause), `UI/Downed.luau`, `UI/Results.luau` (gold breakdown, damage per weapon),
+  `UI/Arrows.luau` (off-screen arrows for shots that reach the hero within 1.2 s, downed teammates, the boss, own
+  chests; projection by `CameraRig.project`). Icons are glyph tiles (`UI/Icons.luau`), hero cards get a ViewportFrame
+  preview (`UI/Preview.luau`). `Kit.screen` keeps the UI scale ≥ 0.72 on touch screens; windows shrink to the screen.
+- **Seeing without Studio:** `tools/snapshot.luau` renders the client (workspace through the client camera with a tiny
+  painter's-algorithm rasterizer, ScreenGuis as rectangles with text through ffmpeg `drawtext`) into PNG files; it is a
+  development aid for layout and composition only (no lighting, no ViewportFrames, emoji not drawn).
+- **StyLua** must be built with `--features luau`; the earlier binary skipped `.luau` files silently. Generated data
+  tables are listed in `.styluaignore`.
+
 ---------------------------------------------------------------------------------------------------------------------------
 
 ## 0. Ground rules
@@ -782,15 +830,15 @@ the same before prompting.
 - **Upload (user):** Creator Hub → Creations → Audio → upload each file (or Studio Asset Manager → Bulk Import), then put
   the IDs into `src/shared/Config/AudioIds.luau` (`sfx = { hit = 0, ... }`, `music = { menu = 0, ... }`). Uploads must
   belong to the same owner (user or group) as the experience, otherwise they are blocked.
-- **Playback** (`Client/Audio/SoundPlayer.luau`): one `SoundGroup` each for SFX and music; a pool of Sound objects per
+- **Playback** (`Client/Audio/Sfx.luau` and `Music.luau`, rules in `Shared/Audio/Mix.luau`): one `SoundGroup` each for SFX and music; a pool of Sound objects per
   effect (`MAX_COPIES = 6`, `MAX_VOICES = 40`), the web game's `VOL`, `GATE` (minimum gap in ms) and `DETUNE` tables
   ported (detune via `PlaybackSpeed`), composite effects (`chest`, `bossdown`, `ewind`, `efire`, `eimpact`, `warn`,
   `tick`, `surge`) mapped like `audio.js`. Distance attenuation: positional events are scaled by distance to the own hero
   (full volume within 40 studs, silent beyond 120). Music: two Sound objects cross-faded over 1.5 s with `TweenService`;
   intensity 0 menu/hub, 1–2 battle (1 = low-passed via `EqualizerSoundEffect`), 3 boss; victory/gameover stings.
   `TRACK_VOL` ported.
-- **Fallback:** an ID of 0 means silence for that sound (no error, no warning spam: one warning per missing key in
-  Studio only).
+- **Fallback:** an ID of 0 means silence for that sound (no Sound instance, no error, no warning spam: one note with the
+  number of missing ids, in Studio only).
 
 ---------------------------------------------------------------------------------------------------------------------------
 
@@ -804,7 +852,8 @@ the same before prompting.
 - `selene src` (selene 0.31, config `selene.toml`, `std = "roblox"` with `roblox-std-source = "pinned"`: selene cannot
   download the Roblox API dump in this sandbox, so `roblox.yml` is a hand-written minimal std – globals only, no member
   checks; regenerate with `selene generate-roblox-std` where network access works) and `stylua --check src tests`
-  (StyLua, config `stylua.toml`: tabs, width 120).
+  (StyLua built with `--features luau`, config `stylua.toml`: tabs, width 120; generated tables in `.styluaignore`).
+- `lune run tools/snapshot.luau -- <scene> <out.png>` renders the client to a PNG (development aid, R4).
 - Roblox APIs are never called in Lune tests. Server modules that wrap Roblox services are kept small and reviewed by
   reading; their pure parts (receipt decision table, lock decision, retry policy, rate limiter) live in
   `src/shared` modules (`Shared/Server/ReceiptLogic.luau`, `LockLogic.luau`, `RateLimit.luau`) and are unit-tested.
@@ -830,6 +879,9 @@ the same before prompting.
 | `cosmetics.spec` | `Cosmetics.validate` (enemy-shot hue, near-black skins, sources), paid cosmetic ↔ product, hero passes ↔ earnable heroes, entitlements from passes (only when configured) and achievements |
 | `server.spec` | real server services on a fake Roblox runtime (`tests/lib/Roblox.luau`): join, lobby, forge, cosmetics, gold pack, revive purchase in a co-op run via `ProcessReceipt`, double gold, last chance held by an open prompt, unconfigured products, lost session kick, load failure kick |
 | `client.spec` | hub UI with Lune's Roblox Instances against the real server services: every screen in DE and EN, every button, no Robux button without product ids, revive offer, results |
+| `arena.spec` | the whole client (`App`) against the real server services over the real Codec: solo run with level-ups, chest, give up, results; every land at heat 5 with every enemy type and boss (co-op); co-op downed → revived → results; phone screens in DE/EN (cards by tapping, pause toggles, give up with confirm, results); budgets: lights ≤ 12, emitters ≤ 26, damage numbers ≤ 40, every pooled part returned after the run |
+| `audio.spec` | Mix rules (gates, composites, copy/voice limits, distance, gem combo, music intensity), id table ↔ files in `assets/audio`, a whole run with ids 0 (no Sound, nothing played, no error) and with ids set (≤ 6 Sounds per recording) |
+| `hygiene.spec` | no `wait/spawn/delay` without `task.`, no `Instance.new(…, parent)`, no `:connect`, no Instance creation in arena render/update functions, no MarketplaceService on the client, remotes rate-limited and validated |
 | `codec.spec` / `net_budget.spec` | snapshot/event encode-decode round trip, packets ≤ 900 bytes, worst-case bandwidth from a recorded bot run ≤ budget |
 | `lang.spec` | every `tr("…")` key used in `src/` has an English entry; placeholders match |
 | `determinism.spec` | same seed + inputs → identical event stream hash after 3 simulated minutes |
@@ -963,7 +1015,7 @@ ProductInfo,DataStoreAdapter}.luau`, `src/shared/Server/{ProfileStore,Entitlemen
 remaining presentation work below (final models, effects, audio, in-run screens, devices) and the release checklist
 form the next milestone.
 
-### R3 (now next) – Presentation: full UI, effects, audio, language, devices
+### R3 – Presentation: full UI, effects, audio, language, devices (delivered as R4, see the status notes above)
 
 Goal: every screen of §5.2, all effects and telegraph polish of §4, audio, DE/EN complete, mobile and gamepad.
 
@@ -986,7 +1038,7 @@ src/shared/Lang/En.luau                  + all Roblox-only strings
 tests/lang.spec.luau (extended to scan src/client)
 ```
 
-### R4 – Monetization, persistence hardening, polish, release checklist (monetization and persistence done in R3)
+### R4 – Monetization, persistence hardening, polish, release checklist (delivered as R3; the checklist with R4)
 
 Goal: Robux purchases of every kind work in Studio test mode; cosmetics visible; performance pass; documentation for
 the user.

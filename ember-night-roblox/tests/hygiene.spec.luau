@@ -72,7 +72,10 @@ end)
 suite:test("the client never prompts purchases itself; server remotes validate and rate-limit", function()
 	for _, f in files(ROOT .. "src/client") do
 		local src = fs.readFile(f)
-		T.ok(not string.find(src, "MarketplaceService"), f .. " uses MarketplaceService (prompts are opened by the server)")
+		T.ok(
+			not string.find(src, "MarketplaceService"),
+			f .. " uses MarketplaceService (prompts are opened by the server)"
+		)
 	end
 	local net = fs.readFile(ROOT .. "src/server/Services/Net.luau")
 	for _, remote in { "move", "cmd", "query" } do
