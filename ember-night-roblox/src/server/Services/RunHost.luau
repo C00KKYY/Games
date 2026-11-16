@@ -44,6 +44,11 @@ local function teamInfo()
 	return team
 end
 
+-- the running sim (tests and debugging only)
+function RunHost.current(): any
+	return run
+end
+
 function RunHost.running(): boolean
 	return run ~= nil
 end
