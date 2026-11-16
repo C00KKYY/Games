@@ -1,0 +1,1018 @@
+# Ember Night (Roblox) – Design and Implementation Plan
+
+Status: authoritative design for the Roblox port of the web game "Ember Night" ("Glutnacht",
+`/home/user/Games/glutnacht`). Implementers follow this document; when code and this document disagree, fix one of them in
+the same commit and say which. All game content is original and owned by the user. Keep it original: no names, art, sounds
+or mechanics copied from other games beyond the genre basics already in the web game.
+
+Language of the game: German and English (German is the source language of all text keys, as in the web game).
+Language of code, comments and this document: English. Commit messages: German, prefixed `Ember Night Roblox: `.
+
+Contents
+
+1. Scope: what is ported, what is simplified
+2. Co-op model
+3. Architecture, performance and networking
+4. 3D look
+5. UI and input
+6. Persistence
+7. Monetization
+8. Policy and compliance
+9. Audio
+10. Testing
+11. Milestones R1–R4 with file lists
+Appendix A: units and constants. Appendix B: wire formats. Appendix C: profile schema. Appendix D: Studio checklist.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 0. Ground rules
+
+- **Pure simulation.** Everything that decides the outcome of a run lives in pure Luau ModuleScripts under
+  `src/shared/Sim` (Roblox path `ReplicatedStorage.Shared.Sim`). Sim modules use no Instances, no Roblox services, no
+  `task`, no `tick()`/`os.clock()` for logic, no `math.random`, no `Vector3`/`CFrame`. They use plain tables and numbers,
+  an injected RNG (`Sim/Rng.luau`) and the standard Luau libraries available in both Roblox and Lune (`math`, `table`,
+  `string`, `bit32`, `buffer`). Positions are two numbers `x, y` on the ground plane.
+- **Dual require.** Every module that is used from both Roblox and Lune requires its siblings like this (verified with
+  Lune 0.11.1, where `script` is `nil` and string requires are relative to the requiring file):
+  ```lua
+  local Util = if script then require(script.Parent.Util) else require("./Util")
+  local Weapons = if script then require(script.Parent.Data.Weapons) else require("./Data/Weapons")
+  ```
+  No `init.luau` files inside `src/shared` (they change the meaning of relative paths). Server and client code
+  (`src/server`, `src/client`) use plain `require(script.Parent.X)`; they never run under Lune.
+- **Thin adapters.** `src/server` (server loop, replication, DataStore, MarketplaceService, lobby) and `src/client`
+  (rendering, UI, input, camera, audio) translate between the sim and Roblox. If an adapter needs a game rule, the rule
+  goes into the sim (or `src/shared`) and gets a Lune test.
+- **Same numbers as the web game.** The sim keeps the web game's units (world pixels, seconds) so that every table in
+  `js/data.js` and every constant in `js/game.js`/`js/weapons.js` ports 1:1. The adapters convert:
+  **1 stud = 10 world px** (`Tuning.STUDS_PER_PX = 0.1`). Example: hero radius 12 px = 1.2 studs, hero speed 150 px/s
+  = 15 studs/s (close to Roblox's default 16 walk speed), view 1280 × 720 px = 128 × 72 studs.
+- **Determinism.** Given the same seed, the same player inputs per tick and the same join/leave/purchase events, the sim
+  produces the same result. Never iterate a hash table (`pairs`) where order affects the outcome; data tables that need an
+  order carry an explicit order array (e.g. `Weapons.ORDER`). This makes bot runs reproducible and bugs replayable.
+
+## 1. Scope
+
+### 1.1 Ported in full (content parity with the web game at commit 088f564)
+
+| Area | Content | Source |
+|---|---|---|
+| Lands | 5 lands: Alter Friedhof (10 min), Aschenwald, Eissee, Burgruine, Herz der Nacht (15 min each); per land: waves per minute (pool, rate, cap, optional xp), events (swarm, ring, arc incl. `mix`), surges, `hpBridge`, `rangedFrom`, `rangedCd`, mods, mult, tints, intro/outro, ground colours, decor list | `STAGES` |
+| Enemies | 12 types: bat, slime, skel, ghost, ghoul, wraith, brute, golem (melee) and spitter (spit), cinder (mortar), moth (needle), bell (ring) (ranged) with band/cd/wind/retreat/strafe, elites (first elite at 0:30, then every 60 s; from 3:00 every second elite ranged), swarms, early-speed bonus, relocation, separation | `ENEMIES`, `game.js` |
+| Bosses | 16 bosses incl. 5 final bosses; skills dash (telegraphed line), summon, slam (circle), nova (charge ring), and the five attack primitives **fan, lances, rain** (variants scatter, flank + slow puddle, walk, stars, track), **spiral, lanes** (patterns x, fan3) with all telegraphs and caps (`ESHOT_CAP` 120, `ESHOT_CAP_BOSS` 160, `TELE_CAP` 32, `HAZ_CAP` 8) and the volley director (`canWind`) | `STAGES[].bosses`, `bossAI`, `startCast`… |
+| Countdown + surge | M10: warning bar from 1:30, T-10 banner with hint, ticks T-5…T-1, surge 2:00 for `dur` s with opening event, pool swap of melee, ×rate/×cap/×xp/×speed (damped from heat 3), gold reward (double without hit), light boss countdown 20 s before the first non-final boss | `buildCountdowns`, `countdownTick`, `surgeStart/End` |
+| HP curve | `hpCurve`, `hpCurveBridged` (heat < 3 only), heat and land multipliers, boss heat damping (60 %) | `game.js` |
+| Weapons | 9 weapons with 8 levels and evolutions: wand/Arkansturm, whip/Blutklinge, orbit/Sternenkranz, aura/Lebensquell, lightning/Donnerkeil, sickle/Sturmsichel, fire/Höllenfeuer, nova/Ewiges Eis, knives/Tausend Klingen | `WEAPONS`, `weapons.js` |
+| Passives | 12 passives (might … wing), max 6 weapons, 6 passives | `PASSIVES` |
+| Level-up | 3 or 4 cards (luck), weights 10/8/7/6, early new-weapon rule, gold/heal fallback, reroll, skip, banish | `buildOptions` … `banish` |
+| Chests | evolution first, else 1/3/5 items by luck, gold 15–40 × greed × heat | `openChest` |
+| Pickups | gems (cap 320, merge), coins, bag, heart, magnet, bomb, chest; braziers ("Kohlebecken") per 620 px chunk via hash | `updatePickups`, `updateProps` |
+| Heroes | 9 heroes with start weapon, bonus and unlock achievement | `CHARS` |
+| Forge | 17 upgrades with price formula, refund at the cheapest possible order | `SHOP`, `shopPrice`, `shopRefundValue` |
+| Night levels | Heat 0–5, unlock per land (max = best + 1), stars (★ clear, ★★ heat 1+, ★★★ heat 3+) | `HEAT`, `stage*` |
+| Achievements | all 31 incl. hero unlocks and gold rewards | `ACHIEVEMENTS` |
+| Run end | time bonus 6 gold/min, boss bonus 25, heat gold multiplier, first-run gift, records, victory, **endless mode** (scaling `extra`, boss every 120 s) | `endRun`, `continueEndless` |
+| Story | premise, per-land intro/outro, ending, tips | `STORY`, `TIPS`, stage texts |
+| Text | every German string and its English translation | `lang.js` (338 entries) |
+
+### 1.2 Changed or simplified (and why)
+
+| Web game | Roblox | Why |
+|---|---|---|
+| Single player, the world pauses for level-up, chest, pause | Solo runs still pause exactly like the web game. Co-op runs never pause for one player; see §2.4 | Roblox servers cannot pause for one player |
+| Screen-size dependent `Game.view` (and `view.top` on phones) | Fixed sim view `VIEW_HW = 640`, `VIEW_HH = 360` world px and `VIEW_TOP = 70` px; the camera is set up so this rectangle is visible on every device (§4.1) | One view size per run; all players see the same area size, spawns and ranged-fire rules stay fair |
+| Variable frame `dt` (≈ 1/60 s) | Fixed sim step `dt = 1/30 s`; projectiles and enemy shots move in sub-steps of at most 10 px | Server budget; sub-steps prevent tunnelling (knives travel 21.7 px per 1/30 s) |
+| Particles, damage numbers, screen shake, gem combos inside the sim | The sim emits events; particles and numbers exist only on clients | Nothing cosmetic is simulated or replicated |
+| 2D sprites drawn on a canvas | 3D models built from primitive Parts in code (§4) | No external assets needed |
+| WebAudio with synthesizer fallback | Uploaded audio assets; silent where an ID is 0 (§9) | No synthesis in Roblox |
+| Off-screen warning arrows, post-modal slow-motion ramp (0.45 s, 30 %→100 %) | Arrows: kept (client computes them). Ramp: solo only | In co-op nothing pauses, so nothing ramps |
+| Kill-count achievements ("in one run") | Count the **team's** kills in that run; lifetime kill stats count the player's own last hits | Fair in co-op; lifetime unlock (Brom, 3000 kills) stays a personal effort |
+| CrazyGames SDK, itch builds, promo tools, key art | Dropped | Not applicable |
+| Settings `mute` (platform) | Dropped; sfx and music toggles stay | Roblox has its own master volume |
+
+Everything not listed here behaves as in the web game. When in doubt, read the web code; the M9/M10 specs
+(`tools/qa/m9-spec.md`, `tools/qa/m10-spec.md`) explain why things are the way they are.
+
+### 1.3 Not in scope (possible later)
+
+Trading, PvP, leaderboards (could come later via OrderedDataStore), voice, custom chat, more lands, daily rewards.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 2. Co-op model
+
+### 2.1 Server = party
+
+- One server hosts at most **4 players** (`Players.MaxPlayers` = 4, set in Game Settings, see Appendix D). Everyone on
+  the server is the party. Friends join through Roblox's normal "Join" feature; public matchmaking fills servers up to 4.
+- One run at a time per server. Players who join while a run is in progress spawn in the hub, see a "Run in progress –
+  Aschenwald, 6:12" panel with a **Spectate** button (camera follows a hero of their choice) and play the next run.
+
+### 2.2 Hub
+
+- The hub is built in code by `Server/World/HubBuilder.luau` at `HUB_ORIGIN = (0, 2000, 0)` studs (far above the arena,
+  never visible from the arena camera): a round plaza (radius 60 studs, dark stone), a large campfire in the middle
+  (Neon embers + PointLight + ParticleEmitter), four hero pedestals that show each player's chosen hero, and a "world map
+  table". Players walk around with their normal Roblox avatars (default camera, default controls).
+- The **Party panel** (always visible in the hub) lists the players with their hero, ready state and a crown on the leader.
+
+### 2.3 Starting a run
+
+- **Leader** = the player who has been on the server the longest (recomputed when the leader leaves).
+- The leader opens the world map and selects **land and night level**. Only lands and heat levels unlocked in the
+  *leader's* profile can be chosen (`stageUnlocked`, `stageMaxHeat`). Other players may join a land they have not
+  unlocked themselves ("carried"); a victory counts for everyone (see §2.9).
+- Each player selects a **hero** from his own unlocked heroes (earned by achievement or owned via game pass, §7) and an
+  equipped cosmetic set, then presses **Ready**.
+- The leader presses **Start**. Allowed when the leader is ready; players who are not ready are set ready with their
+  current (or last used) hero. A 5-second countdown ("Run starts in 5 …") follows; any player can cancel his ready state,
+  which aborts the countdown. Solo: Start is immediate.
+- At start the server creates the sim (`Run.new{ seed, stageId, heat, players = { {slot, userId, heroId, profileView} } }`),
+  anchors every character in the hub (they stay alive so that Roblox's control module keeps producing input; see §5.4),
+  and switches the clients to the arena camera.
+- The first time a player enters a land, his client shows the land's intro text panel for 4 s (non-blocking in co-op,
+  blocking with a "Go" button in solo, like the web `story` screen). `storySeen` is stored per player.
+
+### 2.4 Shared world, personal build
+
+| Thing | Shared or personal |
+|---|---|
+| Enemies, bosses, enemy shots, telegraphs, hazards, braziers, director, timer, countdown/surge | **shared** (one world) |
+| Hero position, HP, i-frames, stats, weapons, passives, level, XP bar, pending level-ups, rerolls/skips/banishes, revivals (forge) | **personal** |
+| Gems | dropped in the world; **XP is team XP**: whoever collects a gem, every player in the run (also downed ones) gains `v × xpShare(N)` scaled by his own `growth` |
+| Coins, gold bags | team gold: every player gets `v × goldShare(N) × own greed × heat gold` |
+| Heart | heals the collector |
+| Magnet | pulls all gems and coins in the world to the collector |
+| Bomb | hits enemies inside the collector's view rectangle (like the web game) |
+| Chest (elite, boss) | an elite or boss drops **one chest per player**, each marked with the owner's colour; only the owner can pick it up; it is opened for his build |
+| Brazier | shared; its drop is a normal pickup |
+| Surge gold reward | per player: double only for players who were not hit during the surge |
+
+Kills are credited to the player whose damage killed the enemy (`lastHitSlot`) for lifetime stats and the damage table;
+run-scope achievements use the team's run kills (§1.2).
+
+### 2.5 Level-up and chest without pausing the world
+
+**Solo (N = 1):** the sim pauses exactly like the web game (`state = 'levelup' | 'chest' | 'paused'`), including the
+0.45 s slow-motion ramp after a dialog when something is flying or telegraphed. Balance stays identical to the web game.
+
+**Co-op (N ≥ 2):** nothing pauses. Instead:
+
+- **Card tray.** When a player has pending level-ups, his client shows the level-up cards as a **non-modal tray** at the
+  bottom of the screen (3 or 4 compact cards, reroll/skip/banish buttons). The hero can keep moving. Selection: tap/click,
+  keys `1`–`4`, gamepad D-pad left/right + A (ButtonA), or ButtonX/Y/B for reroll/skip/banish. The tray shows the
+  remaining auto-pick time.
+- **Ember Ward.** When a tray opens (the first pending level after none), the sim grants that player a ward:
+  `WARD_TIME = 1.5 s`: invulnerable, enemies within `WARD_RADIUS = 120 px` are pushed outward (300 px/s), enemies within
+  200 px move at 50 % speed, enemy shots entering 120 px are deleted. A ward can start at most every `WARD_COOLDOWN = 6 s`
+  per player (otherwise five level-ups in the first minute would mean 7.5 s of invulnerability). Visual: an ember-coloured
+  translucent dome. Chests do not grant a ward.
+- **Auto-pick.** If a card is not chosen within `AUTO_PICK_TIME = 15 s`, the sim picks card 1 (the cards are already in
+  weighted-random order, so this is unbiased). Pending levels are processed in order; every pending level gets its own
+  15 s.
+- **Chests** open immediately on pickup (no choice to make); the result appears as a 3.5 s panel at the side of the screen
+  (evolution gets a big banner).
+- **Pause menu** in co-op is a local overlay: it shows the build and settings, says "The night does not wait", and the
+  hero stands still. No ward.
+- **Victory and the endless vote** are the only global pauses in co-op (§2.8).
+
+### 2.6 Scaling with player count
+
+`N` = number of players in the run who are connected (downed and fallen players count; players who left do not). All
+factors live in `Sim/Coop.luau` (tables indexed by N, interpolated for nothing) and are tuned with the bot (§10.2).
+Starting values:
+
+| Factor | N=1 | N=2 | N=3 | N=4 | Applies to |
+|---|---|---|---|---|---|
+| `spawnRate` | 1 | 1.6 | 2.1 | 2.5 | director `rate` |
+| `spawnCap` | 1 | 1.5 | 1.9 | 2.2 | director `cap` (then global cap) |
+| `enemyHp` | 1 | 1.2 | 1.35 | 1.5 | normal and event enemies |
+| `eliteHp` | 1 | 1.6 | 2.2 | 2.8 | elites |
+| `bossHp` | 1 | 1.8 | 2.5 | 3.2 | bosses |
+| `eventCount` | 1 | 1.4 | 1.7 | 2.0 | `n` of swarm/ring events, `mix` counts (rounded) |
+| `rangedCap` | 1 | 1.35 | 1.7 | 2.05 | `rangedCap()` |
+| `windMax` | +0 | +1 | +2 | +3 | `canWind` max simultaneous wind-ups |
+| `xpShare` | 1 | 0.62 | 0.48 | 0.40 | XP each player gains per gem |
+| `goldShare` | 1 | 0.7 | 0.6 | 0.5 | gold each player gains per coin/bag |
+| `eshotCap` | 120/160 | 168/224 | 216/288 | 240/320 | `ESHOT_CAP` / `ESHOT_CAP_BOSS` |
+| `teleCap` | 32 | 48 | 64 | 72 | `TELE_CAP` |
+
+Global hard caps regardless of N (performance, §3.4): `ENEMY_CAP_TOTAL = 450` non-boss enemies (swarms included; a
+swarm event that would exceed it spawns fewer), `PLAYER_SHOT_CAP = 400`, `GEM_CAP = 320` (merge as web), `PICKUP_CAP = 120`.
+
+If N changes during a run (a player leaves), the factors change for everything spawned afterwards; living enemies keep
+their HP.
+
+### 2.7 Enemies with several players
+
+- **Target.** Every non-boss enemy chases the nearest *active* (not downed, not fallen) player. The target is
+  re-evaluated every 0.5 s, staggered by `id % 15`; a new target must be 15 % closer than the current one (hysteresis).
+  Ranged enemies use their target for band distance, view-rectangle checks (`inViewRect` of the target's view) and aim.
+- **Bosses** pick a target per skill: the nearest active player with probability 0.6, otherwise a random active player.
+  All telegraphs of that skill refer to that player (rain variants follow him, `track` tracks him).
+- **Spawn position.** The director spawns around an *anchor* player, chosen round-robin among active players. The
+  position is on the edge of the anchor's view rectangle +50 px (as `spawnPos`), with up to 4 retries if the point lies
+  inside another active player's view rectangle. Events (ring, swarm, arc) are placed around a randomly chosen active
+  player; the first elite (0:30) appears in the view of a random active player.
+- **Relocation.** An enemy farther than `reloc` from **all** active players is moved to a new spawn position.
+- **Leash.** Active players must stay within `LEASH_RADIUS = 900 px` of the centroid of all active players (with N = 1
+  no leash). The server clamps reported positions; the client shows a faint ember ring at the leash edge when a player is
+  closer than 150 px to it. This keeps the party in one interest region (network) and makes revives possible.
+
+### 2.8 Downed, revive, end of run
+
+1. HP ≤ 0 → if the player has a forge **revival** charge left: revive exactly as the web game (50 % HP, 3 s i-frames,
+   blast 320 px).
+2. Otherwise the player is **downed**: hero kneels, weapons stop, enemies ignore him, he cannot collect pickups (team XP
+   still counts for him). Bleed-out timer `BLEED_OUT = 30 s`.
+3. **Teammate revive.** An active player standing within `REVIVE_RADIUS = 70 px` fills the revive bar; the bar needs
+   `REVIVE_TIME = 3 s` (+1 s for each earlier revive of the same player this run, max 6 s) and drains at 0.5 s per s when
+   nobody is near. Revived players get 40 % max HP and 2 s i-frames. The reviver is not protected.
+4. Bleed-out reaches 0 → the player is **fallen** (spectates a teammate; can only come back by a Robux revive).
+5. **Robux revive** ("Second Ember", developer product, §7): available while downed or fallen, at most
+   `REVIVE_MAX_PER_RUN = 1` per player per run. Effect: 50 % HP, 3 s i-frames, blast 320 px (like the forge revival).
+6. **Last chance.** When the last active player goes down and at least one downed/fallen player can still buy a revive,
+   the sim enters `state = 'lastchance'` for `LAST_CHANCE_TIME = 10 s` (global pause, in solo as well). Every eligible
+   player sees the revive offer. A completed purchase revives that player and resumes the run. Otherwise the run ends.
+7. **Run end (defeat)** = no active players and no last chance pending.
+8. **Victory.** The final boss dies → victory for everyone in the run (also downed/fallen players). The sim enters
+   `state = 'victory'` (global pause), clients show the victory screen with two buttons, **Endless** and **Finish**. In
+   co-op it is a vote: majority wins, a tie or 20 s timeout means Finish. Endless continues as in the web game.
+   Downed players stay downed; fallen players stay fallen.
+9. **Leaving mid-run.** A player who leaves gets his results booked as a defeat at that moment (collected gold + time
+   bonus + boss bonus, achievements checked); the run continues for the others. If the last player leaves, the run ends.
+
+### 2.9 Results and progression per player
+
+Each player's run view (`run.players[slot]`) holds what the web `run` object held for the single hero (t, level, kills
+for him and for the team, gold, weapons, passives, evolvedCount, firstHit, won, heat, …). At the end the server calls
+`Results.finish(run, slot, profile)` for each player; it is a direct port of `endRun` + `checkAchievements` +
+`recordClear` working on that player's profile. Victory unlocks stars/next land/next heat in every participant's own
+profile (also for carried players). Achievements are also checked every second during the run, per player, as in the
+web game.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 3. Architecture, performance and networking
+
+### 3.1 Process view
+
+```
+           Client (LocalScript)                                   Server (Script)
+ ┌──────────────────────────────────────┐            ┌──────────────────────────────────────────┐
+ │ Controls ── move vector ──┐          │ Move (UR)  │ Net ─► RunHost.input[slot]               │
+ │ local hero prediction ◄───┴──────────┼───────────►│ RunHost: Heartbeat accumulator, 30 Hz    │
+ │                                      │            │   Run.step(run, 1/30, inputs) (pure Sim) │
+ │ SnapshotClient ◄─ Snap (UR, ≤900 B) ─┼────────────┤ Replicator: per-client interest, encode  │
+ │ EventClient    ◄─ Ev (reliable buf) ─┼────────────┤ run.events → per-client event buffers    │
+ │ UI             ◄─ Ui (reliable tbl) ─┼────────────┤ Lobby, Profiles, Purchases, Passes       │
+ │ World renderers (pooled Parts)       │ Cmd (rel.) │                                          │
+ │ UI actions ──────────────────────────┼───────────►│ RunHost.command / Lobby.command          │
+ └──────────────────────────────────────┘            └──────────────────────────────────────────┘
+```
+
+UR = `UnreliableRemoteEvent`. Remotes are created by `Server/Services/Net.luau` in `ReplicatedStorage.Remotes`:
+`Move` (UR, client→server), `Snap` (UR, server→client), `Ev` (RemoteEvent, server→client, one `buffer` per tick),
+`Ui` (RemoteEvent, server→client, Lua tables, low frequency), `Cmd` (RemoteEvent, client→server, `{op = "...", ...}`),
+`Query` (RemoteFunction, client→server: profile view, shop data; rate-limited).
+
+### 3.2 Server simulation loop
+
+- `RunHost` accumulates `Heartbeat` dt and runs `Run.step(run, 1/30)` while `acc ≥ 1/30`, at most 3 steps per Heartbeat
+  (drop the rest; the game slows down instead of spiralling).
+- Before each step it applies the latest validated input of each player (§3.6) and queued commands (card choice, reroll,
+  revive purchase, vote …). After each step it hands `run.events` to the Replicator and clears them.
+- Snapshots go out every second step (**15 Hz**); event buffers every step if non-empty (30 Hz).
+- Sim modules start with `--!strict` where practical and `--!native` for the hot ones (`Enemies`, `Grid`, `Shots`,
+  `Weapons`) – native code generation runs on Roblox servers and is ignored by Lune.
+
+### 3.3 Sim API (summary; the exact module list is in §11)
+
+```lua
+local run = Run.new({ seed = 12345, stageId = "graveyard", heat = 0,
+  players = { { slot = 1, userId = 1, heroId = "aron", forge = { might = 2 }, cosmetics = {...}, coopSolo = false } } })
+Run.setInput(run, slot, x, y, seq)        -- validated hero position from the network (or bot)
+Run.command(run, slot, cmd)               -- { op = "pick", i = 2 } | reroll | skip | banish | pause | vote | revive
+Run.step(run, dt)                         -- advances the world by dt (1/30)
+run.events                                -- array of { k = "kill", ... } (see Appendix B.3), cleared by the caller
+run.state                                 -- "play" | "levelup" | "chest" | "paused" (solo) | "lastchance" | "victory" | "over"
+Run.removePlayer(run, slot)               -- leave mid-run, returns that player's result view
+Results.finish(run, slot, profile, opts)  -- mutates the profile table (pure), returns the summary for the results screen
+```
+
+Web `Hooks.*` calls become events in `run.events`: `sfx`, `banner`, `shake`, `kill`, `levelUp`, `chest`, `victory`,
+`gameOver`, `achievement`, plus network-only events listed in Appendix B.3.
+
+### 3.4 Budgets
+
+| Item | Budget | How it is enforced / measured |
+|---|---|---|
+| Sim step, 4 players, 450 enemies, 160 enemy shots, 400 player shots | ≤ 6 ms in Lune on this machine (interpreted), expected ≤ 3 ms on a Roblox server with `--!native` | `tests/bench.luau` (fails above 8 ms median) |
+| Sim memory | ≤ 30 MB | object pools for shots, enemies (`Run.pool`) |
+| Snapshot | ≤ 900 bytes per UR packet; ≤ 3 packets per snapshot; 15 Hz | encoder splits; `tests/net_budget.spec.luau` |
+| Downstream per client | target ≤ 30 KB/s typical, ≤ 45 KB/s worst case (4 players, surge, boss) | bot replay through the encoder in `tests/net_budget.spec.luau` |
+| Upstream per client | ≤ 1 KB/s (Move at 20 Hz × 14 bytes + commands) | |
+| Enemies rendered per client | ≤ 260 (nearest in interest region) + all bosses | encoder cap `SNAP_ENEMY_CAP = 260` |
+| Client frame (mid-range phone) | ≤ 6 ms script per frame for world rendering with 260 enemies | MicroProfiler in Studio (checklist) |
+| Parts in the arena on a client | ≤ 2500 (enemy pools ~900, shots ~400, telegraphs ~100, ground/decor ~600) | pools are pre-sized; no Instance creation per frame |
+
+### 3.5 Replication
+
+**Snapshots (`Snap`, unreliable, 15 Hz).** One snapshot = 1–3 self-contained packets ≤ 900 bytes (Roblox drops larger
+unreliable payloads). Each packet: header (tick, packet index/count, origin) + heroes (packet 0 only) + up to 110 enemy
+records of 8 bytes (id, position relative to the origin, type/flags, state). The origin is the recipient's hero position
+rounded to whole px, so 16-bit offsets suffice. Interest region per client: |dx| ≤ 900 px, |dy| ≤ 620 px around his
+hero (the camera's visible ground area plus margin); enemies are sorted by distance and the nearest 260 are sent; bosses
+are always sent. Exact layout: Appendix B.1. Bandwidth knob if the budget is exceeded in tests or in Studio: enemies in
+the outer half of the interest region are sent only every second snapshot (`SNAP_FAR_EVERY = 2`), and `SNAP_ENEMY_CAP`
+drops to 200 on clients that report a low frame rate.
+
+**Client interpolation.** The client keeps the last 4 snapshots per tick number and renders enemies at
+`renderTime = latestTick − INTERP_DELAY` with `INTERP_DELAY = 2 snapshot intervals = 133 ms`, linearly interpolating each
+id between the two surrounding snapshots. Missing packet → the enemies of that packet are extrapolated for at most
+100 ms, then held. An id that has not appeared for 0.5 s is released back to the pool (deaths come as `kill` events and
+play their effect immediately).
+
+**Events (`Ev`, reliable, per step, one `buffer` per client).** Everything that is created once and then moves
+predictably is sent once and simulated on the client:
+- enemy shots: spawn (id, x, y, vx, vy, radius, kind, life) and remove (id) – straight lines, the client moves them itself;
+- telegraphs: create (id, kind, geometry, life), update (aim angle while not locked, follow position), end;
+- hazards (ember/slime puddles), braziers broken, pickups spawned/attracted/collected, gems (dropped by the kill event,
+  attracted toward slot, collected);
+- player weapon visuals: fire events (slot, weapon, origin, angle, speed, area, evo) – bolts, knives, sickles, flasks,
+  slashes, zaps/arcs, novas, aura pulses; orbit state changes (active, amount, radius, speed);
+- kills (id, position, type, elite/boss) → death effect + gem;
+- damage numbers: only hits by the recipient himself and hits on bosses, max 24 per step;
+- sound and shake cues with a position (the client decides audibility by distance to its hero).
+
+**UI messages (`Ui`, reliable tables, low frequency).** Banners, countdown phase changes, level-up offers (to the owner
+only), chest results, achievements, boss bar (4 Hz: hp fraction, name key), run state changes, results, lobby state,
+shop/profile updates.
+
+**Own-hero state** (HP, XP, level, stats for the pause screen, weapon/passive slots, rerolls …) is sent to its owner as
+a `Ui` message whenever it changes, at most 10 Hz (HP and XP bar), immediately for level/slot changes.
+
+### 3.6 Player movement: client-predicted, server-validated
+
+Decision: **client-authoritative movement with server validation.** Dodging telegraphed attacks needs instant response;
+a server-side hero would add a full round trip (100–250 ms) of input lag.
+
+- The client moves its own hero locally every frame with the same rules as the sim (`speed = stats.speed`, ×0.55 in a
+  slime puddle, leash clamp) using the move vector from Roblox's control module (§5.4), and sends
+  `Move{seq, x, y, dirX, dirY}` at 20 Hz on the unreliable remote (14 bytes, Appendix B.2).
+- The server accepts the newest packet per player (`seq` increases; older ones are ignored) and validates it in
+  `Party.applyMove`: the distance from the last accepted position must be ≤ `speed × slowFactor × elapsed × 1.25 + 8 px`
+  (elapsed measured on the server, capped at 0.5 s). Longer moves are clamped along the same direction; positions outside
+  the leash are clamped to the leash circle; downed players do not move. After 3 clamps within 2 s, or a deviation
+  > 40 px, the server sends a `correct{x, y}` message and the client snaps (smoothly over 0.1 s) to it.
+- The sim uses the accepted position for everything (contact, shots, pickups) and derives `vx, vy` (needed for lead aim)
+  from the accepted displacement, smoothed over 0.2 s.
+- Lag fairness: the client sees enemies ~133 ms in the past while the server checks hits against the client's current
+  position. To compensate, the hero's hit radius against enemy shots, circles and lanes is `p.r − 2` in co-op (web:
+  `p.r`), contact uses `e.r + p.r − 3` as in the web game. Telegraph durations (≥ 0.45 s wind-up, ≥ 0.75 s area warnings)
+  are unchanged and remain much longer than the latency.
+- Remotes are rate-limited (Move: max 30 packets/s per player; Cmd: max 20/s; excess dropped) and all arguments are
+  type- and range-checked on the server.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 4. 3D look
+
+### 4.1 Camera
+
+- `Camera.CameraType = Scriptable` during a run. `CameraRig` places the camera behind and above the followed hero:
+  pitch `CAM_PITCH = 58°` (looking down), vertical `FieldOfView = 40`, distance `CAM_DIST ≈ 100 studs` so that the
+  128 × 72 stud sim view around the hero is visible on a 16:9 screen (the far edge shows more because of perspective;
+  that is fine, spawns are outside the sim view anyway). On narrower aspect ratios (4:3 tablets, phones in portrait,
+  which Roblox discourages) `CAM_DIST` grows until 128 studs fit horizontally.
+- The camera follows the hero with critical damping (half-life 0.08 s) and never rotates. Screen shake: small random
+  offset decaying over 0.25 s, amount from the `shake` event, disabled by the setting.
+- Up on the screen = −y in the sim = −Z in the world (world `X = x × 0.1`, `Z = y × 0.1`, ground at `Y = 0`).
+
+### 4.2 Ground per land
+
+- A ground plate made of 3 × 3 tiles of 256 × 256 studs (Part, SmoothPlastic, colour `ground.base`) that re-centres on
+  the hero in 256-stud steps, so the ground is endless. Speckles: small flat Parts (2–6 studs, colours from
+  `ground.speckle`, 40 per tile) placed deterministically by `hash2(tileX, tileY, i)` (shared hash in `Sim/Util.luau`).
+  Grass tufts: thin wedges in `ground.grass`.
+- **Decor** per 620 px chunk (62 studs), deterministic like the web game: models built from primitives for each decor id
+  used in `STAGES[].decor` (`grave`, `cross`, `bones`, `rock`, `mush`, `stump`, `flower`), tinted by `decorTint`. Decor
+  is pooled (max 120 instances) and re-used when chunks scroll out. Decor has no collision (as in the web game).
+- **Braziers** (Kohlebecken): small iron bowl (cylinder) with Neon ember and a PointLight (range 8, brightness 1.2);
+  positions from the same chunk hash the sim uses (`Props.position(cx, cy)` in `Sim/Props.luau`), broken state from
+  events.
+- **Lighting per land** (`LandLighting`): `Lighting.ClockTime = 0`, `Ambient`/`OutdoorAmbient` and an `Atmosphere`
+  (density, colour) derived from the land's ground colours, a soft `ColorCorrectionEffect` tint, `Bloom` (intensity 0.6,
+  threshold 1.2) so Neon parts glow. The hero carries a warm PointLight (range 22) – the "ember".
+
+### 4.3 Models from primitives
+
+All models are built in code by `Client/World/ModelKit.luau` from Parts (Ball, Block, Cylinder, Wedge, CornerWedge) with
+`Anchored = true`, `CanCollide = false`, `CanQuery = false`, `CanTouch = false`, `CastShadow = false`, materials
+`SmoothPlastic` and `Neon` only. No meshes, decals or images are required. Sizes follow the sim radius `r`
+(1 px = 0.1 stud; body diameter ≈ 2 × r × 0.1 studs). Style: chunky, cartoon, big eyes – the web sprites are the
+reference for silhouette and colour (`ENEMY_COLORS`, stage `tints`).
+
+| Model | Parts (≤ 4 for normal enemies) | Animation (CFrame offsets, no Motor6D) |
+|---|---|---|
+| bat | ball body, 2 wedge wings, neon eyes (one part) | wing flap (rotate wings), bob |
+| slime | squashed ball, neon eyes | squash/stretch |
+| skel | block torso, ball skull, neon eyes | waddle tilt |
+| ghost | ball + cone-ish wedge tail, semi-transparent | float bob |
+| ghoul | hunched block, ball head, arms as blocks | lurch |
+| wraith | elongated ball, neon core, trailing wedge | hover + spin |
+| brute | big block body, ball head, 2 block fists | stomp bob |
+| golem | stacked blocks, neon cracks (thin neon blocks) | slow stomp |
+| spitter | ball body with cylinder snout | snout points at target while winding |
+| cinder | cauldron (cylinder) + neon coal | rocks while winding |
+| moth | ball body + 2 flat wings, long neon needle | flit |
+| bell | bell (cylinder + ball), neon clapper | swings while charging |
+| bosses | the sprite model × scale (`r / base r`) + crown/horns + aura PointLight; "night" (Die Nacht) is its own model: dark sphere with orbiting neon shards | as sprite + idle pulse |
+| heroes | body (block), head (ball), cloak (wedge), weapon prop, colour = hero colour or equipped skin | walk bob, facing |
+
+Rendering rules:
+- One pool per enemy type (pre-sized: 60 for common types, 20 for rare, 4 per boss sprite). All parts of all visible
+  enemies are moved once per frame with a single `workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)`.
+- Elites: scale × 1.55 (as the sim), golden `Highlight`-free glow: a Neon ring part under the enemy and gold tint.
+- Hit flash: set body `Color` to white for 0.06 s (state bit). Frozen: light blue + Ice material on the body. Slowed:
+  bluish tint. Winding: neon parts pulse.
+- Tints from `stage.tints` override the body colour (as in the web game).
+
+### 4.4 Effects, telegraphs, readability
+
+- **Telegraphs** (the most important visuals): flat Neon parts 0.1 stud above the ground, red (`#ff3d5a`) with
+  Transparency 0.55 and a darker outline part, growing fill showing progress (same timing as the web game):
+  circle → two cylinders (outline + growing fill); lane/dash line → blocks; aim line → thin long block with lock pulse;
+  charge ring with exit points → cylinder ring + small spheres; wedge (fan) → 5–9 thin blocks fanned out.
+  Enemy shots: red Neon ball with a light core and a dark ring (a slightly larger black ball, Transparency 0.3) – no
+  player effect may use this look (also not via cosmetics, §7.4).
+- **Player effects:** bolts, knives, sickles, flasks, puddles (fire), slash arcs (whip), orbit balls, aura (transparent
+  neon cylinder), lightning (Beam between two attachments, pooled, 0.25 s), nova ring (expanding cylinder). Colours from
+  the web game, overridable per player by the equipped "weapon colour" cosmetic.
+- **Lights and particles sparingly:** at most 12 dynamic PointLights in the arena (hero embers, bosses, braziers nearest
+  first); ParticleEmitters only for: hero trail cosmetic, campfire, boss aura, evolution burst, death bursts (one shared
+  emitter per colour family, `Emit(n)` at the position – no new instances).
+- **Damage numbers:** pooled `BillboardGui` (max 40 on PC, 20 on phones) with a TextLabel, rising 3 studs over 0.7 s.
+  Shown for own hits and boss hits only; crits gold and larger. Setting toggle (`dmgNums`).
+- **Mobile readability:** minimum on-screen size for enemy shots (scale up shot balls so they are ≥ 14 px on a 720 px
+  tall screen), telegraph outlines thicker on phones, HUD safe areas via `GuiService:GetGuiInset()` and
+  `ScreenGui.ScreenInsets = DeviceSafeInsets`.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 5. UI and input
+
+### 5.1 Approach
+
+- All ScreenGuis are built in code (no Roact/Fusion). `Client/UI/Kit.luau` offers small builders (`Kit.panel`,
+  `Kit.button`, `Kit.label`, `Kit.icon`, `Kit.card`, `Kit.list`) with a shared `Theme` (colours from the web CSS: dark
+  violet panels, ember orange primary, gold for currency; font `Enum.Font.FredokaOne` for titles, `GothamBold` for
+  numbers). Layout with Scale sizes, `UIListLayout`/`UIGridLayout`, `UIAspectRatioConstraint`, `UIScale` driven by screen
+  height (base 720 px). Minimum touch target 44 px.
+- `Client/UI/Router.luau` shows one main screen at a time (like `UI.show(name)` in the web game) and overlays (banner,
+  toasts, countdown bar, card tray) independently.
+- Icons: drawn from primitives (Frames with `UICorner`, `UIStroke`, `UIGradient`) or `ViewportFrame` renders of the
+  ModelKit models for heroes and enemies (hero select, countdown icon, codex). No image uploads required.
+
+### 5.2 Screens
+
+| Screen | Content (web counterpart) |
+|---|---|
+| Hub HUD | gold, stars, buttons: Heroes, World Map (leader), Forge, Achievements, Shop, Settings, Ready/Start; Party panel |
+| Heroes | 9 hero cards: ViewportFrame model, name/title, bonus text, start weapon, locked state with unlock condition and (if configured) a game pass "Unlock" button; skin selector (`tpl_chars`) |
+| World map | 5 lands as nodes on a path with stars, lock state, heat selector (0..maxHeat), intro text (`tpl_map`) |
+| Forge | 17 upgrades with level pips, price, buy; refund with confirm (`tpl_shop`) |
+| Achievements | list of 31 with progress state and gold reward (`tpl_ach`) |
+| Shop (Robux) | tabs Gold, Heroes, Cosmetics, Passes; every item with name, effect, price from `GetProductInfo`; owned state (§7) |
+| Settings | language DE/EN, sfx, music, damage numbers, screen shake, camera distance (−/+ 15 %), reduced effects (§4) (`tpl_opts`) |
+| In-run HUD | HP bar, XP bar with level, timer, gold, kills, weapon/passive slots, boss bar + name, countdown bar (icon, label, time), banner, toasts, pause button, teammates' mini HP bars and downed markers, off-screen arrows for incoming shots and for downed teammates |
+| Level-up | solo: modal like `tpl_levelup`; co-op: card tray (§2.5) |
+| Chest | solo: modal like `tpl_chest`; co-op: side panel |
+| Pause | build (weapons with evolution hint, passives), stats grid, give up (with confirm; in co-op "leave run" = become fallen and spectate), settings, resume (`tpl_pause`) |
+| Downed / revive offer | bleed-out timer, revive progress, "Second Ember" button (price) if allowed; last-chance overlay |
+| Victory | stars, unlocks, outro, endless/finish (vote in co-op) (`tpl_victory`) |
+| Results | per player: time, level, kills, gold breakdown (collected, time bonus, boss bonus, gift, 2× pass), new achievements, record; teammates' summary row (`tpl_over`) |
+| Story | premise on first start, land intro (`tpl_story`) |
+
+### 5.3 Language
+
+- `src/shared/Lang/Lang.luau` exports `tr(key, ...)` and `setLang(lang)`; `src/shared/Lang/En.luau` is a direct port of
+  `LANG_EN` from `lang.js` (German key → English text, `{0}` placeholders). German strings are keys, as in the web game.
+  New Roblox-only strings are added to both (German key, English value) – a Lune test fails on missing translations of
+  any key used in `src/` (static scan for `tr("...")`).
+- Default language: profile setting if set; else `Player.LocaleId` starting with `de` → German, otherwise English.
+- Content names (lands, enemies, weapons, …) stay German keys in the data tables, translated via `tr` like the web game.
+- `fmtDec`, `fmtNum`, `fmtTime` ported to `Lang.luau` (comma decimal and thin space thousands in German).
+
+### 5.4 Input
+
+- **Movement** in the arena: the character stays alive but anchored and invisible in the hub, so Roblox's
+  `PlayerModule` control module keeps working on every device. Each frame
+  `require(LocalPlayer.PlayerScripts.PlayerModule):GetControls():GetMoveVector()` gives the move vector (WASD/arrows,
+  touch thumbstick, gamepad left stick). Because the camera never rotates, the vector maps directly: `x = mv.X`,
+  `y = mv.Z`. Fallback when the control module is unavailable: own thumbstick (`Client/Input/TouchStick.luau`) and
+  `UserInputService` keys.
+- **Actions** via `ContextActionService` (bound only while relevant, with touch buttons where needed):
+  pause (`Escape`/`P`, ButtonStart, on-screen button), cards 1–4 (`One`…`Four`, gamepad D-pad + ButtonA), reroll `R`
+  (ButtonX), skip `K` (ButtonY), banish mode `B` (ButtonB while the tray/modal is open; `S` is taken by movement),
+  confirm `Return`/`Space` (ButtonA), back (`Escape`, ButtonB in menus).
+- **Gamepad UI navigation:** `GuiService.SelectedObject` set to the first button of each screen; `NextSelection*`
+  set for card rows.
+- Default Roblox jump/emote/reset are disabled in the arena (`StarterGui:SetCore("ResetButtonCallback", false)` during
+  a run; the jump button is hidden with `StarterGui:SetCoreGuiEnabled` where applicable; jumping is harmless anyway
+  because the character is anchored).
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 6. Persistence
+
+### 6.1 Data model
+
+One DataStore `EmberNight_Profiles_v1`, key `p_<userId>`, value = profile table (Appendix C). `Sim/Profile.luau`
+(pure, tested) provides `Profile.default()`, `Profile.migrate(data)` (fills missing fields like `Store.load`),
+`Profile.sanitize(data)` (types and ranges after load) and helpers (`stageBest`, `stageStars`, `stageUnlocked`,
+`stageMaxHeat`, `totalStars`, `forgePrice`, `forgeRefundValue`, `unlockedHeroes(profile, ownedPasses)`).
+
+### 6.2 Server service `Profiles`
+
+- **Load on join:** `UpdateAsync` that reads the profile and writes a session lock `_lock = { job = game.JobId,
+  t = os.time() }`. If another live lock exists (`t` younger than `LOCK_STALE = 1800 s` and a different JobId), the
+  transform returns `nil` (no write); the service waits 6 s and retries, up to 5 times, then takes over the lock (the old
+  server's next save will see a foreign lock and stop writing). While loading, the client shows "Loading profile…".
+  If loading fails completely, the player is kicked with a friendly message (no play on an unsaved profile).
+- **Saves** always use `UpdateAsync` and verify `_lock.job == game.JobId` in the transform (otherwise abort, mark the
+  session as lost and stop saving). Save triggers: autosave every 60 s if dirty, after each run result, after each
+  purchase (before granting, §7.3), on leave (`PlayerRemoving`, releases the lock: `_lock = nil`), on shutdown.
+- **Retries with budget:** every DataStore call goes through `withRetry(fn, kind)`: up to 4 attempts with backoff 1, 2,
+  4 s; before each attempt it checks `DataStoreService:GetRequestBudgetForRequestType(kind)` and waits (max 10 s) while
+  it is 0.
+- **BindToClose:** saves all dirty profiles in parallel (`task.spawn` each, wait until done or 25 s passed).
+- **Studio fallback:** if `RunService:IsStudio()` and the first `GetAsync` fails with an API-access error (or
+  `game.GameId == 0`), `DataStoreAdapter` switches to an in-memory store and the client shows a small yellow
+  "Not saved (Studio without API access)" label. `Tuning.FORCE_MEMORY_STORE` forces it for tests.
+- **Size and safety:** the receipts list is bounded (200 entries, oldest dropped, never dropping ids younger than 30
+  days – the realistic re-delivery window), the profile stays far below the 4 MB limit (expected < 10 KB).
+
+### 6.3 What is stored
+
+Gold, forge levels, forge spent (refund), first-run gift flag, earned heroes, achievements, evolutions discovered,
+bosses defeated, stats (kills, runs, bestTime, bestLevel, bestKills, wins, evolutions, bossKills, chests, goldEarned,
+playTime), best heat per land, selected land/heat, story seen, last hero, settings, owned and equipped cosmetics, revive
+tokens, processed receipt ids, version and timestamps. Game pass ownership is **not** stored as truth (it is checked
+live, §7.2), but a `passCache` is stored to show unlocks instantly while the check runs.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 7. Monetization
+
+### 7.1 Product list
+
+All IDs live in `src/shared/Config/Products.luau` with `0` as placeholder. An item whose ID is 0 is **hidden** in all UI
+and cannot be prompted (the server rejects it too). Prices below are suggestions; the shop always displays the live price
+from `MarketplaceService:GetProductInfo(id, Enum.InfoType.Product | GamePass).PriceInRobux` (cached per server for 10 min;
+items whose info cannot be fetched are hidden).
+
+| Key | Name (DE / EN) | Type | Suggested price | Effect |
+|---|---|---|---|---|
+| `revive` | Zweite Glut / Second Ember | Developer Product | 25 R$ | Revive while downed/fallen: 50 % HP, 3 s i-frames, blast. Max 1 per player per run. Only offered while downed/fallen or in last chance |
+| `gold_s` | Goldbeutel / Gold Pouch | Developer Product | 49 R$ | +1,000 gold |
+| `gold_m` | Goldtruhe / Gold Chest | Developer Product | 129 R$ | +3,500 gold |
+| `gold_l` | Goldschatz / Gold Hoard | Developer Product | 299 R$ | +10,000 gold |
+| `pass_gold2x` | Doppeltes Gold / Double Gold | Game Pass | 199 R$ | ×2 on run earnings (collected gold + time bonus + boss bonus + surge gold). Not on achievement gold, gift or bought gold |
+| `pass_hero_kael` … `pass_hero_ignis` (7) | Held freischalten: <Name> | Game Pass | 99 R$ each | Unlocks that hero (Kael, Sela, Brom, Nyx, Eira, Lio, Ignis). The hero can still be earned for free by its achievement |
+| `pass_heroes_all` | Alle Helden / All Heroes | Game Pass | 399 R$ | Unlocks all 7 |
+| `skin_ashen`, `skin_frost`, `skin_nightbloom` | Hero skins (palettes for every hero) | Developer Product (non-consumable, stored) | 79 R$ each | Cosmetic hero palette |
+| `fx_emerald`, `fx_crimson`, `fx_azure` | Weapon colours | Developer Product (stored) | 59 R$ each | Recolours own weapon effects |
+| `fx_prism` | Prisma / Prism weapon colours | Developer Product (stored) | 99 R$ | Cycling colours for own effects |
+| `trail_frost`, `trail_star`, `trail_shadow` | Trails | Developer Product (stored) | 49 R$ each | Particle trail behind the hero |
+| `pass_cosmetics` | Sammlung / Collection | Game Pass | 349 R$ | All cosmetics listed above (current and future paid ones) |
+
+Free cosmetics (not for sale, so that skill is rewarded too): skin `gilded` (achievement `stars15`), skin `dawn`
+(achievement `night`), trail `ember` (achievement `win`). Their definitions live in `src/shared/Config/Cosmetics.luau`
+with `source = "achievement:<id>" | "product:<key>"`.
+
+Gold economy check: the whole forge costs ≈ 68,000 gold (cheapest order); a typical run gives a few hundred to ~2,000
+gold. The biggest pack (10,000) is ~15 % of the forge, so buying cannot "finish" the game.
+
+### 7.2 Game passes
+
+- On join: `MarketplaceService:UserOwnsGamePassAsync(userId, passId)` for every configured pass (pcall, 3 retries),
+  cached in `Passes.owned[userId][key]`. The profile's `passCache` provides an instant first guess.
+- Purchase: client calls `PromptGamePassPurchase` only after the server confirmed the item is configured (`Cmd` →
+  server validates → server calls `MarketplaceService:PromptGamePassPurchase(player, id)`; prompting from the server
+  avoids clients prompting arbitrary IDs).
+- `MarketplaceService.PromptGamePassPurchaseFinished` on the server: if `wasPurchased`, set the cache to true, re-check
+  with `UserOwnsGamePassAsync` in the background, update `passCache`, notify the client (UI refresh, hero unlocked
+  banner).
+
+### 7.3 Developer products and `ProcessReceipt` (idempotent)
+
+`MarketplaceService.ProcessReceipt` is set **once** in `Server/Services/Purchases.luau`:
+
+1. Find the player by `receiptInfo.PlayerId`. Not on this server or profile not loaded → return
+   `Enum.ProductPurchaseDecision.NotProcessedYet` (Roblox retries later, also on other servers / next join).
+2. Map `ProductId` to a configured product key; unknown → `NotProcessedYet` and log (never grant unknown items).
+3. If `profile.receipts[PurchaseId]` exists → return `PurchaseGranted` (already granted before).
+4. Apply the grant **to the profile data** inside one `UpdateAsync` transform together with recording
+   `receipts[PurchaseId] = os.time()`:
+   - gold packs: `gold += amount`;
+   - stored cosmetics: `cosmetics.owned[key] = true` (buying an owned one is prevented in the UI; if it happens anyway,
+     the receipt is still recorded and nothing else changes);
+   - `revive`: `reviveTokens += 1` (a token, so the grant is persistent and idempotent).
+5. Only if that save succeeded (lock still ours) → update the in-memory profile from the saved value, return
+   `PurchaseGranted`; then perform runtime effects: for `revive`, if the player is downed/fallen in the current run and
+   has not used his Robux revive this run, consume one token and revive him (`Run.command(run, slot, {op = "revive"})`).
+   Unused tokens stay in the profile and are offered ("Use Second Ember (1)") the next time the player is downed – still
+   max 1 per run. If the save failed → return `NotProcessedYet` and change nothing in memory.
+6. Purchases during `lastchance` keep the 10 s window open until the receipt was processed or the prompt was closed
+   (`PromptProductPurchaseFinished` with `isPurchased == false`).
+
+The revive button is only shown when allowed (downed/fallen, not used this run, product configured); the server checks
+the same before prompting.
+
+### 7.4 Fairness rules
+
+- No paid random items (no loot boxes, no paid rerolls of random rewards). In-run randomness (cards, chests) is never
+  for sale.
+- Revive limited to 1 per player per run; it cannot be bought for others.
+- Gold is also earned normally; everything gold buys is reachable without Robux. Heroes are earnable by achievements.
+- Cosmetics are visual only, may not reduce readability: palettes are validated (`Cosmetics.validate` in a Lune test)
+  so that no player effect uses the enemy-shot look (red `#ff3d5a`-family hue with a dark ring) and no hero skin is
+  transparent or near-black on the darkest land ground.
+- No timers that push purchases, no "limited time" fake scarcity, no prompts on game over except the revive button the
+  player must press himself.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 8. Policy and compliance
+
+- **Community Standards / monetization rules:** no paid random items; prices shown are the live Roblox prices; all
+  purchases use official prompts; nothing is promised for Robux that is not delivered; developer products grant
+  persistently (receipt logic §7.3). No external links, no off-platform payments, no social media references.
+- **PolicyService:** `PolicyService:GetPolicyInfoForPlayerAsync(player)` on join (pcall). The game does not use paid
+  random items (`ArePaidRandomItemsRestricted` irrelevant), external link references (`AllowedExternalLinkReferences`
+  irrelevant) or trading (`IsPaidItemTradingAllowed` irrelevant). The result is stored per player so later features can
+  respect it; if the call fails, the shop still works (none of the restricted features exist).
+- **Gambling:** none (no wagers, no chance-based paid rewards).
+- **Content maturity:** cartoon monsters (bats, slimes, skeletons, ghosts), no blood (the "Blutklinge" and "Blutgraf"
+  names stay; the visuals are red light, not blood), no gore, defeated enemies burst into particles. Expected maturity
+  label "Mild" (fantasy violence, mild fear). The user fills in the Roblox **Experience Questionnaire** accordingly
+  (checklist, Appendix D).
+- **Chat:** the game needs no chat; Roblox's default `TextChatService` stays as it is (filtered by Roblox). The game shows
+  no user-generated text except `Player.DisplayName` (already filtered by Roblox).
+- **Age-appropriate monetization:** no pressure tactics (§7.4); purchases happen only on explicit player action.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 9. Audio
+
+- **Export:** copy the web game's CC0 recordings (`glutnacht/assets/audio/sfx/*.mp3`, 34 effects, and
+  `glutnacht/assets/audio/music/*.mp3`: menu, battle, boss, victory, gameover) to
+  `ember-night-roblox/assets/audio/sfx/` and `assets/audio/music/` together with `CREDITS-audio.txt` (licence and
+  sources). Roblox accepts mp3 and ogg uploads; the files are already small mono mp3 (64 kbit/s sfx, 48 kbit/s music).
+  Re-encode with ffmpeg to 44.1 kHz if an upload is rejected (`tools/export-audio.sh` does copy + optional re-encode).
+- **Upload (user):** Creator Hub → Creations → Audio → upload each file (or Studio Asset Manager → Bulk Import), then put
+  the IDs into `src/shared/Config/AudioIds.luau` (`sfx = { hit = 0, ... }`, `music = { menu = 0, ... }`). Uploads must
+  belong to the same owner (user or group) as the experience, otherwise they are blocked.
+- **Playback** (`Client/Audio/SoundPlayer.luau`): one `SoundGroup` each for SFX and music; a pool of Sound objects per
+  effect (`MAX_COPIES = 6`, `MAX_VOICES = 40`), the web game's `VOL`, `GATE` (minimum gap in ms) and `DETUNE` tables
+  ported (detune via `PlaybackSpeed`), composite effects (`chest`, `bossdown`, `ewind`, `efire`, `eimpact`, `warn`,
+  `tick`, `surge`) mapped like `audio.js`. Distance attenuation: positional events are scaled by distance to the own hero
+  (full volume within 40 studs, silent beyond 120). Music: two Sound objects cross-faded over 1.5 s with `TweenService`;
+  intensity 0 menu/hub, 1–2 battle (1 = low-passed via `EqualizerSoundEffect`), 3 boss; victory/gameover stings.
+  `TRACK_VOL` ported.
+- **Fallback:** an ID of 0 means silence for that sound (no error, no warning spam: one warning per missing key in
+  Studio only).
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 10. Testing
+
+### 10.1 Tooling here (no Roblox Studio available)
+
+- `rojo build default.project.json -o build/EmberNight.rbxlx` must succeed (Rojo 7.7.1).
+- `lune run tests/run.luau` runs all `tests/*.spec.luau` (tiny assertion library `tests/lib/T.luau`); exit code ≠ 0 on
+  failure. `tools/test.sh` wraps it.
+- `selene src` (selene 0.31, config `selene.toml`, `std = "roblox"` with `roblox-std-source = "pinned"`: selene cannot
+  download the Roblox API dump in this sandbox, so `roblox.yml` is a hand-written minimal std – globals only, no member
+  checks; regenerate with `selene generate-roblox-std` where network access works) and `stylua --check src tests`
+  (StyLua, config `stylua.toml`: tabs, width 120).
+- Roblox APIs are never called in Lune tests. Server modules that wrap Roblox services are kept small and reviewed by
+  reading; their pure parts (receipt decision table, lock decision, retry policy, rate limiter) live in
+  `src/shared` modules (`Shared/Server/ReceiptLogic.luau`, `LockLogic.luau`, `RateLimit.luau`) and are unit-tested.
+
+### 10.2 Unit and scenario tests (Lune)
+
+| Spec | Checks |
+|---|---|
+| `rng.spec` | PCG32 reproducible, `range`, `int`, `pick`, `weighted` distributions |
+| `data.spec` | ported tables equal the web tables (counts: 5 lands, 12 enemy types, 16 bosses, 9 weapons, 12 passives, 9 heroes, 17 forge items, 31 achievements, 6 heat levels; spot values); generated by `tools/port-data.js` from `js/data.js` and compared field by field via a JSON dump |
+| `stats.spec` | computeStats/refreshWeapon equal web results for sample builds (golden values from node) |
+| `curve.spec` | hpCurve, hpCurveBridged, xpFor equal the web functions at many points |
+| `director.spec` | waves by minute, rangedFrom, rangedCap, cdMul, events order, elite timing, boss timing, countdown phases (1:30 start, T-10 banner, surge 2:00–2:25, gold reward), endless boss every 120 s |
+| `weapons.spec` | each weapon fires with expected cadence, evolutions apply stats and behaviour (lightning chains, whip heals, aura slows, nova freezes, orbit permanent) |
+| `ranged.spec` / `boss.spec` | wind-up times, telegraph before every shot, caps never exceeded, every primitive produces its telegraph ≥ minimum warning time |
+| `levelup.spec` | option weights, early new weapon rule, reroll/skip/banish, chest outcomes, evolution |
+| `coop.spec` | team XP and gold shares, chests per player, ward rules, auto-pick, downed → revive → fallen, last chance, leash, target choice, scaling tables, leave mid-run |
+| `results.spec` | endRun gold (time/boss bonus, heat multiplier, gift, 2× pass), achievements, recordClear, stars/unlocks per player |
+| `profile.spec` | default/migrate/sanitize, forge price/refund equal web values |
+| `receipt.spec` | receipt decision table (already processed, unknown product, profile missing, save failed), revive token rules |
+| `codec.spec` / `net_budget.spec` | snapshot/event encode-decode round trip, packets ≤ 900 bytes, worst-case bandwidth from a recorded bot run ≤ budget |
+| `lang.spec` | every `tr("…")` key used in `src/` has an English entry; placeholders match |
+| `determinism.spec` | same seed + inputs → identical event stream hash after 3 simulated minutes |
+
+### 10.3 Headless balance bot
+
+`tests/bot.luau` is a port of the web `tools/balancebot.js` strategy (kite away from the nearest threats, dodge
+telegraphs it can see, collect gems, pick upgrades by the same priority list) driving `Run.step` directly with
+`Run.setInput`. Usage: `lune run tests/bot.luau -- --land graveyard --forge none --heat 0 --players 1 --runs 24 --seed 1`.
+Output: win rate with Wilson 95 % interval, median death time, first-hit median, level at 1/4/8 minutes, kills/min,
+enemies alive, sim time per step.
+
+Balance gates (checked at the end of R1 and R2, results go into `docs/BALANCE.md`):
+- **Solo parity:** for graveyard/none/0 and nightheart/max/0, the Roblox sim's bot win rate lies within the web game's
+  95 % interval (README M10 table: 25–40 % and 40–63 %), with ≥ 48 runs each. Differences come from the fixed 1/30 step;
+  fix by sub-stepping, not by retuning content.
+- **Co-op:** with 4 bots (same strategy, independent inputs), graveyard/none/0 win rate between the solo rate and solo
+  + 30 points; median enemies alive at 5:00 ≥ 2 × solo; no player levels more than 1.3 × faster than solo. Tune only
+  `Sim/Coop.luau`.
+- **Performance:** `tests/bench.luau` (4 bots, nightheart heat 5 to 12:00) – median step ≤ 6 ms, p99 ≤ 12 ms.
+
+### 10.4 User test checklist in Roblox Studio
+
+Separate file `docs/STUDIO-CHECKLIST.md` (written in R4, German and English), summary in Appendix D.
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## 11. Milestones R1–R4
+
+Each milestone ends with: all Lune tests green, `rojo build` succeeds, selene clean (if installed), README updated,
+commit. Implementers commit every verified sub-step (container restarts every ~2 h). File lists are complete for the
+milestone; files from earlier milestones may be edited.
+
+### R1 – Simulation core, solo parity (pure Luau + Lune)
+
+Goal: the whole web game (solo) runs headless in Lune with the same rules and numbers; the bot reproduces the web win
+rates.
+
+```
+tools/port-data.js                       node script: reads glutnacht/js/data.js + lang.js, writes the Luau data/lang tables and a JSON reference dump
+src/shared/Sim/Rng.luau                  PCG32 (bit32), new(seed), next(), range(a,b), int(a,b), pick(t), weighted(entries)
+src/shared/Sim/Util.luau                 clamp, lerp, dist2, hash2 (same results as web util.js hash2), TAU, DEG, fmt helpers
+src/shared/Sim/Grid.luau                 spatial hash (cell 64) insert/clear/query into reusable buffers
+src/shared/Sim/Data/Weapons.luau         WEAPONS + ORDER + WEAPON_MAX, MAX_WEAPONS
+src/shared/Sim/Data/Passives.luau        PASSIVES + ORDER + MAX_PASSIVES
+src/shared/Sim/Data/Enemies.luau         ENEMIES + ENEMY_COLORS + ORDER (type index for the wire format)
+src/shared/Sim/Data/Heroes.luau          CHARS + ORDER
+src/shared/Sim/Data/Forge.luau           SHOP (+ price/refund in Profile.luau)
+src/shared/Sim/Data/Heat.luau            HEAT
+src/shared/Sim/Data/Stages.luau          STAGES (waves, events, surges, bosses with cast params)
+src/shared/Sim/Data/Achievements.luau    ACHIEVEMENTS (check functions in Luau)
+src/shared/Sim/Data/Story.luau           STORY, TIPS, PREMISE_SHORT
+src/shared/Sim/Curves.luau               hpCurve, hpCurveBridged, xpFor
+src/shared/Sim/Stats.luau                computeStats, refreshWeapon (per player)
+src/shared/Sim/Combat.luau               inCircle, damage, kill, blast, hurtPlayer, playerDies (revival)
+src/shared/Sim/Weapons.luau              the 9 weapon behaviours (WEAPON_FN), tickBurst, nearestEnemy
+src/shared/Sim/Shots.luau                player shots (bolt, knife, sickle, flask) with sub-steps; enemy shots
+src/shared/Sim/Enemies.luau              updateEnemies: chase, swarm, separation, relocation, contact; rangedAI, wind/release, pend
+src/shared/Sim/Bosses.luau               bossAI, castParams/canCast/startCast/castStep/castRelease, rainPlan/rainPlace
+src/shared/Sim/Fx.luau                   telegraphs (tele list), pools, nova, hazards, circle/lane impact
+src/shared/Sim/Director.luau             spawning, pickType, rangedCap, cdMul, canWind, elites, bosses, events, endless
+src/shared/Sim/Countdown.luau            buildCountdowns, countdownTick, surgeStart/End, countdownState
+src/shared/Sim/Pickups.luau              gems, pickups, collect, gainXp
+src/shared/Sim/Props.luau                braziers per chunk (position(cx,cy) shared with the client), hitProps
+src/shared/Sim/LevelUp.luau              buildOptions, optionCount, applyOption, choose/skip/reroll/banish
+src/shared/Sim/Chest.luau                openChest
+src/shared/Sim/Run.luau                  Run.new, Run.step, Run.command, Run.setInput, state machine (solo), events
+src/shared/Sim/Profile.luau              default, migrate, sanitize, stage helpers, forge price/refund
+src/shared/Sim/Results.luau              checkAchievements, recordClear, finish (endRun), continueEndless
+src/shared/Lang/Lang.luau                tr, setLang, fmtDec, fmtNum, fmtTime
+src/shared/Lang/En.luau                  LANG_EN port
+tests/run.luau, tests/lib/T.luau         runner + assertions (exists from the skeleton)
+tests/lib/Ref.luau                       loads the JSON reference dump (tests/ref/*.json) written by tools/port-data.js
+tests/ref/data.json, tests/ref/golden.json   reference values from the web game (generated by node)
+tests/rng.spec.luau, data.spec, stats.spec, curve.spec, director.spec, weapons.spec, ranged.spec, boss.spec,
+levelup.spec, results.spec, profile.spec, lang.spec, determinism.spec
+tests/lib/Bot.luau, tests/bot.luau, tests/bench.luau
+docs/BALANCE.md                          bot results solo vs web
+```
+
+### R2 – Co-op sim, networking, server, minimal client (first playable in Studio)
+
+Goal: 1–4 players can start a run from the hub and play it to the end in Studio with simple visuals; profiles persist.
+
+```
+src/shared/Sim/Coop.luau                 scaling tables, xpShare/goldShare, ward constants
+src/shared/Sim/Party.luau                players list, targets, anchors, leash, applyMove validation, ward, auto-pick,
+                                         downed/revive/fallen, last chance, victory vote, removePlayer
+(edits) Run, Director, Enemies, Bosses, Pickups, Chest, Results, Combat for N players
+src/shared/Config/Tuning.luau            all constants of Appendix A (exists from the skeleton, extended)
+src/shared/Net/Protocol.luau             remote names, op codes, event kinds
+src/shared/Net/Codec.luau                buffer encode/decode for Snap, Move, Ev (Appendix B)
+src/shared/Server/LockLogic.luau, RateLimit.luau   pure helpers (tested)
+src/server/Main.server.luau              bootstrap: services start order
+src/server/Services/Net.luau             creates remotes, rate limits, argument validation
+src/server/Services/DataStoreAdapter.luau real DataStore vs memory store (Studio fallback)
+src/server/Services/Profiles.luau        load/lock/save/autosave/BindToClose
+src/server/Services/Lobby.luau           party, leader, hero/land/heat selection, ready/start, spectators
+src/server/Services/RunHost.luau         owns the Run, fixed-step loop, input/commands, results to Profiles
+src/server/Services/Replicator.luau      interest management, snapshots, per-client event buffers, Ui messages
+src/server/World/HubBuilder.luau         hub plaza, campfire, pedestals
+src/client/Main.client.luau              bootstrap
+src/client/Net/ClientNet.luau            remotes, Move sender (20 Hz), Ev/Ui dispatch
+src/client/Net/Interp.luau               snapshot buffer and interpolation
+src/client/Input/Controls.luau           move vector (control module + fallback), action bindings
+src/client/Input/TouchStick.luau         fallback thumbstick
+src/client/World/CameraRig.luau          arena camera, shake
+src/client/World/ModelKit.luau           primitive model builders (all enemies, bosses, heroes; simple first versions)
+src/client/World/EnemyView.luau          pools + BulkMoveTo
+src/client/World/HeroView.luau           heroes, local prediction, name tags, downed state
+src/client/World/ShotView.luau           player and enemy shots (simple)
+src/client/World/TeleView.luau           telegraphs (all kinds)
+src/client/World/Ground.luau             ground tiles, land colours, braziers
+src/client/UI/Theme.luau, Kit.luau, Router.luau
+src/client/UI/Lobby.luau                 party panel, hero pick (simple list), land/heat pick (simple list), ready/start
+src/client/UI/Hud.luau                   HP/XP/timer/level/boss bar (simple)
+src/client/UI/LevelUp.luau               solo modal + co-op tray (simple cards)
+src/client/UI/Results.luau               results (simple)
+tests/coop.spec.luau, codec.spec.luau, net_budget.spec.luau, lock.spec.luau, ratelimit.spec.luau
+tests/bot.luau (--players 4), tests/bench.luau (4 players)
+tools/build.sh                           rojo build to build/EmberNight.rbxlx (committed at milestone end)
+docs/BALANCE.md                          co-op results
+```
+
+### R3 – Presentation: full UI, effects, audio, language, devices
+
+Goal: every screen of §5.2, all effects and telegraph polish of §4, audio, DE/EN complete, mobile and gamepad.
+
+```
+src/client/World/ModelKit.luau           final models for all enemies, bosses (incl. Die Nacht), heroes, decor, chests, pickups
+src/client/World/Decor.luau              chunked decor per land
+src/client/World/FxView.luau             slashes, orbit, aura, lightning beams, nova, fire pools, flasks, sickles, bursts, death effects, ward dome
+src/client/World/PickupView.luau         gems, coins, hearts, magnets, bombs, chests (owner colour), attraction animation
+src/client/World/DamageNumbers.luau      pooled BillboardGuis
+src/client/World/LandLighting.luau       per-land lighting, atmosphere, bloom
+src/client/World/OffscreenArrows.luau    incoming shot and downed-teammate arrows
+src/client/UI/Hud.luau (final), Countdown.luau, Banner.luau, Toasts.luau
+src/client/UI/LevelUp.luau (final), Chest.luau, Pause.luau, Downed.luau, Victory.luau, Results.luau (final)
+src/client/UI/Heroes.luau, WorldMap.luau, Forge.luau, Achievements.luau, Settings.luau, Story.luau, Spectate.luau
+src/client/UI/Icons.luau                 icon drawings from primitives and ViewportFrame renders
+src/client/Audio/SoundPlayer.luau, Music.luau
+src/shared/Config/AudioIds.luau          all ids 0
+assets/audio/sfx/*.mp3, assets/audio/music/*.mp3, assets/audio/CREDITS-audio.txt, tools/export-audio.sh
+src/shared/Lang/En.luau                  + all Roblox-only strings
+tests/lang.spec.luau (extended to scan src/client)
+```
+
+### R4 – Monetization, persistence hardening, polish, release checklist
+
+Goal: Robux purchases of every kind work in Studio test mode; cosmetics visible; performance pass; documentation for
+the user.
+
+```
+src/shared/Config/Products.luau          all product and pass keys with id 0, suggested prices, effects
+src/shared/Config/Cosmetics.luau         skins, weapon colours, trails (free and paid), validate()
+src/shared/Server/ReceiptLogic.luau      pure receipt decision + grant application (tested)
+src/server/Services/Purchases.luau       ProcessReceipt, prompt requests, PromptProductPurchaseFinished, revive flow
+src/server/Services/Passes.luau          ownership checks, cache, PromptGamePassPurchaseFinished
+src/server/Services/Policy.luau          PolicyService lookup
+src/client/UI/Shop.luau                  Robux shop (live prices, owned state, hide unconfigured)
+src/client/UI/ReviveOffer.luau           downed/last-chance offer
+src/client/World/Cosmetics.luau          apply skins, weapon colours, trails
+(edits) Heroes UI (pass unlock), Results (2x gold line), Profiles (receipts, tokens, passCache)
+tests/receipt.spec.luau, cosmetics.spec.luau
+docs/STUDIO-CHECKLIST.md                 user's Studio test plan (DE + EN), publishing steps, product creation steps
+README.md                                final: build, test, publish, configure IDs
+build/EmberNight.rbxlx                   final build
+```
+
+---------------------------------------------------------------------------------------------------------------------------
+
+## Appendix A – Units and constants (`src/shared/Config/Tuning.luau`)
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `STUDS_PER_PX` | 0.1 | world px → studs |
+| `SIM_HZ` / `SIM_DT` | 30 / 1/30 | fixed sim step |
+| `MAX_STEPS_PER_FRAME` | 3 | catch-up limit |
+| `SNAP_HZ` | 15 | snapshot rate |
+| `MOVE_HZ` | 20 | client move packets |
+| `INTERP_DELAY` | 0.133 s | client render delay |
+| `SUBSTEP_PX` | 10 | max projectile travel per collision check |
+| `VIEW_HW`, `VIEW_HH`, `VIEW_TOP` | 640, 360, 70 px | sim view rectangle (half sizes) and top HUD inset |
+| `INTEREST_HW`, `INTEREST_HH` | 900, 620 px | replication interest region |
+| `SNAP_ENEMY_CAP` | 260 | enemies per client snapshot |
+| `UR_MAX_BYTES` | 900 | max unreliable packet |
+| `ENEMY_CAP_TOTAL` | 450 | non-boss enemies alive |
+| `PLAYER_SHOT_CAP`, `GEM_CAP`, `PICKUP_CAP` | 400, 320, 120 | |
+| `LEASH_RADIUS` | 900 px | |
+| `WARD_TIME`, `WARD_RADIUS`, `WARD_COOLDOWN` | 1.5 s, 120 px, 6 s | co-op level-up ward |
+| `AUTO_PICK_TIME` | 15 s | co-op card auto-pick |
+| `BLEED_OUT`, `REVIVE_RADIUS`, `REVIVE_TIME` | 30 s, 70 px, 3 s (+1 s per earlier revive, max 6) | |
+| `REVIVE_MAX_PER_RUN` | 1 | Robux revives per player per run |
+| `LAST_CHANCE_TIME` | 10 s | |
+| `VOTE_TIME` | 20 s | endless vote |
+| `START_COUNTDOWN` | 5 s | lobby |
+| `CAM_PITCH`, `CAM_FOV`, `CAM_DIST` | 58°, 40, 100 studs | |
+| `HUB_ORIGIN` | (0, 2000, 0) studs | |
+| `LOCK_STALE`, `AUTOSAVE` | 1800 s, 60 s | DataStore |
+| `FORCE_MEMORY_STORE` | false | tests/dev |
+
+## Appendix B – Wire formats (little-endian `buffer`)
+
+### B.1 Snapshot packet (`Snap`, server → client, unreliable)
+
+```
+u8  msg = 1
+u16 tick            (wraps)
+u8  part, u8 parts  (0-based index, count 1..3)
+f32 ox, f32 oy      origin in world px (recipient hero position, rounded)
+-- part 0 only:
+u8  heroCount
+  per hero (12 B): u8 slot, f32 x, f32 y, u8 flags (bit0 downed, bit1 fallen, bit2 ward, bit3 iframe, bit4 moving,
+                   bit5 facing left), u8 hpByte (hp/maxHp × 255), u8 reviveByte (revive progress × 255)
+-- all parts:
+u8  enemyCount (≤ 110)
+  per enemy (8 B): u16 id, i16 dx, i16 dy (px relative to origin, clamped), u8 typeFlags (bits0-3 type index from
+                   Enemies.ORDER + 'night'; bit4 elite; bit5 boss; bit6 swarm), u8 state (bit0 hit flash, bit1 slowed,
+                   bit2 frozen, bit3 winding, bit4 facing left, bits5-7 hp bucket 0..7 for elites)
+```
+Worst case: 13 + 1 + 4 × 12 + 1 + 110 × 8 = 943 > 900, so part 0 carries at most 100 enemies (13 + 49 + 1 + 800 = 863)
+and the others 110 (13 + 1 + 880 = 894).
+
+### B.2 Move packet (`Move`, client → server, unreliable, 14 B)
+
+`u8 msg = 2, u16 seq, f32 x, f32 y, i8 dirX×127, i8 dirY×127, u8 flags (bit0 moving)`
+
+### B.3 Event buffer (`Ev`, server → client, reliable, one per step when non-empty)
+
+`u8 msg = 3, u16 tick, f32 ox, f32 oy`, then records `u8 kind` + payload, positions as i16 relative to the origin:
+
+| kind | payload |
+|---|---|
+| 1 kill | u16 id, i16 x, i16 y, u8 typeFlags, u8 gemTier |
+| 2 dmg | i16 x, i16 y, u16 amount, u8 flags (crit, boss) |
+| 3 eshot+ | u16 sid, i16 x, i16 y, i16 vx, i16 vy, u8 radius, u8 kind (orb, needle, lance), u8 life×20 |
+| 4 eshot− | u16 sid |
+| 5 tele+ | u16 tid, u8 kind (circle, lane, line, aim, charge, wedge, ring), geometry (kind-specific, ≤ 16 B), u8 life×20, u16 followId |
+| 6 tele~ | u16 tid, i16 angle×1000 (aim/wedge update before lock), u8 lockedFlag |
+| 7 tele− | u16 tid |
+| 8 haz+ / 9 haz− | u16 hid, u8 kind, i16 x, i16 y, u8 radius, u8 life×10 / u16 hid |
+| 10 pick+ / 11 pick~ / 12 pick− | u16 pid, u8 kind, i16 x, i16 y, u8 owner / u16 pid, u8 attractSlot / u16 pid, u8 bySlot |
+| 13 gemPull / 14 gemGot | u16 gemId, u8 slot (gem ids = kill ids; merged gems send gemGot for all) |
+| 15 fire | u8 slot, u8 weapon, u8 evo, i16 x, i16 y, i16 angle×1000, u16 speed, u8 area×50, u8 extra |
+| 16 orbit | u8 slot, u8 active, u8 amount, u8 radius/2, u8 speed×20 |
+| 17 sfx | u8 soundIndex, i16 x, i16 y (0x7fff = non-positional) |
+| 18 shake | u8 amount |
+| 19 prop− | i16 cx, i16 cy (brazier broken) |
+
+The exact geometry payloads are defined in `Net/Codec.luau` and covered by `codec.spec`.
+
+### B.4 Ui messages (`Ui`, reliable Lua tables)
+
+`{ t = "banner", text, kind, sub, dur }`, `{ t = "countdown", kind, phase, left, total, icon, tint, label }`,
+`{ t = "levelup", options, rerolls, skips, banishes, deadline }`, `{ t = "chest", res }`, `{ t = "hero", hp, maxHp, xp,
+xpNext, level, weapons, passives, stats }`, `{ t = "boss", nameKey, frac }`, `{ t = "state", state }`,
+`{ t = "achievement", id }`, `{ t = "results", summary }`, `{ t = "lobby", ... }`, `{ t = "profile", view }`,
+`{ t = "correct", x, y }`, `{ t = "vote", endless, finish, left }`.
+
+## Appendix C – Profile schema (version 1)
+
+```lua
+{
+  v = 1,
+  gold = 0, shop = {}, shopSpent = 0, giftGiven = false,
+  chars = { "aron", "mira" },            -- earned heroes (passes are checked live)
+  achievements = {}, evolved = {}, bosses = {},
+  stats = { kills = 0, runs = 0, bestTime = 0, bestLevel = 0, bestKills = 0, wins = 0, evolutions = 0,
+            bossKills = 0, chests = 0, goldEarned = 0, playTime = 0, coopRuns = 0, revivesGiven = 0 },
+  stages = {},                            -- landId -> best cleared heat
+  stageSel = "graveyard", stageHeat = {}, storySeen = {}, lastChar = "aron",
+  settings = { sfx = true, music = true, dmgNums = true, shake = true, lang = nil, camZoom = 1, lowFx = false },
+  cosmetics = { owned = {}, equipped = { skin = nil, fx = nil, trail = nil } },
+  reviveTokens = 0,
+  receipts = {},                          -- [PurchaseId] = os.time()
+  passCache = {},                         -- [passKey] = true (display hint only)
+  created = 0, lastSave = 0,
+  _lock = nil,                            -- { job = JobId, t = os.time() } while a server owns the session
+}
+```
+
+## Appendix D – Studio checklist (summary; full version in `docs/STUDIO-CHECKLIST.md`, R4)
+
+1. Open `build/EmberNight.rbxlx` in Studio (or `rojo serve` + Rojo plugin). Output window: no errors.
+2. Game Settings → Security: enable "Studio Access to API Services" (otherwise the memory store is used and a yellow
+   label says so). Places → Max players = 4.
+3. Play solo (F5): hub, choose hero/land, start, level-up pauses, chest, pause menu, die, results, forge purchase,
+   rejoin → gold and forge kept.
+4. Test → Clients and Servers → 2–4 players: lobby leader, ready/start, shared enemies, card tray + ward, chests per
+   player, downed → teammate revive, all down → results for everyone, leaving mid-run.
+5. Device emulator: phone (iPhone, landscape), tablet, gamepad: movement, card selection, readability of telegraphs,
+   HUD inside safe area.
+6. MicroProfiler (Ctrl+F6) in a 4-player test at 10:00 of Herz der Nacht: server step ≤ 6 ms, client frame stable;
+   Network stats (Shift+F3): receive ≤ 45 KB/s.
+7. Create developer products and game passes (Creator Hub → experience → Monetization), paste IDs into
+   `Config/Products.luau`, rebuild, test purchases in Studio (test purchases are free): gold packs, revive in last
+   chance, hero pass, cosmetics, 2× gold on results; rejoin → everything kept, no double grants.
+8. Upload audio, paste IDs into `Config/AudioIds.luau`, rebuild, listen.
+9. Experience Questionnaire (maturity), description DE/EN, icon/thumbnails, publish privately, test on a phone.

@@ -1,0 +1,9 @@
+# Roblox-aware lint for src/. Tests run under Lune and are not linted with the roblox std.
+# roblox.yml is a pinned minimal std (selene cannot download the Roblox API dump here); see the comment in that file.
+std = "roblox"
+roblox-std-source = "pinned"
+exclude = ["tests/**"]
+
+[lints]
+# Sim modules use `if script then require(script.Parent.X) else require("./X")` (dual Roblox/Lune require)
+incorrect_standard_library_use = "allow"
