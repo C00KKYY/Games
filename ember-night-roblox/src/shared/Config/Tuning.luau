@@ -10,6 +10,9 @@ local Tuning = {
 	MAX_STEPS_PER_FRAME = 3,
 	SNAP_HZ = 15,
 	MOVE_HZ = 20,
+	MOVE_RATE = 1.08, -- validated network moves: long-run speed margin over the hero's speed
+	MOVE_BURST = 0.5, -- s of movement the budget may hold (packet jitter / bunching)
+	MOVE_SLACK = 16, -- px of extra slack in the budget
 	INTERP_DELAY = 0.133,
 	SUBSTEP_PX = 10,
 

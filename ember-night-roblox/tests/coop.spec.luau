@@ -211,6 +211,49 @@ suite:test("network moves are validated (speed clamp, corrections)", function()
 	T.eq(a.net.seq, 1)
 end)
 
+suite:test(
+	"network moves: a speed hack is held to the hero's speed, honest jittery packets are not corrected",
+	function()
+		for _, n in { 1, 2 } do
+			-- hack: every step report the server position + 14 px (420 px/s)
+			local run = Sim.new({ n = n })
+			local a = run.players[1]
+			a.x, a.y = 0, 0
+			local log = {}
+			local seq = 0
+			for _ = 1, 300 do
+				seq += 1
+				Run.setInput(run, 1, a.x + 14, a.y, seq, 1, 0, true)
+				Sim.advance(run, 1 / 30, { god = true, log = log })
+			end
+			local v = a.x / run.t
+			T.ok(v <= a.stats.speed * Tuning.MOVE_RATE + 4, "hacked speed " .. v .. " (stat " .. a.stats.speed .. ")")
+			T.ok(#Sim.filter(log, "correct") > 0, "the hacker is corrected")
+			-- honest: the client integrates at its own frame rate, sends at ~20 Hz with bunched/late packets
+			run = Sim.new({ n = n })
+			a = run.players[1]
+			a.x, a.y = 0, 0
+			log = {}
+			local cx, t, nextSend = 0, 0, 0
+			local gaps = { 0.05, 0.05, 0.2, 0.0, 0.0, 0.05, 0.12, 0.03 }
+			local gi = 0
+			seq = 0
+			for _ = 1, 300 do
+				t += 1 / 30
+				cx += a.stats.speed / 30
+				if t >= nextSend then
+					gi = gi % #gaps + 1
+					nextSend = t + gaps[gi]
+					seq += 1
+					Run.setInput(run, 1, cx, 0, seq, 1, 0, true)
+				end
+				Sim.advance(run, 1 / 30, { god = true, log = log })
+			end
+			T.eq(#Sim.filter(log, "correct"), 0, "honest corrections")
+		end
+	end
+)
+
 suite:test("targets: enemies chase the nearest active player", function()
 	local run = Sim.new({ n = 2 })
 	local a, b = run.players[1], run.players[2]

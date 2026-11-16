@@ -37,14 +37,21 @@ function K.applyMove(run, p)
 	p.netApplied = m.seq
 	local elapsed = min(0.5, math.max(0, run.t - p.moveT))
 	p.moveT = run.t
-	local maxD = p.stats.speed * (if p.slowT > 0 then 0.55 else 1) * elapsed * 1.25 + 8
+	-- movement budget (token bucket over sim time): it refills at the hero's speed (+ a small rate margin) and
+	-- holds at most a short burst, so packet jitter is tolerated but the long-run speed can't exceed
+	-- speed * MOVE_RATE (a per-packet slack would add up with the packet rate)
+	local spd = p.stats.speed * (if p.slowT > 0 then 0.55 else 1)
+	local cap = spd * Tuning.MOVE_BURST + Tuning.MOVE_SLACK
+	local budget = min(cap, (p.moveBudget or Tuning.MOVE_SLACK) + spd * Tuning.MOVE_RATE * elapsed)
 	local dx, dy = m.x - p.x, m.y - p.y
 	local d = sqrt(dx * dx + dy * dy)
 	local clamped = false
-	if d > maxD then
-		dx, dy = dx / d * maxD, dy / d * maxD
+	if d > budget then
+		dx, dy = dx / d * budget, dy / d * budget
+		d = budget
 		clamped = true
 	end
+	p.moveBudget = budget - d
 	local ox, oy = p.x, p.y
 	p.x += dx
 	p.y += dy

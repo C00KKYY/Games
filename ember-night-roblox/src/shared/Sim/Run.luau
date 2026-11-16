@@ -74,6 +74,7 @@ local function newPlayer(run, o, idx: number)
 		net = nil,
 		netApplied = -1,
 		moveT = 0,
+		moveBudget = 16,
 		clampTimes = {},
 		stats = nil,
 		weapons = {},
