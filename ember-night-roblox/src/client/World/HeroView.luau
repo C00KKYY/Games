@@ -46,6 +46,8 @@ local cosBySlot: { [number]: { skin: string?, fx: string?, trail: string? } } = 
 local bulkP: { BasePart } = {}
 local bulkC: { CFrame } = {}
 local visible: { { x: number, y: number } } = {}
+local spots: { { x: number, y: number } } = {} -- reused entries of `visible`
+local seen: { [number]: boolean } = {}
 local stIdle = { moving = false }
 local stMove = { moving = true }
 
@@ -330,7 +332,7 @@ end
 
 -- render all heroes; interp gives teammates. Returns the visible hero positions (enemies face them).
 function HeroView.render(interp, t: number, dt: number?): { { x: number, y: number } }
-	local seen = {}
+	table.clear(seen)
 	local latest = interp:latestHeroes()
 	local n = 0
 	local k = math.min(1, (dt or 1 / 60) * 14)
@@ -350,7 +352,10 @@ function HeroView.render(interp, t: number, dt: number?): { { x: number, y: numb
 		showTrail(h, not downed)
 		seen[own.slot] = true
 		if own.state ~= "fallen" then
-			table.insert(visible, { x = own.x, y = own.y })
+			local sp = spots[#visible + 1] or {} :: any
+			spots[#visible + 1] = sp
+			sp.x, sp.y = own.x, own.y
+			table.insert(visible, sp)
 		end
 	end
 	for slot = 1, Tuning.MAX_PLAYERS do
@@ -374,7 +379,10 @@ function HeroView.render(interp, t: number, dt: number?): { { x: number, y: numb
 					(h.tagName :: TextLabel).Text = names[slot]
 				end
 				seen[slot] = true
-				table.insert(visible, { x = x, y = y })
+				local sp = spots[#visible + 1] or {} :: any
+				spots[#visible + 1] = sp
+				sp.x, sp.y = x, y
+				table.insert(visible, sp)
 			end
 		end
 	end

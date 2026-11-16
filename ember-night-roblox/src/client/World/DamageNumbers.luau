@@ -64,7 +64,7 @@ local function cap(): number
 	return if Device.phone() then 20 else 40
 end
 
-local function spawn(text: string, color: Color3, w: number, hgt: number, x: number, y: number, h: number, life: number)
+local function showNum(text: string, color: Color3, w: number, hgt: number, x: number, y: number, h: number, life: number)
 	if #active >= cap() then
 		-- replace the oldest
 		local old = table.remove(active, 1) :: Num
@@ -93,16 +93,16 @@ function DamageNumbers.number(e)
 	local jx = (math.random() - 0.5) * 16
 	local amount = math.floor(e.amount + 0.5)
 	if e.crit then
-		spawn(tostring(amount) .. "!", GOLD, 110, 38, e.x + jx, e.y, 3.4, 0.8)
+		showNum(tostring(amount) .. "!", GOLD, 110, 38, e.x + jx, e.y, 3.4, 0.8)
 	else
-		spawn(tostring(amount), if e.boss and not e.own then BOSS else WHITE, 80, 28, e.x + jx, e.y, 3, 0.7)
+		showNum(tostring(amount), if e.boss and not e.own then BOSS else WHITE, 80, 28, e.x + jx, e.y, 3, 0.7)
 	end
 end
 
 -- e = text event { x, y, text, arg, color }
 function DamageNumbers.text(e)
 	local s = if e.arg ~= nil then Lang.tr(e.text, e.arg) else Lang.tr(e.text)
-	spawn(s, Coords.color(e.color), 160, 30, e.x, e.y, 4, 1.0)
+	showNum(s, Coords.color(e.color), 160, 30, e.x, e.y, 4, 1.0)
 end
 
 function DamageNumbers.count(): number

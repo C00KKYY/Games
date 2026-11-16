@@ -5,8 +5,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Lang = require(Shared.Lang.Lang)
+local GuiService = game:GetService("GuiService")
 local Kit = require(script.Parent.Kit)
 local Theme = require(script.Parent.Theme)
+local Device = require(script.Parent.Parent.Device)
 
 local Router = {}
 local tr = Lang.tr
@@ -92,6 +94,18 @@ local function render()
 	Kit.list(body, false, 8)
 	Kit.padding(body, 4)
 	screen.render(body, last, command, Router.open)
+	-- gamepad: keep the selection inside the window (first button of the screen)
+	if Device.gamepad() then
+		local sel = GuiService.SelectedObject
+		if not sel or not sel:IsDescendantOf(w) then
+			for _, d in body:GetDescendants() do
+				if d:IsA("GuiButton") then
+					GuiService.SelectedObject = d
+					break
+				end
+			end
+		end
+	end
 	task.defer(function()
 		if body.Parent then
 			body.CanvasPosition = scrollPos
