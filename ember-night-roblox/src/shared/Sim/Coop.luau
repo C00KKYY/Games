@@ -3,7 +3,7 @@
 local Coop = {}
 
 Coop.spawnRate = { 1, 1.6, 2.1, 2.5 }
-Coop.spawnCap = { 1, 1.5, 1.9, 2.2 }
+Coop.spawnCap = { 1, 1.55, 2.0, 2.35 } -- tuned with the bot (docs/BALANCE.md): DESIGN start values 1, 1.5, 1.9, 2.2
 Coop.enemyHp = { 1, 1.2, 1.35, 1.5 }
 Coop.eliteHp = { 1, 1.6, 2.2, 2.8 }
 Coop.bossHp = { 1, 1.8, 2.5, 3.2 }
