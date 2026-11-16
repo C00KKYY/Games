@@ -388,6 +388,31 @@ function Run.command(run, slot: number, cmd): boolean
 	return false
 end
 
+-- server: may this player be offered the Robux revive ("Second Ember")? (product configured or a token in his
+-- profile; docs/DESIGN.md §2.8, §7.3). Overrides the run-wide `reviveOffer` for him.
+function Run.setReviveOffer(run, slot: number, on: boolean)
+	local pl = run.players[slot]
+	if not pl then
+		return
+	end
+	pl.reviveOffer = on
+	if not on and run.state == "lastchance" then
+		for _, p in run.plist do
+			if K.canRobuxRevive(run, p) then
+				return
+			end
+		end
+		K.endRun(run, false)
+	end
+end
+
+-- can this player use a Robux revive right now (downed or fallen, not used up this run, offered)?
+function Run.canRobuxRevive(run, slot: number): boolean
+	local pl = run.players[slot]
+	return pl ~= nil and pl.state ~= "left" and K.canRobuxRevive(run, pl)
+		and (run.state == "play" or run.state == "lastchance")
+end
+
 -- a player leaves mid-run; returns his result view (booked by the caller as a defeat)
 function Run.removePlayer(run, slot: number)
 	local pl = run.players[slot]

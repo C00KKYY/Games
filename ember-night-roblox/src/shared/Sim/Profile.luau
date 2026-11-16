@@ -6,10 +6,14 @@ local Heat = if script then require(script.Parent.Data.Heat) else require("./Dat
 local Forge = if script then require(script.Parent.Data.Forge) else require("./Data/Forge")
 local Heroes = if script then require(script.Parent.Data.Heroes) else require("./Data/Heroes")
 local Util = if script then require(script.Parent.Util) else require("./Util")
+local Cosmetics = if script then require(script.Parent.Parent.Config.Cosmetics) else require("../Config/Cosmetics")
+local Products = if script then require(script.Parent.Parent.Config.Products) else require("../Config/Products")
 
 local Profile = {}
 
-Profile.VERSION = 1
+-- version history: 1 = R1/R2 schema (Appendix C); 2 = R3: weapon colour "fx_crimson" became "fx_solar" (the
+-- validator forbids effect colours in the enemy-shot hue family), equipped cosmetics are checked against the list
+Profile.VERSION = 2
 local STAT_KEYS = {
 	"kills",
 	"runs",
@@ -49,7 +53,7 @@ function Profile.default()
 		storySeen = {},
 		lastChar = "aron",
 		settings = { sfx = true, music = true, dmgNums = true, shake = true, lang = nil, camZoom = 1, lowFx = false },
-		cosmetics = { owned = {}, equipped = {} },
+		cosmetics = { owned = {}, equipped = {} }, -- equipped = { skin = id?, fx = id?, trail = id? }
 		reviveTokens = 0,
 		receipts = {},
 		passCache = {},
@@ -165,11 +169,14 @@ function Profile.sanitize(d: any)
 		p.settings.camZoom = num(s.camZoom, 0.7, 1.3, 1)
 	end
 	if type(d.cosmetics) == "table" then
-		p.cosmetics.owned = boolMap(d.cosmetics.owned)
+		p.cosmetics.owned = boolMap(d.cosmetics.owned, function(id)
+			return Cosmetics.byId[id] ~= nil
+		end)
 		if type(d.cosmetics.equipped) == "table" then
-			for _, k in { "skin", "fx", "trail" } do
+			for _, k in Cosmetics.SLOTS do
 				local v = d.cosmetics.equipped[k]
-				if type(v) == "string" then
+				local c = type(v) == "string" and Cosmetics.byId[v]
+				if c and c.slot == k then
 					p.cosmetics.equipped[k] = v
 				end
 			end
@@ -183,18 +190,68 @@ function Profile.sanitize(d: any)
 			end
 		end
 	end
-	p.passCache = boolMap(d.passCache)
+	p.passCache = boolMap(d.passCache, function(key)
+		local it = Products.byKey[key]
+		return it ~= nil and it.kind == "pass"
+	end)
 	p.created = num(d.created, 0, 1e12, 0)
 	p.lastSave = num(d.lastSave, 0, 1e12, 0)
-	if type(d._lock) == "table" then
-		p._lock = d._lock
+	local lock = d._lock
+	if type(lock) == "table" and type(lock.job) == "string" and type(lock.t) == "number" then
+		p._lock = { job = lock.job, t = lock.t }
 	end
 	return p
 end
 
--- older versions -> current (there is only version 1 so far)
-function Profile.migrate(d: any)
-	return Profile.sanitize(d)
+local function deepCopy(t: any): any
+	if type(t) ~= "table" then
+		return t
+	end
+	local out = {}
+	for k, v in t do
+		out[k] = deepCopy(v)
+	end
+	return out
+end
+Profile.deepCopy = deepCopy
+
+-- one step per version: MIGRATIONS[v] turns a version-v table into version v + 1 (works on a copy)
+local MIGRATIONS = {
+	[1] = function(d)
+		local c = d.cosmetics
+		if type(c) == "table" then
+			if type(c.owned) == "table" and c.owned.fx_crimson then
+				c.owned.fx_crimson = nil
+				c.owned.fx_solar = true
+			end
+			if type(c.equipped) == "table" and c.equipped.fx == "fx_crimson" then
+				c.equipped.fx = "fx_solar"
+			end
+		end
+		if type(d.passCache) == "table" then
+			d.passCache.fx_crimson = nil
+		end
+	end,
+}
+Profile.MIGRATIONS = MIGRATIONS
+
+-- stored value -> current profile. Returns nil, "newer" for data written by a newer server version (a rolling
+-- update): such a profile must not be loaded here, or saving would drop its new fields. A missing or broken
+-- version counts as 1. Never mutates `d`.
+function Profile.migrate(d: any): (any, string?)
+	if type(d) ~= "table" then
+		return Profile.default(), nil
+	end
+	local v = if type(d.v) == "number" and d.v == math.floor(d.v) and d.v >= 1 then d.v else 1
+	if v > Profile.VERSION then
+		return nil, "newer"
+	end
+	local c = deepCopy(d)
+	while v < Profile.VERSION do
+		MIGRATIONS[v](c)
+		v += 1
+	end
+	return Profile.sanitize(c), nil
 end
 
 -- ---------- stages ----------

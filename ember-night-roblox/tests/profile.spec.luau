@@ -43,7 +43,7 @@ suite:test("default, sanitize, migrate", function()
 	T.eq(bad.settings.sfx, false)
 	T.eq(bad.settings.camZoom, 1.3)
 	T.eq(bad.receipts.abc, 123)
-	T.eq(Profile.migrate(nil).v, 1)
+	T.eq(Profile.migrate(nil).v, Profile.VERSION)
 end)
 
 suite:test("stage helpers", function()

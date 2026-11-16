@@ -154,8 +154,10 @@ function K.downPlayer(run, p)
 end
 
 -- can this player still buy a Robux revive in this run?
+-- (offer: the player's own flag set by the server via Run.setReviveOffer, else the run-wide default)
 function K.canRobuxRevive(run, p): boolean
-	return run.reviveOffer == true
+	local offer = if p.reviveOffer ~= nil then p.reviveOffer else run.reviveOffer
+	return offer == true
 		and (p.state == "downed" or p.state == "fallen")
 		and p.robuxRevives < Tuning.REVIVE_MAX_PER_RUN
 end
