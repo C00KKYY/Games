@@ -27,6 +27,10 @@ if (process.argv[2] === '--rows') {
 }
 const dir = process.argv[2] || 'build/balance';
 const players = process.argv[3] || '1';
+function wilson(k, n) {
+  const z = 1.96, p = k / n, d = 1 + z * z / n, c = p + z * z / (2 * n), h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+  return [Math.round(100 * (c - h) / d), Math.round(100 * (c + h) / d)];
+}
 // two-proportion z test (pooled), two-sided p
 function zTest(a, n, b, m) {
   const p = (a + b) / (n + m), se = Math.sqrt(p * (1 - p) * (1 / n + 1 / m));
@@ -37,10 +41,17 @@ console.log('|---|---|---|---|---|---|---|---|---|---|');
 for (const [land, forge, heat, name, ww, wn, wci, wd, wf] of WEB) {
   const f = path.join(dir, `${land}-${forge}-${heat}-p${players}.txt`);
   if (!fs.existsSync(f)) { console.log(`| ${name} | ${forge} | (missing) |`); continue; }
-  const line = fs.readFileSync(f, 'utf8').split('\n').find(l => l.startsWith('== '));
-  if (!line) { console.log(`| ${name} | ${forge} | (no result) |`); continue; }
-  const m = line.match(/(\d+)\/(\d+) wins = (\d+) % \(95 %: (\d+)-(\d+) %\), open (\d+), median death ([\d.na]+) min, first hit ([\d.na]+) s, level @1\/4\/8 min ([^,]+),/);
-  const [, w, n, pc, lo, hi, , md, fh, lv] = m;
-  const z = zTest(+w, +n, ww, wn);
+  // per-run lines (a batch cut short still counts): "run  3 seed 3 kael   WIN  t= 10.6 min ..."
+  const runs = fs.readFileSync(f, 'utf8').split('\n').map(l => l.match(/^run\s+\d+ seed \d+ \S+\s+(WIN|lost|open)\s+t=\s*([\d.]+) min/)).filter(Boolean);
+  if (!runs.length) { console.log(`| ${name} | ${forge} | (no runs yet) |`); continue; }
+  const n = runs.length, w = runs.filter(r => r[1] === 'WIN').length;
+  const deaths = runs.filter(r => r[1] === 'lost').map(r => +r[2]).sort((a, b) => a - b);
+  const md = deaths.length ? (deaths.length % 2 ? deaths[(deaths.length - 1) / 2] : (deaths[deaths.length / 2 - 1] + deaths[deaths.length / 2]) / 2).toFixed(1) : '–';
+  const [lo, hi] = wilson(w, n);
+  const pc = Math.round(100 * w / n);
+  const sum = (fs.readFileSync(f, 'utf8').split('\n').find(l => l.startsWith('== ')) || '');
+  const fm = sum.match(/first hit ([\d.na]+) s, level @1\/4\/8 min ([^,]+),/);
+  const fh = fm ? fm[1] : '–', lv = fm ? fm[2] : '–';
+  const z = zTest(w, n, ww, wn);
   console.log(`| ${name} | ${forge} | **${pc} %** (${w}/${n}) | ${lo}–${hi} % | ${Math.round(100 * ww / wn)} % (${ww}/${wn}) | ${wci} | ${z.toFixed(1)} | ${md} / ${wd} min | ${fh} / ${wf} s | ${lv} |`);
 }
