@@ -35,8 +35,9 @@ persistence (profiles live in memory for the session, `Server/Services/Profiles.
 - **RNG:** xoshiro128** seeded with splitmix32 (`Sim/Rng.luau`) instead of PCG32: only 32-bit operations and small exact
   multiplications, identical in Roblox and Lune.
 - **Step:** `Run.step(run, 1/30)` advances the world in `Tuning.SIM_SUBSTEPS = 2` half steps (the web game runs at
-  ≈1/60 s; this keeps every timer and collision identical). Projectiles and enemy shots are swept along their path
-  (segment test), so they cannot tunnel. Cost: 1.2 ms per 1/30-s step with 4 players and 300 enemies in Lune
+  ≈1/60 s; this keeps every timer and collision identical). Projectiles and enemy shots are tested at the end point
+  of every half step, exactly like the web game (R2; the swept segment test in `Shots.luau` switches on by itself only
+  if a step ever becomes longer than 1/59 s). Cost: 1.2 ms per 1/30-s step with 4 players and 300 enemies in Lune
   (`tests/bench.luau`).
 - **Module layout:** the web `Game` object's functions are registered in a late-bound table `Sim/K.luau` by the modules
   `World`, `Director`, `Countdown`, `Enemies`, `Bosses`, `Combat`, `Fx`, `Shots`, `Weapons`, `Pickups`, `Props`,
@@ -112,7 +113,7 @@ persistence (profiles live in memory for the session, `Server/Services/Profiles.
 |---|---|---|
 | Single player, the world pauses for level-up, chest, pause | Solo runs still pause exactly like the web game. Co-op runs never pause for one player; see §2.4 | Roblox servers cannot pause for one player |
 | Screen-size dependent `Game.view` (and `view.top` on phones) | Fixed sim view `VIEW_HW = 640`, `VIEW_HH = 360` world px and `VIEW_TOP = 70` px; the camera is set up so this rectangle is visible on every device (§4.1) | One view size per run; all players see the same area size, spawns and ranged-fire rules stay fair |
-| Variable frame `dt` (≈ 1/60 s) | Fixed sim step `dt = 1/30 s`; projectiles and enemy shots move in sub-steps of at most 10 px | Server budget; sub-steps prevent tunnelling (knives travel 21.7 px per 1/30 s) |
+| Variable frame `dt` (≈ 1/60 s) | Fixed server tick `dt = 1/30 s`, simulated as two 1/60-s half steps (collisions at the end point of each half step, like the web game) | Server budget; the half steps keep every collision and timer identical to the web game |
 | Particles, damage numbers, screen shake, gem combos inside the sim | The sim emits events; particles and numbers exist only on clients | Nothing cosmetic is simulated or replicated |
 | 2D sprites drawn on a canvas | 3D models built from primitive Parts in code (§4) | No external assets needed |
 | WebAudio with synthesizer fallback | Uploaded audio assets; silent where an ID is 0 (§9) | No synthesis in Roblox |
@@ -804,7 +805,7 @@ src/shared/Sim/Curves.luau               hpCurve, hpCurveBridged, xpFor
 src/shared/Sim/Stats.luau                computeStats, refreshWeapon (per player)
 src/shared/Sim/Combat.luau               inCircle, damage, kill, blast, hurtPlayer, playerDies (revival)
 src/shared/Sim/Weapons.luau              the 9 weapon behaviours (WEAPON_FN), tickBurst, nearestEnemy
-src/shared/Sim/Shots.luau                player shots (bolt, knife, sickle, flask) with sub-steps; enemy shots
+src/shared/Sim/Shots.luau                player shots (bolt, knife, sickle, flask); enemy shots
 src/shared/Sim/Enemies.luau              updateEnemies: chase, swarm, separation, relocation, contact; rangedAI, wind/release, pend
 src/shared/Sim/Bosses.luau               bossAI, castParams/canCast/startCast/castStep/castRelease, rainPlan/rainPlace
 src/shared/Sim/Fx.luau                   telegraphs (tele list), pools, nova, hazards, circle/lane impact
@@ -929,7 +930,7 @@ build/EmberNight.rbxlx                   final build
 | `SNAP_HZ` | 15 | snapshot rate |
 | `MOVE_HZ` | 20 | client move packets |
 | `INTERP_DELAY` | 0.133 s | client render delay |
-| `SUBSTEP_PX` | 10 | max projectile travel per collision check |
+| `SUBSTEP_PX` | 10 | unused since R2 (collisions per 1/60-s half step, see "Implementation status") |
 | `VIEW_HW`, `VIEW_HH`, `VIEW_TOP` | 640, 360, 70 px | sim view rectangle (half sizes) and top HUD inset |
 | `INTEREST_HW`, `INTEREST_HH` | 900, 620 px | replication interest region |
 | `SNAP_ENEMY_CAP` | 260 | enemies per client snapshot |
