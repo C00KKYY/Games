@@ -88,14 +88,14 @@ function Screen.render(body: ScrollingFrame, msg, _command, _open)
 			TextSize = 15,
 			TextColor3 = Theme.dim,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Size = UDim2.new(0.55, 0, 1, 0),
+			Size = UDim2.fromScale(0.55, 1),
 		})
 		Kit.label(row, "→ " .. (if known then tr(w.evo.name) else "???"), {
 			Font = Theme.title,
 			TextSize = 15,
 			TextColor3 = if known then Theme.good else Theme.dim,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			Size = UDim2.new(0.45, 0, 1, 0),
+			Size = UDim2.fromScale(0.45, 1),
 			Position = UDim2.fromScale(0.55, 0),
 		})
 	end
