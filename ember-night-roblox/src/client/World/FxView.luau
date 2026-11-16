@@ -169,12 +169,11 @@ function FxView.render(dt: number)
 		n.t += dt
 		if n.t >= 0.7 then
 			n.gui.Parent = nil
-			n.gui.Adornee = nil
 			table.insert(numbers, n.gui)
 			Pool.put(n.anchor)
 			table.remove(activeNumbers, i)
 		else
-			local p = n.anchor.Position
+			local p = n.anchor.CFrame.Position
 			n.anchor.CFrame = CFrame.new(p.X, n.y0 + n.t / 0.7 * 3, p.Z)
 		end
 	end

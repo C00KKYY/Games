@@ -263,6 +263,7 @@ function Roblox.new()
 		end },
 	}
 	self.RunService = runService
+	self.services = services
 	self.closers = {}
 	self.game = {
 		JobId = "job-test",
@@ -316,18 +317,150 @@ function Roblox:require(obj)
 	return self.modules[path]
 end
 
--- ---------- client UI ----------
+-- ---------- client ----------
+-- Lune's Instances know the Roblox API (unknown properties error) but have no engine behind them: the few methods
+-- and computed properties the client uses are implemented here once (BulkMoveTo moves parts, Emit counts particles,
+-- Sound:Play counts plays; Camera.ViewportSize is 1280 x 720 unless a test sets Roblox.viewport first).
+Roblox.viewport = nil :: any
+Roblox.counters = { emitted = 0, played = 0, bulkMoved = 0 }
+local implementedClient = false
+local function implementClient()
+	if implementedClient then
+		return
+	end
+	implementedClient = true
+	roblox.implementMethod("Workspace", "BulkMoveTo", function(_, parts, cframes)
+		for i, p in parts do
+			p.CFrame = cframes[i]
+		end
+		Roblox.counters.bulkMoved += #parts
+	end)
+	roblox.implementMethod("ParticleEmitter", "Emit", function(_, n)
+		Roblox.counters.emitted += n or 1
+	end)
+	roblox.implementMethod("ParticleEmitter", "Clear", function() end)
+	roblox.implementMethod("Trail", "Clear", function() end)
+	roblox.implementMethod("Sound", "Play", function()
+		Roblox.counters.played += 1
+	end)
+	roblox.implementMethod("Sound", "Stop", function() end)
+	roblox.implementMethod("Sound", "Resume", function() end)
+	roblox.implementMethod("Sound", "Pause", function() end)
+	local function noSignal()
+		return { Connect = function()
+			return { Disconnect = function() end }
+		end }
+	end
+	for _, cls in { "Camera", "Frame", "TextLabel", "TextButton", "ScrollingFrame", "ScreenGui" } do
+		roblox.implementMethod(cls, "GetPropertyChangedSignal", function()
+			return noSignal()
+		end)
+	end
+	for _, cls in { "Sound" } do
+		roblox.implementProperty(cls, "Ended", function()
+			return noSignal()
+		end)
+		roblox.implementProperty(cls, "IsLoaded", function()
+			return true
+		end)
+	end
+end
+
+-- fake client services (input, GUI service, tweens) and the real-Instance ones (Lighting, SoundService, workspace)
+function Roblox:clientServices()
+	if self.workspace then
+		return
+	end
+	implementClient()
+	local S = self.S
+	self.workspace = roblox.Instance.new("Workspace")
+	-- computed engine properties have no default in Lune: set them (client code reads part.CFrame.Position, never
+	-- part.Position, for the same reason)
+	self.workspace.CurrentCamera.ViewportSize = Roblox.viewport or roblox.Vector2.new(1280, 720)
+	self.Lighting = roblox.Instance.new("Lighting")
+	self.SoundService = roblox.Instance.new("SoundService")
+	self.boundActions = {}
+	local rb = self
+	local uis = {
+		TouchEnabled = false,
+		KeyboardEnabled = true,
+		GamepadEnabled = false,
+		MouseEnabled = true,
+		InputBegan = newSignal(S),
+		InputEnded = newSignal(S),
+		LastInputTypeChanged = newSignal(S),
+		GamepadConnected = newSignal(S),
+		GamepadDisconnected = newSignal(S),
+	}
+	function uis.IsKeyDown()
+		return false
+	end
+	function uis.GetLastInputType()
+		return roblox.Enum.UserInputType.Keyboard
+	end
+	local cas = {}
+	function cas.BindAction(_, name, fn)
+		rb.boundActions[name] = fn
+	end
+	function cas.UnbindAction(_, name)
+		rb.boundActions[name] = nil
+	end
+	local starterGui = {}
+	function starterGui.SetCore() end
+	function starterGui.SetCoreGuiEnabled() end
+	local guiService = { SelectedObject = nil }
+	function guiService.GetGuiInset()
+		return roblox.Vector2.new(0, 36), roblox.Vector2.zero
+	end
+	function guiService.IsTenFootInterface()
+		return false
+	end
+	local tweens = {}
+	function tweens.Create(_, inst, _info, goals)
+		local tw = { Completed = newSignal(S) }
+		function tw.Play()
+			for k, v in goals do
+				inst[k] = v
+			end
+			tw.Completed:Fire(roblox.Enum.PlaybackState.Completed)
+		end
+		function tw.Cancel() end
+		function tw.Pause() end
+		function tw.Destroy() end
+		return tw
+	end
+	self.services.UserInputService = uis
+	self.services.ContextActionService = cas
+	self.services.StarterGui = starterGui
+	self.services.GuiService = guiService
+	self.services.TweenService = tweens
+	self.services.Lighting = self.Lighting
+	self.services.SoundService = self.SoundService
+	self.services.Workspace = self.workspace
+	self.GuiService = guiService
+end
+
 -- a client module by name (e.g. "UI/Router"), loaded with Lune's Roblox datatypes and Instances
 function Roblox:client(name: string)
 	implementEvents()
+	self:clientServices()
 	if not self.playerGui then
 		self.playerGui = roblox.Instance.new("Folder")
 		self.playerGui.Name = "PlayerGui"
 		local pg = self.playerGui
+		local ps = { Name = "PlayerScripts" }
+		function ps.WaitForChild()
+			return nil
+		end
 		self.Players.LocalPlayer = {
 			UserId = 1,
 			LocaleId = "en-us",
-			WaitForChild = function()
+			Name = "P1",
+			DisplayName = "Player1",
+			WaitForChild = function(_, name)
+				if name == "PlayerScripts" then
+					return ps
+				end
 				return pg
 			end,
 		}
@@ -340,6 +473,19 @@ function Roblox:client(name: string)
 	return self:requireClient(obj)
 end
 
+local FakeRandom = {}
+FakeRandom.__index = FakeRandom
+function FakeRandom.new(_seed)
+	return setmetatable({}, FakeRandom)
+end
+function FakeRandom:NextNumber(a, b)
+	a, b = a or 0, b or 1
+	return a + math.random() * (b - a)
+end
+function FakeRandom:NextInteger(a, b)
+	return math.random(a, b)
+end
+
 function Roblox:requireClient(obj)
 	local path = obj.path
 	if string.find(path, "src/shared", 1, true) then
@@ -348,6 +494,7 @@ function Roblox:requireClient(obj)
 	self.clientModules = self.clientModules or {}
 	if self.clientModules[path] == nil then
 		local file = path .. ".luau"
+		local rb = self
 		local env = {
 			game = self.game,
 			script = obj,
@@ -356,9 +503,12 @@ function Roblox:requireClient(obj)
 			end,
 			task = self.S.task,
 			os = self.os,
-			warn = function() end,
+			warn = function(...)
+				rb.clientWarnings = rb.clientWarnings or {}
+				table.insert(rb.clientWarnings, table.concat(table.pack(...) :: any, " "))
+			end,
 			print = function() end,
-			workspace = { CurrentCamera = nil },
+			workspace = self.workspace,
 			Instance = roblox.Instance,
 			UDim = roblox.UDim,
 			UDim2 = roblox.UDim2,
@@ -367,8 +517,19 @@ function Roblox:requireClient(obj)
 			CFrame = roblox.CFrame,
 			Color3 = roblox.Color3,
 			ColorSequence = roblox.ColorSequence,
+			ColorSequenceKeypoint = roblox.ColorSequenceKeypoint,
 			NumberSequence = roblox.NumberSequence,
+			NumberSequenceKeypoint = roblox.NumberSequenceKeypoint,
+			NumberRange = roblox.NumberRange,
+			Rect = roblox.Rect,
+			Font = roblox.Font,
 			Enum = roblox.Enum,
+			Random = FakeRandom,
+			TweenInfo = {
+				new = function(...)
+					return { ... }
+				end,
+			},
 		}
 		self.clientModules[path] = luau.load(fs.readFile(file), { debugName = file, environment = env })()
 	end
